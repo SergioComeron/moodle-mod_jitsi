@@ -132,13 +132,16 @@ if [ -n "$HOSTNAME_FQDN" ]; then
   if ! grep -q "$HOSTNAME_FQDN" /etc/hosts; then
     echo "127.0.1.1 $HOSTNAME_FQDN $(echo $HOSTNAME_FQDN | cut -d. -f1)" >> /etc/hosts
   fi
+  if [ -n "$AUTH_DOMAIN" ] && ! grep -q "$AUTH_DOMAIN" /etc/hosts; then
+    echo "127.0.1.1 $AUTH_DOMAIN auth" >> /etc/hosts
+  fi
   # Preseed for jitsi-meet web hostname
   echo "jitsi-meet jitsi-meet/hostname string $HOSTNAME_FQDN" | debconf-set-selections
 fi
 
 # Basic packages
 apt-get update -y
-apt-get install -y curl gnupg2 apt-transport-https ca-certificates nginx ufw dnsutils cron
+apt-get install -y curl gnupg2 apt-transport-https ca-certificates ca-certificates-java nginx ufw dnsutils cron
 
 # Jitsi repository
 curl https://download.jitsi.org/jitsi-key.gpg.key | gpg --dearmor > /usr/share/keyrings/jitsi.gpg
@@ -240,6 +243,12 @@ if [ -f "/etc/jitsi/meet/$HOSTNAME_FQDN.key" ]; then
   chmod 640     "/etc/jitsi/meet/$HOSTNAME_FQDN.key" || true
 fi
 
+# Make the current web cert trusted by the OS/Java (works with self-signed until LE is issued)
+if [ -n "$HOSTNAME_FQDN" ] && [ -f "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" ]; then
+  install -D -m 0644 "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" "/usr/local/share/ca-certificates/jitsi-$HOSTNAME_FQDN.crt" || true
+  update-ca-certificates || true
+fi
+
 # --- Open 5222 (client-to-server) in UFW ---
 ufw allow 5222/tcp || true
 
@@ -255,11 +264,12 @@ jicofo {
   xmpp {
     client {
       enabled = true
-      hostname = "localhost"
+      hostname = "${AUTH_DOMAIN}"
       port = 5222
       domain = "${AUTH_DOMAIN}"
-      username = "focus@${AUTH_DOMAIN}"
+      username = "focus"
       password = "${FOCUS_PASS}"
+      tls { enabled = true }
     }
   }
 }
@@ -272,11 +282,12 @@ EOFJICO
 videobridge {
   xmpp-client {
     enabled = true
-    hostname = "localhost"
+    hostname = "${AUTH_DOMAIN}"
     port = 5222
     domain = "${AUTH_DOMAIN}"
-    username = "jvb@${AUTH_DOMAIN}"
+    username = "jvb"
     password = "${JVB_PASS}"
+    tls { enabled = true }
   }
 }
 EOFJVB
@@ -344,6 +355,9 @@ if [ "$USE_LE" = "1" ]; then
   fi
   chgrp prosody "/etc/jitsi/meet/$HOSTNAME_FQDN.key" || true
   chmod 640     "/etc/jitsi/meet/$HOSTNAME_FQDN.key" || true
+  # Refresh system/Java trust to include the new cert
+  install -D -m 0644 "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" "/usr/local/share/ca-certificates/jitsi-$HOSTNAME_FQDN.crt" || true
+  update-ca-certificates || true
   systemctl restart prosody || true
   systemctl restart jicofo || true
   systemctl restart jitsi-videobridge2 || true
@@ -402,6 +416,9 @@ if [ -n "$HOSTNAME_FQDN" ] && [ -n "$LE_EMAIL" ] && [ -n "$MYIP" ] && [ "$MYIP" 
   ln -sf "/etc/jitsi/meet/$HOSTNAME_FQDN.key" "/etc/prosody/certs/$AUTH_DOMAIN.key"
   chgrp prosody "/etc/jitsi/meet/$HOSTNAME_FQDN.key" || true
   chmod 640     "/etc/jitsi/meet/$HOSTNAME_FQDN.key" || true
+  # Refresh system/Java trust with the new cert
+  install -D -m 0644 "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" "/usr/local/share/ca-certificates/jitsi-$HOSTNAME_FQDN.crt" || true
+  update-ca-certificates || true
   systemctl restart prosody || true
   systemctl restart jicofo || true
   systemctl restart jitsi-videobridge2 || true
