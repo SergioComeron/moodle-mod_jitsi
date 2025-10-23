@@ -272,6 +272,10 @@ jicofo {
       tls { enabled = true }
     }
   }
+  bridge {
+    brewery-jid = "JvbBrewery@internal.${AUTH_DOMAIN}"
+    selection-strategy = "SplitBridgeSelectionStrategy"
+  }
 }
 EOFJICO
   # Also set legacy env vars for compatibility
@@ -280,14 +284,34 @@ EOFJICO
 
   cat >/etc/jitsi/videobridge/jvb.conf <<EOFJVB
 videobridge {
-  xmpp-client {
-    enabled = true
-    hostname = "${AUTH_DOMAIN}"
-    port = 5222
-    domain = "${AUTH_DOMAIN}"
-    username = "jvb"
-    password = "${JVB_PASS}"
-    tls { enabled = true }
+  ice {
+    udp {
+      port = 10000
+    }
+    tcp {
+      enabled = true
+      port = 4443
+    }
+    mapping {
+      stun {
+        addresses = [ "meet-jit-si-turnrelay.jitsi.net:443" ]
+      }
+    }
+  }
+  apis {
+    xmpp-client {
+      enabled = true
+      hostname = "${AUTH_DOMAIN}"
+      port = 5222
+      domain = "${AUTH_DOMAIN}"
+      username = "jvb"
+      password = "${JVB_PASS}"
+      # Sala brewery (MUC) donde debe entrar el JVB
+      muc_jids = "JvbBrewery@internal.${AUTH_DOMAIN}"
+      # Alias único para identificar este bridge en la brewery
+      muc_nickname = "jvb-$(hostname)-$(openssl rand -hex 3)"
+      tls { enabled = true }
+    }
   }
 }
 EOFJVB
