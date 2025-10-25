@@ -112,366 +112,440 @@ if (!function_exists('mod_jitsi_default_startup_script')) {
      */
     function mod_jitsi_default_startup_script(): string {
         return <<<'BASH'
-#!/bin/bash
-set -euxo pipefail
+        #!/bin/bash
+        set -euxo pipefail
 
-export DEBIAN_FRONTEND=noninteractive
+        export DEBIAN_FRONTEND=noninteractive
 
-# Read metadata values (if any)
-META="http://metadata.google.internal/computeMetadata/v1"
-HOSTNAME_FQDN=$(curl -s -H "Metadata-Flavor: Google" "$META/instance/attributes/HOSTNAME_FQDN" || true)
-LE_EMAIL=$(curl -s -H "Metadata-Flavor: Google" "$META/instance/attributes/LE_EMAIL" || true)
-AUTH_DOMAIN=""
-if [ -n "$HOSTNAME_FQDN" ]; then
-  AUTH_DOMAIN="auth.$HOSTNAME_FQDN"
-fi
+        # Read metadata values (if any)
+        META="http://metadata.google.internal/computeMetadata/v1"
+        HOSTNAME_FQDN=$(curl -s -H "Metadata-Flavor: Google" "$META/instance/attributes/HOSTNAME_FQDN" || true)
+        LE_EMAIL=$(curl -s -H "Metadata-Flavor: Google" "$META/instance/attributes/LE_EMAIL" || true)
+        AUTH_DOMAIN=""
+        if [ -n "$HOSTNAME_FQDN" ]; then
+          AUTH_DOMAIN="auth.$HOSTNAME_FQDN"
+        fi
 
-# If we received a target FQDN, set the system hostname so jitsi-meet uses it
-if [ -n "$HOSTNAME_FQDN" ]; then
-  hostnamectl set-hostname "$HOSTNAME_FQDN"
-  if ! grep -q "$HOSTNAME_FQDN" /etc/hosts; then
-    echo "127.0.1.1 $HOSTNAME_FQDN $(echo $HOSTNAME_FQDN | cut -d. -f1)" >> /etc/hosts
-  fi
-  if [ -n "$AUTH_DOMAIN" ] && ! grep -q "$AUTH_DOMAIN" /etc/hosts; then
-    echo "127.0.1.1 $AUTH_DOMAIN auth" >> /etc/hosts
-  fi
-  # Preseed for jitsi-meet web hostname
-  echo "jitsi-meet jitsi-meet/hostname string $HOSTNAME_FQDN" | debconf-set-selections
-fi
+        # If we received a target FQDN, set the system hostname so jitsi-meet uses it
+        if [ -n "$HOSTNAME_FQDN" ]; then
+          hostnamectl set-hostname "$HOSTNAME_FQDN"
+          if ! grep -q "$HOSTNAME_FQDN" /etc/hosts; then
+            echo "127.0.1.1 $HOSTNAME_FQDN $(echo $HOSTNAME_FQDN | cut -d. -f1)" >> /etc/hosts
+          fi
+          if [ -n "$AUTH_DOMAIN" ] && ! grep -q "$AUTH_DOMAIN" /etc/hosts; then
+            echo "127.0.1.1 $AUTH_DOMAIN auth" >> /etc/hosts
+          fi
+          # Preseed for jitsi-meet web hostname
+          echo "jitsi-meet jitsi-meet/hostname string $HOSTNAME_FQDN" | debconf-set-selections
+        fi
 
-# Basic packages
-apt-get update -y
-apt-get install -y curl gnupg2 apt-transport-https ca-certificates ca-certificates-java nginx ufw dnsutils cron
+        # Basic packages
+        apt-get update -y
+        apt-get install -y curl gnupg2 apt-transport-https ca-certificates ca-certificates-java nginx ufw dnsutils cron
 
-# Jitsi repository
-curl https://download.jitsi.org/jitsi-key.gpg.key | gpg --dearmor > /usr/share/keyrings/jitsi.gpg
-echo 'deb [signed-by=/usr/share/keyrings/jitsi.gpg] https://download.jitsi.org stable/' > /etc/apt/sources.list.d/jitsi-stable.list
-apt-get update -y
+        # Jitsi repository
+        curl https://download.jitsi.org/jitsi-key.gpg.key | gpg --dearmor > /usr/share/keyrings/jitsi.gpg
+        echo 'deb [signed-by=/usr/share/keyrings/jitsi.gpg] https://download.jitsi.org stable/' > /etc/apt/sources.list.d/jitsi-stable.list
+        apt-get update -y
 
-# Preseed hostname for JVB
-if [ -n "$HOSTNAME_FQDN" ]; then
-  echo "jitsi-videobridge jitsi-videobridge/jvb-hostname string $HOSTNAME_FQDN" | debconf-set-selections
-fi
+        # Preseed hostname for JVB
+        if [ -n "$HOSTNAME_FQDN" ]; then
+          echo "jitsi-videobridge jitsi-videobridge/jvb-hostname string $HOSTNAME_FQDN" | debconf-set-selections
+        fi
 
-MYIP=$(curl -s -H "Metadata-Flavor: Google" "$META/instance/network-interfaces/0/access-configs/0/external-ip" || true)
-DNSIP_HOST=""
-DNSIP_AUTH=""
-WAIT_SECS=0
-if [ -n "$HOSTNAME_FQDN" ]; then
-  while [ $WAIT_SECS -lt 900 ]; do
-    DNSIP_HOST=$(dig +short A "$HOSTNAME_FQDN" @1.1.1.1 | head -n1 || true)
-    if [ -n "$AUTH_DOMAIN" ]; then
-      DNSIP_AUTH=$(dig +short A "$AUTH_DOMAIN" @1.1.1.1 | head -n1 || true)
-    fi
-    if [ -n "$MYIP" ] && [ "$MYIP" = "$DNSIP_HOST" ] && { [ -z "$AUTH_DOMAIN" ] || [ "$MYIP" = "$DNSIP_AUTH" ]; }; then
-      break
-    fi
-    sleep 15
-    WAIT_SECS=$((WAIT_SECS + 15))
-  done
-fi
+        MYIP=$(curl -s -H "Metadata-Flavor: Google" "$META/instance/network-interfaces/0/access-configs/0/external-ip" || true)
+        LOCALIP=$(ip route get 1.1.1.1 | awk '{print $7; exit}')
+        DNSIP_HOST=""
+        DNSIP_AUTH=""
+        WAIT_SECS=0
+        if [ -n "$HOSTNAME_FQDN" ]; then
+          while [ $WAIT_SECS -lt 900 ]; do
+            DNSIP_HOST=$(dig +short A "$HOSTNAME_FQDN" @1.1.1.1 | head -n1 || true)
+            if [ -n "$AUTH_DOMAIN" ]; then
+              DNSIP_AUTH=$(dig +short A "$AUTH_DOMAIN" @1.1.1.1 | head -n1 || true)
+            fi
+            if [ -n "$MYIP" ] && [ "$MYIP" = "$DNSIP_HOST" ] && { [ -z "$AUTH_DOMAIN" ] || [ "$MYIP" = "$DNSIP_AUTH" ]; }; then
+              break
+            fi
+            sleep 15
+            WAIT_SECS=$((WAIT_SECS + 15))
+          done
+        fi
 
-USE_LE=0
-if [ -n "$HOSTNAME_FQDN" ] && [ -n "$LE_EMAIL" ] && [ -n "$MYIP" ] && [ -n "$DNSIP_HOST" ] && [ "$MYIP" = "$DNSIP_HOST" ]; then
-  if [ -z "$AUTH_DOMAIN" ] || { [ -n "$DNSIP_AUTH" ] && [ "$MYIP" = "$DNSIP_AUTH" ]; }; then
-    USE_LE=1
-  fi
-fi
+        USE_LE=0
+        if [ -n "$HOSTNAME_FQDN" ] && [ -n "$LE_EMAIL" ] && [ -n "$MYIP" ] && [ -n "$DNSIP_HOST" ] && [ "$MYIP" = "$DNSIP_HOST" ]; then
+          if [ -z "$AUTH_DOMAIN" ] || { [ -n "$DNSIP_AUTH" ] && [ "$MYIP" = "$DNSIP_AUTH" ]; }; then
+            USE_LE=1
+          fi
+        fi
 
-if [ "$USE_LE" = "1" ]; then
-  echo "jitsi-meet-web-config jitsi-meet/cert-choice select Let's Encrypt" | debconf-set-selections
-  echo "jitsi-meet-web-config jitsi-meet/cert-email string $LE_EMAIL" | debconf-set-selections
-  # Preconfigure certbot to avoid interactive prompts
-  mkdir -p /etc/letsencrypt
-  cat >/etc/letsencrypt/cli.ini <<EOF
-email = $LE_EMAIL
-agree-tos = true
-non-interactive = true
-EOF
-else
-  echo "jitsi-meet-web-config jitsi-meet/cert-choice select Generate a new self-signed certificate (You will later get a chance to obtain a Let's Encrypt certificate)" | debconf-set-selections
-fi
+        if [ "$USE_LE" = "1" ]; then
+          echo "jitsi-meet-web-config jitsi-meet/cert-choice select Let's Encrypt" | debconf-set-selections
+          echo "jitsi-meet-web-config jitsi-meet/cert-email string $LE_EMAIL" | debconf-set-selections
+          mkdir -p /etc/letsencrypt
+          cat > /etc/letsencrypt/cli.ini << 'EOFLE'
+        email = PLACEHOLDER_EMAIL
+        agree-tos = true
+        non-interactive = true
+        EOFLE
+          sed -i "s/PLACEHOLDER_EMAIL/$LE_EMAIL/g" /etc/letsencrypt/cli.ini
+        else
+          echo "jitsi-meet-web-config jitsi-meet/cert-choice select Generate a new self-signed certificate (You will later get a chance to obtain a Let's Encrypt certificate)" | debconf-set-selections
+        fi
 
-# Install Jitsi Meet
-apt-get install -y jitsi-meet
+        # Install Jitsi Meet
+        apt-get install -y jitsi-meet
 
-# --- Ensure Prosody main config enables c2s (5222) and includes host configs ---
-if [ ! -f /etc/prosody/prosody.cfg.lua ]; then
-  cat >/etc/prosody/prosody.cfg.lua <<'EOFPROS'
--- Prosody main config (auto-generated by mod_jitsi)
-daemonize = true
-c2s_ports = { 5222 }
-s2s_ports = { 5269 }
-c2s_interfaces = { "*" }
-s2s_interfaces = { "*" }
-Include "conf.d/*.cfg.lua"
-Include "conf.avail/*.cfg.lua"
-EOFPROS
-  chown root:prosody /etc/prosody/prosody.cfg.lua
-  chmod 640 /etc/prosody/prosody.cfg.lua
-fi
+        # Ensure Prosody main config has plugin_paths and correct settings
+        cat > /etc/prosody/prosody.cfg.lua << 'EOFPROS'
+        -- Prosody Configuration File
+        plugin_paths = { "/usr/share/jitsi-meet/prosody-plugins/" }
 
-# --- Ensure VirtualHost for auth.$HOSTNAME_FQDN exists and is enabled ---
-if [ -n "$AUTH_DOMAIN" ]; then
-  AUTH_CFG="/etc/prosody/conf.avail/${AUTH_DOMAIN}.cfg.lua"
-  if [ ! -f "$AUTH_CFG" ]; then
-    cat >"$AUTH_CFG" <<'EOFAUTH'
-VirtualHost "__AUTH_DOMAIN__"
-    authentication = "internal_hashed"
-    ssl = {
-        key = "/etc/prosody/certs/__AUTH_DOMAIN__.key";
-        certificate = "/etc/prosody/certs/__AUTH_DOMAIN__.crt";
-    }
-EOFAUTH
-    sed -i "s#__AUTH_DOMAIN__#${AUTH_DOMAIN}#g" "$AUTH_CFG"
-  fi
-  ln -sf ../conf.avail/"${AUTH_DOMAIN}.cfg.lua" /etc/prosody/conf.d/"${AUTH_DOMAIN}.cfg.lua"
-fi
+        -- Network configuration
+        c2s_ports = { 5222 }
+        s2s_ports = { 5269 }
+        component_ports = { 5347 }
 
-# --- Ensure Prosody cert symlinks for jitsi & auth and permissions ---
-install -d /etc/prosody/certs
-if [ -n "$HOSTNAME_FQDN" ]; then
-  ln -sf "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" "/etc/prosody/certs/$HOSTNAME_FQDN.crt"
-  ln -sf "/etc/jitsi/meet/$HOSTNAME_FQDN.key" "/etc/prosody/certs/$HOSTNAME_FQDN.key"
-fi
-if [ -n "$AUTH_DOMAIN" ]; then
-  ln -sf "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" "/etc/prosody/certs/$AUTH_DOMAIN.crt"
-  ln -sf "/etc/jitsi/meet/$HOSTNAME_FQDN.key" "/etc/prosody/certs/$AUTH_DOMAIN.key"
-fi
-if [ -f "/etc/jitsi/meet/$HOSTNAME_FQDN.key" ]; then
-  chgrp prosody "/etc/jitsi/meet/$HOSTNAME_FQDN.key" || true
-  chmod 640     "/etc/jitsi/meet/$HOSTNAME_FQDN.key" || true
-fi
+        -- Modules
+        modules_enabled = {
+            "roster";
+            "saslauth";
+            "tls";
+            "dialback";
+            "disco";
+            "carbons";
+            "pep";
+            "private";
+            "blocklist";
+            "vcard4";
+            "vcard_legacy";
+            "version";
+            "uptime";
+            "time";
+            "ping";
+            "admin_adhoc";
+            "bosh";
+            "websocket";
+        }
 
-# Make the current web cert trusted by the OS/Java (works with self-signed until LE is issued)
-if [ -n "$HOSTNAME_FQDN" ] && [ -f "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" ]; then
-  install -D -m 0644 "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" "/usr/local/share/ca-certificates/jitsi-$HOSTNAME_FQDN.crt" || true
-  update-ca-certificates || true
-fi
+        modules_disabled = {}
 
-# --- Open 5222 (client-to-server) in UFW ---
-ufw allow 5222/tcp || true
+        allow_registration = false
+        c2s_require_encryption = false
+        s2s_require_encryption = false
+        s2s_secure_auth = false
 
-# --- Create XMPP users focus & jvb and wire passwords into Jicofo/JVB configs ---
-if [ -n "$AUTH_DOMAIN" ]; then
-  FOCUS_PASS=$(openssl rand -hex 16)
-  JVB_PASS=$(openssl rand -hex 16)
-  prosodyctl register focus "$AUTH_DOMAIN" "$FOCUS_PASS" || true
-  prosodyctl register jvb    "$AUTH_DOMAIN" "$JVB_PASS" || true
+        authentication = "internal_hashed"
 
-  cat >/etc/jitsi/jicofo/jicofo.conf <<EOFJICO
-jicofo {
-  xmpp {
-    client {
-      enabled = true
-      hostname = "${AUTH_DOMAIN}"
-      port = 5222
-      domain = "${AUTH_DOMAIN}"
-      username = "focus"
-      password = "${FOCUS_PASS}"
-      tls { enabled = true }
-    }
-  }
-  bridge {
-    brewery-jid = "JvbBrewery@internal.${AUTH_DOMAIN}"
-    selection-strategy = "SplitBridgeSelectionStrategy"
-  }
-}
-EOFJICO
-  # Also set legacy env vars for compatibility
-  echo "JICOFO_AUTH_USER=focus" >> /etc/jitsi/jicofo/config
-  echo "JICOFO_AUTH_PASSWORD=${FOCUS_PASS}" >> /etc/jitsi/jicofo/config
+        log = {
+            info = "/var/log/prosody/prosody.log";
+            error = "/var/log/prosody/prosody.err";
+            "*syslog";
+        }
 
-  cat >/etc/jitsi/videobridge/jvb.conf <<EOFJVB
-videobridge {
-  ice {
-    udp {
-      port = 10000
-    }
-    tcp {
-      enabled = true
-      port = 4443
-    }
-    mapping {
-      stun {
-        addresses = [ "meet-jit-si-turnrelay.jitsi.net:443" ]
-      }
-    }
-  }
-  apis {
-    xmpp-client {
-      enabled = true
-      hostname = "${AUTH_DOMAIN}"
-      port = 5222
-      domain = "${AUTH_DOMAIN}"
-      username = "jvb"
-      password = "${JVB_PASS}"
-      # Sala brewery (MUC) donde debe entrar el JVB
-      muc_jids = "JvbBrewery@internal.${AUTH_DOMAIN}"
-      # Alias único para identificar este bridge en la brewery
-      muc_nickname = "jvb-$(hostname)-$(openssl rand -hex 3)"
-      tls { enabled = true }
-    }
-  }
-}
-EOFJVB
-  # Also set legacy env vars for compatibility
-  echo "JVB_AUTH_USER=jvb" >> /etc/jitsi/videobridge/config
-  echo "JVB_AUTH_PASSWORD=${JVB_PASS}" >> /etc/jitsi/videobridge/config
-fi
-# --- Mini vhost para auth.$HOSTNAME_FQDN sirviendo el challenge de ACME ---
-if [ -n "$AUTH_DOMAIN" ]; then
-  mkdir -p /usr/share/jitsi-meet/.well-known/acme-challenge
-  cat >/etc/nginx/sites-available/auth-challenge.conf <<EOFNGA
-server {
-  listen 80;
-  listen [::]:80;
-  server_name $AUTH_DOMAIN;
+        certificates = "certs"
 
-  root /usr/share/jitsi-meet;
+        -- Include virtual hosts
+        Include "conf.d/*.cfg.lua"
+        EOFPROS
 
-  location ^~ /.well-known/acme-challenge/ {
-    default_type "text/plain";
-    alias /usr/share/jitsi-meet/.well-known/acme-challenge/;
-  }
-  location / { return 204; }
-}
-EOFNGA
-  ln -sf /etc/nginx/sites-available/auth-challenge.conf /etc/nginx/sites-enabled/auth-challenge.conf
-  nginx -t && systemctl reload nginx || true
-fi
-# If DNS was ready, issue LE for both host and auth using acme.sh and install into /etc/jitsi/meet
-if [ "$USE_LE" = "1" ]; then
-  # Ensure acme.sh is present
-  if [ ! -x /opt/acmesh/.acme.sh/acme.sh ]; then
-    curl -fsSL https://get.acme.sh | sh -s email=$LE_EMAIL
-  fi
-  ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
-  if [ ! -x "$ACME_BIN" ]; then
-    # acme.sh sometimes installs to `/.acme.sh` when run as root; normalize
-    if [ -x "/.acme.sh/acme.sh" ]; then
-      mkdir -p /opt/acmesh
-      ln -sfn /.acme.sh /opt/acmesh/.acme.sh
-      ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
-    elif [ -x "/root/.acme.sh/acme.sh" ]; then
-      mkdir -p /opt/acmesh
-      ln -sfn /root/.acme.sh /opt/acmesh/.acme.sh
-      ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
-    fi
-  fi
-  $ACME_BIN --set-default-ca --server letsencrypt || true
-  if [ -n "$AUTH_DOMAIN" ]; then
-    $ACME_BIN --issue -d "$HOSTNAME_FQDN" -d "$AUTH_DOMAIN" --webroot /usr/share/jitsi-meet --keylength ec-256 --force
-  else
-    $ACME_BIN --issue -d "$HOSTNAME_FQDN" --webroot /usr/share/jitsi-meet --keylength ec-256 --force
-  fi
-  $ACME_BIN --install-cert -d "$HOSTNAME_FQDN" \
-    --key-file       "/etc/jitsi/meet/$HOSTNAME_FQDN.key" \
-    --fullchain-file "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" \
-    --reloadcmd "systemctl force-reload nginx.service && /usr/share/jitsi-meet/scripts/coturn-le-update.sh $HOSTNAME_FQDN"
-  # Link certs for Prosody and restart XMPP + conferencing services
-  install -d /etc/prosody/certs
-  ln -sf "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" "/etc/prosody/certs/$HOSTNAME_FQDN.crt"
-  ln -sf "/etc/jitsi/meet/$HOSTNAME_FQDN.key" "/etc/prosody/certs/$HOSTNAME_FQDN.key"
-  if [ -n "$AUTH_DOMAIN" ]; then
-    ln -sf "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" "/etc/prosody/certs/$AUTH_DOMAIN.crt"
-    ln -sf "/etc/jitsi/meet/$HOSTNAME_FQDN.key" "/etc/prosody/certs/$AUTH_DOMAIN.key"
-  fi
-  chgrp prosody "/etc/jitsi/meet/$HOSTNAME_FQDN.key" || true
-  chmod 640     "/etc/jitsi/meet/$HOSTNAME_FQDN.key" || true
-  # Refresh system/Java trust to include the new cert
-  install -D -m 0644 "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" "/usr/local/share/ca-certificates/jitsi-$HOSTNAME_FQDN.crt" || true
-  update-ca-certificates || true
-  systemctl restart prosody || true
-  systemctl restart jicofo || true
-  systemctl restart jitsi-videobridge2 || true
-fi
+        chown root:prosody /etc/prosody/prosody.cfg.lua
+        chmod 640 /etc/prosody/prosody.cfg.lua
 
-# If we installed self-signed because DNS wasn't ready, schedule retries for LE
-if [ "$USE_LE" != "1" ]; then
-  cat >/usr/local/bin/jitsi-issue-le.sh <<'EOS'
-#!/bin/bash
-set -e
-META="http://metadata.google.internal/computeMetadata/v1"
-HOSTNAME_FQDN=$(curl -s -H "Metadata-Flavor: Google" "$META/instance/attributes/HOSTNAME_FQDN" || true)
-LE_EMAIL=$(curl -s -H "Metadata-Flavor: Google" "$META/instance/attributes/LE_EMAIL" || true)
-MYIP=$(curl -s -H "Metadata-Flavor: Google" "$META/instance/network-interfaces/0/access-configs/0/external-ip" || true)
-DNSIP_HOST=$(dig +short A "$HOSTNAME_FQDN" @1.1.1.1 | head -n1 || true)
-AUTH_DOMAIN="auth.$HOSTNAME_FQDN"
-DNSIP_AUTH=$(dig +short A "$AUTH_DOMAIN" @1.1.1.1 | head -n1 || true)
-if [ -n "$HOSTNAME_FQDN" ] && [ -n "$LE_EMAIL" ] && [ -n "$MYIP" ] && [ "$MYIP" = "$DNSIP_HOST" ] && { [ -z "$AUTH_DOMAIN" ] || [ "$MYIP" = "$DNSIP_AUTH" ]; }; then
-  ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
-  if [ ! -x "$ACME_BIN" ]; then
-    if [ -x "/.acme.sh/acme.sh" ]; then
-      mkdir -p /opt/acmesh
-      ln -sfn /.acme.sh /opt/acmesh/.acme.sh
-      ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
-    elif [ -x "/root/.acme.sh/acme.sh" ]; then
-      mkdir -p /opt/acmesh
-      ln -sfn /root/.acme.sh /opt/acmesh/.acme.sh
-      ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
-    fi
-  fi
-  if [ ! -x "$ACME_BIN" ]; then
-    curl -fsSL https://get.acme.sh | sh -s email=$LE_EMAIL
-    # Try to set up ACME_BIN again after install
-    if [ -x "/opt/acmesh/.acme.sh/acme.sh" ]; then
-      ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
-    elif [ -x "/.acme.sh/acme.sh" ]; then
-      mkdir -p /opt/acmesh
-      ln -sfn /.acme.sh /opt/acmesh/.acme.sh
-      ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
-    elif [ -x "/root/.acme.sh/acme.sh" ]; then
-      mkdir -p /opt/acmesh
-      ln -sfn /root/.acme.sh /opt/acmesh/.acme.sh
-      ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
-    fi
-  fi
-  $ACME_BIN --set-default-ca --server letsencrypt || true
-  $ACME_BIN --issue -d "$HOSTNAME_FQDN" -d "$AUTH_DOMAIN" --webroot /usr/share/jitsi-meet --keylength ec-256 --force
-  $ACME_BIN --install-cert -d "$HOSTNAME_FQDN" \
-    --key-file       "/etc/jitsi/meet/$HOSTNAME_FQDN.key" \
-    --fullchain-file "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" \
-    --reloadcmd "systemctl force-reload nginx.service && /usr/share/jitsi-meet/scripts/coturn-le-update.sh $HOSTNAME_FQDN"
-  install -d /etc/prosody/certs
-  ln -sf "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" "/etc/prosody/certs/$HOSTNAME_FQDN.crt"
-  ln -sf "/etc/jitsi/meet/$HOSTNAME_FQDN.key" "/etc/prosody/certs/$HOSTNAME_FQDN.key"
-  ln -sf "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" "/etc/prosody/certs/$AUTH_DOMAIN.crt"
-  ln -sf "/etc/jitsi/meet/$HOSTNAME_FQDN.key" "/etc/prosody/certs/$AUTH_DOMAIN.key"
-  chgrp prosody "/etc/jitsi/meet/$HOSTNAME_FQDN.key" || true
-  chmod 640     "/etc/jitsi/meet/$HOSTNAME_FQDN.key" || true
-  # Refresh system/Java trust with the new cert
-  install -D -m 0644 "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" "/usr/local/share/ca-certificates/jitsi-$HOSTNAME_FQDN.crt" || true
-  update-ca-certificates || true
-  systemctl restart prosody || true
-  systemctl restart jicofo || true
-  systemctl restart jitsi-videobridge2 || true
-  if command -v crontab >/dev/null 2>&1; then
-    crontab -l | grep -v 'jitsi-issue-le.sh' | crontab - || true
-  fi
-fi
-EOS
-  chmod +x /usr/local/bin/jitsi-issue-le.sh
-  if command -v crontab >/dev/null 2>&1; then
-    (crontab -l 2>/dev/null; echo "*/5 * * * * /usr/local/bin/jitsi-issue-le.sh >/var/log/jitsi-issue-le.log 2>&1") | crontab - || true
-  fi
-  # Ensure services are up after base config even if LE is pending
-  systemctl restart prosody jicofo jitsi-videobridge2 || true
-fi
+        # Ensure Prosody cert symlinks for jitsi and auth
+        install -d /etc/prosody/certs
+        if [ -n "$HOSTNAME_FQDN" ]; then
+          ln -sf "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" "/etc/prosody/certs/$HOSTNAME_FQDN.crt"
+          ln -sf "/etc/jitsi/meet/$HOSTNAME_FQDN.key" "/etc/prosody/certs/$HOSTNAME_FQDN.key"
+        fi
+        if [ -n "$AUTH_DOMAIN" ]; then
+          ln -sf "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" "/etc/prosody/certs/$AUTH_DOMAIN.crt"
+          ln -sf "/etc/jitsi/meet/$HOSTNAME_FQDN.key" "/etc/prosody/certs/$AUTH_DOMAIN.key"
+        fi
+        if [ -f "/etc/jitsi/meet/$HOSTNAME_FQDN.key" ]; then
+          chgrp prosody "/etc/jitsi/meet/$HOSTNAME_FQDN.key" || true
+          chmod 640     "/etc/jitsi/meet/$HOSTNAME_FQDN.key" || true
+        fi
 
-# Firewall
-ufw allow 22/tcp
-ufw allow 80/tcp
-ufw allow 443/tcp
-ufw allow 10000/udp
-# 5222/tcp was already allowed above
-ufw --force enable
+        # Make the current web cert trusted by the OS/Java
+        if [ -n "$HOSTNAME_FQDN" ] && [ -f "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" ]; then
+          install -D -m 0644 "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" "/usr/local/share/ca-certificates/jitsi-$HOSTNAME_FQDN.crt" || true
+          update-ca-certificates || true
+        fi
 
-# Marker file
-mkdir -p /var/local
-printf '%s\n' "BOOT_DONE=1" > /var/local/jitsi_boot_done
+        # Open firewall ports
+        ufw allow 22/tcp
+        ufw allow 80/tcp
+        ufw allow 443/tcp
+        ufw allow 5222/tcp
+        ufw allow 10000/udp
+        ufw allow 4443/tcp
+        ufw --force enable
 
-BASH;
+        # Create XMPP users focus and jvb
+        if [ -n "$AUTH_DOMAIN" ]; then
+          FOCUS_PASS=$(openssl rand -hex 16)
+          JVB_PASS=$(openssl rand -hex 16)
+          
+          # Restart Prosody to ensure it's running
+          systemctl restart prosody || true
+          sleep 5
+          
+          # Register users with retry logic
+          for i in {1..5}; do
+            if prosodyctl register focus "$AUTH_DOMAIN" "$FOCUS_PASS" 2>/dev/null; then
+              echo "User focus registered successfully"
+              break
+            fi
+            echo "Retry $i: Failed to register focus user, retrying..."
+            sleep 2
+          done
+          
+          for i in {1..5}; do
+            if prosodyctl register jvb "$AUTH_DOMAIN" "$JVB_PASS" 2>/dev/null; then
+              echo "User jvb registered successfully"
+              break
+            fi
+            echo "Retry $i: Failed to register jvb user, retrying..."
+            sleep 2
+          done
+
+          # Configure Jicofo
+          cat > /etc/jitsi/jicofo/jicofo.conf << EOFJICO
+        jicofo {
+          xmpp {
+            client {
+              enabled = true
+              hostname = "${AUTH_DOMAIN}"
+              port = 5222
+              domain = "${AUTH_DOMAIN}"
+              username = "focus"
+              password = "${FOCUS_PASS}"
+              tls { enabled = true }
+              client-proxy = "focus.${HOSTNAME_FQDN}"
+              xmpp-domain = "${HOSTNAME_FQDN}"
+            }
+          }
+          bridge {
+            brewery-jid = "JvbBrewery@internal.${AUTH_DOMAIN}"
+            selection-strategy = "SplitBridgeSelectionStrategy"
+          }
+          conference {
+            enable-auto-owner = true
+          }
+        }
+        EOFJICO
+
+          # Configure JVB with correct IPs
+          JVB_NICKNAME="jvb-$(hostname)-$(openssl rand -hex 3)"
+          cat > /etc/jitsi/videobridge/jvb.conf << EOFJVB
+        videobridge {
+          ice {
+            udp {
+              port = 10000
+            }
+            tcp {
+              enabled = true
+              port = 4443
+            }
+            publicAddress = "${MYIP}"
+            privateAddress = "${LOCALIP}"
+          }
+          apis {
+            xmpp-client {
+              configs {
+                xmpp-server-1 {
+                  hostname = "${AUTH_DOMAIN}"
+                  port = 5222
+                  domain = "${AUTH_DOMAIN}"
+                  username = "jvb"
+                  password = "${JVB_PASS}"
+                  muc_jids = "JvbBrewery@internal.${AUTH_DOMAIN}"
+                  muc_nickname = "${JVB_NICKNAME}"
+                  disable_certificate_verification = true
+                }
+              }
+            }
+          }
+          stats {
+            enabled = true
+          }
+        }
+        EOFJVB
+
+          # Create sip-communicator.properties with IP harvesting configuration
+          cat > /etc/jitsi/videobridge/sip-communicator.properties << EOFPROPS
+        org.ice4j.ice.harvest.NAT_HARVESTER_LOCAL_ADDRESS=${LOCALIP}
+        org.ice4j.ice.harvest.NAT_HARVESTER_PUBLIC_ADDRESS=${MYIP}
+        org.ice4j.ice.harvest.DISABLE_AWS_HARVESTER=true
+        org.ice4j.ice.harvest.STUN_MAPPING_HARVESTER_ADDRESSES=
+        EOFPROPS
+
+          # Add JVB environment variables as backup
+          mkdir -p /etc/systemd/system/jitsi-videobridge2.service.d
+          cat > /etc/systemd/system/jitsi-videobridge2.service.d/override.conf << EOFSVC
+        [Service]
+        Environment="JVB_OPTS=-Dorg.ice4j.ice.harvest.NAT_HARVESTER_LOCAL_ADDRESS=${MYIP} -Dorg.ice4j.ice.harvest.NAT_HARVESTER_PUBLIC_ADDRESS=${MYIP}"
+        EOFSVC
+          systemctl daemon-reload
+        fi
+
+        # Mini vhost for auth domain serving ACME challenge
+        if [ -n "$AUTH_DOMAIN" ]; then
+          mkdir -p /usr/share/jitsi-meet/.well-known/acme-challenge
+          cat > /etc/nginx/sites-available/auth-challenge.conf << EOFNGA
+        server {
+          listen 80;
+          listen [::]:80;
+          server_name $AUTH_DOMAIN;
+
+          root /usr/share/jitsi-meet;
+
+          location ^~ /.well-known/acme-challenge/ {
+            default_type "text/plain";
+            alias /usr/share/jitsi-meet/.well-known/acme-challenge/;
+          }
+          location / { return 204; }
+        }
+        EOFNGA
+          ln -sf /etc/nginx/sites-available/auth-challenge.conf /etc/nginx/sites-enabled/auth-challenge.conf
+          nginx -t && systemctl reload nginx || true
+        fi
+
+        # If DNS was ready, issue LE for both host and auth using acme.sh
+        if [ "$USE_LE" = "1" ]; then
+          # Ensure acme.sh is present
+          if [ ! -x /opt/acmesh/.acme.sh/acme.sh ]; then
+            curl -fsSL https://get.acme.sh | sh -s email="$LE_EMAIL"
+          fi
+          ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
+          if [ ! -x "$ACME_BIN" ]; then
+            if [ -x "/.acme.sh/acme.sh" ]; then
+              mkdir -p /opt/acmesh
+              ln -sfn /.acme.sh /opt/acmesh/.acme.sh
+              ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
+            elif [ -x "/root/.acme.sh/acme.sh" ]; then
+              mkdir -p /opt/acmesh
+              ln -sfn /root/.acme.sh /opt/acmesh/.acme.sh
+              ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
+            fi
+          fi
+          
+          $ACME_BIN --set-default-ca --server letsencrypt || true
+          
+          # Issue certificate
+          if [ -n "$AUTH_DOMAIN" ]; then
+            $ACME_BIN --issue -d "$HOSTNAME_FQDN" -d "$AUTH_DOMAIN" --webroot /usr/share/jitsi-meet --keylength ec-256 --force || true
+          else
+            $ACME_BIN --issue -d "$HOSTNAME_FQDN" --webroot /usr/share/jitsi-meet --keylength ec-256 --force || true
+          fi
+          
+          # Install certificate
+          $ACME_BIN --install-cert -d "$HOSTNAME_FQDN" \
+            --key-file       "/etc/jitsi/meet/$HOSTNAME_FQDN.key" \
+            --fullchain-file "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" \
+            --reloadcmd "systemctl force-reload nginx.service && /usr/share/jitsi-meet/scripts/coturn-le-update.sh $HOSTNAME_FQDN || true"
+          
+          # Update cert permissions
+          chgrp prosody "/etc/jitsi/meet/$HOSTNAME_FQDN.key" || true
+          chmod 640     "/etc/jitsi/meet/$HOSTNAME_FQDN.key" || true
+          
+          # Refresh system/Java trust
+          install -D -m 0644 "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" "/usr/local/share/ca-certificates/jitsi-$HOSTNAME_FQDN.crt" || true
+          update-ca-certificates || true
+        fi
+
+        # If self-signed, schedule retries for LE
+        if [ "$USE_LE" != "1" ] && [ -n "$LE_EMAIL" ]; then
+          cat > /usr/local/bin/jitsi-issue-le.sh << 'EOSRETRY'
+        #!/bin/bash
+        set -e
+
+        # Check if LE cert already issued
+        if [ -f /var/local/jitsi_le_success ]; then
+          exit 0
+        fi
+
+        META="http://metadata.google.internal/computeMetadata/v1"
+        HOSTNAME_FQDN=$(curl -s -H "Metadata-Flavor: Google" "$META/instance/attributes/HOSTNAME_FQDN" || true)
+        LE_EMAIL=$(curl -s -H "Metadata-Flavor: Google" "$META/instance/attributes/LE_EMAIL" || true)
+        MYIP=$(curl -s -H "Metadata-Flavor: Google" "$META/instance/network-interfaces/0/access-configs/0/external-ip" || true)
+        DNSIP_HOST=$(dig +short A "$HOSTNAME_FQDN" @1.1.1.1 | head -n1 || true)
+        AUTH_DOMAIN="auth.$HOSTNAME_FQDN"
+        DNSIP_AUTH=$(dig +short A "$AUTH_DOMAIN" @1.1.1.1 | head -n1 || true)
+
+        if [ -n "$HOSTNAME_FQDN" ] && [ -n "$LE_EMAIL" ] && [ -n "$MYIP" ] && [ "$MYIP" = "$DNSIP_HOST" ] && [ "$MYIP" = "$DNSIP_AUTH" ]; then
+          ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
+          if [ ! -x "$ACME_BIN" ]; then
+            if [ -x "/.acme.sh/acme.sh" ]; then
+              mkdir -p /opt/acmesh
+              ln -sfn /.acme.sh /opt/acmesh/.acme.sh
+              ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
+            elif [ -x "/root/.acme.sh/acme.sh" ]; then
+              mkdir -p /opt/acmesh
+              ln -sfn /root/.acme.sh /opt/acmesh/.acme.sh
+              ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
+            fi
+          fi
+          
+          if [ ! -x "$ACME_BIN" ]; then
+            curl -fsSL https://get.acme.sh | sh -s email="$LE_EMAIL"
+            if [ -x "/opt/acmesh/.acme.sh/acme.sh" ]; then
+              ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
+            elif [ -x "/.acme.sh/acme.sh" ]; then
+              mkdir -p /opt/acmesh
+              ln -sfn /.acme.sh /opt/acmesh/.acme.sh
+              ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
+            elif [ -x "/root/.acme.sh/acme.sh" ]; then
+              mkdir -p /opt/acmesh
+              ln -sfn /root/.acme.sh /opt/acmesh/.acme.sh
+              ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
+            fi
+          fi
+          
+          $ACME_BIN --set-default-ca --server letsencrypt || true
+          $ACME_BIN --issue -d "$HOSTNAME_FQDN" -d "$AUTH_DOMAIN" --webroot /usr/share/jitsi-meet --keylength ec-256 --force
+          $ACME_BIN --install-cert -d "$HOSTNAME_FQDN" \
+            --key-file       "/etc/jitsi/meet/$HOSTNAME_FQDN.key" \
+            --fullchain-file "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" \
+            --reloadcmd "systemctl force-reload nginx.service && /usr/share/jitsi-meet/scripts/coturn-le-update.sh $HOSTNAME_FQDN || true"
+          
+          chgrp prosody "/etc/jitsi/meet/$HOSTNAME_FQDN.key" || true
+          chmod 640     "/etc/jitsi/meet/$HOSTNAME_FQDN.key" || true
+          install -D -m 0644 "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" "/usr/local/share/ca-certificates/jitsi-$HOSTNAME_FQDN.crt" || true
+          update-ca-certificates || true
+          systemctl restart prosody jicofo jitsi-videobridge2 || true
+          
+          # Remove cron job on success
+          touch /var/local/jitsi_le_success
+          if command -v crontab >/dev/null 2>&1; then
+            crontab -l | grep -v 'jitsi-issue-le.sh' | crontab - || true
+          fi
+        fi
+        EOSRETRY
+          chmod +x /usr/local/bin/jitsi-issue-le.sh
+          if command -v crontab >/dev/null 2>&1; then
+            (crontab -l 2>/dev/null; echo "*/5 * * * * /usr/local/bin/jitsi-issue-le.sh >/var/log/jitsi-issue-le.log 2>&1") | crontab - || true
+          fi
+        fi
+
+        # Restart all services in correct order
+        systemctl restart prosody || true
+        sleep 5
+        systemctl restart jicofo || true
+        sleep 3
+        systemctl restart jitsi-videobridge2 || true
+
+        # Marker file
+        mkdir -p /var/local
+        printf '%s\n' "BOOT_DONE=1" > /var/local/jitsi_boot_done
+
+        echo "Jitsi deployment completed successfully"
+        echo "HOSTNAME: $HOSTNAME_FQDN"
+        echo "Public IP: $MYIP"
+        echo "Local IP: $LOCALIP"
+
+    BASH;
     }
 }
 if (!function_exists('mod_jitsi_gcp_client')) {
