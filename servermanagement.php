@@ -22,6 +22,43 @@
  */
 
 require_once(__DIR__ . '/../../config.php');
+
+$action  = optional_param('action', '', PARAM_ALPHA);
+
+if ($action === 'jitsiready') {
+    // Este endpoint NO requiere sesskey porque es llamado desde la VM
+    @header('Content-Type: application/json');
+    
+    $instancename = required_param('instance', PARAM_TEXT);
+    $token = required_param('token', PARAM_ALPHANUMEXT);
+    $ip = optional_param('ip', '', PARAM_TEXT);
+    $hostname = optional_param('hostname', '', PARAM_TEXT);
+    
+    // Verificar token almacenado en la sesión o en DB temporal
+    $tokenkey = 'mod_jitsi_vmtoken_' . clean_param($instancename, PARAM_ALPHANUMEXT);
+    $storedtoken = get_config('mod_jitsi', $tokenkey);
+    
+    if (empty($storedtoken) || $storedtoken !== $token) {
+        echo json_encode(['status' => 'error', 'message' => 'Invalid token']);
+        exit;
+    }
+    
+    // Marcar como completado en la sesión global (usando config temporal)
+    $statuskey = 'mod_jitsi_vmstatus_' . clean_param($instancename, PARAM_ALPHANUMEXT);
+    set_config($statuskey, json_encode([
+        'status' => 'ready',
+        'ip' => $ip,
+        'hostname' => $hostname,
+        'timestamp' => time(),
+    ]), 'mod_jitsi');
+    
+    // Limpiar el token (ya no es necesario)
+    unset_config($tokenkey, 'mod_jitsi');
+    
+    echo json_encode(['status' => 'ok', 'message' => 'Installation confirmed']);
+    exit;
+}
+
 require_login();
 require_capability('moodle/site:config', context_system::instance());
 
@@ -49,7 +86,6 @@ foreach ($gcpautoloaders as $autoload) {
 }
 
 
-$action  = optional_param('action', '', PARAM_ALPHA);
 $id      = optional_param('id', 0, PARAM_INT);
 $confirm = optional_param('confirm', 0, PARAM_BOOL);
 
@@ -121,6 +157,8 @@ if (!function_exists('mod_jitsi_default_startup_script')) {
     META="http://metadata.google.internal/computeMetadata/v1"
     HOSTNAME_FQDN=$(curl -s -H "Metadata-Flavor: Google" "$META/instance/attributes/HOSTNAME_FQDN" || true)
     LE_EMAIL=$(curl -s -H "Metadata-Flavor: Google" "$META/instance/attributes/LE_EMAIL" || true)
+    CALLBACK_URL=$(curl -s -H "Metadata-Flavor: Google" "$META/instance/attributes/CALLBACK_URL" || true)
+
     AUTH_DOMAIN=""
     if [ -n "$HOSTNAME_FQDN" ]; then
       AUTH_DOMAIN="auth.$HOSTNAME_FQDN"
@@ -620,6 +658,16 @@ if (!function_exists('mod_jitsi_default_startup_script')) {
     echo "Local IP: $LOCALIP"
     echo "IP auto-update service enabled for reboots"
 
+    # Notificar a Moodle que la instalación terminó
+    if [ -n "$CALLBACK_URL" ]; then
+      echo "Notifying Moodle that installation is complete..."
+      curl -X POST "$CALLBACK_URL&ip=$MYIP&hostname=$HOSTNAME_FQDN" \
+        --max-time 10 \
+        --retry 3 \
+        --retry-delay 5 \
+        || echo "Warning: Could not notify Moodle (callback failed)"
+    fi
+
     BASH;
     }
 }
@@ -667,6 +715,9 @@ if (!function_exists('mod_jitsi_gcp_create_instance')) {
         }
         if (!empty($opts['letsencryptEmail'])) {
             $metadataItems[] = ['key' => 'LE_EMAIL', 'value' => $opts['letsencryptEmail']];
+        }
+        if (!empty($opts['callbackUrl'])) {
+            $metadataItems[] = ['key' => 'CALLBACK_URL', 'value' => $opts['callbackUrl']];
         }
 
         $instanceParams = [
@@ -761,6 +812,18 @@ if ($action === 'creategcpvm') {
 
     $instancename = 'jitsi-test-'.date('ymdHi');
 
+    // Generar token único para esta VM
+    $vmtoken = bin2hex(random_bytes(32));
+    $tokenkey = 'mod_jitsi_vmtoken_' . clean_param($instancename, PARAM_ALPHANUMEXT);
+    set_config($tokenkey, $vmtoken, 'mod_jitsi');
+    
+    // URL del callback (debe ser accesible públicamente)
+    $callbackurl = (new moodle_url('/mod/jitsi/servermanagement.php', [
+        'action' => 'jitsiready',
+        'instance' => $instancename,
+        'token' => $vmtoken,
+    ]))->out(false);
+
     try {
         $compute = mod_jitsi_gcp_client();
         // Derive a short network name for CLI instructions (e.g., "default").
@@ -787,6 +850,7 @@ if ($action === 'creategcpvm') {
             'hostname' => $hostname,
             'letsencryptEmail' => $leemail,
             'startupScript' => $sscript,
+            'callbackUrl' => $callbackurl, // Pasar URL al script
         ]);
         // Save operation info in session for status polling.
         if (!isset($SESSION->mod_jitsi_ops)) { $SESSION->mod_jitsi_ops = []; }
@@ -868,6 +932,35 @@ if ($action === 'gcpstatusjson') {
         echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
         exit;
     }
+}
+
+if ($action === 'checkjitsiready') {
+    require_sesskey();
+    @header('Content-Type: application/json');
+    $instancename = required_param('instance', PARAM_TEXT);
+    
+    $statuskey = 'mod_jitsi_vmstatus_' . clean_param($instancename, PARAM_ALPHANUMEXT);
+    $statusjson = get_config('mod_jitsi', $statuskey);
+    
+    if (empty($statusjson)) {
+        echo json_encode(['status' => 'installing']);
+    } else {
+        $status = json_decode($statusjson, true);
+        if ($status && $status['status'] === 'ready') {
+            // Limpiar después de 5 minutos para no acumular basura
+            if (time() - $status['timestamp'] > 300) {
+                unset_config($statuskey, 'mod_jitsi');
+            }
+            echo json_encode([
+                'status' => 'ready',
+                'ip' => $status['ip'] ?? '',
+                'hostname' => $status['hostname'] ?? '',
+            ]);
+        } else {
+            echo json_encode(['status' => 'installing']);
+        }
+    }
+    exit;
 }
 
 // Action: poll & display status while the VM is being created.
@@ -1075,6 +1168,7 @@ $init = [
     'listUrl' => $listurl,
     'creatingText' => $creating,
     'hostname' => (string) get_config('mod_jitsi', 'gcp_hostname'),
+    'checkReadyUrl' => (new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'checkjitsiready']))->out(false),
 ];
 $initjson = json_encode($init, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_AMP|JSON_HEX_QUOT);
 $PAGE->requires->js_init_code(
@@ -1086,6 +1180,7 @@ $PAGE->requires->js_init_code(
     "  var textEl = document.getElementById('gcp-modal-text');\n".
     "  var backdrop;\n".
     "  var lastWarnHTML = '';\n".
+    "  var vmInfo = {};\n".
     "  function showModal(){\n".
     "    if (!modalEl) return;\n".
     "    modalEl.classList.add('show');\n".
@@ -1095,124 +1190,95 @@ $PAGE->requires->js_init_code(
     "    backdrop.className = 'modal-backdrop fade show';\n".
     "    document.body.appendChild(backdrop);\n".
     "  }\n".
-    "  function hideModal(){\n".
-    "    if (!modalEl) return;\n".
-    "    modalEl.classList.remove('show');\n".
-    "    modalEl.style.display = 'none';\n".
-    "    modalEl.setAttribute('aria-hidden','true');\n".
-    "    if (backdrop && backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);\n".
-    "  }\n".
     "  async function postJSON(url, data){\n".
     "    var res = await fetch(url, {method: 'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: new URLSearchParams(data)});\n".
     "    if (!res.ok) throw new Error('HTTP ' + res.status);\n".
     "    return await res.json();\n".
+    "  }\n".
+    "  async function checkJitsiReady(){\n".
+    "    try {\n".
+    "      var data = await postJSON(cfg.checkReadyUrl, {\n".
+    "        sesskey: cfg.sesskey,\n".
+    "        instance: vmInfo.instancename\n".
+    "      });\n".
+    "      if (data.status === 'installing') {\n".
+    "        if (textEl) {\n".
+    "          textEl.innerHTML = (\n".
+    "            (lastWarnHTML || '') +\n".
+    "            '<h5>⚙️ Installing Jitsi Meet...</h5>'+ \n".
+    "            '<p>The VM is ready. Installing and configuring Jitsi services.</p>'+\n".
+    "            '<p class=\"text-muted\">This takes 8-12 minutes. Please wait...</p>'+\n".
+    "            '<div class=\"spinner-border spinner-border-sm\" role=\"status\"></div>'\n".
+    "          );\n".
+    "        }\n".
+    "        setTimeout(checkJitsiReady, 10000);\n".
+    "      } else if (data.status === 'ready') {\n".
+    "        showSuccessMessage(data.ip, data.hostname);\n".
+    "      }\n".
+    "    } catch(e){\n".
+    "      if (textEl) textEl.innerHTML = '<p class=\"text-warning\">Cannot verify status. Check the VM console.</p>';\n".
+    "    }\n".
+    "  }\n".
+    "  function showSuccessMessage(ip, hostname){\n".
+    "    var host = hostname || cfg.hostname || 'your-hostname.example.com';\n".
+    "    if (textEl) {\n".
+    "      textEl.innerHTML = (\n".
+    "        (lastWarnHTML || '') +\n".
+    "        '<h5>✅ Jitsi Server Ready!</h5>'+ \n".
+    "        '<p class=\"text-success\"><strong>Installation completed successfully</strong></p>'+ \n".
+    "        '<p>Public IP: <strong>'+ ip +'</strong></p>'+\n".
+    "        '<p>Your Jitsi Meet server is ready at: <code>https://'+ host +'</code></p>'+\n".
+    "        '<div class=\"mt-3\">'+\n".
+    "          '<button id=\"copy-ip\" class=\"btn btn-outline-secondary me-2\">Copy IP</button>'+\n".
+    "          '<a href=\"'+ cfg.listUrl +'\" class=\"btn btn-primary\">Close</a>'+\n".
+    "        '</div>'\n".
+    "      );\n".
+    "      var copyBtn = document.getElementById('copy-ip');\n".
+    "      if (copyBtn && navigator.clipboard) {\n".
+    "        copyBtn.addEventListener('click', function(){ navigator.clipboard.writeText(ip); });\n".
+    "      }\n".
+    "    }\n".
     "  }\n".
     "  async function pollStatus(opname){\n".
     "    try {\n".
     "      var data = await postJSON(cfg.statusUrl, {sesskey: cfg.sesskey, opname: opname});\n".
     "      if (data.status === 'pending') {\n".
     "        setTimeout(function(){ pollStatus(opname); }, 1500);\n".
-    "        if (data.fwwarn && textEl) {\n".
-    "          var warn = document.createElement('div');\n".
-    "          warn.className = 'alert alert-warning mt-3';\n".
-    "          var net = (data.networkshort || 'default');\n".
-    "          var detail = data.fwwarn_detail ? ('<pre class=\"mb-2\"><code>'+ String(data.fwwarn_detail).replace(/[<>]/g, function(c){return ({'<':'&lt;','>':'&gt;'}[c]);}) +'</code></pre>') : '';\n".
-    "          var cmd = [\n".
-    "            'gcloud compute firewall-rules create mod-jitsi-allow-web \\\\',\n".
-    "            '  --network='+ net +' \\\\',\n".
-    "            '  --direction=INGRESS --priority=1000 --action=ALLOW \\\\',\n".
-    "            '  --rules=tcp:80,tcp:443,udp:10000 \\\\',\n".
-    "            '  --source-ranges=0.0.0.0/0 \\\\',\n".
-    "            '  --target-tags=mod-jitsi-web'\n".
-    "          ].join('\\n');\n".
-    "          warn.innerHTML = '<strong>'+ data.fwwarn +'</strong>'+\n".
-    "            (detail ? '<div class=\"small text-muted\">Error detail:</div>'+ detail : '')+\n".
-    "            '<div class=\"mt-2\">Create it manually with:</div>'+ \n".
-    "            '<pre class=\"mt-1\"><code>'+ cmd +'</code></pre>'+ \n".
-    "            '<button id=\"copy-fw\" type=\"button\" class=\"btn btn-sm btn-outline-secondary\">Copy command</button>';\n".
-    "          textEl.appendChild(warn);\n".
-    "          var cbtn = document.getElementById('copy-fw');\n".
-    "          if (cbtn && navigator.clipboard) {\n".
-    "            cbtn.addEventListener('click', function(){ navigator.clipboard.writeText(cmd); });\n".
-    "          }\n".
-    "          lastWarnHTML = warn.outerHTML;\n".
-    "        }\n".
     "      } else if (data.status === 'done') {\n".
-    "        var ip = (data.ip || '');\n".
-    "        var host = (cfg.hostname || 'your-hostname.example.com');\n".
+    "        vmInfo.ip = (data.ip || '');\n".
     "        if (textEl) {\n".
     "          textEl.innerHTML = (\n".
     "            (lastWarnHTML || '') +\n".
-    "            '<h5>✅ VM created</h5>'+ \n".
-    "            '<p class=\"text-muted\">Firewall step executed (rule: <code>mod-jitsi-allow-web</code>, tag: <code>mod-jitsi-web</code>).</p>'+ \n".
-    "            '<p>Public IP: <strong>'+ ip +'</strong></p>'+\n".
-    "            '<p>Add <code>A</code> records in your DNS pointing both hostnames to that IP.'+\n".
-    "            ' If you use Cloudflare, make sure the records are <strong>DNS only</strong> (proxy off).</p>'+ \n".
-    "            '<pre><code>'+ host + '           A  ' + ip + '\\n' + 'auth.'+ host + '   A  ' + ip + '</code></pre>'+ \n".
-    "            '<p>Once both DNS records point to this IP, the server will automatically obtain a multi-domain Let\\'s Encrypt certificate and reload services.</p>'+ \n".
-    "            '<div class=\"mt-3\">'+\n".
-    "              '<button id=\"copy-ip\" type=\"button\" class=\"btn btn-outline-secondary me-2\">Copy IP</button>'+\n".
-    "              '<a href=\"'+ cfg.listUrl +'\" class=\"btn btn-primary\">Close</a>'+\n".
-    "            '</div>'\n".
+    "            '<h5>⚙️ VM Created - Installing Jitsi...</h5>'+ \n".
+    "            '<p>Starting installation process...</p>'+\n".
+    "            '<div class=\"spinner-border spinner-border-sm\" role=\"status\"></div>'\n".
     "          );\n".
-    "          var copyBtn = document.getElementById('copy-ip');\n".
-    "          if (copyBtn && navigator.clipboard) {\n".
-    "            copyBtn.addEventListener('click', function(){ navigator.clipboard.writeText(ip); });\n".
-    "          }\n".
     "        }\n".
+    "        setTimeout(checkJitsiReady, 15000);\n".
     "      } else {\n".
     "        if (textEl) textEl.textContent = 'Error: ' + (data.message || 'Unknown');\n".
-    "        setTimeout(function(){ window.location.href = cfg.listUrl; }, 2000);\n".
     "      }\n".
     "    } catch(e){\n".
     "      if (textEl) textEl.textContent = 'Error: ' + e.message;\n".
-    "      setTimeout(function(){ window.location.href = cfg.listUrl; }, 2000);\n".
     "    }\n".
     "  }\n".
     "  btn.addEventListener('click', async function(){\n".
     "    showModal();\n".
     "    if (textEl) {\n".
-    "      textEl.innerHTML = '<h5>⏳ Creating resources…</h5>'+\n".
-    "        '<p>Ensuring firewall (TCP 80/443 and UDP 10000) and creating the VM in Google Cloud. This can take a few minutes.</p>'+\n".
-    "        '<p>You can close this dialog and come back later; the process continues in the background.</p>'+\n".
-    "        '<div class=\"mt-3\"><a href=\"'+ cfg.listUrl +'\" class=\"btn btn-outline-secondary\">Close</a></div>';\n".
+    "      textEl.innerHTML = '<h5>⏳ Creating VM...</h5>'+\n".
+    "        '<p>Setting up infrastructure in Google Cloud.</p>'+\n".
+    "        '<div class=\"spinner-border spinner-border-sm\" role=\"status\"></div>';\n".
     "    }\n".
     "    try {\n".
     "      var data = await postJSON(cfg.createUrl, {sesskey: cfg.sesskey});\n".
     "      if (data && data.status === 'pending' && data.opname){\n".
+    "        vmInfo.instancename = data.instancename;\n".
     "        pollStatus(data.opname);\n".
-    "        if (data.fwwarn && textEl) {\n".
-    "          var warn = document.createElement('div');\n".
-    "          warn.className = 'alert alert-warning mt-3';\n".
-    "          var net = (data.networkshort || 'default');\n".
-    "          var detail = data.fwwarn_detail ? ('<pre class=\"mb-2\"><code>'+ String(data.fwwarn_detail).replace(/[<>]/g, function(c){return ({'<':'&lt;','>':'&gt;'}[c]);}) +'</code></pre>') : '';\n".
-    "          var cmd = [\n".
-    "            'gcloud compute firewall-rules create mod-jitsi-allow-web \\\\',\n".
-    "            '  --network='+ net +' \\\\',\n".
-    "            '  --direction=INGRESS --priority=1000 --action=ALLOW \\\\',\n".
-    "            '  --rules=tcp:80,tcp:443,udp:10000 \\\\',\n".
-    "            '  --source-ranges=0.0.0.0/0 \\\\',\n".
-    "            '  --target-tags=mod-jitsi-web'\n".
-    "          ].join('\\n');\n".
-    "          warn.innerHTML = '<strong>'+ data.fwwarn +'</strong>'+\n".
-    "            (detail ? '<div class=\"small text-muted\">Error detail:</div>'+ detail : '')+\n".
-    "            '<div class=\"mt-2\">Create it manually with:</div>'+ \n".
-    "            '<pre class=\"mt-1\"><code>'+ cmd +'</code></pre>'+ \n".
-    "            '<button id=\"copy-fw\" type=\"button\" class=\"btn btn-sm btn-outline-secondary\">Copy command</button>';\n".
-    "          textEl.appendChild(warn);\n".
-    "          var cbtn = document.getElementById('copy-fw');\n".
-    "          if (cbtn && navigator.clipboard) {\n".
-    "            cbtn.addEventListener('click', function(){ navigator.clipboard.writeText(cmd); });\n".
-    "          }\n".
-    "          lastWarnHTML = warn.outerHTML;\n".
-    "        }\n".
     "      } else {\n".
     "        if (textEl) textEl.textContent = 'Error starting VM creation';\n".
-    "        setTimeout(function(){ window.location.reload(); }, 1500);\n".
     "      }\n".
     "    } catch(e){\n".
     "      if (textEl) textEl.textContent = 'Error: ' + e.message;\n".
-    "      setTimeout(function(){ window.location.reload(); }, 1500);\n".
     "    }\n".
     "  });\n".
     "})();"
