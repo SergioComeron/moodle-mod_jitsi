@@ -33,6 +33,7 @@ if ($action === 'jitsiready') {
     $token = required_param('token', PARAM_ALPHANUMEXT);
     $ip = optional_param('ip', '', PARAM_TEXT);
     $hostname = optional_param('hostname', '', PARAM_TEXT);
+    $phase = optional_param('phase', 'completed', PARAM_ALPHAEXT); // AGREGAR ESTO
     
     // Verificar token almacenado en la sesión o en DB temporal
     $tokenkey = 'mod_jitsi_vmtoken_' . clean_param($instancename, PARAM_ALPHANUMEXT);
@@ -43,19 +44,21 @@ if ($action === 'jitsiready') {
         exit;
     }
     
-    // Marcar como completado en la sesión global (usando config temporal)
+    // Guardar estado según la fase
     $statuskey = 'mod_jitsi_vmstatus_' . clean_param($instancename, PARAM_ALPHANUMEXT);
     set_config($statuskey, json_encode([
-        'status' => 'ready',
+        'status' => $phase, // CAMBIAR DE 'ready' a $phase
         'ip' => $ip,
         'hostname' => $hostname,
         'timestamp' => time(),
     ]), 'mod_jitsi');
     
-    // Limpiar el token (ya no es necesario)
-    unset_config($tokenkey, 'mod_jitsi');
+    // Solo limpiar el token cuando la instalación se complete
+    if ($phase === 'completed') {
+        unset_config($tokenkey, 'mod_jitsi');
+    }
     
-    echo json_encode(['status' => 'ok', 'message' => 'Installation confirmed']);
+    echo json_encode(['status' => 'ok', 'message' => 'Status updated', 'phase' => $phase]);
     exit;
 }
 
@@ -147,8 +150,8 @@ if (!function_exists('mod_jitsi_default_startup_script')) {
      * - Otherwise installs self-signed cert and schedules retries for LE.
      */
     function mod_jitsi_default_startup_script(): string {
-        return <<<'BASH'
-        #!/bin/bash
+    return <<<'BASH'
+    #!/bin/bash
     set -euxo pipefail
 
     export DEBIAN_FRONTEND=noninteractive
@@ -164,6 +167,15 @@ if (!function_exists('mod_jitsi_default_startup_script')) {
       AUTH_DOMAIN="auth.$HOSTNAME_FQDN"
     fi
 
+    # Get public IP early
+    MYIP=$(curl -s -H "Metadata-Flavor: Google" "$META/instance/network-interfaces/0/access-configs/0/external-ip" || true)
+
+    # Notify Moodle that VM is created and waiting for DNS
+    if [ -n "$CALLBACK_URL" ]; then
+      curl -X POST "${CALLBACK_URL}&ip=${MYIP}&hostname=${HOSTNAME_FQDN}&phase=waiting_dns" \
+        --max-time 10 --retry 2 --retry-delay 3 || true
+    fi
+
     # If we received a target FQDN, set the system hostname so jitsi-meet uses it
     if [ -n "$HOSTNAME_FQDN" ]; then
       hostnamectl set-hostname "$HOSTNAME_FQDN"
@@ -173,7 +185,6 @@ if (!function_exists('mod_jitsi_default_startup_script')) {
       if [ -n "$AUTH_DOMAIN" ] && ! grep -q "$AUTH_DOMAIN" /etc/hosts; then
         echo "127.0.1.1 $AUTH_DOMAIN auth" >> /etc/hosts
       fi
-      # Preseed for jitsi-meet web hostname
       echo "jitsi-meet jitsi-meet/hostname string $HOSTNAME_FQDN" | debconf-set-selections
     fi
 
@@ -207,8 +218,18 @@ if (!function_exists('mod_jitsi_default_startup_script')) {
         # Check if IPs match
         if [ -n "$MYIP" ] && [ -n "$DNSIP_HOST" ] && [ "$MYIP" = "$DNSIP_HOST" ]; then
           if [ -z "$AUTH_DOMAIN" ]; then
+            # DNS ready, notify Moodle
+            if [ -n "$CALLBACK_URL" ]; then
+              curl -X POST "${CALLBACK_URL}&ip=${MYIP}&hostname=${HOSTNAME_FQDN}&phase=dns_ready" \
+                --max-time 10 --retry 2 --retry-delay 3 || true
+            fi
             break
           elif [ -n "$DNSIP_AUTH" ] && [ "$MYIP" = "$DNSIP_AUTH" ]; then
+            # DNS ready, notify Moodle
+            if [ -n "$CALLBACK_URL" ]; then
+              curl -X POST "${CALLBACK_URL}&ip=${MYIP}&hostname=${HOSTNAME_FQDN}&phase=dns_ready" \
+                --max-time 10 --retry 2 --retry-delay 3 || true
+            fi
             break
           fi
         fi
@@ -653,15 +674,11 @@ if (!function_exists('mod_jitsi_default_startup_script')) {
     printf '%s\n' "BOOT_DONE=1" > /var/local/jitsi_boot_done
 
     echo "Jitsi deployment completed successfully"
-    echo "HOSTNAME: $HOSTNAME_FQDN"
-    echo "Public IP: $MYIP"
-    echo "Local IP: $LOCALIP"
-    echo "IP auto-update service enabled for reboots"
 
     # Notificar a Moodle que la instalación terminó
     if [ -n "$CALLBACK_URL" ]; then
       echo "Notifying Moodle that installation is complete..."
-      curl -X POST "$CALLBACK_URL&ip=$MYIP&hostname=$HOSTNAME_FQDN" \
+      curl -X POST "${CALLBACK_URL}&ip=$MYIP&hostname=$HOSTNAME_FQDN&phase=completed" \
         --max-time 10 \
         --retry 3 \
         --retry-delay 5 \
@@ -946,16 +963,18 @@ if ($action === 'checkjitsiready') {
         echo json_encode(['status' => 'installing']);
     } else {
         $status = json_decode($statusjson, true);
-        if ($status && $status['status'] === 'ready') {
-            // Limpiar después de 5 minutos para no acumular basura
-            if (time() - $status['timestamp'] > 300) {
-                unset_config($statuskey, 'mod_jitsi');
-            }
+        if ($status) {
+            // Devolver el estado actual con toda la info
             echo json_encode([
-                'status' => 'ready',
+                'status' => $status['status'], // puede ser waiting_dns, dns_ready, completed
                 'ip' => $status['ip'] ?? '',
                 'hostname' => $status['hostname'] ?? '',
             ]);
+            
+            // Limpiar después de completado y pasado tiempo
+            if ($status['status'] === 'completed' && time() - $status['timestamp'] > 300) {
+                unset_config($statuskey, 'mod_jitsi');
+            }
         } else {
             echo json_encode(['status' => 'installing']);
         }
@@ -1181,6 +1200,7 @@ $PAGE->requires->js_init_code(
     "  var backdrop;\n".
     "  var lastWarnHTML = '';\n".
     "  var vmInfo = {};\n".
+    "  var dnsWarningShown = false;\n".
     "  function showModal(){\n".
     "    if (!modalEl) return;\n".
     "    modalEl.classList.add('show');\n".
@@ -1197,14 +1217,70 @@ $PAGE->requires->js_init_code(
     "  }\n".
     "  async function checkJitsiReady(){\n".
     "    try {\n".
+    "      console.log('Checking Jitsi ready status for:', vmInfo.instancename);\n".
     "      var data = await postJSON(cfg.checkReadyUrl, {\n".
     "        sesskey: cfg.sesskey,\n".
     "        instance: vmInfo.instancename\n".
     "      });\n".
-    "      if (data.status === 'installing') {\n".
+    "      console.log('Status received:', data);\n".
+    "      if (data.status === 'waiting_dns') {\n".
+    "        if (!dnsWarningShown) {\n".
+    "          dnsWarningShown = true;\n".
+    "          var host = data.hostname || cfg.hostname || 'your-hostname.example.com';\n".
+    "          var authHost = 'auth.' + host;\n".
+    "          var ip = data.ip || vmInfo.ip || '';\n".
+    "          if (textEl) {\n".
+    "            textEl.innerHTML = (\n".
+    "              '<div class=\"alert alert-warning\"><h5>⚠️ Action Required: Configure DNS</h5>'+ \n".
+    "              '<p><strong>Public IP: <code>'+ ip +'</code></strong></p>'+\n".
+    "              '<p>Please create the following DNS A records:</p>'+\n".
+    "              '<ul class=\"text-start\">'+\n".
+    "                '<li><code>'+ host +' → '+ ip +'</code></li>'+\n".
+    "                '<li><code>'+ authHost +' → '+ ip +'</code></li>'+\n".
+    "              '</ul>'+\n".
+    "              '<p class=\"text-muted\">The installation will continue automatically once DNS propagates (checking every 15 seconds, timeout 15 minutes).</p>'+\n".
+    "              '<div id=\"dns-copy-buttons\" class=\"mt-2\">'+\n".
+    "                '<button id=\"copy-ip-dns\" class=\"btn btn-sm btn-outline-primary me-2\">Copy IP</button>'+\n".
+    "                '<button id=\"copy-records\" class=\"btn btn-sm btn-outline-secondary\">Copy DNS Records</button>'+\n".
+    "              '</div>'+\n".
+    "              '</div>'+\n".
+    "              '<div class=\"text-center\">'+\n".
+    "                '<div class=\"spinner-border spinner-border-sm\" role=\"status\"></div>'+\n".
+    "                '<p class=\"mt-2\">Waiting for DNS propagation...</p>'+\n".
+    "              '</div>'\n".
+    "            );\n".
+    "            var copyIpBtn = document.getElementById('copy-ip-dns');\n".
+    "            var copyRecordsBtn = document.getElementById('copy-records');\n".
+    "            if (copyIpBtn && navigator.clipboard) {\n".
+    "              copyIpBtn.addEventListener('click', function(){ \n".
+    "                navigator.clipboard.writeText(ip);\n".
+    "                copyIpBtn.textContent = '✓ Copied!';\n".
+    "                setTimeout(function(){ copyIpBtn.textContent = 'Copy IP'; }, 2000);\n".
+    "              });\n".
+    "            }\n".
+    "            if (copyRecordsBtn && navigator.clipboard) {\n".
+    "              copyRecordsBtn.addEventListener('click', function(){ \n".
+    "                var records = host + ' A ' + ip + '\\\\n' + authHost + ' A ' + ip;\n".
+    "                navigator.clipboard.writeText(records);\n".
+    "                copyRecordsBtn.textContent = '✓ Copied!';\n".
+    "                setTimeout(function(){ copyRecordsBtn.textContent = 'Copy DNS Records'; }, 2000);\n".
+    "              });\n".
+    "            }\n".
+    "          }\n".
+    "        }\n".
+    "        setTimeout(checkJitsiReady, 10000);\n".
+    "      } else if (data.status === 'dns_ready') {\n".
     "        if (textEl) {\n".
     "          textEl.innerHTML = (\n".
-    "            (lastWarnHTML || '') +\n".
+    "            '<h5>✅ DNS Configured!</h5>'+ \n".
+    "            '<p class=\"text-success\">DNS records detected. Starting Jitsi installation...</p>'+\n".
+    "            '<div class=\"spinner-border spinner-border-sm\" role=\"status\"></div>'\n".
+    "          );\n".
+    "        }\n".
+    "        setTimeout(checkJitsiReady, 5000);\n".
+    "      } else if (data.status === 'installing') {\n".
+    "        if (textEl) {\n".
+    "          textEl.innerHTML = (\n".
     "            '<h5>⚙️ Installing Jitsi Meet...</h5>'+ \n".
     "            '<p>The VM is ready. Installing and configuring Jitsi services.</p>'+\n".
     "            '<p class=\"text-muted\">This takes 8-12 minutes. Please wait...</p>'+\n".
@@ -1212,10 +1288,11 @@ $PAGE->requires->js_init_code(
     "          );\n".
     "        }\n".
     "        setTimeout(checkJitsiReady, 10000);\n".
-    "      } else if (data.status === 'ready') {\n".
+    "      } else if (data.status === 'completed') {\n".
     "        showSuccessMessage(data.ip, data.hostname);\n".
     "      }\n".
     "    } catch(e){\n".
+    "      console.error('Check ready error:', e);\n".
     "      if (textEl) textEl.innerHTML = '<p class=\"text-warning\">Cannot verify status. Check the VM console.</p>';\n".
     "    }\n".
     "  }\n".
@@ -1249,12 +1326,12 @@ $PAGE->requires->js_init_code(
     "        if (textEl) {\n".
     "          textEl.innerHTML = (\n".
     "            (lastWarnHTML || '') +\n".
-    "            '<h5>⚙️ VM Created - Installing Jitsi...</h5>'+ \n".
-    "            '<p>Starting installation process...</p>'+\n".
+    "            '<h5>⚙️ VM Created - Starting Configuration...</h5>'+ \n".
+    "            '<p>Checking installation status...</p>'+\n".
     "            '<div class=\"spinner-border spinner-border-sm\" role=\"status\"></div>'\n".
     "          );\n".
     "        }\n".
-    "        setTimeout(checkJitsiReady, 15000);\n".
+    "        setTimeout(checkJitsiReady, 3000);\n".
     "      } else {\n".
     "        if (textEl) textEl.textContent = 'Error: ' + (data.message || 'Unknown');\n".
     "      }\n".
@@ -1273,6 +1350,7 @@ $PAGE->requires->js_init_code(
     "      var data = await postJSON(cfg.createUrl, {sesskey: cfg.sesskey});\n".
     "      if (data && data.status === 'pending' && data.opname){\n".
     "        vmInfo.instancename = data.instancename;\n".
+    "        console.log('VM instance name:', vmInfo.instancename);\n".
     "        pollStatus(data.opname);\n".
     "      } else {\n".
     "        if (textEl) textEl.textContent = 'Error starting VM creation';\n".
