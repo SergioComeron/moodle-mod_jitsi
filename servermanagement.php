@@ -21,12 +21,14 @@
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-require_once(__DIR__ . '/../../config.php');
+// ⚠️ IMPORTANTE: Verificar la acción ANTES de cargar config.php
+$rawaction = $_GET['action'] ?? $_POST['action'] ?? '';
 
-$action  = optional_param('action', '', PARAM_ALPHA);
-
-if ($action === 'jitsiready') {
-    // Este endpoint NO requiere sesskey porque es llamado desde la VM
+if ($rawaction === 'jitsiready') {
+    // Para este endpoint necesitamos config.php pero SIN require_login
+    define('NO_MOODLE_COOKIES', true);
+    require_once(__DIR__ . '/../../config.php');
+    
     @header('Content-Type: application/json');
     
     $instancename = required_param('instance', PARAM_TEXT);
@@ -37,16 +39,17 @@ if ($action === 'jitsiready') {
     $appid = optional_param('appid', '', PARAM_ALPHANUMEXT);
     $secret = optional_param('secret', '', PARAM_ALPHANUMEXT);
     
-    // Verificar token almacenado en la sesión o en DB temporal
+    // Verificar token
     $tokenkey = 'mod_jitsi_vmtoken_' . clean_param($instancename, PARAM_ALPHANUMEXT);
     $storedtoken = get_config('mod_jitsi', $tokenkey);
     
     if (empty($storedtoken) || $storedtoken !== $token) {
+        http_response_code(401);
         echo json_encode(['status' => 'error', 'message' => 'Invalid token']);
         exit;
     }
     
-    // Guardar estado según la fase
+    // Guardar estado
     $statuskey = 'mod_jitsi_vmstatus_' . clean_param($instancename, PARAM_ALPHANUMEXT);
     set_config($statuskey, json_encode([
         'status' => $phase,
@@ -57,69 +60,98 @@ if ($action === 'jitsiready') {
         'timestamp' => time(),
     ]), 'mod_jitsi');
     
-    // Solo limpiar el token cuando la instalación se complete
+    // Registrar servidor cuando se complete
     if ($phase === 'completed' && !empty($hostname) && !empty($appid) && !empty($secret)) {
         global $DB;
         
-        // Verificar si ya existe
-        if (!$DB->record_exists('jitsi_servers', ['domain' => $hostname])) {
-            // NUEVO: Desactivar todos los servidores actuales
-            $DB->execute("UPDATE {jitsi_servers} SET inuse = 0");
+        try {
+            // Verificar si el servidor ya existe
+            $existingserver = $DB->get_record('jitsi_servers', ['domain' => $hostname]);
             
-            // Insertar el nuevo servidor como ACTIVO
-            $server = new stdClass();
-            $server->name = $instancename;
-            $server->type = 1; // Self-hosted con JWT
-            $server->domain = $hostname;
-            $server->appid = $appid;
-            $server->secret = $secret;
-            $server->eightbyeightappid = '';
-            $server->eightbyeightapikeyid = '';
-            $server->privatekey = '';
-            $server->inuse = 1; // NUEVO: Marcar como servidor en uso
-            $server->timecreated = time();
-            $server->timemodified = time();
-            
-            try {
+            if (!$existingserver) {
+                // Insertar nuevo servidor
+                $server = new stdClass();
+                $server->name = $instancename;
+                $server->type = 1; // Self-hosted con JWT
+                $server->domain = $hostname;
+                $server->appid = $appid;
+                $server->secret = $secret;
+                $server->eightbyeightappid = '';
+                $server->eightbyeightapikeyid = '';
+                $server->privatekey = '';
+                $server->timecreated = time();
+                $server->timemodified = time();
+                
+                // Insertar y obtener el ID
                 $serverid = $DB->insert_record('jitsi_servers', $server);
                 
-                // NUEVO: Actualizar la configuración global del plugin para usar este servidor
+                // Configurar este servidor como activo en el plugin
                 set_config('server', $serverid, 'mod_jitsi');
                 
-                error_log("Jitsi server registered and activated: {$hostname} (ID: {$serverid})");
-            } catch (Exception $e) {
-                error_log("Failed to register Jitsi server: " . $e->getMessage());
-            }
-        } else {
-            // Si ya existe, activarlo y desactivar los demás
-            $existingserver = $DB->get_record('jitsi_servers', ['domain' => $hostname]);
-            if ($existingserver) {
-                // Desactivar todos
-                $DB->execute("UPDATE {jitsi_servers} SET inuse = 0");
+                error_log("✅ Jitsi server registered: {$hostname} (ID: {$serverid}, appid: {$appid})");
                 
-                // Activar este
-                $DB->set_field('jitsi_servers', 'inuse', 1, ['id' => $existingserver->id]);
+                http_response_code(200);
+                echo json_encode([
+                    'status' => 'ok',
+                    'message' => 'Server registered successfully',
+                    'phase' => $phase,
+                    'registered' => true,
+                    'serverid' => $serverid
+                ]);
+            } else {
+                // Actualizar servidor existente
+                $existingserver->appid = $appid;
+                $existingserver->secret = $secret;
+                $existingserver->timemodified = time();
+                $DB->update_record('jitsi_servers', $existingserver);
                 
-                // Actualizar configuración global
+                // Configurar como servidor activo
                 set_config('server', $existingserver->id, 'mod_jitsi');
                 
-                error_log("Jitsi server already exists, now activated: {$hostname} (ID: {$existingserver->id})");
+                error_log("✅ Jitsi server updated: {$hostname} (ID: {$existingserver->id}, appid: {$appid})");
+                
+                http_response_code(200);
+                echo json_encode([
+                    'status' => 'ok',
+                    'message' => 'Server updated successfully',
+                    'phase' => $phase,
+                    'registered' => true,
+                    'serverid' => $existingserver->id
+                ]);
             }
+            
+            // Limpiar token usado
+            unset_config($tokenkey, 'mod_jitsi');
+            
+        } catch (Exception $e) {
+            error_log("❌ Failed to register Jitsi server: " . $e->getMessage());
+            http_response_code(500);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Database error: ' . $e->getMessage(),
+                'phase' => $phase,
+                'registered' => false
+            ]);
         }
-        
-        // Limpiar el token
-        unset_config($tokenkey, 'mod_jitsi');
+    } else {
+        // Fases intermedias (waiting_dns, dns_ready, etc.)
+        http_response_code(200);
+        echo json_encode([
+            'status' => 'ok',
+            'message' => 'Status updated',
+            'phase' => $phase,
+            'registered' => false
+        ]);
     }
-    
-    echo json_encode([
-        'status' => 'ok', 
-        'message' => 'Status updated', 
-        'phase' => $phase,
-        'registered' => ($phase === 'completed' && !empty($appid))
-    ]);
     exit;
 }
 
+// Para el resto de acciones: cargar Moodle normalmente
+require_once(__DIR__ . '/../../config.php');
+
+$action = optional_param('action', '', PARAM_ALPHA);
+
+// Ahora sí requerir login para todas las demás acciones
 require_login();
 require_capability('moodle/site:config', context_system::instance());
 
@@ -1244,14 +1276,13 @@ $createvmurl  = (new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 
 $listurl      = (new moodle_url('/mod/jitsi/servermanagement.php'))->out(false);
 $sesskeyjs    = sesskey();
 
-// Modal markup (HTML only).
+// Modal markup (HTML only) - SIN spinner inicial
 echo <<<HTML
 <div class="modal fade" id="gcpModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
-      <div class="modal-body text-center">
-        <div class="spinner-border" role="status" aria-hidden="true"></div>
-        <p id="gcp-modal-text" class="mt-3 mb-0">{$creating}</p>
+      <div class="modal-body text-center" id="gcp-modal-body">
+        <!-- El contenido se inyectará dinámicamente -->
       </div>
     </div>
   </div>
@@ -1274,7 +1305,7 @@ $PAGE->requires->js_init_code(
     "  var btn = document.getElementById('btn-creategcpvm');\n".
     "  if (!btn) return;\n".
     "  var modalEl = document.getElementById('gcpModal');\n".
-    "  var textEl = document.getElementById('gcp-modal-text');\n".
+    "  var modalBody = document.getElementById('gcp-modal-body');\n".
     "  var backdrop;\n".
     "  var lastWarnHTML = '';\n".
     "  var vmInfo = {};\n".
@@ -1307,8 +1338,8 @@ $PAGE->requires->js_init_code(
     "          var host = data.hostname || cfg.hostname || 'your-hostname.example.com';\n".
     "          var authHost = 'auth.' + host;\n".
     "          var ip = data.ip || vmInfo.ip || '';\n".
-    "          if (textEl) {\n".
-    "            textEl.innerHTML = (\n".
+    "          if (modalBody) {\n".
+    "            modalBody.innerHTML = (\n".
     "              '<div class=\"alert alert-warning\"><h5>⚠️ Action Required: Configure DNS</h5>'+ \n".
     "              '<p><strong>Public IP: <code>'+ ip +'</code></strong></p>'+\n".
     "              '<p>Please create the following DNS A records:</p>'+\n".
@@ -1348,21 +1379,25 @@ $PAGE->requires->js_init_code(
     "        }\n".
     "        setTimeout(checkJitsiReady, 10000);\n".
     "      } else if (data.status === 'dns_ready') {\n".
-    "        if (textEl) {\n".
-    "          textEl.innerHTML = (\n".
+    "        if (modalBody) {\n".
+    "          modalBody.innerHTML = (\n".
     "            '<h5>✅ DNS Configured!</h5>'+ \n".
     "            '<p class=\"text-success\">DNS records detected. Starting Jitsi installation...</p>'+\n".
-    "            '<div class=\"spinner-border spinner-border-sm\" role=\"status\"></div>'\n".
+    "            '<div class=\"text-center\">'+\n".
+    "              '<div class=\"spinner-border spinner-border-sm\" role=\"status\"></div>'+\n".
+    "            '</div>'\n".
     "          );\n".
     "        }\n".
     "        setTimeout(checkJitsiReady, 5000);\n".
     "      } else if (data.status === 'installing') {\n".
-    "        if (textEl) {\n".
-    "          textEl.innerHTML = (\n".
+    "        if (modalBody) {\n".
+    "          modalBody.innerHTML = (\n".
     "            '<h5>⚙️ Installing Jitsi Meet...</h5>'+ \n".
     "            '<p>The VM is ready. Installing and configuring Jitsi services.</p>'+\n".
     "            '<p class=\"text-muted\">This takes 8-12 minutes. Please wait...</p>'+\n".
-    "            '<div class=\"spinner-border spinner-border-sm\" role=\"status\"></div>'\n".
+    "            '<div class=\"text-center\">'+\n".
+    "              '<div class=\"spinner-border spinner-border-sm\" role=\"status\"></div>'+\n".
+    "            '</div>'\n".
     "          );\n".
     "        }\n".
     "        setTimeout(checkJitsiReady, 10000);\n".
@@ -1371,14 +1406,13 @@ $PAGE->requires->js_init_code(
     "      }\n".
     "    } catch(e){\n".
     "      console.error('Check ready error:', e);\n".
-    "      if (textEl) textEl.innerHTML = '<p class=\"text-warning\">Cannot verify status. Check the VM console.</p>';\n".
+    "      if (modalBody) modalBody.innerHTML = '<p class=\"text-warning\">Cannot verify status. Check the VM console.</p>';\n".
     "    }\n".
     "  }\n".
     "  function showSuccessMessage(ip, hostname){\n".
     "    var host = hostname || cfg.hostname || 'your-hostname.example.com';\n".
-    "    if (textEl) {\n".
-    "      textEl.innerHTML = (\n".
-    "        (lastWarnHTML || '') +\n".
+    "    if (modalBody) {\n".
+    "      modalBody.innerHTML = (\n".
     "        '<h5>✅ Jitsi Server Ready & Registered!</h5>'+ \n".
     "        '<p class=\"text-success\"><strong>Installation completed and server registered in Moodle</strong></p>'+ \n".
     "        '<p>Public IP: <strong>'+ ip +'</strong></p>'+\n".
@@ -1390,7 +1424,11 @@ $PAGE->requires->js_init_code(
     "      );\n".
     "      var copyBtn = document.getElementById('copy-ip');\n".
     "      if (copyBtn && navigator.clipboard) {\n".
-    "        copyBtn.addEventListener('click', function(){ navigator.clipboard.writeText(ip); });\n".
+    "        copyBtn.addEventListener('click', function(){ \n".
+    "          navigator.clipboard.writeText(ip);\n".
+    "          copyBtn.textContent = '✓ Copied!';\n".
+    "          setTimeout(function(){ copyBtn.textContent = 'Copy IP'; }, 2000);\n".
+    "        });\n".
     "      }\n".
     "    }\n".
     "  }\n".
@@ -1401,40 +1439,45 @@ $PAGE->requires->js_init_code(
     "        setTimeout(function(){ pollStatus(opname); }, 1500);\n".
     "      } else if (data.status === 'done') {\n".
     "        vmInfo.ip = (data.ip || '');\n".
-    "        if (textEl) {\n".
-    "          textEl.innerHTML = (\n".
-    "            (lastWarnHTML || '') +\n".
+    "        if (modalBody) {\n".
+    "          modalBody.innerHTML = (\n".
     "            '<h5>⚙️ VM Created - Starting Configuration...</h5>'+ \n".
     "            '<p>Checking installation status...</p>'+\n".
-    "            '<div class=\"spinner-border spinner-border-sm\" role=\"status\"></div>'\n".
+    "            '<div class=\"text-center\">'+\n".
+    "              '<div class=\"spinner-border spinner-border-sm\" role=\"status\"></div>'+\n".
+    "            '</div>'\n".
     "          );\n".
     "        }\n".
     "        setTimeout(checkJitsiReady, 3000);\n".
     "      } else {\n".
-    "        if (textEl) textEl.textContent = 'Error: ' + (data.message || 'Unknown');\n".
+    "        if (modalBody) modalBody.textContent = 'Error: ' + (data.message || 'Unknown');\n".
     "      }\n".
     "    } catch(e){\n".
-    "      if (textEl) textEl.textContent = 'Error: ' + e.message;\n".
+    "      if (modalBody) modalBody.textContent = 'Error: ' + e.message;\n".
     "    }\n".
     "  }\n".
     "  btn.addEventListener('click', async function(){\n".
     "    showModal();\n".
-    "    if (textEl) {\n".
-    "      textEl.innerHTML = '<h5>⏳ Creating VM...</h5>'+\n".
+    "    if (modalBody) {\n".
+    "      modalBody.innerHTML = (\n".
+    "        '<h5>⏳ Creating VM...</h5>'+\n".
     "        '<p>Setting up infrastructure in Google Cloud.</p>'+\n".
-    "        '<div class=\"spinner-border spinner-border-sm\" role=\"status\"></div>';\n".
+    "        '<div class=\"text-center\">'+\n".
+    "          '<div class=\"spinner-border spinner-border-sm\" role=\"status\"></div>'+\n".
+    "        '</div>'\n".
+    "      );\n".
     "    }\n".
     "    try {\n".
     "      var data = await postJSON(cfg.createUrl, {sesskey: cfg.sesskey});\n".
     "      if (data && data.status === 'pending' && data.opname){\n".
-    "        vmInfo.instancename = data.instancename;\n".
+    "               vmInfo.instancename = data.instancename;\n".
     "        console.log('VM instance name:', vmInfo.instancename);\n".
     "        pollStatus(data.opname);\n".
     "      } else {\n".
-    "        if (textEl) textEl.textContent = 'Error starting VM creation';\n".
+    "        if (modalBody) modalBody.textContent = 'Error starting VM creation';\n".
     "      }\n".
     "    } catch(e){\n".
-    "      if (textEl) textEl.textContent = 'Error: ' + e.message;\n".
+    "      if (modalBody) modalBody.textContent = 'Error: ' + e.message;\n".
     "    }\n".
     "  });\n".
     "})();"
@@ -1447,7 +1490,7 @@ $table->head = [
     get_string('name'),
     get_string('type', 'mod_jitsi'),
     get_string('domain', 'mod_jitsi'),
-    get_string('actions', 'mod_jitsi'),
+       get_string('actions', 'mod_jitsi'),
 ];
 
 foreach ($servers as $s) {
