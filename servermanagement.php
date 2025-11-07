@@ -33,7 +33,9 @@ if ($action === 'jitsiready') {
     $token = required_param('token', PARAM_ALPHANUMEXT);
     $ip = optional_param('ip', '', PARAM_TEXT);
     $hostname = optional_param('hostname', '', PARAM_TEXT);
-    $phase = optional_param('phase', 'completed', PARAM_ALPHAEXT); // AGREGAR ESTO
+    $phase = optional_param('phase', 'completed', PARAM_ALPHAEXT);
+    $appid = optional_param('appid', '', PARAM_ALPHANUMEXT);
+    $secret = optional_param('secret', '', PARAM_ALPHANUMEXT);
     
     // Verificar token almacenado en la sesión o en DB temporal
     $tokenkey = 'mod_jitsi_vmtoken_' . clean_param($instancename, PARAM_ALPHANUMEXT);
@@ -47,18 +49,74 @@ if ($action === 'jitsiready') {
     // Guardar estado según la fase
     $statuskey = 'mod_jitsi_vmstatus_' . clean_param($instancename, PARAM_ALPHANUMEXT);
     set_config($statuskey, json_encode([
-        'status' => $phase, // CAMBIAR DE 'ready' a $phase
+        'status' => $phase,
         'ip' => $ip,
         'hostname' => $hostname,
+        'appid' => $appid,
+        'secret' => $secret,
         'timestamp' => time(),
     ]), 'mod_jitsi');
     
     // Solo limpiar el token cuando la instalación se complete
-    if ($phase === 'completed') {
+    if ($phase === 'completed' && !empty($hostname) && !empty($appid) && !empty($secret)) {
+        global $DB;
+        
+        // Verificar si ya existe
+        if (!$DB->record_exists('jitsi_servers', ['domain' => $hostname])) {
+            // NUEVO: Desactivar todos los servidores actuales
+            $DB->execute("UPDATE {jitsi_servers} SET inuse = 0");
+            
+            // Insertar el nuevo servidor como ACTIVO
+            $server = new stdClass();
+            $server->name = $instancename;
+            $server->type = 1; // Self-hosted con JWT
+            $server->domain = $hostname;
+            $server->appid = $appid;
+            $server->secret = $secret;
+            $server->eightbyeightappid = '';
+            $server->eightbyeightapikeyid = '';
+            $server->privatekey = '';
+            $server->inuse = 1; // NUEVO: Marcar como servidor en uso
+            $server->timecreated = time();
+            $server->timemodified = time();
+            
+            try {
+                $serverid = $DB->insert_record('jitsi_servers', $server);
+                
+                // NUEVO: Actualizar la configuración global del plugin para usar este servidor
+                set_config('server', $serverid, 'mod_jitsi');
+                
+                error_log("Jitsi server registered and activated: {$hostname} (ID: {$serverid})");
+            } catch (Exception $e) {
+                error_log("Failed to register Jitsi server: " . $e->getMessage());
+            }
+        } else {
+            // Si ya existe, activarlo y desactivar los demás
+            $existingserver = $DB->get_record('jitsi_servers', ['domain' => $hostname]);
+            if ($existingserver) {
+                // Desactivar todos
+                $DB->execute("UPDATE {jitsi_servers} SET inuse = 0");
+                
+                // Activar este
+                $DB->set_field('jitsi_servers', 'inuse', 1, ['id' => $existingserver->id]);
+                
+                // Actualizar configuración global
+                set_config('server', $existingserver->id, 'mod_jitsi');
+                
+                error_log("Jitsi server already exists, now activated: {$hostname} (ID: {$existingserver->id})");
+            }
+        }
+        
+        // Limpiar el token
         unset_config($tokenkey, 'mod_jitsi');
     }
     
-    echo json_encode(['status' => 'ok', 'message' => 'Status updated', 'phase' => $phase]);
+    echo json_encode([
+        'status' => 'ok', 
+        'message' => 'Status updated', 
+        'phase' => $phase,
+        'registered' => ($phase === 'completed' && !empty($appid))
+    ]);
     exit;
 }
 
@@ -675,10 +733,30 @@ if (!function_exists('mod_jitsi_default_startup_script')) {
 
     echo "Jitsi deployment completed successfully"
 
-    # Notificar a Moodle que la instalación terminó
+    # Generar credenciales JWT
+    JWT_APP_ID="jitsi_moodle_$(openssl rand -hex 8)"
+    JWT_SECRET=$(openssl rand -hex 32)
+
+    # Configurar JWT en Jitsi
+    if [ -n "$HOSTNAME_FQDN" ]; then
+      # Configurar prosody para JWT
+      cat >> "/etc/prosody/conf.avail/${HOSTNAME_FQDN}.cfg.lua" << EOFJWT
+
+    -- JWT authentication
+    authentication = "token"
+    app_id = "${JWT_APP_ID}"
+    app_secret = "${JWT_SECRET}"
+    allow_empty_token = false
+    EOFJWT
+
+      # Reiniciar servicios
+      systemctl restart prosody jicofo jitsi-videobridge2 || true
+    fi
+
+    # Notificar a Moodle con las credenciales
     if [ -n "$CALLBACK_URL" ]; then
-      echo "Notifying Moodle that installation is complete..."
-      curl -X POST "${CALLBACK_URL}&ip=$MYIP&hostname=$HOSTNAME_FQDN&phase=completed" \
+      echo "Notifying Moodle with credentials..."
+      curl -X POST "${CALLBACK_URL}&ip=$MYIP&hostname=$HOSTNAME_FQDN&phase=completed&appid=${JWT_APP_ID}&secret=${JWT_SECRET}" \
         --max-time 10 \
         --retry 3 \
         --retry-delay 5 \
@@ -1301,8 +1379,8 @@ $PAGE->requires->js_init_code(
     "    if (textEl) {\n".
     "      textEl.innerHTML = (\n".
     "        (lastWarnHTML || '') +\n".
-    "        '<h5>✅ Jitsi Server Ready!</h5>'+ \n".
-    "        '<p class=\"text-success\"><strong>Installation completed successfully</strong></p>'+ \n".
+    "        '<h5>✅ Jitsi Server Ready & Registered!</h5>'+ \n".
+    "        '<p class=\"text-success\"><strong>Installation completed and server registered in Moodle</strong></p>'+ \n".
     "        '<p>Public IP: <strong>'+ ip +'</strong></p>'+\n".
     "        '<p>Your Jitsi Meet server is ready at: <code>https://'+ host +'</code></p>'+\n".
     "        '<div class=\"mt-3\">'+\n".
