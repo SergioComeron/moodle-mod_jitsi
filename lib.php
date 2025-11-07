@@ -550,6 +550,7 @@ function createsession(
     echo "toolbarButtons: " . $buttons . ",\n";
     echo "disableProfile: true,\n";
     echo "prejoinPageEnabled: false,\n";
+    echo "prejoinConfig: { enabled: false },\n";
     echo "channelLastN: " . get_config('mod_jitsi', 'channellastcam') . ",\n";
 
     if (get_config('mod_jitsi', 'startwithaudiomuted') == '1') {
@@ -1320,6 +1321,7 @@ function createsessionpriv(
     echo "toolbarButtons: " . $buttons . ",\n";
     echo "disableProfile: true,\n";
     echo "prejoinPageEnabled: false,\n";
+    echo "prejoinConfig: { enabled: false },\n";
     echo "channelLastN: " . get_config('mod_jitsi', 'channellastcam') . ",\n";
     if (get_config('mod_jitsi', 'startwithaudiomuted') == '1') {
         echo "startWithAudioMuted: true,\n";
