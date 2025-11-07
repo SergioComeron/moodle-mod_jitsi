@@ -1216,6 +1216,62 @@ if ($action === 'delete' && $id > 0) {
     }
 
     if ($confirm) {
+        // ⬅️ Si es servidor GCP (tipo 3), eliminar también la VM
+        if ($server->type == 3 && !empty($server->gcpproject) && !empty($server->gcpzone) && !empty($server->gcpinstancename)) {
+            try {
+                if (class_exists('Google\\Client') && class_exists('Google\\Service\\Compute')) {
+                    $compute = mod_jitsi_gcp_client();
+                    
+                    // Eliminar la instancia de GCP
+                    $operation = $compute->instances->delete(
+                        $server->gcpproject,
+                        $server->gcpzone,
+                        $server->gcpinstancename
+                    );
+                    
+                    error_log("✅ GCP VM deletion initiated: {$server->gcpinstancename} (Operation: {$operation->getName()})");
+                    
+                    // Intentar eliminar la IP estática reservada (si existe)
+                    try {
+                        // Extraer región de la zona (ej: us-central1-a -> us-central1)
+                        $region = preg_replace('/-[a-z]$/', '', $server->gcpzone);
+                        
+                        // Buscar IPs estáticas que puedan estar asociadas a esta instancia
+                        $addresses = $compute->addresses->listAddresses($server->gcpproject, $region);
+                        
+                        foreach ($addresses->getItems() as $address) {
+                            // Si el nombre contiene jitsi y está sin usar, eliminarla
+                            if (strpos($address->getName(), 'jitsi-ip-') === 0 && empty($address->getUsers())) {
+                                $compute->addresses->delete($server->gcpproject, $region, $address->getName());
+                                error_log("✅ Released static IP: {$address->getName()} ({$address->getAddress()})");
+                            }
+                        }
+                    } catch (Exception $e) {
+                        // No es crítico si no podemos limpiar las IPs
+                        error_log("⚠️ Could not clean up static IPs: " . $e->getMessage());
+                    }
+                    
+                    \core\notification::add(
+                        "GCP VM '{$server->gcpinstancename}' is being deleted. This may take a few minutes.",
+                        \core\output\notification::NOTIFY_INFO
+                    );
+                } else {
+                    \core\notification::add(
+                        'Warning: Google Cloud API not available. VM was not deleted from GCP.',
+                        \core\output\notification::NOTIFY_WARNING
+                    );
+                }
+            } catch (Exception $e) {
+                // Si falla la eliminación en GCP, avisar pero continuar con la BD
+                \core\notification::add(
+                    "Warning: Could not delete GCP VM: " . $e->getMessage() . ". Server removed from Moodle database only.",
+                    \core\output\notification::NOTIFY_WARNING
+                );
+                error_log("❌ Failed to delete GCP VM {$server->gcpinstancename}: " . $e->getMessage());
+            }
+        }
+        
+        // Eliminar de la base de datos
         $DB->delete_records('jitsi_servers', ['id' => $server->id]);
 
         \core\notification::add(
@@ -1226,7 +1282,25 @@ if ($action === 'delete' && $id > 0) {
     } else {
         echo $OUTPUT->header();
         echo $OUTPUT->heading(get_string('delete'));
-        $msg = get_string('confirmdelete', 'mod_jitsi', format_string($server->name));
+        
+        // ⬅️ Mensaje especial para servidores GCP
+        if ($server->type == 3 && !empty($server->gcpinstancename)) {
+            $msg = html_writer::div(
+                html_writer::tag('strong', 'Warning: This is a GCP Auto-Managed server.') . '<br>' .
+                'Deleting this server will also:' . '<br>' .
+                html_writer::tag('ul', 
+                    html_writer::tag('li', '🗑️ Delete the virtual machine from Google Cloud') .
+                    html_writer::tag('li', '🗑️ Release the static IP address (if any)') .
+                    html_writer::tag('li', '❌ Stop all active Jitsi sessions')
+                , ['class' => 'text-start']) .
+                html_writer::tag('p', 'Instance name: <code>' . htmlspecialchars($server->gcpinstancename) . '</code>') .
+                html_writer::tag('p', 'Are you sure you want to permanently delete this server?', ['class' => 'text-danger font-weight-bold']),
+                'alert alert-warning'
+            );
+        } else {
+            $msg = get_string('confirmdelete', 'mod_jitsi', format_string($server->name));
+        }
+        
         echo $OUTPUT->confirm(
             $msg,
             new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'delete', 'id' => $id, 'confirm' => 1]),
