@@ -266,6 +266,7 @@ $string['staticinvitationlink'] = 'Invitations option';
 $string['staticinvitationlinkcapabilityex'] = 'Use this option for guests who don\'t have a Moodle user to access. Only if you have capability mod/jitsi:createlink you can create or modify the invitation link.';
 $string['staticinvitationlinkex'] = 'Use this option for guests who don\'t have a Moodle user to access. You can see and copy the link on invitation tab.';
 $string['staticinvitationlinkexview'] = 'Share this link for guests who don\'t have a Moodle user to access.';
+$string['status'] = 'Status';
 $string['streamingandrecording'] = 'Stream & Record';
 $string['streamingbutton'] = 'Live Streaming';
 $string['streamingbuttonex'] = 'Enable the Live Streaming features to users with mod/jitsi:record capability enabled (teachers). If enabled probably you will want to disable the "record" option above.';
