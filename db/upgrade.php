@@ -37,8 +37,7 @@
  */
 function xmldb_jitsi_upgrade($oldversion) {
     global $DB;
-
-    $dbman = $DB->get_manager(); // Loads ddl manager and xmldb classes.
+    $dbman = $DB->get_manager();
 
     /*
      * And upgrade begins here. For each one, you'll need one
@@ -931,5 +930,28 @@ function xmldb_jitsi_upgrade($oldversion) {
 
         upgrade_mod_savepoint(true, 2025101401, 'jitsi');
     }
+
+    if ($oldversion < 2025110702) {
+        // Add GCP management fields to jitsi_servers
+        $table = new xmldb_table('jitsi_servers');
+        
+        $field = new xmldb_field('gcpproject', XMLDB_TYPE_CHAR, '255', null, null, null, null, 'privatekey');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        
+        $field = new xmldb_field('gcpzone', XMLDB_TYPE_CHAR, '100', null, null, null, null, 'gcpproject');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        
+        $field = new xmldb_field('gcpinstancename', XMLDB_TYPE_CHAR, '255', null, null, null, null, 'gcpzone');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        upgrade_mod_savepoint(true, 2025110702, 'jitsi');
+    }
+
     return true;
 }

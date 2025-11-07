@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<XMLDB PATH="mod/jitsi/db" VERSION="20101203" COMMENT="XMLDB file for Moodle mod/jitsi"
+<XMLDB PATH="mod/jitsi/db" VERSION="2025110700" COMMENT="XMLDB file for Moodle mod/jitsi"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
 >
@@ -77,23 +77,26 @@
         <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
       </KEYS>
     </TABLE>
-    <TABLE NAME="jitsi_servers" COMMENT="Lista de servidores Jitsi con distintos tipos de token">
-        <FIELDS>
-            <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
-            <FIELD NAME="name" TYPE="char" LENGTH="255" NOTNULL="false" DEFAULT=""/>
-            <FIELD NAME="type" TYPE="int" LENGTH="4" NOTNULL="true" DEFAULT="0"/>
-            <FIELD NAME="domain" TYPE="char" LENGTH="255" NOTNULL="false" DEFAULT=""/>
-            <FIELD NAME="appid" TYPE="char" LENGTH="255" NOTNULL="false" DEFAULT=""/>
-            <FIELD NAME="secret" TYPE="char" LENGTH="255" NOTNULL="false" DEFAULT=""/>
-            <FIELD NAME="eightbyeightappid" TYPE="char" LENGTH="255" NOTNULL="false" DEFAULT=""/>
-            <FIELD NAME="eightbyeightapikeyid" TYPE="char" LENGTH="255" NOTNULL="false" DEFAULT=""/>
-            <FIELD NAME="privatekey" TYPE="text" NOTNULL="false"/>
-            <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
-            <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
-        </FIELDS>
-        <KEYS>
-            <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
-        </KEYS>
+    <TABLE NAME="jitsi_servers" COMMENT="Jitsi servers configuration">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="name" TYPE="char" LENGTH="255" NOTNULL="false" DEFAULT=""/>
+        <FIELD NAME="type" TYPE="int" LENGTH="4" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="domain" TYPE="char" LENGTH="255" NOTNULL="false" DEFAULT=""/>
+        <FIELD NAME="appid" TYPE="char" LENGTH="255" NOTNULL="false" DEFAULT=""/>
+        <FIELD NAME="secret" TYPE="char" LENGTH="255" NOTNULL="false" DEFAULT=""/>
+        <FIELD NAME="eightbyeightappid" TYPE="char" LENGTH="255" NOTNULL="false" DEFAULT=""/>
+        <FIELD NAME="eightbyeightapikeyid" TYPE="char" LENGTH="255" NOTNULL="false" DEFAULT=""/>
+        <FIELD NAME="privatekey" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="gcpproject" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false" COMMENT="GCP project ID"/>
+        <FIELD NAME="gcpzone" TYPE="char" LENGTH="100" NOTNULL="false" SEQUENCE="false" COMMENT="GCP zone"/>
+        <FIELD NAME="gcpinstancename" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false" COMMENT="GCP instance name"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
     </TABLE>
   </TABLES>
 </XMLDB>

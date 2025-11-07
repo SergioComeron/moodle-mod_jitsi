@@ -72,13 +72,16 @@ if ($rawaction === 'jitsiready') {
                 // Insertar nuevo servidor
                 $server = new stdClass();
                 $server->name = $instancename;
-                $server->type = 1; // Self-hosted con JWT
+                $server->type = 3; // ⬅️ NUEVO TIPO: GCP Auto-Managed
                 $server->domain = $hostname;
                 $server->appid = $appid;
                 $server->secret = $secret;
                 $server->eightbyeightappid = '';
                 $server->eightbyeightapikeyid = '';
                 $server->privatekey = '';
+                $server->gcpproject = get_config('mod_jitsi', 'gcp_project'); // ⬅️ Guardar proyecto GCP
+                $server->gcpzone = get_config('mod_jitsi', 'gcp_zone'); // ⬅️ Guardar zona GCP
+                $server->gcpinstancename = $instancename; // ⬅️ Nombre de la instancia en GCP
                 $server->timecreated = time();
                 $server->timemodified = time();
                 
@@ -88,12 +91,12 @@ if ($rawaction === 'jitsiready') {
                 // Configurar este servidor como activo en el plugin
                 set_config('server', $serverid, 'mod_jitsi');
                 
-                error_log("✅ Jitsi server registered: {$hostname} (ID: {$serverid}, appid: {$appid})");
+                error_log("✅ Jitsi GCP server registered: {$hostname} (ID: {$serverid}, instance: {$instancename})");
                 
                 http_response_code(200);
                 echo json_encode([
                     'status' => 'ok',
-                    'message' => 'Server registered successfully',
+                    'message' => 'GCP server registered successfully',
                     'phase' => $phase,
                     'registered' => true,
                     'serverid' => $serverid
@@ -102,18 +105,22 @@ if ($rawaction === 'jitsiready') {
                 // Actualizar servidor existente
                 $existingserver->appid = $appid;
                 $existingserver->secret = $secret;
+                $existingserver->type = 3; // Asegurar que sea tipo GCP
+                $existingserver->gcpproject = get_config('mod_jitsi', 'gcp_project');
+                $existingserver->gcpzone = get_config('mod_jitsi', 'gcp_zone');
+                $existingserver->gcpinstancename = $instancename;
                 $existingserver->timemodified = time();
                 $DB->update_record('jitsi_servers', $existingserver);
                 
                 // Configurar como servidor activo
                 set_config('server', $existingserver->id, 'mod_jitsi');
                 
-                error_log("✅ Jitsi server updated: {$hostname} (ID: {$existingserver->id}, appid: {$appid})");
+                error_log("✅ Jitsi GCP server updated: {$hostname} (ID: {$existingserver->id})");
                 
                 http_response_code(200);
                 echo json_encode([
                     'status' => 'ok',
-                    'message' => 'Server updated successfully',
+                    'message' => 'GCP server updated successfully',
                     'phase' => $phase,
                     'registered' => true,
                     'serverid' => $existingserver->id
@@ -124,7 +131,7 @@ if ($rawaction === 'jitsiready') {
             unset_config($tokenkey, 'mod_jitsi');
             
         } catch (Exception $e) {
-            error_log("❌ Failed to register Jitsi server: " . $e->getMessage());
+            error_log("❌ Failed to register Jitsi GCP server: " . $e->getMessage());
             http_response_code(500);
             echo json_encode([
                 'status' => 'error',
@@ -583,7 +590,7 @@ if (!function_exists('mod_jitsi_default_startup_script')) {
           mkdir -p /opt/acmesh
           ln -sfn /.acme.sh /opt/acmesh/.acme.sh
           ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
-        elif [ -x "/root/.acme.sh/acme.sh" ]; then
+        } else if [ -x "/root/.acme.sh/acme.sh" ]; then
           mkdir -p /opt/acmesh
           ln -sfn /root/.acme.sh /opt/acmesh/.acme.sh
           ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
@@ -640,7 +647,7 @@ if (!function_exists('mod_jitsi_default_startup_script')) {
           mkdir -p /opt/acmesh
           ln -sfn /.acme.sh /opt/acmesh/.acme.sh
           ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
-        elif [ -x "/root/.acme.sh/acme.sh" ]; then
+        } else if [ -x "/root/.acme.sh/acme.sh" ]; then
           mkdir -p /opt/acmesh
           ln -sfn /root/.acme.sh /opt/acmesh/.acme.sh
           ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
@@ -651,11 +658,11 @@ if (!function_exists('mod_jitsi_default_startup_script')) {
         curl -fsSL https://get.acme.sh | sh -s email="$LE_EMAIL"
         if [ -x "/opt/acmesh/.acme.sh/acme.sh" ]; then
           ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
-        elif [ -x "/.acme.sh/acme.sh" ]; then
+        } else if [ -x "/.acme.sh/acme.sh" ]; then
           mkdir -p /opt/acmesh
           ln -sfn /.acme.sh /opt/acmesh/.acme.sh
           ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
-        elif [ -x "/root/.acme.sh/acme.sh" ]; then
+        } else if [ -x "/root/.acme.sh/acme.sh" ]; then
           mkdir -p /opt/acmesh
           ln -sfn /root/.acme.sh /opt/acmesh/.acme.sh
           ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
@@ -1092,6 +1099,57 @@ if ($action === 'checkjitsiready') {
     exit;
 }
 
+if ($action === 'gcpserversstatus') {
+    require_sesskey();
+    @header('Content-Type: application/json');
+    
+    $serverids = required_param('ids', PARAM_TEXT);
+    $ids = explode(',', $serverids);
+    
+    $statuses = [];
+    
+    try {
+        $gcpclient = mod_jitsi_gcp_client();
+        
+        foreach ($ids as $id) {
+            $id = (int)$id;
+            if ($server = $DB->get_record('jitsi_servers', ['id' => $id])) {
+                if ($server->type == 3 && !empty($server->gcpproject) && !empty($server->gcpzone) && !empty($server->gcpinstancename)) {
+                    try {
+                        $instance = $gcpclient->instances->get($server->gcpproject, $server->gcpzone, $server->gcpinstancename);
+                        $status = $instance->getStatus();
+                        
+                        $statuses[$id] = [
+                            'status' => $status,
+                            'ip' => ''
+                        ];
+                        
+                        // Obtener IP pública si está corriendo
+                        if ($status === 'RUNNING') {
+                            $nats = $instance->getNetworkInterfaces()[0]->getAccessConfigs();
+                            if (!empty($nats) && isset($nats[0])) {
+                                $statuses[$id]['ip'] = $nats[0]->getNatIP();
+                            }
+                        }
+                    } catch (Exception $e) {
+                        if (strpos($e->getMessage(), 'notFound') !== false || strpos($e->getMessage(), '404') !== false) {
+                            $statuses[$id] = ['status' => 'NOT_FOUND', 'message' => 'Instance not found'];
+                        } else {
+                            $statuses[$id] = ['status' => 'ERROR', 'message' => $e->getMessage()];
+                        }
+                    }
+                }
+            }
+        }
+    } catch (Exception $e) {
+        echo json_encode(['error' => $e->getMessage()]);
+        exit;
+    }
+    
+    echo json_encode($statuses);
+    exit;
+}
+
 // Action: poll & display status while the VM is being created.
 if ($action === 'gcpstatus') {
     // Guard: if no op in session, go back.
@@ -1179,10 +1237,81 @@ if ($action === 'delete' && $id > 0) {
     }
 }
 
+// Action: Start GCP instance
+if ($action === 'gcpstart' && $id > 0) {
+    require_sesskey();
+    
+    if (!$server = $DB->get_record('jitsi_servers', ['id' => $id])) {
+        throw new moodle_exception('Invalid server id');
+    }
+    
+    if ($server->type != 3 || empty($server->gcpproject) || empty($server->gcpzone) || empty($server->gcpinstancename)) {
+        \core\notification::add('This server cannot be managed via GCP API', \core\output\notification::NOTIFY_ERROR);
+        redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
+    }
+    
+    try {
+        $compute = mod_jitsi_gcp_client();
+        $compute->instances->start($server->gcpproject, $server->gcpzone, $server->gcpinstancename);
+        
+        \core\notification::add(
+            "Starting GCP instance: {$server->gcpinstancename}",
+            \core\output\notification::NOTIFY_SUCCESS
+        );
+    } catch (Exception $e) {
+        \core\notification::add(
+            "Failed to start instance: " . $e->getMessage(),
+            \core\output\notification::NOTIFY_ERROR
+        );
+    }
+    
+    redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
+}
+
+// Action: Stop GCP instance
+if ($action === 'gcpstop' && $id > 0) {
+    require_sesskey();
+    
+    if (!$server = $DB->get_record('jitsi_servers', ['id' => $id])) {
+        throw new moodle_exception('Invalid server id');
+    }
+    
+    if ($server->type != 3 || empty($server->gcpproject) || empty($server->gcpzone) || empty($server->gcpinstancename)) {
+        \core\notification::add('This server cannot be managed via GCP API', \core\output\notification::NOTIFY_ERROR);
+        redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
+    }
+    
+    try {
+        $compute = mod_jitsi_gcp_client();
+        $compute->instances->stop($server->gcpproject, $server->gcpzone, $server->gcpinstancename);
+        
+        \core\notification::add(
+            "Stopping GCP instance: {$server->gcpinstancename}",
+            \core\output\notification::NOTIFY_SUCCESS
+        );
+    } catch (Exception $e) {
+        \core\notification::add(
+            "Failed to stop instance: " . $e->getMessage(),
+            \core\output\notification::NOTIFY_ERROR
+        );
+    }
+    
+    redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
+}
+
 $mform = new servermanagement_form();
 
+// Verificar si es GCP antes de mostrar formulario de edición
 if ($action === 'edit' && $id > 0) {
     if ($server = $DB->get_record('jitsi_servers', ['id' => $id])) {
+        // ⬅️ Bloquear edición de servidores GCP
+        if ($server->type == 3) {
+            \core\notification::add(
+                'GCP Auto-Managed servers cannot be edited manually. Use Start/Stop actions or delete and recreate.',
+                \core\output\notification::NOTIFY_WARNING
+            );
+            redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
+        }
         $mform->set_data($server);
     } else {
         throw new moodle_exception('Invalid id');
@@ -1377,7 +1506,7 @@ $PAGE->requires->js_init_code(
     "            }\n".
     "          }\n".
     "        }\n".
-    "        setTimeout(checkJitsiReady, 10000);\n".
+    "        setTimeout(checkJitsiReady,  10000);\n".
     "      } else if (data.status === 'dns_ready') {\n".
     "        if (modalBody) {\n".
     "          modalBody.innerHTML = (\n".
@@ -1484,14 +1613,27 @@ $PAGE->requires->js_init_code(
 );
 
 
+$gcpclient = null;
+try {
+    if (class_exists('Google\\Client') && class_exists('Google\\Service\\Compute')) {
+        $gcpclient = mod_jitsi_gcp_client();
+    }
+} catch (Exception $e) {
+    // Si falla la autenticación, no mostraremos estados
+    error_log('Failed to initialize GCP client: ' . $e->getMessage());
+}
+
 $servers = $DB->get_records('jitsi_servers', null, 'name ASC');
 $table = new html_table();
 $table->head = [
     get_string('name'),
     get_string('type', 'mod_jitsi'),
     get_string('domain', 'mod_jitsi'),
-       get_string('actions', 'mod_jitsi'),
+    get_string('status', 'mod_jitsi'), // ⬅️ Nueva columna
+    get_string('actions', 'mod_jitsi'),
 ];
+
+$gcpserverids = []; // Para recopilar IDs de servidores GCP
 
 foreach ($servers as $s) {
     switch ($s->type) {
@@ -1499,36 +1641,305 @@ foreach ($servers as $s) {
             $typestring = 'Server without token';
             break;
         case 1:
-            $typestring = 'Self-hosted (appid & secret)';
+            $typestring = 'Self-hosted (JWT)';
             break;
         case 2:
             $typestring = '8x8 server';
+            break;
+        case 3:
+            $typestring = '🌩️ GCP Auto-Managed';
             break;
         default:
             $typestring = get_string('unknowntype', 'mod_jitsi');
     }
 
+    // ⬅️ Obtener estado del servidor GCP y guardarlo para usar en botones
+    $statushtml = '<span class="badge bg-secondary" id="gcp-status-'.$s->id.'">N/A</span>';
+    $instancestatus = null; // Variable para guardar el estado real
+    
+    if ($s->type == 3 && !empty($s->gcpproject) && !empty($s->gcpzone) && !empty($s->gcpinstancename)) {
+        $gcpserverids[] = $s->id;
+        
+        if ($gcpclient) {
+            try {
+                $instance = $gcpclient->instances->get($s->gcpproject, $s->gcpzone, $s->gcpinstancename);
+                $status = $instance->getStatus();
+                $instancestatus = $status; // ⬅️ Guardar estado para lógica de botones
+                
+                switch ($status) {
+                    case 'RUNNING':
+                        $statushtml = '<span class="badge bg-success" id="gcp-status-'.$s->id.'">🟢 Running</span>';
+                        break;
+                    case 'STOPPED':
+                    case 'TERMINATED':
+                        $statushtml = '<span class="badge bg-danger" id="gcp-status-'.$s->id.'">🔴 Stopped</span>';
+                        break;
+                    case 'STOPPING':
+                        $statushtml = '<span class="badge bg-warning" id="gcp-status-'.$s->id.'">🟡 Stopping...</span>';
+                        break;
+                    case 'PROVISIONING':
+                    case 'STAGING':
+                        $statushtml = '<span class="badge bg-info" id="gcp-status-'.$s->id.'">🔵 Starting...</span>';
+                        break;
+                    case 'SUSPENDING':
+                        $statushtml = '<span class="badge bg-warning" id="gcp-status-'.$s->id.'">🟡 Suspending...</span>';
+                        break;
+                    case 'SUSPENDED':
+                        $statushtml = '<span class="badge bg-secondary" id="gcp-status-'.$s->id.'">⚫ Suspended</span>';
+                        break;
+                    case 'REPAIRING':
+                        $statushtml = '<span class="badge bg-warning" id="gcp-status-'.$s->id.'">🔧 Repairing...</span>';
+                        break;
+                    default:
+                        $statushtml = '<span class="badge bg-secondary" id="gcp-status-'.$s->id.'">' . htmlspecialchars($status) . '</span>';
+                }
+            } catch (Exception $e) {
+                if (strpos($e->getMessage(), 'notFound') !== false || strpos($e->getMessage(), '404') !== false) {
+                    $statushtml = '<span class="badge bg-dark" id="gcp-status-'.$s->id.'">❌ Not Found</span>';
+                    $instancestatus = 'NOT_FOUND';
+                } else {
+                    $statushtml = '<span class="badge bg-secondary" id="gcp-status-'.$s->id.'" title="' . htmlspecialchars($e->getMessage()) . '">⚠️ Error</span>';
+                    $instancestatus = 'ERROR';
+                }
+            }
+        }
+    }
+
     $editurl = new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'edit', 'id' => $s->id]);
     $deleteurl = new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'delete', 'id' => $s->id]);
 
-    $links = html_writer::link($editurl, get_string('edit')) . ' | '
-           . html_writer::link($deleteurl, get_string('delete'));
+    // Solo mostrar Edit si NO es GCP
+    $links = '';
+    if ($s->type != 3) {
+        $links = html_writer::link($editurl, get_string('edit'));
+    }
+    
+    // ⬅️ Agregar acciones de start/stop según el estado real
+    if ($s->type == 3 && !empty($s->gcpproject) && !empty($s->gcpzone) && !empty($s->gcpinstancename)) {
+        $starturl = new moodle_url('/mod/jitsi/servermanagement.php', [
+            'action' => 'gcpstart',
+            'id' => $s->id,
+            'sesskey' => sesskey()
+        ]);
+        $stopurl = new moodle_url('/mod/jitsi/servermanagement.php', [
+            'action' => 'gcpstop',
+            'id' => $s->id,
+            'sesskey' => sesskey()
+        ]);
+        
+        if (!empty($links)) {
+            $links .= ' | ';
+        }
+        
+        // ⬅️ Lógica condicional de botones según estado
+        $buttonshown = false;
+        
+        // Mostrar botón START solo si está apagado, suspendido o en error
+        if (in_array($instancestatus, ['STOPPED', 'TERMINATED', 'SUSPENDED', 'NOT_FOUND', 'ERROR', null])) {
+            $links .= html_writer::link(
+                $starturl, 
+                '▶️ Start', 
+                ['class' => 'btn btn-sm btn-success', 'id' => 'gcp-btn-start-'.$s->id]
+            );
+            $buttonshown = true;
+        }
+        
+        // Mostrar botón STOP solo si está corriendo o arrancando
+        if (in_array($instancestatus, ['RUNNING', 'PROVISIONING', 'STAGING'])) {
+            if ($buttonshown) {
+                $links .= ' | ';
+            }
+            $links .= html_writer::link(
+                $stopurl, 
+                '⏹️ Stop', 
+                ['class' => 'btn btn-sm btn-warning', 'id' => 'gcp-btn-stop-'.$s->id]
+            );
+            $buttonshown = true;
+        }
+        
+        // Mostrar mensaje de espera si está en transición
+        if (in_array($instancestatus, ['STOPPING', 'SUSPENDING', 'REPAIRING'])) {
+            if ($buttonshown) {
+                $links .= ' | ';
+            }
+            $links .= '<span class="badge bg-secondary" id="gcp-btn-wait-'.$s->id.'">⏳ Please wait...</span>';
+            $buttonshown = true;
+        }
+        
+        // Si no hay estado disponible, mostrar ambos botones deshabilitados
+        if (!$buttonshown) {
+            $links .= '<span class="text-muted">Actions unavailable</span>';
+        }
+    }
+    
+    // Delete siempre disponible
+    if (!empty($links)) {
+        $links .= ' | ';
+    }
+    $links .= html_writer::link($deleteurl, get_string('delete'));
 
     $table->data[] = [
         format_string($s->name),
         $typestring,
         format_string($s->domain),
+        $statushtml,
         $links,
     ];
 }
 echo html_writer::table($table);
 
-if ($action === 'edit' && $id > 0) {
-    echo $OUTPUT->heading(get_string('editserver', 'mod_jitsi'));
-} else {
-    echo $OUTPUT->heading(get_string('addnewserver', 'mod_jitsi'));
+// ⬅️ Actualizar JavaScript para también actualizar botones dinámicamente
+if (!empty($gcpserverids)) {
+    $statusurl = (new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'gcpserversstatus']))->out(false);
+    $gcpidsjs = json_encode($gcpserverids);
+    $sesskeyjs = sesskey();
+    $wwwroot = $CFG->wwwroot;
+    
+    $PAGE->requires->js_init_code(
+        "(function(){\n".
+        "  var gcpIds = ".$gcpidsjs.";\n".
+        "  if (gcpIds.length === 0) return;\n".
+        "  \n".
+        "  function updateStatuses(){\n".
+        "    fetch('".$statusurl."', {\n".
+        "      method: 'POST',\n".
+        "      headers: {'Content-Type':'application/x-www-form-urlencoded'},\n".
+        "      body: new URLSearchParams({sesskey: '".$sesskeyjs."', ids: gcpIds.join(',')})\n".
+        "    })\n".
+        "    .then(res => res.json())\n".
+        "    .then(data => {\n".
+        "      if (data.error) {\n".
+        "        console.error('Status update error:', data.error);\n".
+        "        return;\n".
+        "      }\n".
+        "      for (var id in data) {\n".
+        "        var badge = document.getElementById('gcp-status-' + id);\n".
+        "        if (!badge) continue;\n".
+        "        var status = data[id].status;\n".
+        "        var badgeClass = 'badge ';\n".
+        "        var badgeText = '';\n".
+        "        \n".
+        "        // ⬅️ Obtener contenedor de botones (celda de la tabla)\n".
+        "        var row = badge.closest('tr');\n".
+        "        var actionsCell = row ? row.cells[4] : null;\n".
+        "        \n".
+        "        switch(status) {\n".
+        "          case 'RUNNING':\n".
+        "            badgeClass += 'bg-success';\n".
+        "            badgeText = '🟢 Running';\n".
+        "            updateButtons(id, actionsCell, 'running');\n".
+        "            break;\n".
+        "          case 'STOPPED':\n".
+        "          case 'TERMINATED':\n".
+        "            badgeClass += 'bg-danger';\n".
+        "            badgeText = '🔴 Stopped';\n".
+        "            updateButtons(id, actionsCell, 'stopped');\n".
+        "            break;\n".
+        "          case 'STOPPING':\n".
+        "            badgeClass += 'bg-warning';\n".
+        "            badgeText = '🟡 Stopping...';\n".
+        "            updateButtons(id, actionsCell, 'transition');\n".
+        "            break;\n".
+        "          case 'PROVISIONING':\n".
+        "          case 'STAGING':\n".
+        "            badgeClass += 'bg-info';\n".
+        "            badgeText = '🔵 Starting...';\n".
+        "            updateButtons(id, actionsCell, 'running');\n".
+        "            break;\n".
+        "          case 'SUSPENDING':\n".
+        "            badgeClass += 'bg-warning';\n".
+        "            badgeText = '🟡 Suspending...';\n".
+        "            updateButtons(id, actionsCell, 'transition');\n".
+        "            break;\n".
+        "          case 'SUSPENDED':\n".
+        "            badgeClass += 'bg-secondary';\n".
+        "            badgeText = '⚫ Suspended';\n".
+        "            updateButtons(id, actionsCell, 'stopped');\n".
+        "            break;\n".
+        "          case 'REPAIRING':\n".
+        "            badgeClass += 'bg-warning';\n".
+        "            badgeText = '🔧 Repairing...';\n".
+        "            updateButtons(id, actionsCell, 'transition');\n".
+        "            break;\n".
+        "          case 'NOT_FOUND':\n".
+        "            badgeClass += 'bg-dark';\n".
+        "            badgeText = '❌ Not Found';\n".
+        "            updateButtons(id, actionsCell, 'stopped');\n".
+        "            break;\n".
+        "          case 'ERROR':\n".
+        "            badgeClass += 'bg-secondary';\n".
+        "            badgeText = '⚠️ Error';\n".
+        "            if (data[id].message) {\n".
+        "              badge.title = data[id].message;\n".
+        "            }\n".
+        "            updateButtons(id, actionsCell, 'stopped');\n".
+        "            break;\n".
+        "          default:\n".
+        "            badgeClass += 'bg-secondary';\n".
+        "            badgeText = status;\n".
+        "        }\n".
+        "        badge.className = badgeClass;\n".
+        "        badge.textContent = badgeText;\n".
+        "      }\n".
+        "    })\n".
+        "    .catch(err => console.error('Status update failed:', err));\n".
+        "  }\n".
+        "  \n".
+        "  function updateButtons(serverId, actionsCell, state) {\n".
+        "    if (!actionsCell) return;\n".
+        "    \n".
+        "    var startBtn = document.getElementById('gcp-btn-start-' + serverId);\n".
+        "    var stopBtn = document.getElementById('gcp-btn-stop-' + serverId);\n".
+        "    var waitSpan = document.getElementById('gcp-btn-wait-' + serverId);\n".
+        "    \n".
+        "    // Obtener el contenido de la celda para mantener el delete\n".
+        "    var cellHTML = actionsCell.innerHTML;\n".
+        "    var deleteLink = cellHTML.match(/(<a[^>]*delete[^>]*>.*?<\\/a>)/i);\n".
+        "    deleteLink = deleteLink ? deleteLink[0] : '';\n".
+        "    \n".
+        "    var startUrl = '".$wwwroot."/mod/jitsi/servermanagement.php?action=gcpstart&id=' + serverId + '&sesskey=".$sesskeyjs."';\n".
+        "    var stopUrl = '".$wwwroot."/mod/jitsi/servermanagement.php?action=gcpstop&id=' + serverId + '&sesskey=".$sesskeyjs."';\n".
+        "    \n".
+        "    var newButtons = '';\n".
+        "    \n".
+        "    if (state === 'stopped') {\n".
+        "      // Mostrar solo START\n".
+        "      newButtons = '<a href=\"' + startUrl + '\" class=\"btn btn-sm btn-success\" id=\"gcp-btn-start-' + serverId + '\">▶️ Start</a>';\n".
+        "    } else if (state === 'running') {\n".
+        "      // Mostrar solo STOP\n".
+        "      newButtons = '<a href=\"' + stopUrl + '\" class=\"btn btn-sm btn-warning\" id=\"gcp-btn-stop-' + serverId + '\">⏹️ Stop</a>';\n".
+        "    } else if (state === 'transition') {\n".
+        "      // Mostrar mensaje de espera\n".
+        "      newButtons = '<span class=\"badge bg-secondary\" id=\"gcp-btn-wait-' + serverId + '\">⏳ Please wait...</span>';\n".
+        "    }\n".
+        "    \n".
+        "    actionsCell.innerHTML = newButtons + (deleteLink ? ' | ' + deleteLink : '');\n".
+        "  }\n".
+        "  \n".
+        "  // Actualizar cada 10 segundos\n".
+        "  setInterval(updateStatuses, 10000);\n".
+        "  // Primera actualización después de 2 segundos\n".
+        "  setTimeout(updateStatuses, 2000);\n".
+        "})();"
+    );
 }
 
-$mform->display();
+$showform = true;
+if ($action === 'edit' && $id > 0) {
+    $server = $DB->get_record('jitsi_servers', ['id' => $id]);
+    if ($server && $server->type == 3) {
+        $showform = false;
+    }
+}
+
+if ($showform) {
+    if ($action === 'edit' && $id > 0) {
+        echo $OUTPUT->heading(get_string('editserver', 'mod_jitsi'));
+    } else {
+        echo $OUTPUT->heading(get_string('addnewserver', 'mod_jitsi'));
+    }
+    $mform->display();
+}
 
 echo $OUTPUT->footer();
+
