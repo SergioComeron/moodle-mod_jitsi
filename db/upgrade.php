@@ -953,5 +953,17 @@ function xmldb_jitsi_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2025110702, 'jitsi');
     }
 
+    if ($oldversion < 2025122000) {
+        // Add gcpstaticipname field to jitsi_servers for static IP management
+        $table = new xmldb_table('jitsi_servers');
+
+        $field = new xmldb_field('gcpstaticipname', XMLDB_TYPE_CHAR, '255', null, null, null, null, 'gcpinstancename');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        upgrade_mod_savepoint(true, 2025122000, 'jitsi');
+    }
+
     return true;
 }

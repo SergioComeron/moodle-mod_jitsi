@@ -63,11 +63,22 @@ if ($rawaction === 'jitsiready') {
     // Registrar servidor cuando se complete
     if ($phase === 'completed' && !empty($hostname) && !empty($appid) && !empty($secret)) {
         global $DB;
-        
+
         try {
+            // ⬅️ Recuperar información de la IP estática
+            $staticipkey = 'mod_jitsi_vmstaticip_' . clean_param($instancename, PARAM_ALPHANUMEXT);
+            $staticipdata = get_config('mod_jitsi', $staticipkey);
+            $staticipname = null;
+            if (!empty($staticipdata)) {
+                $ipinfo = json_decode($staticipdata, true);
+                if (is_array($ipinfo) && !empty($ipinfo['name'])) {
+                    $staticipname = $ipinfo['name'];
+                }
+            }
+
             // Verificar si el servidor ya existe
             $existingserver = $DB->get_record('jitsi_servers', ['domain' => $hostname]);
-            
+
             if (!$existingserver) {
                 // Insertar nuevo servidor
                 $server = new stdClass();
@@ -82,9 +93,10 @@ if ($rawaction === 'jitsiready') {
                 $server->gcpproject = get_config('mod_jitsi', 'gcp_project'); // ⬅️ Guardar proyecto GCP
                 $server->gcpzone = get_config('mod_jitsi', 'gcp_zone'); // ⬅️ Guardar zona GCP
                 $server->gcpinstancename = $instancename; // ⬅️ Nombre de la instancia en GCP
+                $server->gcpstaticipname = $staticipname; // ⬅️ Nombre de la IP estática reservada
                 $server->timecreated = time();
                 $server->timemodified = time();
-                
+
                 // Insertar y obtener el ID
                 $serverid = $DB->insert_record('jitsi_servers', $server);
                 
@@ -109,6 +121,7 @@ if ($rawaction === 'jitsiready') {
                 $existingserver->gcpproject = get_config('mod_jitsi', 'gcp_project');
                 $existingserver->gcpzone = get_config('mod_jitsi', 'gcp_zone');
                 $existingserver->gcpinstancename = $instancename;
+                $existingserver->gcpstaticipname = $staticipname; // ⬅️ Actualizar nombre de IP estática
                 $existingserver->timemodified = time();
                 $DB->update_record('jitsi_servers', $existingserver);
                 
@@ -126,10 +139,13 @@ if ($rawaction === 'jitsiready') {
                     'serverid' => $existingserver->id
                 ]);
             }
-            
-            // Limpiar token usado
+
+            // Limpiar configuración temporal usada
             unset_config($tokenkey, 'mod_jitsi');
-            
+            if (!empty($staticipkey)) {
+                unset_config($staticipkey, 'mod_jitsi'); // ⬅️ Limpiar info de IP estática
+            }
+
         } catch (Exception $e) {
             error_log("❌ Failed to register Jitsi GCP server: " . $e->getMessage());
             http_response_code(500);
@@ -590,7 +606,7 @@ if (!function_exists('mod_jitsi_default_startup_script')) {
           mkdir -p /opt/acmesh
           ln -sfn /.acme.sh /opt/acmesh/.acme.sh
           ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
-        } else if [ -x "/root/.acme.sh/acme.sh" ]; then
+        elif [ -x "/root/.acme.sh/acme.sh" ]; then
           mkdir -p /opt/acmesh
           ln -sfn /root/.acme.sh /opt/acmesh/.acme.sh
           ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
@@ -647,7 +663,7 @@ if (!function_exists('mod_jitsi_default_startup_script')) {
           mkdir -p /opt/acmesh
           ln -sfn /.acme.sh /opt/acmesh/.acme.sh
           ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
-        } else if [ -x "/root/.acme.sh/acme.sh" ]; then
+        elif [ -x "/root/.acme.sh/acme.sh" ]; then
           mkdir -p /opt/acmesh
           ln -sfn /root/.acme.sh /opt/acmesh/.acme.sh
           ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
@@ -658,11 +674,11 @@ if (!function_exists('mod_jitsi_default_startup_script')) {
         curl -fsSL https://get.acme.sh | sh -s email="$LE_EMAIL"
         if [ -x "/opt/acmesh/.acme.sh/acme.sh" ]; then
           ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
-        } else if [ -x "/.acme.sh/acme.sh" ]; then
+        elif [ -x "/.acme.sh/acme.sh" ]; then
           mkdir -p /opt/acmesh
           ln -sfn /.acme.sh /opt/acmesh/.acme.sh
           ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
-        } else if [ -x "/root/.acme.sh/acme.sh" ]; then
+        elif [ -x "/root/.acme.sh/acme.sh" ]; then
           mkdir -p /opt/acmesh
           ln -sfn /root/.acme.sh /opt/acmesh/.acme.sh
           ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
@@ -854,6 +870,13 @@ if (!function_exists('mod_jitsi_gcp_create_instance')) {
             $metadataItems[] = ['key' => 'CALLBACK_URL', 'value' => $opts['callbackUrl']];
         }
 
+        // Configure access config (static IP if provided, otherwise ephemeral)
+        $accessConfig = ['name' => 'External NAT', 'type' => 'ONE_TO_ONE_NAT'];
+        if (!empty($opts['staticIpAddress'])) {
+            // Use the reserved static IP address
+            $accessConfig['natIP'] = $opts['staticIpAddress'];
+        }
+
         $instanceParams = [
             'name' => $name,
             'machineType' => $machineType,
@@ -861,7 +884,7 @@ if (!function_exists('mod_jitsi_gcp_create_instance')) {
             'tags' => ['items' => ['mod-jitsi-web']],
             'networkInterfaces' => [[
                 'network' => $network,
-                'accessConfigs' => [[ 'name' => 'External NAT', 'type' => 'ONE_TO_ONE_NAT' ]]
+                'accessConfigs' => [$accessConfig]
             ]],
             'disks' => [[
                 'boot' => true,
@@ -893,6 +916,101 @@ if (!function_exists('mod_jitsi_gcp_wait_zone_op')) {
             usleep(500000);
         } while (time() - $start < $timeout);
         throw new moodle_exception('gcpoperationtimeout', 'mod_jitsi');
+    }
+}
+
+if (!function_exists('mod_jitsi_gcp_wait_region_op')) {
+    /**
+     * Waits for a regional GCP operation to complete (e.g., address reservation).
+     */
+    function mod_jitsi_gcp_wait_region_op(\Google\Service\Compute $compute, string $project, string $region, string $opName, int $timeout=120): void {
+        $start = time();
+        do {
+            $op = $compute->regionOperations->get($project, $region, $opName);
+            if ($op->getStatus() === 'DONE') {
+                if ($op->getError()) {
+                    throw new moodle_exception('gcpoperationerror', 'mod_jitsi', '', json_encode($op->getError()));
+                }
+                return;
+            }
+            usleep(500000);
+        } while (time() - $start < $timeout);
+        throw new moodle_exception('gcpoperationtimeout', 'mod_jitsi');
+    }
+}
+
+if (!function_exists('mod_jitsi_gcp_find_available_static_ip')) {
+    /**
+     * Finds an available (unused) static IP in the region.
+     *
+     * @param \Google\Service\Compute $compute GCP Compute client
+     * @param string $project GCP project ID
+     * @param string $region GCP region
+     * @return array|null Array with ['name' => string, 'address' => string] or null if none available
+     */
+    function mod_jitsi_gcp_find_available_static_ip(\Google\Service\Compute $compute, string $project, string $region): ?array {
+        try {
+            $addresses = $compute->addresses->listAddresses($project, $region);
+
+            if ($addresses->getItems()) {
+                foreach ($addresses->getItems() as $addr) {
+                    // IP is available if it's not assigned to any resource (users array is empty)
+                    if (empty($addr->getUsers()) && $addr->getStatus() === 'RESERVED') {
+                        return [
+                            'name' => $addr->getName(),
+                            'address' => $addr->getAddress()
+                        ];
+                    }
+                }
+            }
+        } catch (Exception $e) {
+            error_log('Failed to list addresses: ' . $e->getMessage());
+        }
+
+        return null;
+    }
+}
+
+if (!function_exists('mod_jitsi_gcp_reserve_static_ip')) {
+    /**
+     * Reserves a static IP address in GCP and returns the address name.
+     *
+     * @param \Google\Service\Compute $compute GCP Compute client
+     * @param string $project GCP project ID
+     * @param string $region GCP region (e.g., 'europe-west1' from zone 'europe-west1-b')
+     * @param string $name Name for the static IP address
+     * @return string The reserved static IP address name
+     */
+    function mod_jitsi_gcp_reserve_static_ip(\Google\Service\Compute $compute, string $project, string $region, string $name): string {
+        $address = new \Google\Service\Compute\Address();
+        $address->setName($name);
+        $address->setDescription('Static IP for Jitsi server ' . $name);
+        $address->setAddressType('EXTERNAL');
+
+        $op = $compute->addresses->insert($project, $region, $address);
+        mod_jitsi_gcp_wait_region_op($compute, $project, $region, $op->getName());
+
+        return $name;
+    }
+}
+
+if (!function_exists('mod_jitsi_gcp_release_static_ip')) {
+    /**
+     * Releases a static IP address in GCP.
+     *
+     * @param \Google\Service\Compute $compute GCP Compute client
+     * @param string $project GCP project ID
+     * @param string $region GCP region
+     * @param string $name Name of the static IP address to release
+     */
+    function mod_jitsi_gcp_release_static_ip(\Google\Service\Compute $compute, string $project, string $region, string $name): void {
+        try {
+            $op = $compute->addresses->delete($project, $region, $name);
+            mod_jitsi_gcp_wait_region_op($compute, $project, $region, $op->getName());
+        } catch (Exception $e) {
+            // Log error but don't throw - IP might already be deleted
+            error_log('Failed to release static IP ' . $name . ': ' . $e->getMessage());
+        }
     }
 }
 
@@ -976,6 +1094,52 @@ if ($action === 'creategcpvm') {
             \core\notification::add('Warning: could not create VPC firewall rule automatically. Please allow TCP 80/443 and UDP 10000 to this VM. Details: '.s($fwwarn_detail), \core\output\notification::NOTIFY_WARNING);
         }
         // If status is 'noperms' (e.g., permission denied) or 'exists', do not warn in UI; assume admin-managed firewall or rule already present.
+
+        // ⬅️ GET OR RESERVE STATIC IP ADDRESS
+        // Extract region from zone (e.g., 'europe-west1-b' -> 'europe-west1')
+        $region = preg_replace('/-[a-z]$/', '', $zone);
+        $staticipname = null;
+        $staticipaddress = null;
+        $ipreused = false;
+
+        try {
+            // First, try to find an available (unused) static IP
+            $availableip = mod_jitsi_gcp_find_available_static_ip($compute, $project, $region);
+
+            if ($availableip) {
+                // Reuse existing available IP
+                $staticipname = $availableip['name'];
+                $staticipaddress = $availableip['address'];
+                $ipreused = true;
+                error_log("✅ Reusing available static IP: {$staticipname} ({$staticipaddress})");
+            } else {
+                // No available IP found, create a new one
+                $staticipname = $instancename . '-ip';
+                mod_jitsi_gcp_reserve_static_ip($compute, $project, $region, $staticipname);
+                // Get the actual IP address from the reserved address
+                $addressobj = $compute->addresses->get($project, $region, $staticipname);
+                $staticipaddress = $addressobj->getAddress();
+                error_log("✅ Created new static IP: {$staticipname} ({$staticipaddress})");
+            }
+
+            // ⬅️ Save static IP info in temporary config for callback
+            $staticipkey = 'mod_jitsi_vmstaticip_' . clean_param($instancename, PARAM_ALPHANUMEXT);
+            set_config($staticipkey, json_encode([
+                'name' => $staticipname,
+                'region' => $region,
+                'address' => $staticipaddress,
+                'reused' => $ipreused
+            ]), 'mod_jitsi');
+        } catch (Exception $e) {
+            if ($ajax) {
+                @header('Content-Type: application/json');
+                echo json_encode(['status' => 'error', 'message' => 'Failed to get/reserve static IP: ' . $e->getMessage()]);
+                exit;
+            }
+            \core\notification::add('Failed to get/reserve static IP: ' . $e->getMessage(), \core\output\notification::NOTIFY_ERROR);
+            redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
+        }
+
         $opname = mod_jitsi_gcp_create_instance($compute, $project, $zone, [
             'name' => $instancename,
             'machineType' => $mach,
@@ -985,6 +1149,7 @@ if ($action === 'creategcpvm') {
             'letsencryptEmail' => $leemail,
             'startupScript' => $sscript,
             'callbackUrl' => $callbackurl, // Pasar URL al script
+            'staticIpAddress' => $staticipaddress, // ⬅️ Use reserved static IP
         ]);
         // Save operation info in session for status polling.
         if (!isset($SESSION->mod_jitsi_ops)) { $SESSION->mod_jitsi_ops = []; }
@@ -992,6 +1157,8 @@ if ($action === 'creategcpvm') {
             'project' => $project,
             'zone' => $zone,
             'instancename' => $instancename,
+            'staticipname' => $staticipname, // ⬅️ Save static IP name
+            'region' => $region, // ⬅️ Save region for IP management
         ];
         if ($ajax) {
             @header('Content-Type: application/json');
@@ -1013,6 +1180,8 @@ if ($action === 'creategcpvm') {
             'zone' => $zone,
             'opname' => $opname,
             'instancename' => $instancename,
+            'staticipname' => $staticipname, // ⬅️ Save static IP name
+            'region' => $region, // ⬅️ Save region for IP management
         ];
         redirect(new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'gcpstatus']));
     } catch (Exception $e) {
@@ -1230,25 +1399,19 @@ if ($action === 'delete' && $id > 0) {
                     );
                     
                     error_log("✅ GCP VM deletion initiated: {$server->gcpinstancename} (Operation: {$operation->getName()})");
-                    
-                    // Intentar eliminar la IP estática reservada (si existe)
-                    try {
-                        // Extraer región de la zona (ej: us-central1-a -> us-central1)
-                        $region = preg_replace('/-[a-z]$/', '', $server->gcpzone);
-                        
-                        // Buscar IPs estáticas que puedan estar asociadas a esta instancia
-                        $addresses = $compute->addresses->listAddresses($server->gcpproject, $region);
-                        
-                        foreach ($addresses->getItems() as $address) {
-                            // Si el nombre contiene jitsi y está sin usar, eliminarla
-                            if (strpos($address->getName(), 'jitsi-ip-') === 0 && empty($address->getUsers())) {
-                                $compute->addresses->delete($server->gcpproject, $region, $address->getName());
-                                error_log("✅ Released static IP: {$address->getName()} ({$address->getAddress()})");
-                            }
+
+                    // ⬅️ Liberar la IP estática reservada (si existe)
+                    if (!empty($server->gcpstaticipname)) {
+                        try {
+                            // Extraer región de la zona (ej: us-central1-a -> us-central1)
+                            $region = preg_replace('/-[a-z]$/', '', $server->gcpzone);
+
+                            mod_jitsi_gcp_release_static_ip($compute, $server->gcpproject, $region, $server->gcpstaticipname);
+                            error_log("✅ Released static IP: {$server->gcpstaticipname}");
+                        } catch (Exception $e) {
+                            // No es crítico si no podemos liberar la IP
+                            error_log("⚠️ Could not release static IP {$server->gcpstaticipname}: " . $e->getMessage());
                         }
-                    } catch (Exception $e) {
-                        // No es crítico si no podemos limpiar las IPs
-                        error_log("⚠️ Could not clean up static IPs: " . $e->getMessage());
                     }
                     
                     \core\notification::add(
@@ -1286,7 +1449,8 @@ if ($action === 'delete' && $id > 0) {
         // ⬅️ Mensaje especial para servidores GCP
         if ($server->type == 3 && !empty($server->gcpinstancename)) {
             $msg = html_writer::div(
-                html_writer::tag('strong', 'Warning: This is a GCP Auto-Managed server.') . '<br>' .
+                html_writer::tag('strong', 'Warning: This is a GCP Auto-Managed server ') .
+                html_writer::tag('span', 'BETA', ['class' => 'badge bg-warning text-dark']) . '<br>' .
                 'Deleting this server will also:' . '<br>' .
                 html_writer::tag('ul', 
                     html_writer::tag('li', '🗑️ Delete the virtual machine from Google Cloud') .
@@ -1381,7 +1545,7 @@ if ($action === 'edit' && $id > 0) {
         // ⬅️ Bloquear edición de servidores GCP
         if ($server->type == 3) {
             \core\notification::add(
-                'GCP Auto-Managed servers cannot be edited manually. Use Start/Stop actions or delete and recreate.',
+                'GCP Auto-Managed servers (BETA) cannot be edited manually. Use Start/Stop actions or delete and recreate.',
                 \core\output\notification::NOTIFY_WARNING
             );
             redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
@@ -1469,7 +1633,10 @@ $creategcpvmurl = new moodle_url('/mod/jitsi/servermanagement.php', ['action' =>
 
 echo html_writer::div(
     html_writer::link($settingsurl, get_string('backtosettings', 'mod_jitsi'), ['class' => 'btn btn-secondary me-2']) .
-    html_writer::tag('button', 'Create VM in Google Cloud', ['id' => 'btn-creategcpvm', 'type' => 'button', 'class' => 'btn btn-primary'])
+    html_writer::tag('button',
+        'Create VM in Google Cloud ' . html_writer::tag('span', 'BETA', ['class' => 'badge bg-warning text-dark ms-1']),
+        ['id' => 'btn-creategcpvm', 'type' => 'button', 'class' => 'btn btn-primary']
+    )
 );
 
 // Modal markup for progress.
@@ -1676,11 +1843,40 @@ $PAGE->requires->js_init_code(
     "               vmInfo.instancename = data.instancename;\n".
     "        console.log('VM instance name:', vmInfo.instancename);\n".
     "        pollStatus(data.opname);\n".
+    "      } else if (data && data.status === 'error') {\n".
+    "        // Show detailed error message from server\n".
+    "        var errorMsg = data.message || 'Unknown error occurred';\n".
+    "        if (modalBody) {\n".
+    "          modalBody.innerHTML = '<div class=\"alert alert-danger\">' +\n".
+    "            '<strong>Error starting VM creation:</strong><br>' +\n".
+    "            errorMsg +\n".
+    "            '</div>' +\n".
+    "            '<div class=\"text-center mt-3\">' +\n".
+    "            '<button type=\"button\" class=\"btn btn-secondary\" onclick=\"document.getElementById(\\'gcp-progress-modal\\')?.remove(); document.querySelector(\\'.modal-backdrop\\')?.remove();\">Close</button>' +\n".
+    "            '</div>';\n".
+    "        }\n".
+    "        console.error('VM creation error:', errorMsg);\n".
     "      } else {\n".
-    "        if (modalBody) modalBody.textContent = 'Error starting VM creation';\n".
+    "        if (modalBody) {\n".
+    "          modalBody.innerHTML = '<div class=\"alert alert-danger\">' +\n".
+    "            'Error: Unexpected response from server' +\n".
+    "            '</div>' +\n".
+    "            '<div class=\"text-center mt-3\">' +\n".
+    "            '<button type=\"button\" class=\"btn btn-secondary\" onclick=\"document.getElementById(\\'gcp-progress-modal\\')?.remove(); document.querySelector(\\'.modal-backdrop\\')?.remove();\">Close</button>' +\n".
+    "            '</div>';\n".
+    "        }\n".
+    "        console.error('Unexpected response:', data);\n".
     "      }\n".
     "    } catch(e){\n".
-    "      if (modalBody) modalBody.textContent = 'Error: ' + e.message;\n".
+    "      if (modalBody) {\n".
+    "        modalBody.innerHTML = '<div class=\"alert alert-danger\">' +\n".
+    "          '<strong>Error:</strong><br>' + e.message +\n".
+    "          '</div>' +\n".
+    "          '<div class=\"text-center mt-3\">' +\n".
+    "          '<button type=\"button\" class=\"btn btn-secondary\" onclick=\"document.getElementById(\\'gcp-progress-modal\\')?.remove(); document.querySelector(\\'.modal-backdrop\\')?.remove();\">Close</button>' +\n".
+    "          '</div>';\n".
+    "      }\n".
+    "      console.error('Exception during VM creation:', e);\n".
     "    }\n".
     "  });\n".
     "})();"
@@ -1721,7 +1917,7 @@ foreach ($servers as $s) {
             $typestring = '8x8 server';
             break;
         case 3:
-            $typestring = '🌩️ GCP Auto-Managed';
+            $typestring = '🌩️ GCP Auto-Managed <span class="badge bg-warning text-dark">BETA</span>';
             break;
         default:
             $typestring = get_string('unknowntype', 'mod_jitsi');

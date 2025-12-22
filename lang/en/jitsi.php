@@ -318,8 +318,8 @@ $string['youtubebutton'] = 'Youtube sharing option';
 $string['youtubebuttonex'] = 'Show the youtube videos sharing option';
 
 // --- Google Cloud (GCP) integration strings ---
-$string['gcpheading'] = 'Google Cloud (GCP)';
-$string['gcpheadingex'] = 'Configure the project and VM where the shared Jitsi server will be deployed.';
+$string['gcpheading'] = 'Google Cloud (GCP) - BETA';
+$string['gcpheadingex'] = '<span class="badge bg-warning text-dark">BETA</span> Configure the project and VM where the shared Jitsi server will be deployed. This feature is in beta testing.';
 $string['gcpproject'] = 'Project ID';
 $string['gcpprojectex'] = 'Google Cloud project ID (e.g. my-project).';
 $string['gcpzone'] = 'Zone';
