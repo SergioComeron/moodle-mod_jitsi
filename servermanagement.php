@@ -28,9 +28,9 @@ if ($rawaction === 'jitsiready') {
     // Para este endpoint necesitamos config.php pero SIN require_login
     define('NO_MOODLE_COOKIES', true);
     require_once(__DIR__ . '/../../config.php');
-    
+
     @header('Content-Type: application/json');
-    
+
     $instancename = required_param('instance', PARAM_TEXT);
     $token = required_param('token', PARAM_ALPHANUMEXT);
     $ip = optional_param('ip', '', PARAM_TEXT);
@@ -38,27 +38,35 @@ if ($rawaction === 'jitsiready') {
     $phase = optional_param('phase', 'completed', PARAM_ALPHAEXT);
     $appid = optional_param('appid', '', PARAM_ALPHANUMEXT);
     $secret = optional_param('secret', '', PARAM_ALPHANUMEXT);
-    
+    $error = optional_param('error', '', PARAM_TEXT);
+
     // Verificar token
     $tokenkey = 'mod_jitsi_vmtoken_' . clean_param($instancename, PARAM_ALPHANUMEXT);
     $storedtoken = get_config('mod_jitsi', $tokenkey);
-    
+
     if (empty($storedtoken) || $storedtoken !== $token) {
         http_response_code(401);
         echo json_encode(['status' => 'error', 'message' => 'Invalid token']);
         exit;
     }
-    
+
     // Guardar estado
     $statuskey = 'mod_jitsi_vmstatus_' . clean_param($instancename, PARAM_ALPHANUMEXT);
-    set_config($statuskey, json_encode([
+    $statusdata = [
         'status' => $phase,
         'ip' => $ip,
         'hostname' => $hostname,
         'appid' => $appid,
         'secret' => $secret,
         'timestamp' => time(),
-    ]), 'mod_jitsi');
+    ];
+
+    // Si hay error, incluirlo en el estado
+    if (!empty($error)) {
+        $statusdata['error'] = $error;
+    }
+
+    set_config($statuskey, json_encode($statusdata), 'mod_jitsi');
     
     // Registrar servidor cuando se complete
     if ($phase === 'completed' && !empty($hostname) && !empty($appid) && !empty($secret)) {
@@ -282,6 +290,22 @@ if (!function_exists('mod_jitsi_default_startup_script')) {
 
     # Get public IP early
     MYIP=$(curl -s -H "Metadata-Flavor: Google" "$META/instance/network-interfaces/0/access-configs/0/external-ip" || true)
+
+    # Error handler - notify Moodle if script fails
+    exit_handler() {
+      local exit_code=$?
+      if [ $exit_code -ne 0 ]; then
+        echo "ERROR: Script exited with code $exit_code"
+        if [ -n "$CALLBACK_URL" ]; then
+          local error_msg="Installation failed with exit code $exit_code. Check VM logs for details."
+          curl -X POST "${CALLBACK_URL}&ip=${MYIP}&hostname=${HOSTNAME_FQDN}&phase=error&error=$(echo "$error_msg" | sed 's/ /%20/g')" \
+            --max-time 10 --retry 3 --retry-delay 3 || true
+        fi
+      fi
+    }
+
+    # Set trap to catch all exits (success or failure)
+    trap exit_handler EXIT
 
     # Notify Moodle that VM is created and waiting for DNS
     if [ -n "$CALLBACK_URL" ]; then
@@ -594,121 +618,43 @@ if (!function_exists('mod_jitsi_default_startup_script')) {
       nginx -t && systemctl reload nginx || true
     fi
 
-    # If DNS was ready, issue LE for both host and auth using acme.sh
+    # Try Let's Encrypt if DNS is ready
     if [ "$USE_LE" = "1" ]; then
-      # Ensure acme.sh is present
-      if [ ! -x /opt/acmesh/.acme.sh/acme.sh ]; then
+      echo "DNS is ready, attempting Let's Encrypt certificate..."
+
+      # Install acme.sh if not present (always in /root/.acme.sh by default)
+      if [ ! -f "/root/.acme.sh/acme.sh" ]; then
         curl -fsSL https://get.acme.sh | sh -s email="$LE_EMAIL"
-      fi
-      ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
-      if [ ! -x "$ACME_BIN" ]; then
-        if [ -x "/.acme.sh/acme.sh" ]; then
-          mkdir -p /opt/acmesh
-          ln -sfn /.acme.sh /opt/acmesh/.acme.sh
-          ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
-        elif [ -x "/root/.acme.sh/acme.sh" ]; then
-          mkdir -p /opt/acmesh
-          ln -sfn /root/.acme.sh /opt/acmesh/.acme.sh
-          ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
+        if [ ! -f "/root/.acme.sh/acme.sh" ]; then
+          echo "ERROR: Failed to install acme.sh"
+          exit 1
         fi
       fi
-      
-      $ACME_BIN --set-default-ca --server letsencrypt || true
-      
-      # Issue certificate
+
+      # Set up acme.sh
+      export LE_WORKING_DIR="/root/.acme.sh"
+      /root/.acme.sh/acme.sh --set-default-ca --server letsencrypt
+
+      # Issue certificate for both domains
       if [ -n "$AUTH_DOMAIN" ]; then
-        $ACME_BIN --issue -d "$HOSTNAME_FQDN" -d "$AUTH_DOMAIN" --webroot /usr/share/jitsi-meet --keylength ec-256 --force || true
+        /root/.acme.sh/acme.sh --issue -d "$HOSTNAME_FQDN" -d "$AUTH_DOMAIN" --webroot /usr/share/jitsi-meet --keylength ec-256 --force
       else
-        $ACME_BIN --issue -d "$HOSTNAME_FQDN" --webroot /usr/share/jitsi-meet --keylength ec-256 --force || true
+        /root/.acme.sh/acme.sh --issue -d "$HOSTNAME_FQDN" --webroot /usr/share/jitsi-meet --keylength ec-256 --force
       fi
-      
+
       # Install certificate
-      $ACME_BIN --install-cert -d "$HOSTNAME_FQDN" \
+      /root/.acme.sh/acme.sh --install-cert -d "$HOSTNAME_FQDN" \
         --key-file       "/etc/jitsi/meet/$HOSTNAME_FQDN.key" \
         --fullchain-file "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" \
-        --reloadcmd "systemctl force-reload nginx.service && /usr/share/jitsi-meet/scripts/coturn-le-update.sh $HOSTNAME_FQDN || true"
-      
-      # Update cert permissions
-      chgrp prosody "/etc/jitsi/meet/$HOSTNAME_FQDN.key" || true
-      chmod 640     "/etc/jitsi/meet/$HOSTNAME_FQDN.key" || true
-      
-      # Refresh system/Java trust
-      install -D -m 0644 "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" "/usr/local/share/ca-certificates/jitsi-$HOSTNAME_FQDN.crt" || true
-      update-ca-certificates || true
-    fi
+        --reloadcmd "systemctl force-reload nginx.service"
 
-    # If self-signed, schedule retries for LE
-    if [ "$USE_LE" != "1" ] && [ -n "$LE_EMAIL" ]; then
-      cat > /usr/local/bin/jitsi-issue-le.sh << 'EOSRETRY'
-    #!/bin/bash
-    set -e
+      # Set permissions
+      chgrp prosody "/etc/jitsi/meet/$HOSTNAME_FQDN.key"
+      chmod 640     "/etc/jitsi/meet/$HOSTNAME_FQDN.key"
+      install -D -m 0644 "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" "/usr/local/share/ca-certificates/jitsi-$HOSTNAME_FQDN.crt"
+      update-ca-certificates
 
-    # Check if LE cert already issued
-    if [ -f /var/local/jitsi_le_success ]; then
-      exit 0
-    fi
-
-    META="http://metadata.google.internal/computeMetadata/v1"
-    HOSTNAME_FQDN=$(curl -s -H "Metadata-Flavor: Google" "$META/instance/attributes/HOSTNAME_FQDN" || true)
-    LE_EMAIL=$(curl -s -H "Metadata-Flavor: Google" "$META/instance/attributes/LE_EMAIL" || true)
-    MYIP=$(curl -s -H "Metadata-Flavor: Google" "$META/instance/network-interfaces/0/access-configs/0/external-ip" || true)
-    DNSIP_HOST=$(dig +short A "$HOSTNAME_FQDN" @1.1.1.1 | head -n1 || true)
-    AUTH_DOMAIN="auth.$HOSTNAME_FQDN"
-    DNSIP_AUTH=$(dig +short A "$AUTH_DOMAIN" @1.1.1.1 | head -n1 || true)
-
-    if [ -n "$HOSTNAME_FQDN" ] && [ -n "$LE_EMAIL" ] && [ -n "$MYIP" ] && [ "$MYIP" = "$DNSIP_HOST" ] && [ "$MYIP" = "$DNSIP_AUTH" ]; then
-      ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
-      if [ ! -x "$ACME_BIN" ]; then
-        if [ -x "/.acme.sh/acme.sh" ]; then
-          mkdir -p /opt/acmesh
-          ln -sfn /.acme.sh /opt/acmesh/.acme.sh
-          ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
-        elif [ -x "/root/.acme.sh/acme.sh" ]; then
-          mkdir -p /opt/acmesh
-          ln -sfn /root/.acme.sh /opt/acmesh/.acme.sh
-          ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
-        fi
-      fi
-      
-      if [ ! -x "$ACME_BIN" ]; then
-        curl -fsSL https://get.acme.sh | sh -s email="$LE_EMAIL"
-        if [ -x "/opt/acmesh/.acme.sh/acme.sh" ]; then
-          ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
-        elif [ -x "/.acme.sh/acme.sh" ]; then
-          mkdir -p /opt/acmesh
-          ln -sfn /.acme.sh /opt/acmesh/.acme.sh
-          ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
-        elif [ -x "/root/.acme.sh/acme.sh" ]; then
-          mkdir -p /opt/acmesh
-          ln -sfn /root/.acme.sh /opt/acmesh/.acme.sh
-          ACME_BIN="/opt/acmesh/.acme.sh/acme.sh"
-        fi
-      fi
-      
-      $ACME_BIN --set-default-ca --server letsencrypt || true
-      $ACME_BIN --issue -d "$HOSTNAME_FQDN" -d "$AUTH_DOMAIN" --webroot /usr/share/jitsi-meet --keylength ec-256 --force
-      $ACME_BIN --install-cert -d "$HOSTNAME_FQDN" \
-        --key-file       "/etc/jitsi/meet/$HOSTNAME_FQDN.key" \
-        --fullchain-file "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" \
-        --reloadcmd "systemctl force-reload nginx.service && /usr/share/jitsi-meet/scripts/coturn-le-update.sh $HOSTNAME_FQDN || true"
-      
-      chgrp prosody "/etc/jitsi/meet/$HOSTNAME_FQDN.key" || true
-      chmod 640     "/etc/jitsi/meet/$HOSTNAME_FQDN.key" || true
-      install -D -m 0644 "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" "/usr/local/share/ca-certificates/jitsi-$HOSTNAME_FQDN.crt" || true
-      update-ca-certificates || true
-      systemctl restart prosody jicofo jitsi-videobridge2 || true
-      
-      # Remove cron job on success
-      touch /var/local/jitsi_le_success
-      if command -v crontab >/dev/null 2>&1; then
-        crontab -l | grep -v 'jitsi-issue-le.sh' | crontab - || true
-      fi
-    fi
-    EOSRETRY
-      chmod +x /usr/local/bin/jitsi-issue-le.sh
-      if command -v crontab >/dev/null 2>&1; then
-        (crontab -l 2>/dev/null; echo "*/5 * * * * /usr/local/bin/jitsi-issue-le.sh >/var/log/jitsi-issue-le.log 2>&1") | crontab - || true
-      fi
+      echo "Let's Encrypt certificate installed successfully"
     fi
 
     # Create script to update IPs on boot
@@ -794,15 +740,159 @@ if (!function_exists('mod_jitsi_default_startup_script')) {
 
     # Configurar JWT en Jitsi
     if [ -n "$HOSTNAME_FQDN" ]; then
-      # Configurar prosody para JWT
-      cat >> "/etc/prosody/conf.avail/${HOSTNAME_FQDN}.cfg.lua" << EOFJWT
+      # Reemplazar completamente el archivo de configuración de Prosody con JWT
+      cat > "/etc/prosody/conf.avail/${HOSTNAME_FQDN}.cfg.lua" << EOFJWT
+    plugin_paths = { "/usr/share/jitsi-meet/prosody-plugins/" }
 
-    -- JWT authentication
-    authentication = "token"
-    app_id = "${JWT_APP_ID}"
-    app_secret = "${JWT_SECRET}"
-    allow_empty_token = false
+    -- Main virtual host with JWT authentication
+    VirtualHost "${HOSTNAME_FQDN}"
+        authentication = "token"
+        app_id = "${JWT_APP_ID}"
+        app_secret = "${JWT_SECRET}"
+        allow_empty_token = false
+
+        ssl = {
+            key = "/etc/prosody/certs/${HOSTNAME_FQDN}.key";
+            certificate = "/etc/prosody/certs/${HOSTNAME_FQDN}.crt";
+        }
+
+        modules_enabled = {
+            "bosh";
+            "pubsub";
+            "ping";
+            "speakerstats";
+            "external_services";
+            "conference_duration";
+            "muc_lobby_rooms";
+            "muc_breakout_rooms";
+            "av_moderation";
+            "room_metadata";
+        }
+
+        speakerstats_component = "speakerstats.${HOSTNAME_FQDN}"
+        conference_duration_component = "conferenceduration.${HOSTNAME_FQDN}"
+
+        c2s_require_encryption = false
+        lobby_muc = "lobby.${HOSTNAME_FQDN}"
+        breakout_rooms_muc = "breakout.${HOSTNAME_FQDN}"
+        room_metadata_component = "metadata.${HOSTNAME_FQDN}"
+        main_muc = "conference.${HOSTNAME_FQDN}"
+        muc_mapper_domain_base = "${HOSTNAME_FQDN}"
+
+    -- Internal authentication for moderators (if needed)
+    VirtualHost "auth.${HOSTNAME_FQDN}"
+        ssl = {
+            key = "/etc/prosody/certs/auth.${HOSTNAME_FQDN}.key";
+            certificate = "/etc/prosody/certs/auth.${HOSTNAME_FQDN}.crt";
+        }
+        modules_enabled = {
+            "limits_exception";
+        }
+        authentication = "internal_hashed"
+
+    -- MUC component for conference rooms
+    Component "conference.${HOSTNAME_FQDN}" "muc"
+        restrict_room_creation = true
+        storage = "memory"
+        modules_enabled = {
+            "muc_meeting_id";
+            "muc_domain_mapper";
+            "polls";
+            "token_verification";
+            "muc_rate_limit";
+        }
+        admins = { "focus@auth.${HOSTNAME_FQDN}" }
+        muc_room_locking = false
+        muc_room_default_public_jids = true
+
+    -- Internal MUC for Jicofo
+    Component "internal.auth.${HOSTNAME_FQDN}" "muc"
+        storage = "memory"
+        modules_enabled = {
+            "ping";
+        }
+        admins = { "focus@auth.${HOSTNAME_FQDN}", "jvb@auth.${HOSTNAME_FQDN}" }
+        muc_room_locking = false
+        muc_room_default_public_jids = true
+
+    -- Focus component
+    Component "focus.${HOSTNAME_FQDN}" "client_proxy"
+        target_address = "focus@auth.${HOSTNAME_FQDN}"
+
+    -- Lobby component
+    Component "lobby.${HOSTNAME_FQDN}" "muc"
+        storage = "memory"
+        restrict_room_creation = true
+        muc_room_locking = false
+        muc_room_default_public_jids = true
+        modules_enabled = {
+            "muc_rate_limit";
+            "polls";
+        }
+
+    -- Breakout rooms component
+    Component "breakout.${HOSTNAME_FQDN}" "muc"
+        storage = "memory"
+        restrict_room_creation = true
+        muc_room_locking = false
+        muc_room_default_public_jids = true
+        modules_enabled = {
+            "muc_rate_limit";
+            "polls";
+        }
+
+    -- AV moderation component
+    Component "avmoderation.${HOSTNAME_FQDN}" "av_moderation_component"
+        muc_component = "conference.${HOSTNAME_FQDN}"
+
+    -- Speakerstats component
+    Component "speakerstats.${HOSTNAME_FQDN}" "speakerstats_component"
+        muc_component = "conference.${HOSTNAME_FQDN}"
+
+    -- Conference duration component
+    Component "conferenceduration.${HOSTNAME_FQDN}" "conference_duration_component"
+        muc_component = "conference.${HOSTNAME_FQDN}"
+
+    -- Metadata component
+    Component "metadata.${HOSTNAME_FQDN}" "room_metadata_component"
+        muc_component = "conference.${HOSTNAME_FQDN}"
+        breakout_rooms_component = "breakout.${HOSTNAME_FQDN}"
     EOFJWT
+
+      # Asegurar que el enlace simbólico existe
+      ln -sf "/etc/prosody/conf.avail/${HOSTNAME_FQDN}.cfg.lua" "/etc/prosody/conf.d/${HOSTNAME_FQDN}.cfg.lua"
+
+      # Configurar Jitsi Meet para JWT
+      MEET_CONFIG="/etc/jitsi/meet/${HOSTNAME_FQDN}-config.js"
+      if [ -f "$MEET_CONFIG" ]; then
+        # Agregar configuración JWT al config.js
+        sed -i "/var config = {/a\\    hosts: {\\n        domain: '${HOSTNAME_FQDN}',\\n        muc: 'conference.${HOSTNAME_FQDN}',\\n        focus: 'focus.${HOSTNAME_FQDN}'\\n    }," "$MEET_CONFIG"
+      fi
+
+      # Configurar Jicofo para deshabilitar enable-auto-owner
+      JICOFO_CONFIG="/etc/jitsi/jicofo/jicofo.conf"
+      if [ -f "$JICOFO_CONFIG" ]; then
+        # Verificar si ya existe la configuración
+        if ! grep -q "enable-auto-owner" "$JICOFO_CONFIG"; then
+          # Agregar al final del archivo
+          cat >> "$JICOFO_CONFIG" << EOFJICOFO
+
+    jicofo {
+      authentication {
+        enabled = true
+        type = XMPP
+        login-url = ${HOSTNAME_FQDN}
+      }
+      conference {
+        enable-auto-owner = false
+      }
+    }
+    EOFJICOFO
+        else
+          # Reemplazar si ya existe
+          sed -i 's/enable-auto-owner = true/enable-auto-owner = false/g' "$JICOFO_CONFIG"
+        fi
+      fi
 
       # Reiniciar servicios
       systemctl restart prosody jicofo jitsi-videobridge2 || true
@@ -1241,24 +1331,31 @@ if ($action === 'checkjitsiready') {
     require_sesskey();
     @header('Content-Type: application/json');
     $instancename = required_param('instance', PARAM_TEXT);
-    
+
     $statuskey = 'mod_jitsi_vmstatus_' . clean_param($instancename, PARAM_ALPHANUMEXT);
     $statusjson = get_config('mod_jitsi', $statuskey);
-    
+
     if (empty($statusjson)) {
         echo json_encode(['status' => 'installing']);
     } else {
         $status = json_decode($statusjson, true);
         if ($status) {
             // Devolver el estado actual con toda la info
-            echo json_encode([
-                'status' => $status['status'], // puede ser waiting_dns, dns_ready, completed
+            $response = [
+                'status' => $status['status'], // puede ser waiting_dns, dns_ready, completed, error
                 'ip' => $status['ip'] ?? '',
                 'hostname' => $status['hostname'] ?? '',
-            ]);
-            
-            // Limpiar después de completado y pasado tiempo
-            if ($status['status'] === 'completed' && time() - $status['timestamp'] > 300) {
+            ];
+
+            // Si hay error, incluirlo en la respuesta
+            if (!empty($status['error'])) {
+                $response['error'] = $status['error'];
+            }
+
+            echo json_encode($response);
+
+            // Limpiar después de completado/error y pasado tiempo
+            if (($status['status'] === 'completed' || $status['status'] === 'error') && time() - $status['timestamp'] > 300) {
                 unset_config($statuskey, 'mod_jitsi');
             }
         } else {
@@ -1773,6 +1870,20 @@ $PAGE->requires->js_init_code(
     "        setTimeout(checkJitsiReady, 10000);\n".
     "      } else if (data.status === 'completed') {\n".
     "        showSuccessMessage(data.ip, data.hostname);\n".
+    "      } else if (data.status === 'error') {\n".
+    "        var errorMsg = data.error || 'Unknown installation error';\n".
+    "        if (modalBody) {\n".
+    "          modalBody.innerHTML = (\n".
+    "            '<div class=\"alert alert-danger\">'+ \n".
+    "              '<h5>❌ Installation Failed</h5>'+ \n".
+    "              '<p><strong>Error:</strong> ' + errorMsg + '</p>'+ \n".
+    "              '<p class=\"text-muted\">Please check the VM console logs in Google Cloud Console for more details.</p>'+\n".
+    "            '</div>'+\n".
+    "            '<div class=\"mt-3\">'+\n".
+    "              '<a href=\"'+ cfg.listUrl +'\" class=\"btn btn-primary\">Close</a>'+\n".
+    "            '</div>'\n".
+    "          );\n".
+    "        }\n".
     "      }\n".
     "    } catch(e){\n".
     "      console.error('Check ready error:', e);\n".
