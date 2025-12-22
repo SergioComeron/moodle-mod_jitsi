@@ -1632,8 +1632,19 @@ function deleterecordyoutube($idsource) {
             $_SESSION[$tokensessionkey] = $account->clientaccesstoken;
             $client->setAccessToken($_SESSION[$tokensessionkey]);
             if ($client->isAccessTokenExpired()) {
-                $newaccesstoken = $client->fetchAccessTokenWithRefreshToken($account->clientrefreshtoken);
+                // Validate refresh token exists before attempting to use it.
+                if (empty($account->clientrefreshtoken)) {
+                    if ($account->inuse == 1) {
+                        $account->inuse = 0;
+                    }
+                    $account->clientaccesstoken = null;
+                    $account->tokencreated = 0;
+                    $DB->update_record('jitsi_record_account', $account);
+                    return false;
+                }
+
                 try {
+                    $newaccesstoken = $client->fetchAccessTokenWithRefreshToken($account->clientrefreshtoken);
                     $account->clientaccesstoken = $newaccesstoken["access_token"];
                     $newrefreshaccesstoken = $client->getRefreshToken();
                     $newrefreshaccesstoken = $client->getRefreshToken();
@@ -1975,8 +1986,19 @@ function togglestate($idvideo) {
     $client->setAccessToken($_SESSION[$tokensessionkey]);
 
     if ($client->isAccessTokenExpired()) {
-        $newaccesstoken = $client->fetchAccessTokenWithRefreshToken($account->clientrefreshtoken);
+        // Validate refresh token exists before attempting to use it.
+        if (empty($account->clientrefreshtoken)) {
+            if ($account->inuse == 1) {
+                $account->inuse = 0;
+            }
+            $account->clientaccesstoken = null;
+            $account->tokencreated = 0;
+            $DB->update_record('jitsi_record_account', $account);
+            return false;
+        }
+
         try {
+            $newaccesstoken = $client->fetchAccessTokenWithRefreshToken($account->clientrefreshtoken);
             $account->clientaccesstoken = $newaccesstoken["access_token"];
             $newraccesstfreshaccesstoken = $client->getRefreshToken();
             $newrefreshaccesstoken = $client->getRefreshToken();
@@ -2082,8 +2104,26 @@ function getclientgoogleapi() {
     $client->setAccessToken($_SESSION[$tokensessionkey]);
 
     if ($client->isAccessTokenExpired()) {
-        $newaccesstoken = $client->fetchAccessTokenWithRefreshToken($account->clientrefreshtoken);
+        // Validate refresh token exists before attempting to use it.
+        if (empty($account->clientrefreshtoken)) {
+            if ($account->inuse == 1) {
+                $account->inuse = 0;
+            }
+            $account->clientaccesstoken = null;
+            $account->tokencreated = 0;
+            $DB->update_record('jitsi_record_account', $account);
+            throw new moodle_exception(
+                'error',
+                'mod_jitsi',
+                '',
+                'The YouTube account "' . $account->name . '" is missing a refresh token. ' .
+                'Please delete and re-add this account in Site administration > Plugins > Activity modules > ' .
+                'Jitsi > Streaming/Recording accounts.'
+            );
+        }
+
         try {
+            $newaccesstoken = $client->fetchAccessTokenWithRefreshToken($account->clientrefreshtoken);
             $account->clientaccesstoken = $newaccesstoken["access_token"];
             $newrefreshaccesstoken = $client->getRefreshToken();
             $newrefreshaccesstoken = $client->getRefreshToken();
@@ -2137,8 +2177,26 @@ function getclientgoogleapibyaccount($account) {
     $client->setAccessToken($_SESSION[$tokensessionkey]);
 
     if ($client->isAccessTokenExpired()) {
-        $newaccesstoken = $client->fetchAccessTokenWithRefreshToken($account->clientrefreshtoken);
+        // Validate refresh token exists before attempting to use it.
+        if (empty($account->clientrefreshtoken)) {
+            if ($account->inuse == 1) {
+                $account->inuse = 0;
+            }
+            $account->clientaccesstoken = null;
+            $account->tokencreated = 0;
+            $DB->update_record('jitsi_record_account', $account);
+            throw new moodle_exception(
+                'error',
+                'mod_jitsi',
+                '',
+                'The YouTube account "' . $account->name . '" is missing a refresh token. ' .
+                'Please delete and re-add this account in Site administration > Plugins > Activity modules > ' .
+                'Jitsi > Streaming/Recording accounts.'
+            );
+        }
+
         try {
+            $newaccesstoken = $client->fetchAccessTokenWithRefreshToken($account->clientrefreshtoken);
             $account->clientaccesstoken = $newaccesstoken["access_token"];
             $newrefreshaccesstoken = $client->getRefreshToken();
             $newrefreshaccesstoken = $client->getRefreshToken();

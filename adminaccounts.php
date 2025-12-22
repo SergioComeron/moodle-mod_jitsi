@@ -126,13 +126,19 @@ if ($daccountid && confirm_sesskey($sesskey)) {
         $timediff = $t - $account->tokencreated;
 
         if ($timediff > 3599) {
-            $newaccesstoken = $client->fetchAccessTokenWithRefreshToken($account->clientrefreshtoken);
+            // Validate refresh token exists before attempting to use it.
+            if (empty($account->clientrefreshtoken)) {
+                // Skip token refresh if refresh token is missing.
+                // The revoke will still proceed.
+            } else {
+                $newaccesstoken = $client->fetchAccessTokenWithRefreshToken($account->clientrefreshtoken);
 
-            $account->clientaccesstoken = $newaccesstoken["access_token"];
-            $newrefreshaccesstoken = $client->getRefreshToken();
-            $account->refreshtoken = $newrefreshaccesstoken;
-            $account->tokencreated = time();
-            $DB->update_record('jitsi_record_account', $account);
+                $account->clientaccesstoken = $newaccesstoken["access_token"];
+                $newrefreshaccesstoken = $client->getRefreshToken();
+                $account->refreshtoken = $newrefreshaccesstoken;
+                $account->tokencreated = time();
+                $DB->update_record('jitsi_record_account', $account);
+            }
         }
 
         $client->revokeToken($account->clientaccesstoken);

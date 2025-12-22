@@ -98,14 +98,16 @@ $selecteddate = optional_param_array('selecteddate', 0, PARAM_INT);
 $tab = optional_param('tab', 'help', PARAM_TEXT);
 $activetab = $tab;
 
-if ($selecteddate == 0) {
-    $selecteddate = time();
-} else {
+if (is_array($selecteddate) &&
+    isset($selecteddate['year']) && isset($selecteddate['month']) && isset($selecteddate['day']) &&
+    $selecteddate['year'] > 0 && $selecteddate['month'] > 0 && $selecteddate['day'] > 0) {
     $selecteddate = make_timestamp(
         $selecteddate['year'],
         $selecteddate['month'],
         $selecteddate['day']
-    ); // Por defecto, la fecha de hoy.
+    );
+} else {
+    $selecteddate = time();
 }
 if ($id) {
     $cm = get_coursemodule_from_id('jitsi', $id, 0, false, MUST_EXIST);

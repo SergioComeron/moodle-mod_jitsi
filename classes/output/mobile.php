@@ -190,13 +190,24 @@ class mobile {
      * @return array HTML, javascript and otherdata
      */
     public static function mobile_session_view($args) {
-        global $OUTPUT, $CFG;
+        global $OUTPUT, $CFG, $DB;
         $serverid = get_config('mod_jitsi', 'server');
-        $server = $DB->get_record('jitsi_servers', ['id' => $serverid]);
-        $servertype = $server->type;
-        $appid = $server->appid;
-        $domain = $server->domain;
-        $secret = $server->secret;
+
+        // Default values for when no server is configured.
+        $servertype = 0;
+        $appid = null;
+        $domain = 'meet.jit.si';
+        $serversecret = null;
+
+        if (!empty($serverid)) {
+            $server = $DB->get_record('jitsi_servers', ['id' => $serverid]);
+            if ($server) {
+                $servertype = $server->type;
+                $appid = $server->appid;
+                $domain = $server->domain;
+                $serversecret = $server->secret;
+            }
+        }
 
         if ($args['appversioncode'] >= 3950) {
             $foldername = 'ionic5';
@@ -248,15 +259,14 @@ class mobile {
             ],
             "aud" => "jitsi",
             "iss" => $appid,
-            "sub" => $secret,
+            "sub" => $domain,
             "room" => urlencode($sessionnorm),
             "exp" => time() + 24 * 3600,
             "moderator" => $teacher,
         ], JSON_UNESCAPED_SLASHES);
         $base64urlpayload = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($payload));
 
-        $secret = get_config('mod_jitsi', 'secret');
-        $signature = hash_hmac('sha256', $base64urlheader . "." . $base64urlpayload, $secret, true);
+        $signature = hash_hmac('sha256', $base64urlheader . "." . $base64urlpayload, $serversecret, true);
         $base64urlsignature = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($signature));
 
         $jwt = $base64urlheader . "." . $base64urlpayload . "." . $base64urlsignature;
@@ -296,7 +306,7 @@ class mobile {
         $buttons .= "\"download\",\"help\",\"" . $muteeveryone . "\",\"" . $mutevideoeveryone . "\",\"" . $security . "\"]";
 
         $data = [];
-        if ($appid != null && $secret != null) {
+        if ($appid != null && $serversecret != null) {
             $data['jwt'] = 'jwt=' . $jwt;
         }
 
@@ -318,15 +328,6 @@ class mobile {
         $data['interface_config'] = $interfaceconfig;
 
         $data['is_desktop'] = $args['appisdesktop'];
-        global $DB;
-        $serverid = get_config('mod_jitsi', 'server');
-        $domain = 'meet.jit.si';
-        if (!empty($serverid)) {
-            $srv = $DB->get_record('jitsi_servers', ['id' => $serverid]);
-            if ($srv && !empty($srv->domain)) {
-                $domain = $srv->domain;
-            }
-        }
         $data['jitsi_domain'] = $domain;
         $data['room'] = $sessionnorm;
 

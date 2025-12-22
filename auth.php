@@ -69,6 +69,22 @@ if ($name) {
         $timediff = $t - $accountinuse->tokencreated;
 
         if ($timediff > 3599) {
+            // Validate refresh token exists before attempting to use it.
+            if (empty($accountinuse->clientrefreshtoken)) {
+                // Mark account as not in use and throw clear error.
+                $accountinuse->inuse = 0;
+                $DB->update_record('jitsi_record_account', $accountinuse);
+                throw new moodle_exception(
+                    'error',
+                    'mod_jitsi',
+                    '',
+                    'The YouTube account "' . $accountinuse->name . '" is missing a refresh token. ' .
+                    'Please delete and re-add this account in Site administration > Plugins > Activity modules > ' .
+                    'Jitsi > Streaming/Recording accounts. Make sure to use an incognito/private browser window ' .
+                    'when re-adding the account to force Google to provide a new refresh token.'
+                );
+            }
+
             $newaccesstoken = $client->fetchAccessTokenWithRefreshToken($accountinuse->clientrefreshtoken);
 
             $accountinuse->clientaccesstoken = $newaccesstoken['access_token'];
@@ -107,6 +123,7 @@ if (get_config('mod_jitsi', 'oauth_id') == null || get_config('mod_jitsi', 'oaut
     $client->setClientSecret($oauth2clientsecret);
     $client->setScopes('https://www.googleapis.com/auth/youtube');
     $client->setAccessType("offline");
+    $client->setPrompt("consent"); // Force Google to always return refresh token.
 
     $httparray = explode(":", $CFG->wwwroot);
     $principiohttp = $httparray[0] . '://';
@@ -152,6 +169,27 @@ if (get_config('mod_jitsi', 'oauth_id') == null || get_config('mod_jitsi', 'oaut
 
             $accesstoken = $client->getAccessToken()["access_token"];
             $clientrefreshtoken = $client->getRefreshToken();
+
+            // Validate that Google returned a refresh token.
+            if (empty($clientrefreshtoken)) {
+                echo $OUTPUT->box_start('generalbox alert alert-danger');
+                echo '<h4>' . get_string('error') . '</h4>';
+                echo '<p><strong>' . get_string('refreshtokenmissing', 'jitsi') . '</strong></p>';
+                echo '<p>' . get_string('refreshtokenmissingdetail', 'jitsi') . '</p>';
+                echo '<ol>';
+                echo '<li>' . get_string('refreshtokenstep1', 'jitsi') .
+                     ' <a href="https://myaccount.google.com/permissions" target="_blank">https://myaccount.google.com/permissions</a></li>';
+                echo '<li>' . get_string('refreshtokenstep2', 'jitsi') . '</li>';
+                echo '<li>' . get_string('refreshtokenstep3', 'jitsi') . '</li>';
+                echo '</ol>';
+                echo $OUTPUT->box_end();
+
+                $link = new moodle_url('/mod/jitsi/adminaccounts.php');
+                echo '<a href="' . $link . '" class="btn btn-primary">' . get_string('back') . '</a>';
+                echo $OUTPUT->footer();
+                exit;
+            }
+
             echo $OUTPUT->box(get_string('accountconnected', 'jitsi'));
 
             $link = new moodle_url('/mod/jitsi/adminaccounts.php');

@@ -141,7 +141,240 @@ Open the Moodle Jitsi plugin settings and change the values as follows.
 
 Save the changes and you're ready to use Jitsi as a Service in your Moodle courses.
 
+## Google Cloud Platform (GCP) Integration - BETA
+
+This plugin includes **experimental support** for automatically creating and managing Jitsi Meet servers in Google Cloud Platform. This feature allows you to:
+
+- Create Jitsi servers on-demand directly from Moodle
+- Automatically configure Jitsi Meet with JWT authentication
+- Manage server lifecycle (start/stop instances)
+- Use static IP addresses for consistent DNS configuration
+- Automatic Let's Encrypt SSL certificate provisioning
+
+**⚠️ This feature is in BETA testing**. Use it in production environments with caution.
+
+### Prerequisites
+
+Before using the GCP integration, you need:
+
+1. **Google Cloud Platform Account**
+   - Active GCP project with billing enabled
+   - Compute Engine API enabled
+
+2. **Service Account with Permissions**
+   - Create a service account in your GCP project
+   - Grant the following roles:
+     - `Compute Admin` (roles/compute.admin) - to create and manage instances
+     - `Service Account User` (roles/iam.serviceAccountUser) - to attach service accounts to instances
+   - Download the JSON key file for this service account
+
+3. **Domain Name (Optional but Recommended)**
+   - A fully qualified domain name (FQDN) that you can point to the VM's IP address
+   - Required for Let's Encrypt SSL certificates
+   - Without a domain, the server will use a self-signed certificate
+
+4. **PHP Dependencies**
+   - The Google API Client library must be installed
+   - Run `composer require google/apiclient` in the plugin's `api/` directory, or install globally in your Moodle environment
+
+### Configuration Steps
+
+#### 1. Enable Compute Engine API
+
+In your Google Cloud Console:
+1. Go to **APIs & Services > Library**
+2. Search for "Compute Engine API"
+3. Click "Enable"
+
+#### 2. Create a Service Account
+
+1. Go to **IAM & Admin > Service Accounts**
+2. Click "Create Service Account"
+3. Name it (e.g., "jitsi-moodle-manager")
+4. Grant roles:
+   - `Compute Admin`
+   - `Service Account User`
+5. Click "Create Key" and download the JSON file
+6. **Keep this file secure** - it provides full access to your Compute Engine resources
+
+#### 3. Configure the Plugin in Moodle
+
+Navigate to **Site administration > Plugins > Activity modules > Jitsi > Google Cloud (GCP) - BETA** section:
+
+1. **Project ID**: Your GCP project ID (e.g., `my-project-12345`)
+   - Find it in GCP Console dashboard
+
+2. **Zone**: The Compute Engine zone where VMs will be created (e.g., `europe-west1-b`)
+   - Choose a zone close to your users for better performance
+   - List of zones: https://cloud.google.com/compute/docs/regions-zones
+
+3. **Machine Type**: VM size (default: `e2-standard-4`)
+   - `e2-standard-2`: 2 vCPUs, 8GB RAM - suitable for small meetings (<20 participants)
+   - `e2-standard-4`: 4 vCPUs, 16GB RAM - recommended for medium meetings (<50 participants)
+   - `e2-standard-8`: 8 vCPUs, 32GB RAM - for large meetings (>50 participants)
+   - Pricing: https://cloud.google.com/compute/vm-instance-pricing
+
+4. **Base Image**: OS image for the VM (default: `projects/debian-cloud/global/images/family/debian-12`)
+   - The default Debian 12 image is recommended
+   - Do not change unless you have a custom image with Jitsi pre-installed
+
+5. **Network**: VPC network (default: `global/networks/default`)
+   - Use `global/networks/default` unless you have a custom VPC setup
+   - Format: `global/networks/<network-name>` or `projects/<project>/global/networks/<network-name>`
+
+6. **Hostname (FQDN)**: The domain name for your Jitsi server (e.g., `jitsi.example.com`)
+   - **Important**: You must configure DNS to point this domain to the VM's IP address
+   - The plugin will reserve a static IP address for consistency
+   - Without proper DNS configuration, Let's Encrypt certificate generation will fail
+
+7. **Let's Encrypt Email**: Email address for Let's Encrypt notifications (e.g., `admin@example.com`)
+   - Required if you specify a hostname
+   - Used for certificate expiration notices
+
+8. **Service Account JSON**: Upload the JSON key file you downloaded in step 2
+
+#### 4. Configure Firewall Rules (Automatic)
+
+The plugin will automatically create a firewall rule named `mod-jitsi-allow-web` with the following configuration:
+
+- **Ports**:
+  - TCP 80 (HTTP)
+  - TCP 443 (HTTPS)
+  - UDP 10000 (Jitsi video bridge)
+- **Target**: Instances tagged with `mod-jitsi-web`
+- **Source**: `0.0.0.0/0` (all internet traffic)
+
+If the plugin lacks permissions to create firewall rules automatically, you'll need to create this rule manually in the GCP Console.
+
+### Creating a Jitsi Server
+
+Once configuration is complete:
+
+1. Go to **Site administration > Plugins > Activity modules > Jitsi > Server management**
+2. Click the **"Create server in Google Cloud"** button
+3. The plugin will:
+   - Reserve or reuse an available static IP address
+   - Create a Compute Engine VM with the specified configuration
+   - Install and configure Jitsi Meet automatically
+   - Configure JWT authentication with auto-generated credentials
+   - Attempt to obtain a Let's Encrypt SSL certificate (if DNS is configured)
+   - Register the server in Moodle's server list
+
+4. **Monitor the creation process**:
+   - A modal will show the progress
+   - Creation typically takes 5-10 minutes
+   - The startup script will wait up to 15 minutes for DNS propagation
+
+5. **Configure DNS** (if using a hostname):
+   - The modal will display the static IP address assigned to your VM
+   - Create an A record in your DNS provider:
+     - Name: Your hostname (e.g., `jitsi.example.com`)
+     - Type: A
+     - Value: The static IP address shown
+     - TTL: 300 (or your preference)
+   - If using JWT auth (recommended), also create:
+     - Name: `auth.<your-hostname>` (e.g., `auth.jitsi.example.com`)
+     - Type: A
+     - Value: The same static IP address
+
+### How It Works
+
+#### The Startup Script
+
+The plugin uses a cloud-init/bash startup script that runs on first boot:
+
+1. **DNS Waiting Phase** (0-15 minutes):
+   - Checks if the configured hostname resolves to the VM's public IP
+   - Waits up to 15 minutes for DNS propagation
+   - Continues even if DNS is not ready (will use self-signed cert)
+
+2. **Jitsi Installation**:
+   - Installs Jitsi Meet from official repositories
+   - Configures Prosody (XMPP server) for JWT authentication
+   - Generates random App ID and Secret for JWT
+
+3. **SSL Certificate**:
+   - If DNS is properly configured → requests Let's Encrypt certificate
+   - If DNS is not ready → installs self-signed certificate and schedules retry
+
+4. **JWT Configuration**:
+   - Configures Jicofo and Prosody for token-based authentication
+   - Only users with valid JWT tokens (generated by Moodle) can moderate sessions
+   - Provides enhanced security and moderation control
+
+5. **Callback to Moodle**:
+   - Once complete, the VM notifies Moodle with the JWT credentials
+   - Moodle automatically registers the server and makes it available for use
+
+#### Static IP Address Management
+
+- The plugin automatically reserves a static IP address for each server
+- If you delete a server, the IP is released back to the pool
+- When creating new servers, the plugin reuses available static IPs to avoid quota limits
+- Each static IP incurs a small cost (~$0.01/hour or ~$7/month when in use)
+
+### Managing Servers
+
+Once created, servers appear in the **Server Management** interface with the following options:
+
+- **Edit**: Modify server name and configuration
+- **Start/Stop**: Control the VM lifecycle to save costs
+  - Stopped VMs only incur storage costs (much cheaper than running VMs)
+  - Starting a stopped VM takes ~1-2 minutes
+- **Delete**: Permanently remove the server
+  - **Warning**: This deletes the VM and releases the static IP
+  - Existing sessions using this server will no longer work
+
+### Cost Considerations
+
+Running Jitsi servers in GCP incurs costs:
+
+1. **Compute Instance** (when running):
+   - e2-standard-2: ~$49/month (8760 hours)
+   - e2-standard-4: ~$98/month
+   - e2-standard-8: ~$196/month
+   - Use "Stop" feature when not in use to save costs
+
+2. **Static IP Address**:
+   - ~$7/month per IP when attached to a running instance
+   - ~$9/month per IP when reserved but not in use
+   - Tip: Delete unused IPs to avoid charges
+
+3. **Storage**:
+   - ~$0.17/month per 20GB SSD (default boot disk)
+
+4. **Network Egress**:
+   - First 1GB/month: Free
+   - After 1GB: ~$0.12/GB (varies by region)
+   - Video conferences can use significant bandwidth
+
+**Cost Saving Tips**:
+- Stop VMs when not in active use (e.g., outside business hours)
+- Delete servers you no longer need
+- Consider using Preemptible VMs for testing (not recommended for production)
+
+### Security Considerations
+
+1. **JWT Authentication**: All auto-created servers use JWT authentication by default
+   - Only Moodle can generate valid tokens
+   - Users cannot join or moderate without Moodle-issued credentials
+
+2. **Service Account Security**:
+   - Keep the JSON key file secure
+   - Never commit it to version control
+   - Rotate keys periodically
+   - Use least-privilege: only grant necessary roles
+
+3. **Network Security**:
+   - The firewall rule opens ports to the internet (required for Jitsi)
+   - Jitsi itself handles authentication via JWT
+   - Consider using Cloud Armor for DDoS protection in production
+
+4. **SSL Certificates**:
+   - Always use Let's Encrypt certificates in production
+   - Self-signed certificates will show browser warnings to users
+   - Certificates auto-renew via certbot
+
 ## Disclaimer
 
-This plugin is maintained by UDIMA University (www.udima.es) and is not related or partner with 8x8 Inc. nor with "Jitsi as a Service" (JaaS).
 This plugin is maintained by UDIMA University (www.udima.es) and is not related or partner with 8x8 Inc. nor with "Jitsi as a Service" (JaaS).
