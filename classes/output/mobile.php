@@ -155,7 +155,7 @@ class mobile {
             'help' => $help,
             'intro' => $intro,
             'title' => format_string($jitsi->name),
-            'room' => str_replace([' ', ':', '"'], '', $sesparam),
+            'room' => preg_replace('/[^a-zA-Z0-9\-_]/', '', $sesparam),
             'minpretime' => $jitsi->minpretime,
         ];
 
@@ -219,7 +219,7 @@ class mobile {
         $cmid = $args['cmid'];
         $nombre = $args['nom'];
         $session = $args['ses'];
-        $sessionnorm = str_replace([' ', ':', '"'], '', $session);
+        $sessionnorm = preg_replace('/[^a-zA-Z0-9\-_]/', '', $session);
         $avatar = $args['avatar'];
         $teacher = $args['t'];
 

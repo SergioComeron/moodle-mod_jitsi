@@ -1062,7 +1062,7 @@ if ($action === 'creategcpvm') {
         redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
     }
 
-    $instancename = 'jitsi-test-'.date('ymdHi');
+    $instancename = 'jitsi-'.date('ymdHi');
 
     // Generar token único para esta VM
     $vmtoken = bin2hex(random_bytes(32));
