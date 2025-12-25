@@ -92,6 +92,10 @@
         <FIELD NAME="gcpzone" TYPE="char" LENGTH="100" NOTNULL="false" SEQUENCE="false" COMMENT="GCP zone"/>
         <FIELD NAME="gcpinstancename" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false" COMMENT="GCP instance name"/>
         <FIELD NAME="gcpstaticipname" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false" COMMENT="GCP static IP address name"/>
+        <FIELD NAME="gcpstaticipaddress" TYPE="char" LENGTH="45" NOTNULL="false" DEFAULT="" SEQUENCE="false" COMMENT="GCP static IP address (IPv4)"/>
+        <FIELD NAME="provisioningstatus" TYPE="char" LENGTH="50" NOTNULL="false" DEFAULT="" SEQUENCE="false" COMMENT="Provisioning status: provisioning, ready, error"/>
+        <FIELD NAME="provisioningtoken" TYPE="char" LENGTH="64" NOTNULL="false" DEFAULT="" SEQUENCE="false" COMMENT="Security token for VM callback authentication"/>
+        <FIELD NAME="provisioningerror" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Error message if provisioning failed"/>
         <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
         <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
       </FIELDS>

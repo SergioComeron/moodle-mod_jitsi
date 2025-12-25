@@ -965,5 +965,33 @@ function xmldb_jitsi_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2025122000, 'jitsi');
     }
 
+    if ($oldversion < 2025122303) {
+        // Add provisioning tracking fields to jitsi_servers
+        // This replaces the use of mdl_config_plugins for VM state tracking
+        $table = new xmldb_table('jitsi_servers');
+
+        $field = new xmldb_field('gcpstaticipaddress', XMLDB_TYPE_CHAR, '45', null, null, null, '', 'gcpstaticipname');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        $field = new xmldb_field('provisioningstatus', XMLDB_TYPE_CHAR, '50', null, null, null, '', 'gcpstaticipaddress');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        $field = new xmldb_field('provisioningtoken', XMLDB_TYPE_CHAR, '64', null, null, null, '', 'provisioningstatus');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        $field = new xmldb_field('provisioningerror', XMLDB_TYPE_TEXT, null, null, null, null, null, 'provisioningtoken');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        upgrade_mod_savepoint(true, 2025122303, 'jitsi');
+    }
+
     return true;
 }

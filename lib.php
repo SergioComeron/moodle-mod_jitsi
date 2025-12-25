@@ -600,7 +600,7 @@ function createsession(
         $payloadencoded = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($payload));
         $headerencoded = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($header));
         openssl_sign($headerencoded . "." . $payloadencoded, $signature, $privatykey, OPENSSL_ALGO_SHA256);
-    } else if (set_config('jitsi', 'tokentype') == '1') {
+    } else if (get_config('mod_jitsi', 'tokentype') == '1' || $servertype == '1' || $servertype == '3') {
         $header = json_encode([
             "kid" => "jitsi/custom_key_name",
             "typ" => "JWT",
@@ -633,10 +633,15 @@ function createsession(
 
     if (
         ($servertype == '1' && ($appid != null && $secret != null)) ||
+        ($servertype == '3' && ($appid != null && $secret != null)) ||
         $servertype == '2'
     ) {
         $signatureencoded = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($signature));
         $jwt = $headerencoded . "." . $payloadencoded . "." . $signatureencoded;
+
+        // DEBUG: Log JWT details
+        error_log("JITSI JWT DEBUG - User: " . $nombre . " | Moderator capability: " . (has_capability('mod/jitsi:moderation', $PAGE->context) ? 'YES' : 'NO') . " | Affiliation: " . $affiliation);
+
         echo "jwt: \"" . $jwt . "\",\n";
     }
 
@@ -1370,7 +1375,7 @@ function createsessionpriv(
         $payloadencoded = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($payload));
         $headerencoded = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($header));
         openssl_sign($headerencoded . "." . $payloadencoded, $signature, $privatykey, OPENSSL_ALGO_SHA256);
-    } else if (set_config('jitsi', 'tokentype') == '1') {
+    } else if (get_config('mod_jitsi', 'tokentype') == '1' || $servertype == '1' || $servertype == '3') {
         $header = json_encode([
             "kid" => "jitsi/custom_key_name",
             "typ" => "JWT",
@@ -1403,10 +1408,15 @@ function createsessionpriv(
 
     if (
         ($servertype == '1' && ($appid != null && $secret != null)) ||
+        ($servertype == '3' && ($appid != null && $secret != null)) ||
         $servertype == '2'
     ) {
         $signatureencoded = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($signature));
         $jwt = $headerencoded . "." . $payloadencoded . "." . $signatureencoded;
+
+        // DEBUG: Log JWT details
+        error_log("JITSI JWT DEBUG - User: " . $nombre . " | Moderator capability: " . (has_capability('mod/jitsi:moderation', $PAGE->context) ? 'YES' : 'NO') . " | Affiliation: " . $affiliation);
+
         echo "jwt: \"" . $jwt . "\",\n";
     }
 

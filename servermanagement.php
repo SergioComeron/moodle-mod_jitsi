@@ -31,6 +31,8 @@ if ($rawaction === 'jitsiready') {
 
     @header('Content-Type: application/json');
 
+    global $DB;
+
     $instancename = required_param('instance', PARAM_TEXT);
     $token = required_param('token', PARAM_ALPHANUMEXT);
     $ip = optional_param('ip', '', PARAM_TEXT);
@@ -40,138 +42,82 @@ if ($rawaction === 'jitsiready') {
     $secret = optional_param('secret', '', PARAM_ALPHANUMEXT);
     $error = optional_param('error', '', PARAM_TEXT);
 
-    // Verificar token
-    $tokenkey = 'mod_jitsi_vmtoken_' . clean_param($instancename, PARAM_ALPHANUMEXT);
-    $storedtoken = get_config('mod_jitsi', $tokenkey);
+    try {
+        // Find the server record by instance name
+        $server = $DB->get_record('jitsi_servers', ['gcpinstancename' => $instancename]);
 
-    if (empty($storedtoken) || $storedtoken !== $token) {
-        http_response_code(401);
-        echo json_encode(['status' => 'error', 'message' => 'Invalid token']);
-        exit;
-    }
+        if (!$server) {
+            http_response_code(404);
+            echo json_encode(['status' => 'error', 'message' => 'Server not found']);
+            exit;
+        }
 
-    // Guardar estado
-    $statuskey = 'mod_jitsi_vmstatus_' . clean_param($instancename, PARAM_ALPHANUMEXT);
-    $statusdata = [
-        'status' => $phase,
-        'ip' => $ip,
-        'hostname' => $hostname,
-        'appid' => $appid,
-        'secret' => $secret,
-        'timestamp' => time(),
-    ];
+        // Verify token from database
+        if (empty($server->provisioningtoken) || $server->provisioningtoken !== $token) {
+            http_response_code(401);
+            echo json_encode(['status' => 'error', 'message' => 'Invalid token']);
+            exit;
+        }
 
-    // Si hay error, incluirlo en el estado
-    if (!empty($error)) {
-        $statusdata['error'] = $error;
-    }
+        // Update server based on phase
+        $server->timemodified = time();
 
-    set_config($statuskey, json_encode($statusdata), 'mod_jitsi');
-    
-    // Registrar servidor cuando se complete
-    if ($phase === 'completed' && !empty($hostname) && !empty($appid) && !empty($secret)) {
-        global $DB;
+        if ($phase === 'completed' && !empty($hostname) && !empty($appid) && !empty($secret)) {
+            // Successfully completed provisioning
+            $server->provisioningstatus = 'ready';
+            $server->domain = $hostname;
+            $server->appid = $appid;
+            $server->secret = $secret;
+            $server->provisioningerror = '';
 
-        try {
-            // ⬅️ Recuperar información de la IP estática
-            $staticipkey = 'mod_jitsi_vmstaticip_' . clean_param($instancename, PARAM_ALPHANUMEXT);
-            $staticipdata = get_config('mod_jitsi', $staticipkey);
-            $staticipname = null;
-            if (!empty($staticipdata)) {
-                $ipinfo = json_decode($staticipdata, true);
-                if (is_array($ipinfo) && !empty($ipinfo['name'])) {
-                    $staticipname = $ipinfo['name'];
-                }
-            }
+            $DB->update_record('jitsi_servers', $server);
 
-            // Verificar si el servidor ya existe
-            $existingserver = $DB->get_record('jitsi_servers', ['domain' => $hostname]);
+            error_log("✅ Jitsi GCP server ready: {$hostname} (ID: {$server->id}, instance: {$instancename})");
 
-            if (!$existingserver) {
-                // Insertar nuevo servidor
-                $server = new stdClass();
-                $server->name = $instancename;
-                $server->type = 3; // ⬅️ NUEVO TIPO: GCP Auto-Managed
-                $server->domain = $hostname;
-                $server->appid = $appid;
-                $server->secret = $secret;
-                $server->eightbyeightappid = '';
-                $server->eightbyeightapikeyid = '';
-                $server->privatekey = '';
-                $server->gcpproject = get_config('mod_jitsi', 'gcp_project'); // ⬅️ Guardar proyecto GCP
-                $server->gcpzone = get_config('mod_jitsi', 'gcp_zone'); // ⬅️ Guardar zona GCP
-                $server->gcpinstancename = $instancename; // ⬅️ Nombre de la instancia en GCP
-                $server->gcpstaticipname = $staticipname; // ⬅️ Nombre de la IP estática reservada
-                $server->timecreated = time();
-                $server->timemodified = time();
-
-                // Insertar y obtener el ID
-                $serverid = $DB->insert_record('jitsi_servers', $server);
-                
-                // Configurar este servidor como activo en el plugin
-                set_config('server', $serverid, 'mod_jitsi');
-                
-                error_log("✅ Jitsi GCP server registered: {$hostname} (ID: {$serverid}, instance: {$instancename})");
-                
-                http_response_code(200);
-                echo json_encode([
-                    'status' => 'ok',
-                    'message' => 'GCP server registered successfully',
-                    'phase' => $phase,
-                    'registered' => true,
-                    'serverid' => $serverid
-                ]);
-            } else {
-                // Actualizar servidor existente
-                $existingserver->appid = $appid;
-                $existingserver->secret = $secret;
-                $existingserver->type = 3; // Asegurar que sea tipo GCP
-                $existingserver->gcpproject = get_config('mod_jitsi', 'gcp_project');
-                $existingserver->gcpzone = get_config('mod_jitsi', 'gcp_zone');
-                $existingserver->gcpinstancename = $instancename;
-                $existingserver->gcpstaticipname = $staticipname; // ⬅️ Actualizar nombre de IP estática
-                $existingserver->timemodified = time();
-                $DB->update_record('jitsi_servers', $existingserver);
-                
-                // Configurar como servidor activo
-                set_config('server', $existingserver->id, 'mod_jitsi');
-                
-                error_log("✅ Jitsi GCP server updated: {$hostname} (ID: {$existingserver->id})");
-                
-                http_response_code(200);
-                echo json_encode([
-                    'status' => 'ok',
-                    'message' => 'GCP server updated successfully',
-                    'phase' => $phase,
-                    'registered' => true,
-                    'serverid' => $existingserver->id
-                ]);
-            }
-
-            // Limpiar configuración temporal usada
-            unset_config($tokenkey, 'mod_jitsi');
-            if (!empty($staticipkey)) {
-                unset_config($staticipkey, 'mod_jitsi'); // ⬅️ Limpiar info de IP estática
-            }
-
-        } catch (Exception $e) {
-            error_log("❌ Failed to register Jitsi GCP server: " . $e->getMessage());
-            http_response_code(500);
+            http_response_code(200);
             echo json_encode([
-                'status' => 'error',
-                'message' => 'Database error: ' . $e->getMessage(),
+                'status' => 'ok',
+                'message' => 'Server provisioned successfully',
+                'phase' => 'ready',
+                'registered' => true,
+                'serverid' => $server->id
+            ]);
+        } else if ($phase === 'error' || !empty($error)) {
+            // Provisioning failed
+            $server->provisioningstatus = 'error';
+            $server->provisioningerror = $error ?: 'Unknown error during provisioning';
+
+            $DB->update_record('jitsi_servers', $server);
+
+            error_log("❌ Jitsi GCP server error: {$instancename} - {$error}");
+
+            http_response_code(200);
+            echo json_encode([
+                'status' => 'ok',
+                'message' => 'Status updated',
+                'phase' => 'error',
+                'registered' => false
+            ]);
+        } else {
+            // Intermediate status update (e.g., 'waiting_dns', 'dns_ready', 'installing', etc.)
+            // Update the status to reflect the current phase
+            $server->provisioningstatus = $phase;
+            $DB->update_record('jitsi_servers', $server);
+
+            http_response_code(200);
+            echo json_encode([
+                'status' => 'ok',
+                'message' => 'Status updated',
                 'phase' => $phase,
                 'registered' => false
             ]);
         }
-    } else {
-        // Fases intermedias (waiting_dns, dns_ready, etc.)
-        http_response_code(200);
+    } catch (Exception $e) {
+        error_log("❌ Callback error: " . $e->getMessage());
+        http_response_code(500);
         echo json_encode([
-            'status' => 'ok',
-            'message' => 'Status updated',
-            'phase' => $phase,
-            'registered' => false
+            'status' => 'error',
+            'message' => 'Database error: ' . $e->getMessage()
         ]);
     }
     exit;
@@ -327,7 +273,19 @@ if (!function_exists('mod_jitsi_default_startup_script')) {
 
     # Basic packages
     apt-get update -y
-    apt-get install -y curl gnupg2 apt-transport-https ca-certificates ca-certificates-java nginx ufw dnsutils cron
+    apt-get install -y curl gnupg2 apt-transport-https ca-certificates ca-certificates-java nginx ufw dnsutils cron luarocks
+
+    # Install Lua inspect library (required for JWT token authentication in Prosody)
+    luarocks install inspect
+
+    # Ensure inspect.lua is available for Lua 5.4 (Prosody uses 5.4, but luarocks may install for 5.1)
+    mkdir -p /usr/share/lua/5.4/
+    # Try to copy from the location where luarocks actually installs it
+    if [ -f /usr/share/lua/5.1/inspect.lua ]; then
+      cp /usr/share/lua/5.1/inspect.lua /usr/share/lua/5.4/
+    elif [ -f /usr/local/share/lua/5.1/inspect.lua ]; then
+      cp /usr/local/share/lua/5.1/inspect.lua /usr/share/lua/5.4/
+    fi
 
     # Jitsi repository
     curl https://download.jitsi.org/jitsi-key.gpg.key | gpg --dearmor > /usr/share/keyrings/jitsi.gpg
@@ -591,7 +549,7 @@ if (!function_exists('mod_jitsi_default_startup_script')) {
       mkdir -p /etc/systemd/system/jitsi-videobridge2.service.d
       cat > /etc/systemd/system/jitsi-videobridge2.service.d/override.conf << EOFSVC
     [Service]
-    Environment="JVB_OPTS=-Dorg.ice4j.ice.harvest.NAT_HARVESTER_LOCAL_ADDRESS=${MYIP} -Dorg.ice4j.ice.harvest.NAT_HARVESTER_PUBLIC_ADDRESS=${MYIP}"
+    Environment="JVB_OPTS=-Dorg.ice4j.ice.harvest.NAT_HARVESTER_LOCAL_ADDRESS=${LOCALIP} -Dorg.ice4j.ice.harvest.NAT_HARVESTER_PUBLIC_ADDRESS=${MYIP}"
     EOFSVC
       systemctl daemon-reload
     fi
@@ -622,28 +580,42 @@ if (!function_exists('mod_jitsi_default_startup_script')) {
     if [ "$USE_LE" = "1" ]; then
       echo "DNS is ready, attempting Let's Encrypt certificate..."
 
-      # Install acme.sh if not present (always in /root/.acme.sh by default)
-      if [ ! -f "/root/.acme.sh/acme.sh" ]; then
+      # Install acme.sh if not present
+      # Ensure HOME is set to /root for proper installation
+      export HOME=/root
+
+      if [ ! -f "/root/.acme.sh/acme.sh" ] && [ ! -f "/.acme.sh/acme.sh" ]; then
         curl -fsSL https://get.acme.sh | sh -s email="$LE_EMAIL"
-        if [ ! -f "/root/.acme.sh/acme.sh" ]; then
+        sleep 2
+      fi
+
+      # Detect where acme.sh was actually installed
+      ACME_PATH="/root/.acme.sh"
+      if [ ! -f "$ACME_PATH/acme.sh" ]; then
+        if [ -f "/.acme.sh/acme.sh" ]; then
+          ACME_PATH="/.acme.sh"
+          echo "acme.sh installed at /.acme.sh (moving to /root/.acme.sh)"
+          mv /.acme.sh /root/
+          ACME_PATH="/root/.acme.sh"
+        else
           echo "ERROR: Failed to install acme.sh"
           exit 1
         fi
       fi
 
       # Set up acme.sh
-      export LE_WORKING_DIR="/root/.acme.sh"
-      /root/.acme.sh/acme.sh --set-default-ca --server letsencrypt
+      export LE_WORKING_DIR="$ACME_PATH"
+      $ACME_PATH/acme.sh --set-default-ca --server letsencrypt
 
       # Issue certificate for both domains
       if [ -n "$AUTH_DOMAIN" ]; then
-        /root/.acme.sh/acme.sh --issue -d "$HOSTNAME_FQDN" -d "$AUTH_DOMAIN" --webroot /usr/share/jitsi-meet --keylength ec-256 --force
+        $ACME_PATH/acme.sh --issue -d "$HOSTNAME_FQDN" -d "$AUTH_DOMAIN" --webroot /usr/share/jitsi-meet --keylength ec-256 --force
       else
-        /root/.acme.sh/acme.sh --issue -d "$HOSTNAME_FQDN" --webroot /usr/share/jitsi-meet --keylength ec-256 --force
+        $ACME_PATH/acme.sh --issue -d "$HOSTNAME_FQDN" --webroot /usr/share/jitsi-meet --keylength ec-256 --force
       fi
 
       # Install certificate
-      /root/.acme.sh/acme.sh --install-cert -d "$HOSTNAME_FQDN" \
+      $ACME_PATH/acme.sh --install-cert -d "$HOSTNAME_FQDN" \
         --key-file       "/etc/jitsi/meet/$HOSTNAME_FQDN.key" \
         --fullchain-file "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" \
         --reloadcmd "systemctl force-reload nginx.service"
@@ -689,7 +661,7 @@ if (!function_exists('mod_jitsi_default_startup_script')) {
     mkdir -p /etc/systemd/system/jitsi-videobridge2.service.d
     cat > /etc/systemd/system/jitsi-videobridge2.service.d/override.conf << EOFSVC
     [Service]
-    Environment="JVB_OPTS=-Dorg.ice4j.ice.harvest.NAT_HARVESTER_LOCAL_ADDRESS=${MYIP} -Dorg.ice4j.ice.harvest.NAT_HARVESTER_PUBLIC_ADDRESS=${MYIP}"
+    Environment="JVB_OPTS=-Dorg.ice4j.ice.harvest.NAT_HARVESTER_LOCAL_ADDRESS=${LOCALIP} -Dorg.ice4j.ice.harvest.NAT_HARVESTER_PUBLIC_ADDRESS=${MYIP}"
     EOFSVC
 
     systemctl daemon-reload
@@ -869,32 +841,7 @@ if (!function_exists('mod_jitsi_default_startup_script')) {
         sed -i "/var config = {/a\\    hosts: {\\n        domain: '${HOSTNAME_FQDN}',\\n        muc: 'conference.${HOSTNAME_FQDN}',\\n        focus: 'focus.${HOSTNAME_FQDN}'\\n    }," "$MEET_CONFIG"
       fi
 
-      # Configurar Jicofo para deshabilitar enable-auto-owner
-      JICOFO_CONFIG="/etc/jitsi/jicofo/jicofo.conf"
-      if [ -f "$JICOFO_CONFIG" ]; then
-        # Verificar si ya existe la configuración
-        if ! grep -q "enable-auto-owner" "$JICOFO_CONFIG"; then
-          # Agregar al final del archivo
-          cat >> "$JICOFO_CONFIG" << EOFJICOFO
-
-    jicofo {
-      authentication {
-        enabled = true
-        type = XMPP
-        login-url = ${HOSTNAME_FQDN}
-      }
-      conference {
-        enable-auto-owner = false
-      }
-    }
-    EOFJICOFO
-        else
-          # Reemplazar si ya existe
-          sed -i 's/enable-auto-owner = true/enable-auto-owner = false/g' "$JICOFO_CONFIG"
-        fi
-      fi
-
-      # Reiniciar servicios
+      # Reiniciar servicios para aplicar configuración JWT
       systemctl restart prosody jicofo jitsi-videobridge2 || true
     fi
 
@@ -1156,9 +1103,7 @@ if ($action === 'creategcpvm') {
 
     // Generar token único para esta VM
     $vmtoken = bin2hex(random_bytes(32));
-    $tokenkey = 'mod_jitsi_vmtoken_' . clean_param($instancename, PARAM_ALPHANUMEXT);
-    set_config($tokenkey, $vmtoken, 'mod_jitsi');
-    
+
     // URL del callback (debe ser accesible públicamente)
     $callbackurl = (new moodle_url('/mod/jitsi/servermanagement.php', [
         'action' => 'jitsiready',
@@ -1212,14 +1157,6 @@ if ($action === 'creategcpvm') {
                 error_log("✅ Created new static IP: {$staticipname} ({$staticipaddress})");
             }
 
-            // ⬅️ Save static IP info in temporary config for callback
-            $staticipkey = 'mod_jitsi_vmstaticip_' . clean_param($instancename, PARAM_ALPHANUMEXT);
-            set_config($staticipkey, json_encode([
-                'name' => $staticipname,
-                'region' => $region,
-                'address' => $staticipaddress,
-                'reused' => $ipreused
-            ]), 'mod_jitsi');
         } catch (Exception $e) {
             if ($ajax) {
                 @header('Content-Type: application/json');
@@ -1229,6 +1166,29 @@ if ($action === 'creategcpvm') {
             \core\notification::add('Failed to get/reserve static IP: ' . $e->getMessage(), \core\output\notification::NOTIFY_ERROR);
             redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
         }
+
+        // ⬅️ INSERT SERVER RECORD IMMEDIATELY with 'provisioning' status
+        $server = new stdClass();
+        $server->name = $instancename;
+        $server->type = 3; // GCP Auto-Managed
+        $server->domain = $hostname ?: $staticipaddress; // Use hostname or fallback to IP
+        $server->appid = ''; // Will be populated by callback
+        $server->secret = ''; // Will be populated by callback
+        $server->eightbyeightappid = '';
+        $server->eightbyeightapikeyid = '';
+        $server->privatekey = '';
+        $server->gcpproject = $project;
+        $server->gcpzone = $zone;
+        $server->gcpinstancename = $instancename;
+        $server->gcpstaticipname = $staticipname;
+        $server->gcpstaticipaddress = $staticipaddress; // ⬅️ Save the IP address
+        $server->provisioningstatus = 'provisioning';
+        $server->provisioningtoken = $vmtoken;
+        $server->provisioningerror = '';
+        $server->timecreated = time();
+        $server->timemodified = time();
+
+        $serverid = $DB->insert_record('jitsi_servers', $server);
 
         $opname = mod_jitsi_gcp_create_instance($compute, $project, $zone, [
             'name' => $instancename,
@@ -1332,36 +1292,50 @@ if ($action === 'checkjitsiready') {
     @header('Content-Type: application/json');
     $instancename = required_param('instance', PARAM_TEXT);
 
-    $statuskey = 'mod_jitsi_vmstatus_' . clean_param($instancename, PARAM_ALPHANUMEXT);
-    $statusjson = get_config('mod_jitsi', $statuskey);
+    try {
+        // Read from jitsi_servers table instead of config_plugins
+        $server = $DB->get_record('jitsi_servers', ['gcpinstancename' => $instancename]);
 
-    if (empty($statusjson)) {
-        echo json_encode(['status' => 'installing']);
-    } else {
-        $status = json_decode($statusjson, true);
-        if ($status) {
-            // Devolver el estado actual con toda la info
-            $response = [
-                'status' => $status['status'], // puede ser waiting_dns, dns_ready, completed, error
-                'ip' => $status['ip'] ?? '',
-                'hostname' => $status['hostname'] ?? '',
-            ];
-
-            // Si hay error, incluirlo en la respuesta
-            if (!empty($status['error'])) {
-                $response['error'] = $status['error'];
-            }
-
-            echo json_encode($response);
-
-            // Limpiar después de completado/error y pasado tiempo
-            if (($status['status'] === 'completed' || $status['status'] === 'error') && time() - $status['timestamp'] > 300) {
-                unset_config($statuskey, 'mod_jitsi');
-            }
-        } else {
-            echo json_encode(['status' => 'installing']);
+        if (!$server) {
+            echo json_encode(['status' => 'error', 'error' => 'Server not found']);
+            exit;
         }
+
+        $response = [
+            'status' => $server->provisioningstatus ?: 'provisioning',
+            'ip' => $server->gcpstaticipaddress ?: $server->domain ?: '',
+            'hostname' => $server->domain ?: '',
+        ];
+
+        // Include error message if provisioning failed
+        if (!empty($server->provisioningerror)) {
+            $response['error'] = $server->provisioningerror;
+        }
+
+        // Map 'ready' status to 'completed' for frontend compatibility
+        if ($response['status'] === 'ready') {
+            $response['status'] = 'completed';
+        }
+
+        echo json_encode($response);
+    } catch (Exception $e) {
+        echo json_encode(['status' => 'error', 'error' => $e->getMessage()]);
     }
+    exit;
+}
+
+if ($action === 'listprovisioningservers') {
+    @header('Content-Type: application/json');
+
+    // Return list of servers being provisioned
+    $servers = $DB->get_records_sql(
+        "SELECT id, name, gcpinstancename, domain, gcpstaticipaddress, provisioningstatus
+         FROM {jitsi_servers}
+         WHERE type = 3 AND provisioningstatus IS NOT NULL AND provisioningstatus != '' AND provisioningstatus != 'ready'
+         ORDER BY timecreated DESC"
+    );
+
+    echo json_encode(array_values($servers));
     exit;
 }
 
@@ -1497,18 +1471,11 @@ if ($action === 'delete' && $id > 0) {
                     
                     error_log("✅ GCP VM deletion initiated: {$server->gcpinstancename} (Operation: {$operation->getName()})");
 
-                    // ⬅️ Liberar la IP estática reservada (si existe)
+                    // ⬅️ NOTE: We do NOT delete the static IP here
+                    // When the VM is deleted, GCP automatically changes the IP status from IN_USE to RESERVED
+                    // This allows the IP to be reused by the next VM created
                     if (!empty($server->gcpstaticipname)) {
-                        try {
-                            // Extraer región de la zona (ej: us-central1-a -> us-central1)
-                            $region = preg_replace('/-[a-z]$/', '', $server->gcpzone);
-
-                            mod_jitsi_gcp_release_static_ip($compute, $server->gcpproject, $region, $server->gcpstaticipname);
-                            error_log("✅ Released static IP: {$server->gcpstaticipname}");
-                        } catch (Exception $e) {
-                            // No es crítico si no podemos liberar la IP
-                            error_log("⚠️ Could not release static IP {$server->gcpstaticipname}: " . $e->getMessage());
-                        }
+                        error_log("ℹ️ Static IP {$server->gcpstaticipname} will be automatically released by GCP and become available for reuse");
                     }
                     
                     \core\notification::add(
@@ -1548,10 +1515,10 @@ if ($action === 'delete' && $id > 0) {
             $msg = html_writer::div(
                 html_writer::tag('strong', 'Warning: This is a GCP Auto-Managed server ') .
                 html_writer::tag('span', 'BETA', ['class' => 'badge bg-warning text-dark']) . '<br>' .
-                'Deleting this server will also:' . '<br>' .
-                html_writer::tag('ul', 
+                'Deleting this server will:' . '<br>' .
+                html_writer::tag('ul',
                     html_writer::tag('li', '🗑️ Delete the virtual machine from Google Cloud') .
-                    html_writer::tag('li', '🗑️ Release the static IP address (if any)') .
+                    html_writer::tag('li', '♻️ Keep the static IP address reserved for reuse') .
                     html_writer::tag('li', '❌ Stop all active Jitsi sessions')
                 , ['class' => 'text-start']) .
                 html_writer::tag('p', 'Instance name: <code>' . htmlspecialchars($server->gcpinstancename) . '</code>') .
@@ -1740,7 +1707,8 @@ echo html_writer::div(
 $creating = get_string('creatingvm', 'mod_jitsi', '');
 $gcpstatusurl = (new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'gcpstatusjson']))->out(false);
 $createvmurl  = (new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'creategcpvm', 'ajax' => 1]))->out(false);
-$listurl      = (new moodle_url('/mod/jitsi/servermanagement.php'))->out(false);
+$listurl      = (new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'listprovisioningservers']))->out(false);
+$redirecturl  = (new moodle_url('/mod/jitsi/servermanagement.php'))->out(false);
 $sesskeyjs    = sesskey();
 
 // Modal markup (HTML only) - SIN spinner inicial
@@ -1761,6 +1729,7 @@ $init = [
     'statusUrl' => $gcpstatusurl,
     'createUrl' => $createvmurl,
     'listUrl' => $listurl,
+    'redirectUrl' => $redirecturl,
     'creatingText' => $creating,
     'hostname' => (string) get_config('mod_jitsi', 'gcp_hostname'),
     'checkReadyUrl' => (new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'checkjitsiready']))->out(false),
@@ -1793,13 +1762,26 @@ $PAGE->requires->js_init_code(
     "  }\n".
     "  async function checkJitsiReady(){\n".
     "    try {\n".
-    "      console.log('Checking Jitsi ready status for:', vmInfo.instancename);\n".
+    "      console.log('[checkJitsiReady] CALLED! vmInfo.instancename:', vmInfo.instancename);\n".
+    "      console.log('[checkJitsiReady] Fetching status from:', cfg.checkReadyUrl);\n".
     "      var data = await postJSON(cfg.checkReadyUrl, {\n".
     "        sesskey: cfg.sesskey,\n".
     "        instance: vmInfo.instancename\n".
     "      });\n".
-    "      console.log('Status received:', data);\n".
-    "      if (data.status === 'waiting_dns') {\n".
+    "      console.log('[checkJitsiReady] Status received:', data);\n".
+    "      if (data.status === 'provisioning') {\n".
+    "        console.log('[checkJitsiReady] Server is still provisioning, will check again in 5s');\n".
+    "        if (modalBody) {\n".
+    "          modalBody.innerHTML = (\n".
+    "            '<h5>⚙️ VM Initializing...</h5>'+ \n".
+    "            '<p>The virtual machine is starting up and running initial setup scripts.</p>'+\n".
+    "            '<div class=\"text-center\">'+\n".
+    "              '<div class=\"spinner-border spinner-border-sm\" role=\"status\"></div>'+\n".
+    "            '</div>'\n".
+    "          );\n".
+    "        }\n".
+    "        setTimeout(checkJitsiReady, 5000);\n".
+    "      } else if (data.status === 'waiting_dns') {\n".
     "        if (!dnsWarningShown) {\n".
     "          dnsWarningShown = true;\n".
     "          var host = data.hostname || cfg.hostname || 'your-hostname.example.com';\n".
@@ -1880,7 +1862,7 @@ $PAGE->requires->js_init_code(
     "              '<p class=\"text-muted\">Please check the VM console logs in Google Cloud Console for more details.</p>'+\n".
     "            '</div>'+\n".
     "            '<div class=\"mt-3\">'+\n".
-    "              '<a href=\"'+ cfg.listUrl +'\" class=\"btn btn-primary\">Close</a>'+\n".
+    "              '<a href=\"'+ cfg.redirectUrl +'\" class=\"btn btn-primary\">Close</a>'+\n".
     "            '</div>'\n".
     "          );\n".
     "        }\n".
@@ -1900,7 +1882,7 @@ $PAGE->requires->js_init_code(
     "        '<p>Your Jitsi Meet server is ready at: <code>https://'+ host +'</code></p>'+\n".
     "        '<div class=\"mt-3\">'+\n".
     "          '<button id=\"copy-ip\" class=\"btn btn-outline-secondary me-2\">Copy IP</button>'+\n".
-    "          '<a href=\"'+ cfg.listUrl +'\" class=\"btn btn-primary\">Close</a>'+\n".
+    "          '<a href=\"'+ cfg.redirectUrl +'\" class=\"btn btn-primary\">Close</a>'+\n".
     "        '</div>'\n".
     "      );\n".
     "      var copyBtn = document.getElementById('copy-ip');\n".
@@ -1915,10 +1897,15 @@ $PAGE->requires->js_init_code(
     "  }\n".
     "  async function pollStatus(opname){\n".
     "    try {\n".
+    "      console.log('[pollStatus] Checking operation:', opname);\n".
     "      var data = await postJSON(cfg.statusUrl, {sesskey: cfg.sesskey, opname: opname});\n".
+    "      console.log('[pollStatus] Received response:', data);\n".
+    "\n".
     "      if (data.status === 'pending') {\n".
+    "        console.log('[pollStatus] Status is pending, will poll again in 1.5s');\n".
     "        setTimeout(function(){ pollStatus(opname); }, 1500);\n".
     "      } else if (data.status === 'done') {\n".
+    "        console.log('[pollStatus] Status is DONE! VM ready. IP:', data.ip);\n".
     "        vmInfo.ip = (data.ip || '');\n".
     "        if (modalBody) {\n".
     "          modalBody.innerHTML = (\n".
@@ -1929,15 +1916,24 @@ $PAGE->requires->js_init_code(
     "            '</div>'\n".
     "          );\n".
     "        }\n".
-    "        setTimeout(checkJitsiReady, 3000);\n".
+    "        console.log('[pollStatus] About to schedule checkJitsiReady in 3 seconds...');\n".
+    "        console.log('[pollStatus] vmInfo.instancename is:', vmInfo.instancename);\n".
+    "        setTimeout(function(){\n".
+    "          console.log('[pollStatus setTimeout] Executing checkJitsiReady NOW!');\n".
+    "          checkJitsiReady();\n".
+    "        }, 3000);\n".
+    "        console.log('[pollStatus] setTimeout has been scheduled');\n".
     "      } else {\n".
+    "        console.log('[pollStatus] Unexpected status:', data.status);\n".
     "        if (modalBody) modalBody.textContent = 'Error: ' + (data.message || 'Unknown');\n".
     "      }\n".
     "    } catch(e){\n".
+    "      console.error('[pollStatus] Exception caught:', e);\n".
     "      if (modalBody) modalBody.textContent = 'Error: ' + e.message;\n".
     "    }\n".
     "  }\n".
     "  btn.addEventListener('click', async function(){\n".
+    "    dnsWarningShown = false;\n".
     "    showModal();\n".
     "    if (modalBody) {\n".
     "      modalBody.innerHTML = (\n".
@@ -1949,10 +1945,13 @@ $PAGE->requires->js_init_code(
     "      );\n".
     "    }\n".
     "    try {\n".
+    "      console.log('[Button Click] Requesting VM creation...');\n".
     "      var data = await postJSON(cfg.createUrl, {sesskey: cfg.sesskey});\n".
+    "      console.log('[Button Click] Create response:', data);\n".
     "      if (data && data.status === 'pending' && data.opname){\n".
-    "               vmInfo.instancename = data.instancename;\n".
-    "        console.log('VM instance name:', vmInfo.instancename);\n".
+    "        vmInfo.instancename = data.instancename;\n".
+    "        console.log('[Button Click] VM instance name saved:', vmInfo.instancename);\n".
+    "        console.log('[Button Click] Starting pollStatus for operation:', data.opname);\n".
     "        pollStatus(data.opname);\n".
     "      } else if (data && data.status === 'error') {\n".
     "        // Show detailed error message from server\n".
@@ -1990,6 +1989,32 @@ $PAGE->requires->js_init_code(
     "      console.error('Exception during VM creation:', e);\n".
     "    }\n".
     "  });\n".
+    "\n".
+    "  // Check if there's a server in provisioning state on page load\n".
+    "  (async function checkOnLoad(){\n".
+    "    try {\n".
+    "      var response = await fetch(cfg.listUrl);\n".
+    "      var servers = await response.json();\n".
+    "      if (servers && servers.length > 0) {\n".
+    "        for (var i = 0; i < servers.length; i++) {\n".
+    "          var srv = servers[i];\n".
+    "          if (srv.provisioningstatus && srv.provisioningstatus !== 'ready' && srv.provisioningstatus !== 'error') {\n".
+    "            // Found a server being provisioned\n".
+    "            vmInfo.instancename = srv.gcpinstancename;\n".
+    "            console.log('Found server in provisioning:', vmInfo.instancename, 'status:', srv.provisioningstatus);\n".
+    "            showModal();\n".
+    "            if (modalBody) {\n".
+    "              modalBody.innerHTML = '<h5>⚙️ Resuming provisioning...</h5><div class=\"text-center\"><div class=\"spinner-border spinner-border-sm\" role=\"status\"></div></div>';\n".
+    "            }\n".
+    "            setTimeout(checkJitsiReady, 2000);\n".
+    "            break;\n".
+    "          }\n".
+    "        }\n".
+    "      }\n".
+    "    } catch(e) {\n".
+    "      console.log('Could not check for provisioning servers:', e);\n".
+    "    }\n".
+    "  })();\n".
     "})();"
 );
 
