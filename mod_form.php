@@ -168,7 +168,8 @@ class mod_jitsi_mod_form extends moodleform_mod {
         $mform =&  $this->_form;
 
         $group = [
-            $mform->createElement('checkbox', 'completionminutesenabled' . $suffix, ' ', get_string('completionminutesex', 'jitsi')),
+            $mform->createElement('checkbox', 'completionminutesenabled' . $suffix, ' ',
+              get_string('completionminutesex', 'jitsi')),
             $mform->createElement('text', 'completionminutes' . $suffix, ' ', ['size' => 3]),
         ];
         $mform->setType('completionminutes' . $suffix, PARAM_INT);

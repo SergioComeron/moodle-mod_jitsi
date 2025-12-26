@@ -148,12 +148,14 @@ class mod_view_table extends table_sql {
                 }
                 if (!has_capability('mod/jitsi:hide', $context) && !has_capability('mod/jitsi:deleterecord', $context)) {
                     return "<h5>" . $OUTPUT->render($tmpl) . "</h5><h6 class=\"card-subtitle mb-2 text-muted\">" .
-                        userdate($values->timecreated) . "</h6><br>" . $videocontainerstart . "<iframe " . $iframeclass . " src=\"https://youtube.com/embed/" . $values->link . "\"
+                        userdate($values->timecreated) . "</h6><br>" . $videocontainerstart . "<iframe " . $iframeclass .
+                        " src=\"https://youtube.com/embed/" . $values->link . "\"
                         allowfullscreen></iframe></div>";
                 }
             } else {
                 return "<h5>" . $OUTPUT->render($tmpl) . "</h5><h6 class=\"card-subtitle mb-2 text-muted\">" .
-                    userdate($values->timecreated) . "</h6><br>" . $videocontainerstart . "<iframe " . $iframeclass . " src=\"https://youtube.com/embed/" . $values->link . "\"
+                    userdate($values->timecreated) . "</h6><br>" . $videocontainerstart . "<iframe " . $iframeclass .
+                    " src=\"https://youtube.com/embed/" . $values->link . "\"
                     allowfullscreen></iframe></div>";
             }
         } else {

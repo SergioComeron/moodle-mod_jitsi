@@ -473,33 +473,4 @@ if ($ADMIN->fulltree) {
             0
         )
     );
-
-    // Deprecated Section.
-    $settings->add(
-        new admin_setting_heading(
-            'deprecated',
-            get_string('deprecated', 'jitsi'),
-            get_string('deprecatedex', 'jitsi')
-        )
-    );
-
-    $settings->add(
-        new admin_setting_configtext(
-            'mod_jitsi/watermarklink',
-            get_string('watermarklink', 'jitsi'),
-            get_string('watermarklinkex', 'jitsi'),
-            'https://jitsi.org'
-        )
-    );
-
-    $settings->add(
-        new admin_setting_configtext(
-            'mod_jitsi/channellastcam',
-            get_string('simultaneouscameras', 'jitsi'),
-            get_string('simultaneouscamerasex', 'jitsi'),
-            '15',
-            PARAM_INT,
-            1
-        )
-    );
 }

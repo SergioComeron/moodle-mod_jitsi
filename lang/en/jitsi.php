@@ -324,7 +324,7 @@ $string['whiteboardex'] = 'Show the whiteboard button to all users. Actually Whi
 $string['youtubebutton'] = 'Youtube sharing option';
 $string['youtubebuttonex'] = 'Show the youtube videos sharing option';
 
-// --- Google Cloud (GCP) integration strings ---
+// Google Cloud (GCP) integration strings.
 $string['gcpheading'] = 'Google Cloud (GCP) - BETA';
 $string['gcpheadingex'] = '<span class="badge bg-warning text-dark">BETA</span> Configure the project and VM where the shared Jitsi server will be deployed. This feature is in beta testing.';
 $string['gcpproject'] = 'Project ID';
@@ -358,9 +358,15 @@ $string['gcpoperationtimeout'] = 'Google Cloud operation timed out.';
 // Default server selection.
 $string['serversetasdefault'] = 'Server "{$a}" set as default';
 $string['setdefault'] = 'Set as default';
+$string['defaultserverupdated'] = 'Default server updated to: {$a}';
+$string['defaultserverdeleted'] = 'Warning: You deleted the default server. Please configure a new default server in the plugin settings.';
 
 $string['creatingvm'] = 'Creating VM… ({$a})';
 $string['gcpcreatingmodal'] = 'Creating virtual machine in Google Cloud';
 $string['gcpcreatingwait'] = 'Please wait while the virtual machine is being created. This may take a few minutes.';
 $string['gcpcreationerror'] = 'An error occurred while creating the Google Cloud VM: {$a}';
 $string['gcpcreationdone'] = 'Google Cloud VM successfully created: {$a}';
+$string['gcpserverstopped'] = 'The selected Jitsi server is currently stopped. Please contact your administrator to start the server.';
+$string['gcpservererror'] = 'Error checking server status: {$a}';
+$string['gcpserverinfo'] = 'GCP Auto-Managed Servers (BETA)';
+$string['gcpserverinfodetail'] = 'GCP auto-managed servers provide automatic provisioning with JWT authentication. <strong>Note:</strong> Recording functionality is not yet available on auto-managed servers. For recording, please use self-hosted servers (Type 1) or wait for future updates.';

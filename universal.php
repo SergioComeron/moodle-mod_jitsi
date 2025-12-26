@@ -28,6 +28,7 @@
 require_once(dirname(dirname(dirname(__FILE__))) . '/config.php');
 require_once(dirname(dirname(dirname(__FILE__))) . '/lib/moodlelib.php');
 require_once(dirname(__FILE__) . '/lib.php');
+require_login(0, true);
 
 $sessionid = required_param('ses', PARAM_INT);
 $name = required_param('name', PARAM_TEXT);

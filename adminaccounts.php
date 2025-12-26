@@ -127,10 +127,7 @@ if ($daccountid && confirm_sesskey($sesskey)) {
 
         if ($timediff > 3599) {
             // Validate refresh token exists before attempting to use it.
-            if (empty($account->clientrefreshtoken)) {
-                // Skip token refresh if refresh token is missing.
-                // The revoke will still proceed.
-            } else {
+            if (!empty($account->clientrefreshtoken)) {
                 $newaccesstoken = $client->fetchAccessTokenWithRefreshToken($account->clientrefreshtoken);
 
                 $account->clientaccesstoken = $newaccesstoken["access_token"];

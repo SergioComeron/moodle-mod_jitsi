@@ -21,11 +21,13 @@
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-// ⚠️ IMPORTANTE: Verificar la acción ANTES de cargar config.php
-$rawaction = $_GET['action'] ?? $_POST['action'] ?? '';
+// phpcs:disable
+// IMPORTANTE: Verificar la acción ANTES de cargar config.php.
+$rawaction = filter_input(INPUT_GET, 'action', FILTER_UNSAFE_RAW) ??
+             filter_input(INPUT_POST, 'action', FILTER_UNSAFE_RAW) ?? '';
 
 if ($rawaction === 'jitsiready') {
-    // Para este endpoint necesitamos config.php pero SIN require_login
+    // Para este endpoint necesitamos config.php pero SIN require_login.
     define('NO_MOODLE_COOKIES', true);
     require_once(__DIR__ . '/../../config.php');
 
@@ -43,7 +45,7 @@ if ($rawaction === 'jitsiready') {
     $error = optional_param('error', '', PARAM_TEXT);
 
     try {
-        // Find the server record by instance name
+        // Find the server record by instance name.
         $server = $DB->get_record('jitsi_servers', ['gcpinstancename' => $instancename]);
 
         if (!$server) {
@@ -52,18 +54,18 @@ if ($rawaction === 'jitsiready') {
             exit;
         }
 
-        // Verify token from database
+        // Verify token from database.
         if (empty($server->provisioningtoken) || $server->provisioningtoken !== $token) {
             http_response_code(401);
             echo json_encode(['status' => 'error', 'message' => 'Invalid token']);
             exit;
         }
 
-        // Update server based on phase
+        // Update server based on phase.
         $server->timemodified = time();
 
         if ($phase === 'completed' && !empty($hostname) && !empty($appid) && !empty($secret)) {
-            // Successfully completed provisioning
+            // Successfully completed provisioning.
             $server->provisioningstatus = 'ready';
             $server->domain = $hostname;
             $server->appid = $appid;
@@ -72,7 +74,7 @@ if ($rawaction === 'jitsiready') {
 
             $DB->update_record('jitsi_servers', $server);
 
-            error_log("✅ Jitsi GCP server ready: {$hostname} (ID: {$server->id}, instance: {$instancename})");
+            debugging("✅ Jitsi GCP server ready: {$hostname} (ID: {$server->id}, instance: {$instancename})", DEBUG_NORMAL);
 
             http_response_code(200);
             echo json_encode([
@@ -80,27 +82,27 @@ if ($rawaction === 'jitsiready') {
                 'message' => 'Server provisioned successfully',
                 'phase' => 'ready',
                 'registered' => true,
-                'serverid' => $server->id
+                'serverid' => $server->id,
             ]);
         } else if ($phase === 'error' || !empty($error)) {
-            // Provisioning failed
+            // Provisioning failed.
             $server->provisioningstatus = 'error';
             $server->provisioningerror = $error ?: 'Unknown error during provisioning';
 
             $DB->update_record('jitsi_servers', $server);
 
-            error_log("❌ Jitsi GCP server error: {$instancename} - {$error}");
+            debugging("❌ Jitsi GCP server error: {$instancename} - {$error}", DEBUG_NORMAL);
 
             http_response_code(200);
             echo json_encode([
                 'status' => 'ok',
                 'message' => 'Status updated',
                 'phase' => 'error',
-                'registered' => false
+                'registered' => false,
             ]);
         } else {
-            // Intermediate status update (e.g., 'waiting_dns', 'dns_ready', 'installing', etc.)
-            // Update the status to reflect the current phase
+            // Intermediate status update (e.g., 'waiting_dns', 'dns_ready', 'installing', etc.).
+            // Update the status to reflect the current phase.
             $server->provisioningstatus = $phase;
             $DB->update_record('jitsi_servers', $server);
 
@@ -109,26 +111,27 @@ if ($rawaction === 'jitsiready') {
                 'status' => 'ok',
                 'message' => 'Status updated',
                 'phase' => $phase,
-                'registered' => false
+                'registered' => false,
             ]);
         }
     } catch (Exception $e) {
-        error_log("❌ Callback error: " . $e->getMessage());
+        debugging("❌ Callback error: " . $e->getMessage(), DEBUG_NORMAL);
         http_response_code(500);
         echo json_encode([
             'status' => 'error',
-            'message' => 'Database error: ' . $e->getMessage()
+            'message' => 'Database error: ' . $e->getMessage(),
         ]);
     }
     exit;
 }
+// phpcs:enable
 
-// Para el resto de acciones: cargar Moodle normalmente
+// Para el resto de acciones: cargar Moodle normalmente.
 require_once(__DIR__ . '/../../config.php');
 
 $action = optional_param('action', '', PARAM_ALPHA);
 
-// Ahora sí requerir login para todas las demás acciones
+// Ahora sí requerir login para todas las demás acciones.
 require_login();
 require_capability('moodle/site:config', context_system::instance());
 
@@ -140,13 +143,12 @@ $PAGE->set_context(context_system::instance());
 $PAGE->set_url('/mod/jitsi/servermanagement.php');
 $PAGE->set_title(get_string('servermanagement', 'mod_jitsi'));
 
-
 require_once($CFG->dirroot . '/mod/jitsi/servermanagement_form.php');
 // Try to load Google API PHP Client autoloader from common locations.
 $gcpautoloaders = [
-    $CFG->dirroot . '/mod/jitsi/api/vendor/autoload.php', // user-provided path
-    $CFG->dirroot . '/mod/jitsi/vendor/autoload.php',     // plugin-level vendor
-    $CFG->dirroot . '/vendor/autoload.php',               // site-level vendor
+    $CFG->dirroot . '/mod/jitsi/api/vendor/autoload.php', // User-provided path.
+    $CFG->dirroot . '/mod/jitsi/vendor/autoload.php',     // Plugin-level vendor.
+    $CFG->dirroot . '/vendor/autoload.php',               // Site-level vendor.
 ];
 foreach ($gcpautoloaders as $autoload) {
     if (file_exists($autoload)) {
@@ -159,7 +161,7 @@ foreach ($gcpautoloaders as $autoload) {
 $id      = optional_param('id', 0, PARAM_INT);
 $confirm = optional_param('confirm', 0, PARAM_BOOL);
 
-// --- Minimal GCP helpers to create a bare VM (no Jitsi yet) ---
+// Minimal GCP helpers to create a bare VM (no Jitsi yet).
 
 if (!function_exists('mod_jitsi_gcp_ensure_firewall')) {
     /**
@@ -177,7 +179,8 @@ if (!function_exists('mod_jitsi_gcp_ensure_firewall')) {
             $compute->firewalls->get($project, $rulename);
             return 'exists';
         } catch (\Exception $e) {
-            // Proceed to attempt create; we'll classify errors below.
+            // Firewall rule doesn't exist or we lack GET permission - proceed to attempt create.
+            debugging('Firewall GET failed, attempting create: ' . $e->getMessage(), DEBUG_DEVELOPER);
         }
         $fw = new \Google\Service\Compute\Firewall([
             'name' => $rulename,
@@ -197,18 +200,21 @@ if (!function_exists('mod_jitsi_gcp_ensure_firewall')) {
             return 'created';
         } catch (\Exception $e) {
             $msg = $e->getMessage();
-            // 409 Already exists or similar → treat as exists
-            if (stripos($msg, 'alreadyexists') !== false || stripos($msg, 'already exists') !== false || stripos($msg, 'duplicate') !== false) {
+            // 409 Already exists or similar → treat as exists.
+            if (stripos($msg, 'alreadyexists') !== false || stripos($msg, 'already exists') !== false ||
+              stripos($msg, 'duplicate') !== false) {
                 return 'exists';
             }
-            // Permission errors → assume admin manages firewall; don't warn in UI
-            if (stripos($msg, 'permission') !== false || stripos($msg, 'denied') !== false || stripos($msg, 'insufficient') !== false) {
+            // Permission errors → assume admin manages firewall; don't warn in UI.
+            if (stripos($msg, 'permission') !== false || stripos($msg, 'denied') !== false ||
+              stripos($msg, 'insufficient') !== false) {
                 return 'noperms';
             }
             return 'error:'.$msg;
         }
     }
 }
+// phpcs:disable
 if (!function_exists('mod_jitsi_default_startup_script')) {
     /**
      * Built-in startup script that installs Jitsi Meet on Debian 12.
@@ -217,648 +223,548 @@ if (!function_exists('mod_jitsi_default_startup_script')) {
      * - Otherwise installs self-signed cert and schedules retries for LE.
      */
     function mod_jitsi_default_startup_script(): string {
-    return <<<'BASH'
-    #!/bin/bash
-    set -euxo pipefail
+        return <<<'BASH'
+        #!/bin/bash
+        set -euxo pipefail
 
-    export DEBIAN_FRONTEND=noninteractive
+        export DEBIAN_FRONTEND=noninteractive
 
-    # Read metadata values (if any)
-    META="http://metadata.google.internal/computeMetadata/v1"
-    HOSTNAME_FQDN=$(curl -s -H "Metadata-Flavor: Google" "$META/instance/attributes/HOSTNAME_FQDN" || true)
-    LE_EMAIL=$(curl -s -H "Metadata-Flavor: Google" "$META/instance/attributes/LE_EMAIL" || true)
-    CALLBACK_URL=$(curl -s -H "Metadata-Flavor: Google" "$META/instance/attributes/CALLBACK_URL" || true)
+        # Read metadata values (if any)
+        META="http://metadata.google.internal/computeMetadata/v1"
+        HOSTNAME_FQDN=$(curl -s -H "Metadata-Flavor: Google" "$META/instance/attributes/HOSTNAME_FQDN" || true)
+        LE_EMAIL=$(curl -s -H "Metadata-Flavor: Google" "$META/instance/attributes/LE_EMAIL" || true)
+        CALLBACK_URL=$(curl -s -H "Metadata-Flavor: Google" "$META/instance/attributes/CALLBACK_URL" || true)
 
-    AUTH_DOMAIN=""
-    if [ -n "$HOSTNAME_FQDN" ]; then
-      AUTH_DOMAIN="auth.$HOSTNAME_FQDN"
-    fi
+        AUTH_DOMAIN=""
+        if [ -n "$HOSTNAME_FQDN" ]; then
+        AUTH_DOMAIN="auth.$HOSTNAME_FQDN"
+        fi
 
-    # Get public IP early
-    MYIP=$(curl -s -H "Metadata-Flavor: Google" "$META/instance/network-interfaces/0/access-configs/0/external-ip" || true)
+        # Get public IP early
+        MYIP=$(curl -s -H "Metadata-Flavor: Google" "$META/instance/network-interfaces/0/access-configs/0/external-ip" || true)
 
-    # Error handler - notify Moodle if script fails
-    exit_handler() {
-      local exit_code=$?
-      if [ $exit_code -ne 0 ]; then
-        echo "ERROR: Script exited with code $exit_code"
+        # Error handler - notify Moodle if script fails
+        exit_handler() {
+        local exit_code=$?
+        if [ $exit_code -ne 0 ]; then
+            echo "ERROR: Script exited with code $exit_code"
+            if [ -n "$CALLBACK_URL" ]; then
+            local error_msg="Installation failed with exit code $exit_code. Check VM logs for details."
+            curl -X POST "${CALLBACK_URL}&ip=${MYIP}&hostname=${HOSTNAME_FQDN}&phase=error&error=$(echo "$error_msg" | sed 's/ /%20/g')" \
+                --max-time 10 --retry 3 --retry-delay 3 || true
+            fi
+        fi
+        }
+
+        # Set trap to catch all exits (success or failure)
+        trap exit_handler EXIT
+
+        # Notify Moodle that VM is created and waiting for DNS
         if [ -n "$CALLBACK_URL" ]; then
-          local error_msg="Installation failed with exit code $exit_code. Check VM logs for details."
-          curl -X POST "${CALLBACK_URL}&ip=${MYIP}&hostname=${HOSTNAME_FQDN}&phase=error&error=$(echo "$error_msg" | sed 's/ /%20/g')" \
-            --max-time 10 --retry 3 --retry-delay 3 || true
+        curl -X POST "${CALLBACK_URL}&ip=${MYIP}&hostname=${HOSTNAME_FQDN}&phase=waiting_dns" \
+            --max-time 10 --retry 2 --retry-delay 3 || true
         fi
-      fi
-    }
 
-    # Set trap to catch all exits (success or failure)
-    trap exit_handler EXIT
-
-    # Notify Moodle that VM is created and waiting for DNS
-    if [ -n "$CALLBACK_URL" ]; then
-      curl -X POST "${CALLBACK_URL}&ip=${MYIP}&hostname=${HOSTNAME_FQDN}&phase=waiting_dns" \
-        --max-time 10 --retry 2 --retry-delay 3 || true
-    fi
-
-    # If we received a target FQDN, set the system hostname so jitsi-meet uses it
-    if [ -n "$HOSTNAME_FQDN" ]; then
-      hostnamectl set-hostname "$HOSTNAME_FQDN"
-      if ! grep -q "$HOSTNAME_FQDN" /etc/hosts; then
-        echo "127.0.1.1 $HOSTNAME_FQDN $(echo $HOSTNAME_FQDN | cut -d. -f1)" >> /etc/hosts
-      fi
-      if [ -n "$AUTH_DOMAIN" ] && ! grep -q "$AUTH_DOMAIN" /etc/hosts; then
-        echo "127.0.1.1 $AUTH_DOMAIN auth" >> /etc/hosts
-      fi
-      echo "jitsi-meet jitsi-meet/hostname string $HOSTNAME_FQDN" | debconf-set-selections
-    fi
-
-    # Basic packages
-    apt-get update -y
-    apt-get install -y curl gnupg2 apt-transport-https ca-certificates ca-certificates-java nginx ufw dnsutils cron luarocks
-
-    # Install Lua inspect library (required for JWT token authentication in Prosody)
-    luarocks install inspect
-
-    # Ensure inspect.lua is available for Lua 5.4 (Prosody uses 5.4, but luarocks may install for 5.1)
-    mkdir -p /usr/share/lua/5.4/
-    # Try to copy from the location where luarocks actually installs it
-    if [ -f /usr/share/lua/5.1/inspect.lua ]; then
-      cp /usr/share/lua/5.1/inspect.lua /usr/share/lua/5.4/
-    elif [ -f /usr/local/share/lua/5.1/inspect.lua ]; then
-      cp /usr/local/share/lua/5.1/inspect.lua /usr/share/lua/5.4/
-    fi
-
-    # Jitsi repository
-    curl https://download.jitsi.org/jitsi-key.gpg.key | gpg --dearmor > /usr/share/keyrings/jitsi.gpg
-    echo 'deb [signed-by=/usr/share/keyrings/jitsi.gpg] https://download.jitsi.org stable/' > /etc/apt/sources.list.d/jitsi-stable.list
-    apt-get update -y
-
-    # Preseed hostname for JVB
-    if [ -n "$HOSTNAME_FQDN" ]; then
-      echo "jitsi-videobridge jitsi-videobridge/jvb-hostname string $HOSTNAME_FQDN" | debconf-set-selections
-    fi
-
-    MYIP=$(curl -s -H "Metadata-Flavor: Google" "$META/instance/network-interfaces/0/access-configs/0/external-ip" || true)
-    LOCALIP=$(ip route get 1.1.1.1 | awk '{print $7; exit}' || echo "")
-    DNSIP_HOST=""
-    DNSIP_AUTH=""
-    WAIT_SECS=0
-
-    if [ -n "$HOSTNAME_FQDN" ]; then
-      while [ $WAIT_SECS -lt 900 ]; do
-        DNSIP_HOST=$(dig +short A "$HOSTNAME_FQDN" @1.1.1.1 | head -n1 || true)
-        if [ -n "$AUTH_DOMAIN" ]; then
-          DNSIP_AUTH=$(dig +short A "$AUTH_DOMAIN" @1.1.1.1 | head -n1 || true)
+        # If we received a target FQDN, set the system hostname so jitsi-meet uses it
+        if [ -n "$HOSTNAME_FQDN" ]; then
+        hostnamectl set-hostname "$HOSTNAME_FQDN"
+        if ! grep -q "$HOSTNAME_FQDN" /etc/hosts; then
+            echo "127.0.1.1 $HOSTNAME_FQDN $(echo $HOSTNAME_FQDN | cut -d. -f1)" >> /etc/hosts
         fi
-        
-        # Check if IPs match
-        if [ -n "$MYIP" ] && [ -n "$DNSIP_HOST" ] && [ "$MYIP" = "$DNSIP_HOST" ]; then
-          if [ -z "$AUTH_DOMAIN" ]; then
-            # DNS ready, notify Moodle
-            if [ -n "$CALLBACK_URL" ]; then
-              curl -X POST "${CALLBACK_URL}&ip=${MYIP}&hostname=${HOSTNAME_FQDN}&phase=dns_ready" \
-                --max-time 10 --retry 2 --retry-delay 3 || true
+        if [ -n "$AUTH_DOMAIN" ] && ! grep -q "$AUTH_DOMAIN" /etc/hosts; then
+            echo "127.0.1.1 $AUTH_DOMAIN auth" >> /etc/hosts
+        fi
+        echo "jitsi-meet jitsi-meet/hostname string $HOSTNAME_FQDN" | debconf-set-selections
+        fi
+
+        # Basic packages
+        apt-get update -y
+        apt-get install -y curl gnupg2 apt-transport-https ca-certificates ca-certificates-java nginx ufw dnsutils cron luarocks
+
+        # Install Lua inspect library (required for JWT token authentication in Prosody)
+        luarocks install inspect
+
+        # Ensure inspect.lua is available for Lua 5.4 (Prosody uses 5.4, but luarocks may install for 5.1)
+        mkdir -p /usr/share/lua/5.4/
+        # Try to copy from the location where luarocks actually installs it
+        if [ -f /usr/share/lua/5.1/inspect.lua ]; then
+        cp /usr/share/lua/5.1/inspect.lua /usr/share/lua/5.4/
+        elif [ -f /usr/local/share/lua/5.1/inspect.lua ]; then
+        cp /usr/local/share/lua/5.1/inspect.lua /usr/share/lua/5.4/
+        fi
+
+        # Jitsi repository
+        curl https://download.jitsi.org/jitsi-key.gpg.key | gpg --dearmor > /usr/share/keyrings/jitsi.gpg
+        echo 'deb [signed-by=/usr/share/keyrings/jitsi.gpg] https://download.jitsi.org stable/' > /etc/apt/sources.list.d/jitsi-stable.list
+        apt-get update -y
+
+        # Preseed hostname for JVB
+        if [ -n "$HOSTNAME_FQDN" ]; then
+        echo "jitsi-videobridge jitsi-videobridge/jvb-hostname string $HOSTNAME_FQDN" | debconf-set-selections
+        fi
+
+        MYIP=$(curl -s -H "Metadata-Flavor: Google" "$META/instance/network-interfaces/0/access-configs/0/external-ip" || true)
+        LOCALIP=$(ip route get 1.1.1.1 | awk '{print $7; exit}' || echo "")
+        DNSIP_HOST=""
+        DNSIP_AUTH=""
+        WAIT_SECS=0
+
+        if [ -n "$HOSTNAME_FQDN" ]; then
+        while [ $WAIT_SECS -lt 900 ]; do
+            DNSIP_HOST=$(dig +short A "$HOSTNAME_FQDN" @1.1.1.1 | head -n1 || true)
+            if [ -n "$AUTH_DOMAIN" ]; then
+            DNSIP_AUTH=$(dig +short A "$AUTH_DOMAIN" @1.1.1.1 | head -n1 || true)
             fi
-            break
-          elif [ -n "$DNSIP_AUTH" ] && [ "$MYIP" = "$DNSIP_AUTH" ]; then
-            # DNS ready, notify Moodle
-            if [ -n "$CALLBACK_URL" ]; then
-              curl -X POST "${CALLBACK_URL}&ip=${MYIP}&hostname=${HOSTNAME_FQDN}&phase=dns_ready" \
-                --max-time 10 --retry 2 --retry-delay 3 || true
+            
+            # Check if IPs match
+            if [ -n "$MYIP" ] && [ -n "$DNSIP_HOST" ] && [ "$MYIP" = "$DNSIP_HOST" ]; then
+            if [ -z "$AUTH_DOMAIN" ]; then
+                # DNS ready, notify Moodle
+                if [ -n "$CALLBACK_URL" ]; then
+                curl -X POST "${CALLBACK_URL}&ip=${MYIP}&hostname=${HOSTNAME_FQDN}&phase=dns_ready" \
+                    --max-time 10 --retry 2 --retry-delay 3 || true
+                fi
+                break
+            elif [ -n "$DNSIP_AUTH" ] && [ "$MYIP" = "$DNSIP_AUTH" ]; then
+                # DNS ready, notify Moodle
+                if [ -n "$CALLBACK_URL" ]; then
+                curl -X POST "${CALLBACK_URL}&ip=${MYIP}&hostname=${HOSTNAME_FQDN}&phase=dns_ready" \
+                    --max-time 10 --retry 2 --retry-delay 3 || true
+                fi
+                break
             fi
-            break
-          fi
+            fi
+            
+            sleep 15
+            WAIT_SECS=$((WAIT_SECS + 15))
+        done
         fi
-        
-        sleep 15
-        WAIT_SECS=$((WAIT_SECS + 15))
-      done
-    fi
 
-    USE_LE=0
-    if [ -n "$HOSTNAME_FQDN" ] && [ -n "$LE_EMAIL" ] && [ -n "$MYIP" ] && [ -n "$DNSIP_HOST" ] && [ "$MYIP" = "$DNSIP_HOST" ]; then
-      if [ -z "$AUTH_DOMAIN" ]; then
-        USE_LE=1
-      elif [ -n "$DNSIP_AUTH" ] && [ "$MYIP" = "$DNSIP_AUTH" ]; then
-        USE_LE=1
-      fi
-    fi
-
-    if [ "$USE_LE" = "1" ]; then
-      echo "jitsi-meet-web-config jitsi-meet/cert-choice select Let's Encrypt" | debconf-set-selections
-      echo "jitsi-meet-web-config jitsi-meet/cert-email string $LE_EMAIL" | debconf-set-selections
-      mkdir -p /etc/letsencrypt
-      cat > /etc/letsencrypt/cli.ini << 'EOFLE'
-    email = PLACEHOLDER_EMAIL
-    agree-tos = true
-    non-interactive = true
-    EOFLE
-      sed -i "s/PLACEHOLDER_EMAIL/$LE_EMAIL/g" /etc/letsencrypt/cli.ini
-    else
-      echo "jitsi-meet-web-config jitsi-meet/cert-choice select Generate a new self-signed certificate (You will later get a chance to obtain a Let's Encrypt certificate)" | debconf-set-selections
-    fi
-
-    # Install Jitsi Meet
-    apt-get install -y jitsi-meet
-
-    # Ensure Prosody main config has plugin_paths and correct settings
-    cat > /etc/prosody/prosody.cfg.lua << 'EOFPROS'
-    -- Prosody Configuration File
-    plugin_paths = { "/usr/share/jitsi-meet/prosody-plugins/" }
-
-    -- Network configuration
-    c2s_ports = { 5222 }
-    s2s_ports = { 5269 }
-    component_ports = { 5347 }
-
-    -- Modules
-    modules_enabled = {
-        "roster";
-        "saslauth";
-        "tls";
-        "dialback";
-        "disco";
-        "carbons";
-        "pep";
-        "private";
-        "blocklist";
-        "vcard4";
-        "vcard_legacy";
-        "version";
-        "uptime";
-        "time";
-        "ping";
-        "admin_adhoc";
-        "bosh";
-        "websocket";
-    }
-
-    modules_disabled = {}
-
-    allow_registration = false
-    c2s_require_encryption = false
-    s2s_require_encryption = false
-    s2s_secure_auth = false
-
-    authentication = "internal_hashed"
-
-    log = {
-        info = "/var/log/prosody/prosody.log";
-        error = "/var/log/prosody/prosody.err";
-        "*syslog";
-    }
-
-    certificates = "certs"
-
-    -- Include virtual hosts
-    Include "conf.d/*.cfg.lua"
-    EOFPROS
-
-    chown root:prosody /etc/prosody/prosody.cfg.lua
-    chmod 640 /etc/prosody/prosody.cfg.lua
-
-    # Ensure Prosody cert symlinks for jitsi and auth
-    install -d /etc/prosody/certs
-    if [ -n "$HOSTNAME_FQDN" ]; then
-      ln -sf "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" "/etc/prosody/certs/$HOSTNAME_FQDN.crt"
-      ln -sf "/etc/jitsi/meet/$HOSTNAME_FQDN.key" "/etc/prosody/certs/$HOSTNAME_FQDN.key"
-    fi
-    if [ -n "$AUTH_DOMAIN" ]; then
-      ln -sf "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" "/etc/prosody/certs/$AUTH_DOMAIN.crt"
-      ln -sf "/etc/jitsi/meet/$HOSTNAME_FQDN.key" "/etc/prosody/certs/$AUTH_DOMAIN.key"
-    fi
-    if [ -f "/etc/jitsi/meet/$HOSTNAME_FQDN.key" ]; then
-      chgrp prosody "/etc/jitsi/meet/$HOSTNAME_FQDN.key" || true
-      chmod 640     "/etc/jitsi/meet/$HOSTNAME_FQDN.key" || true
-    fi
-
-    # Make the current web cert trusted by the OS/Java
-    if [ -n "$HOSTNAME_FQDN" ] && [ -f "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" ]; then
-      install -D -m 0644 "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" "/usr/local/share/ca-certificates/jitsi-$HOSTNAME_FQDN.crt" || true
-      update-ca-certificates || true
-    fi
-
-    # Open firewall ports
-    ufw allow 22/tcp
-    ufw allow 80/tcp
-    ufw allow 443/tcp
-    ufw allow 5222/tcp
-    ufw allow 10000/udp
-    ufw allow 4443/tcp
-    ufw --force enable
-
-    # Create XMPP users focus and jvb
-    if [ -n "$AUTH_DOMAIN" ]; then
-      FOCUS_PASS=$(openssl rand -hex 16)
-      JVB_PASS=$(openssl rand -hex 16)
-      
-      # Restart Prosody to ensure it's running
-      systemctl restart prosody || true
-      sleep 5
-      
-      # Register users with retry logic
-      for i in {1..5}; do
-        if prosodyctl register focus "$AUTH_DOMAIN" "$FOCUS_PASS" 2>/dev/null; then
-          echo "User focus registered successfully"
-          break
+        USE_LE=0
+        if [ -n "$HOSTNAME_FQDN" ] && [ -n "$LE_EMAIL" ] && [ -n "$MYIP" ] && [ -n "$DNSIP_HOST" ] && [ "$MYIP" = "$DNSIP_HOST" ]; then
+        if [ -z "$AUTH_DOMAIN" ]; then
+            USE_LE=1
+        elif [ -n "$DNSIP_AUTH" ] && [ "$MYIP" = "$DNSIP_AUTH" ]; then
+            USE_LE=1
         fi
-        echo "Retry $i: Failed to register focus user, retrying..."
-        sleep 2
-      done
-      
-      for i in {1..5}; do
-        if prosodyctl register jvb "$AUTH_DOMAIN" "$JVB_PASS" 2>/dev/null; then
-          echo "User jvb registered successfully"
-          break
         fi
-        echo "Retry $i: Failed to register jvb user, retrying..."
-        sleep 2
-      done
 
-      # Configure Jicofo
-      cat > /etc/jitsi/jicofo/jicofo.conf << EOFJICO
-    jicofo {
-      xmpp {
-        client {
-          enabled = true
-          hostname = "${AUTH_DOMAIN}"
-          port = 5222
-          domain = "${AUTH_DOMAIN}"
-          username = "focus"
-          password = "${FOCUS_PASS}"
-          tls { enabled = true }
-          client-proxy = "focus.${HOSTNAME_FQDN}"
-          xmpp-domain = "${HOSTNAME_FQDN}"
-        }
-      }
-      bridge {
-        brewery-jid = "JvbBrewery@internal.${AUTH_DOMAIN}"
-        selection-strategy = "SplitBridgeSelectionStrategy"
-      }
-      conference {
-        enable-auto-owner = true
-      }
-    }
-    EOFJICO
-
-      # Configure JVB with correct IPs
-      JVB_NICKNAME="jvb-$(hostname)-$(openssl rand -hex 3)"
-      cat > /etc/jitsi/videobridge/jvb.conf << EOFJVB
-    videobridge {
-      ice {
-        udp {
-          port = 10000
-        }
-        tcp {
-          enabled = true
-          port = 4443
-        }
-        publicAddress = "${MYIP}"
-        privateAddress = "${LOCALIP}"
-      }
-      apis {
-        xmpp-client {
-          configs {
-            xmpp-server-1 {
-              hostname = "${AUTH_DOMAIN}"
-              port = 5222
-              domain = "${AUTH_DOMAIN}"
-              username = "jvb"
-              password = "${JVB_PASS}"
-              muc_jids = "JvbBrewery@internal.${AUTH_DOMAIN}"
-              muc_nickname = "${JVB_NICKNAME}"
-              disable_certificate_verification = true
-            }
-          }
-        }
-      }
-      stats {
-        enabled = true
-      }
-    }
-    EOFJVB
-
-      # Create sip-communicator.properties with IP harvesting configuration
-      cat > /etc/jitsi/videobridge/sip-communicator.properties << EOFPROPS
-    org.ice4j.ice.harvest.NAT_HARVESTER_LOCAL_ADDRESS=${LOCALIP}
-    org.ice4j.ice.harvest.NAT_HARVESTER_PUBLIC_ADDRESS=${MYIP}
-    org.ice4j.ice.harvest.DISABLE_AWS_HARVESTER=true
-    org.ice4j.ice.harvest.STUN_MAPPING_HARVESTER_ADDRESSES=
-    EOFPROPS
-
-      # Add JVB environment variables as backup
-      mkdir -p /etc/systemd/system/jitsi-videobridge2.service.d
-      cat > /etc/systemd/system/jitsi-videobridge2.service.d/override.conf << EOFSVC
-    [Service]
-    Environment="JVB_OPTS=-Dorg.ice4j.ice.harvest.NAT_HARVESTER_LOCAL_ADDRESS=${LOCALIP} -Dorg.ice4j.ice.harvest.NAT_HARVESTER_PUBLIC_ADDRESS=${MYIP}"
-    EOFSVC
-      systemctl daemon-reload
-    fi
-
-    # Mini vhost for auth domain serving ACME challenge
-    if [ -n "$AUTH_DOMAIN" ]; then
-      mkdir -p /usr/share/jitsi-meet/.well-known/acme-challenge
-      cat > /etc/nginx/sites-available/auth-challenge.conf << EOFNGA
-    server {
-      listen 80;
-      listen [::]:80;
-      server_name $AUTH_DOMAIN;
-
-      root /usr/share/jitsi-meet;
-
-      location ^~ /.well-known/acme-challenge/ {
-        default_type "text/plain";
-        alias /usr/share/jitsi-meet/.well-known/acme-challenge/;
-      }
-      location / { return 204; }
-    }
-    EOFNGA
-      ln -sf /etc/nginx/sites-available/auth-challenge.conf /etc/nginx/sites-enabled/auth-challenge.conf
-      nginx -t && systemctl reload nginx || true
-    fi
-
-    # Try Let's Encrypt if DNS is ready
-    if [ "$USE_LE" = "1" ]; then
-      echo "DNS is ready, attempting Let's Encrypt certificate..."
-
-      # Install acme.sh if not present
-      # Ensure HOME is set to /root for proper installation
-      export HOME=/root
-
-      if [ ! -f "/root/.acme.sh/acme.sh" ] && [ ! -f "/.acme.sh/acme.sh" ]; then
-        curl -fsSL https://get.acme.sh | sh -s email="$LE_EMAIL"
-        sleep 2
-      fi
-
-      # Detect where acme.sh was actually installed
-      ACME_PATH="/root/.acme.sh"
-      if [ ! -f "$ACME_PATH/acme.sh" ]; then
-        if [ -f "/.acme.sh/acme.sh" ]; then
-          ACME_PATH="/.acme.sh"
-          echo "acme.sh installed at /.acme.sh (moving to /root/.acme.sh)"
-          mv /.acme.sh /root/
-          ACME_PATH="/root/.acme.sh"
+        if [ "$USE_LE" = "1" ]; then
+        echo "jitsi-meet-web-config jitsi-meet/cert-choice select Let's Encrypt" | debconf-set-selections
+        echo "jitsi-meet-web-config jitsi-meet/cert-email string $LE_EMAIL" | debconf-set-selections
+        mkdir -p /etc/letsencrypt
+        cat > /etc/letsencrypt/cli.ini << 'EOFLE'
+        email = PLACEHOLDER_EMAIL
+        agree-tos = true
+        non-interactive = true
+        EOFLE
+        sed -i "s/PLACEHOLDER_EMAIL/$LE_EMAIL/g" /etc/letsencrypt/cli.ini
         else
-          echo "ERROR: Failed to install acme.sh"
-          exit 1
+        echo "jitsi-meet-web-config jitsi-meet/cert-choice select Generate a new self-signed certificate (You will later get a chance to obtain a Let's Encrypt certificate)" | debconf-set-selections
         fi
-      fi
 
-      # Set up acme.sh
-      export LE_WORKING_DIR="$ACME_PATH"
-      $ACME_PATH/acme.sh --set-default-ca --server letsencrypt
+        # Install Jitsi Meet
+        apt-get install -y jitsi-meet
 
-      # Issue certificate for both domains
-      if [ -n "$AUTH_DOMAIN" ]; then
-        $ACME_PATH/acme.sh --issue -d "$HOSTNAME_FQDN" -d "$AUTH_DOMAIN" --webroot /usr/share/jitsi-meet --keylength ec-256 --force
-      else
-        $ACME_PATH/acme.sh --issue -d "$HOSTNAME_FQDN" --webroot /usr/share/jitsi-meet --keylength ec-256 --force
-      fi
+        # Ensure Prosody main config has plugin_paths and correct settings
+        cat > /etc/prosody/prosody.cfg.lua << 'EOFPROS'
+        -- Prosody Configuration File
+        plugin_paths = { "/usr/share/jitsi-meet/prosody-plugins/" }
 
-      # Install certificate
-      $ACME_PATH/acme.sh --install-cert -d "$HOSTNAME_FQDN" \
-        --key-file       "/etc/jitsi/meet/$HOSTNAME_FQDN.key" \
-        --fullchain-file "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" \
-        --reloadcmd "systemctl force-reload nginx.service"
+        -- Network configuration
+        c2s_ports = { 5222 }
+        s2s_ports = { 5269 }
+        component_ports = { 5347 }
 
-      # Set permissions
-      chgrp prosody "/etc/jitsi/meet/$HOSTNAME_FQDN.key"
-      chmod 640     "/etc/jitsi/meet/$HOSTNAME_FQDN.key"
-      install -D -m 0644 "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" "/usr/local/share/ca-certificates/jitsi-$HOSTNAME_FQDN.crt"
-      update-ca-certificates
+        -- Modules
+        modules_enabled = {
+            "roster";
+            "saslauth";
+            "tls";
+            "dialback";
+            "disco";
+            "carbons";
+            "pep";
+            "private";
+            "blocklist";
+            "vcard4";
+            "vcard_legacy";
+            "version";
+            "uptime";
+            "time";
+            "ping";
+            "admin_adhoc";
+            "bosh";
+            "websocket";
+        }
 
-      echo "Let's Encrypt certificate installed successfully"
-    fi
+        modules_disabled = {}
 
-    # Create script to update IPs on boot
-    cat > /usr/local/bin/update-jitsi-ips.sh << 'EOFIPUPDATE'
-    #!/bin/bash
-    set -e
+        allow_registration = false
+        c2s_require_encryption = false
+        s2s_require_encryption = false
+        s2s_secure_auth = false
 
-    # Wait for metadata server
-    sleep 10
+        authentication = "internal_hashed"
 
-    # Get IPs
-    META="http://metadata.google.internal/computeMetadata/v1"
-    MYIP=$(curl -s -H "Metadata-Flavor: Google" "$META/instance/network-interfaces/0/access-configs/0/external-ip")
-    LOCALIP=$(ip route get 1.1.1.1 | awk '{print $7; exit}')
+        log = {
+            info = "/var/log/prosody/prosody.log";
+            error = "/var/log/prosody/prosody.err";
+            "*syslog";
+        }
 
-    echo "$(date): Updating IPs - Public: $MYIP, Local: $LOCALIP" >> /var/log/jitsi-ip-update.log
+        certificates = "certs"
 
-    # Update sip-communicator.properties
-    cat > /etc/jitsi/videobridge/sip-communicator.properties << EOFPROPS
-    org.ice4j.ice.harvest.NAT_HARVESTER_LOCAL_ADDRESS=${LOCALIP}
-    org.ice4j.ice.harvest.NAT_HARVESTER_PUBLIC_ADDRESS=${MYIP}
-    org.ice4j.ice.harvest.DISABLE_AWS_HARVESTER=true
-    org.ice4j.ice.harvest.STUN_MAPPING_HARVESTER_ADDRESSES=
-    EOFPROPS
+        -- Include virtual hosts
+        Include "conf.d/*.cfg.lua"
+        EOFPROS
 
-    # Update jvb.conf
-    JVB_CONF="/etc/jitsi/videobridge/jvb.conf"
-    sed -i "s/publicAddress = \".*\"/publicAddress = \"${MYIP}\"/" "$JVB_CONF"
-    sed -i "s/privateAddress = \".*\"/privateAddress = \"${LOCALIP}\"/" "$JVB_CONF"
+        chown root:prosody /etc/prosody/prosody.cfg.lua
+        chmod 640 /etc/prosody/prosody.cfg.lua
 
-    # Update systemd override
-    mkdir -p /etc/systemd/system/jitsi-videobridge2.service.d
-    cat > /etc/systemd/system/jitsi-videobridge2.service.d/override.conf << EOFSVC
-    [Service]
-    Environment="JVB_OPTS=-Dorg.ice4j.ice.harvest.NAT_HARVESTER_LOCAL_ADDRESS=${LOCALIP} -Dorg.ice4j.ice.harvest.NAT_HARVESTER_PUBLIC_ADDRESS=${MYIP}"
-    EOFSVC
+        # Ensure Prosody cert symlinks for jitsi and auth
+        install -d /etc/prosody/certs
+        if [ -n "$HOSTNAME_FQDN" ]; then
+        ln -sf "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" "/etc/prosody/certs/$HOSTNAME_FQDN.crt"
+        ln -sf "/etc/jitsi/meet/$HOSTNAME_FQDN.key" "/etc/prosody/certs/$HOSTNAME_FQDN.key"
+        fi
+        if [ -n "$AUTH_DOMAIN" ]; then
+        ln -sf "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" "/etc/prosody/certs/$AUTH_DOMAIN.crt"
+        ln -sf "/etc/jitsi/meet/$HOSTNAME_FQDN.key" "/etc/prosody/certs/$AUTH_DOMAIN.key"
+        fi
+        if [ -f "/etc/jitsi/meet/$HOSTNAME_FQDN.key" ]; then
+        chgrp prosody "/etc/jitsi/meet/$HOSTNAME_FQDN.key" || true
+        chmod 640     "/etc/jitsi/meet/$HOSTNAME_FQDN.key" || true
+        fi
 
-    systemctl daemon-reload
-    systemctl restart jitsi-videobridge2
+        # Make the current web cert trusted by the OS/Java
+        if [ -n "$HOSTNAME_FQDN" ] && [ -f "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" ]; then
+        install -D -m 0644 "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" "/usr/local/share/ca-certificates/jitsi-$HOSTNAME_FQDN.crt" || true
+        update-ca-certificates || true
+        fi
 
-    echo "$(date): IPs updated successfully" >> /var/log/jitsi-ip-update.log
-    EOFIPUPDATE
+        # Open firewall ports
+        ufw allow 22/tcp
+        ufw allow 80/tcp
+        ufw allow 443/tcp
+        ufw allow 5222/tcp
+        ufw allow 10000/udp
+        ufw allow 4443/tcp
+        ufw --force enable
 
-    chmod +x /usr/local/bin/update-jitsi-ips.sh
+        # Create XMPP users focus and jvb
+        if [ -n "$AUTH_DOMAIN" ]; then
+        FOCUS_PASS=$(openssl rand -hex 16)
+        JVB_PASS=$(openssl rand -hex 16)
+        
+        # Restart Prosody to ensure it's running
+        systemctl restart prosody || true
+        sleep 5
+        
+        # Register users with retry logic
+        for i in {1..5}; do
+            if prosodyctl register focus "$AUTH_DOMAIN" "$FOCUS_PASS" 2>/dev/null; then
+            echo "User focus registered successfully"
+            break
+            fi
+            echo "Retry $i: Failed to register focus user, retrying..."
+            sleep 2
+        done
+        
+        for i in {1..5}; do
+            if prosodyctl register jvb "$AUTH_DOMAIN" "$JVB_PASS" 2>/dev/null; then
+            echo "User jvb registered successfully"
+            break
+            fi
+            echo "Retry $i: Failed to register jvb user, retrying..."
+            sleep 2
+        done
 
-    # Create systemd service for IP updates on boot
-    cat > /etc/systemd/system/update-jitsi-ips.service << 'EOFIPSERVICE'
-    [Unit]
-    Description=Update Jitsi IPs on boot
-    After=network-online.target google-network-daemon.service
-    Wants=network-online.target
-    Before=jitsi-videobridge2.service
+        # Configure Jicofo
+        cat > /etc/jitsi/jicofo/jicofo.conf << EOFJICO
+        jicofo {
+        xmpp {
+            client {
+            enabled = true
+            hostname = "${AUTH_DOMAIN}"
+            port = 5222
+            domain = "${AUTH_DOMAIN}"
+            username = "focus"
+            password = "${FOCUS_PASS}"
+            tls { enabled = true }
+            client-proxy = "focus.${HOSTNAME_FQDN}"
+            xmpp-domain = "${HOSTNAME_FQDN}"
+            }
+        }
+        bridge {
+            brewery-jid = "JvbBrewery@internal.${AUTH_DOMAIN}"
+            selection-strategy = "SplitBridgeSelectionStrategy"
+        }
+        conference {
+            enable-auto-owner = true
+        }
+        }
+        EOFJICO
 
-    [Service]
-    Type=oneshot
-    ExecStart=/usr/local/bin/update-jitsi-ips.sh
-    RemainAfterExit=yes
-    TimeoutStartSec=60
+        # Configure JVB with correct IPs
+        JVB_NICKNAME="jvb-$(hostname)-$(openssl rand -hex 3)"
+        cat > /etc/jitsi/videobridge/jvb.conf << EOFJVB
+        videobridge {
+        ice {
+            udp {
+            port = 10000
+            }
+            tcp {
+            enabled = true
+            port = 4443
+            }
+            publicAddress = "${MYIP}"
+            privateAddress = "${LOCALIP}"
+        }
+        apis {
+            xmpp-client {
+            configs {
+                xmpp-server-1 {
+                hostname = "${AUTH_DOMAIN}"
+                port = 5222
+                domain = "${AUTH_DOMAIN}"
+                username = "jvb"
+                password = "${JVB_PASS}"
+                muc_jids = "JvbBrewery@internal.${AUTH_DOMAIN}"
+                muc_nickname = "${JVB_NICKNAME}"
+                disable_certificate_verification = true
+                }
+            }
+            }
+        }
+        stats {
+            enabled = true
+        }
+        }
+        EOFJVB
 
-    [Install]
-    WantedBy=multi-user.target
-    EOFIPSERVICE
+        # Create sip-communicator.properties with IP harvesting configuration
+        cat > /etc/jitsi/videobridge/sip-communicator.properties << EOFPROPS
+        org.ice4j.ice.harvest.NAT_HARVESTER_LOCAL_ADDRESS=${LOCALIP}
+        org.ice4j.ice.harvest.NAT_HARVESTER_PUBLIC_ADDRESS=${MYIP}
+        org.ice4j.ice.harvest.DISABLE_AWS_HARVESTER=true
+        org.ice4j.ice.harvest.STUN_MAPPING_HARVESTER_ADDRESSES=
+        EOFPROPS
 
-    systemctl daemon-reload
-    systemctl enable update-jitsi-ips.service
+        # Add JVB environment variables as backup
+        mkdir -p /etc/systemd/system/jitsi-videobridge2.service.d
+        cat > /etc/systemd/system/jitsi-videobridge2.service.d/override.conf << EOFSVC
+        [Service]
+        Environment="JVB_OPTS=-Dorg.ice4j.ice.harvest.NAT_HARVESTER_LOCAL_ADDRESS=${LOCALIP} -Dorg.ice4j.ice.harvest.NAT_HARVESTER_PUBLIC_ADDRESS=${MYIP}"
+        EOFSVC
+        systemctl daemon-reload
+        fi
 
-    # Restart all services in correct order
-    systemctl restart prosody || true
-    sleep 5
-    systemctl restart jicofo || true
-    sleep 3
-    systemctl restart jitsi-videobridge2 || true
+        # Mini vhost for auth domain serving ACME challenge
+        if [ -n "$AUTH_DOMAIN" ]; then
+        mkdir -p /usr/share/jitsi-meet/.well-known/acme-challenge
+        cat > /etc/nginx/sites-available/auth-challenge.conf << EOFNGA
+        server {
+        listen 80;
+        listen [::]:80;
+        server_name $AUTH_DOMAIN;
 
-    # Marker file
-    mkdir -p /var/local
-    printf '%s\n' "BOOT_DONE=1" > /var/local/jitsi_boot_done
+        root /usr/share/jitsi-meet;
 
-    echo "Jitsi deployment completed successfully"
+        location ^~ /.well-known/acme-challenge/ {
+            default_type "text/plain";
+            alias /usr/share/jitsi-meet/.well-known/acme-challenge/;
+        }
+        location / { return 204; }
+        }
+        EOFNGA
+        ln -sf /etc/nginx/sites-available/auth-challenge.conf /etc/nginx/sites-enabled/auth-challenge.conf
+        nginx -t && systemctl reload nginx || true
+        fi
 
-    # Generar credenciales JWT
-    JWT_APP_ID="jitsi_moodle_$(openssl rand -hex 8)"
-    JWT_SECRET=$(openssl rand -hex 32)
+        # Try Let's Encrypt if DNS is ready
+        if [ "$USE_LE" = "1" ]; then
+        echo "DNS is ready, attempting Let's Encrypt certificate..."
 
-    # Configurar JWT en Jitsi
-    if [ -n "$HOSTNAME_FQDN" ]; then
-      # Reemplazar completamente el archivo de configuración de Prosody con JWT
-      cat > "/etc/prosody/conf.avail/${HOSTNAME_FQDN}.cfg.lua" << EOFJWT
-    plugin_paths = { "/usr/share/jitsi-meet/prosody-plugins/" }
+        # Install acme.sh if not present
+        # Ensure HOME is set to /root for proper installation
+        export HOME=/root
 
-    -- Main virtual host with JWT authentication
-    VirtualHost "${HOSTNAME_FQDN}"
+        if [ ! -f "/root/.acme.sh/acme.sh" ] && [ ! -f "/.acme.sh/acme.sh" ]; then
+            curl -fsSL https://get.acme.sh | sh -s email="$LE_EMAIL"
+            sleep 2
+        fi
+
+        # Detect where acme.sh was actually installed
+        ACME_PATH="/root/.acme.sh"
+        if [ ! -f "$ACME_PATH/acme.sh" ]; then
+            if [ -f "/.acme.sh/acme.sh" ]; then
+            ACME_PATH="/.acme.sh"
+            echo "acme.sh installed at /.acme.sh (moving to /root/.acme.sh)"
+            mv /.acme.sh /root/
+            ACME_PATH="/root/.acme.sh"
+            else
+            echo "ERROR: Failed to install acme.sh"
+            exit 1
+            fi
+        fi
+
+        # Set up acme.sh
+        export LE_WORKING_DIR="$ACME_PATH"
+        $ACME_PATH/acme.sh --set-default-ca --server letsencrypt
+
+        # Issue certificate for both domains
+        if [ -n "$AUTH_DOMAIN" ]; then
+            $ACME_PATH/acme.sh --issue -d "$HOSTNAME_FQDN" -d "$AUTH_DOMAIN" --webroot /usr/share/jitsi-meet --keylength ec-256 --force
+        else
+            $ACME_PATH/acme.sh --issue -d "$HOSTNAME_FQDN" --webroot /usr/share/jitsi-meet --keylength ec-256 --force
+        fi
+
+        # Install certificate
+        $ACME_PATH/acme.sh --install-cert -d "$HOSTNAME_FQDN" \
+            --key-file       "/etc/jitsi/meet/$HOSTNAME_FQDN.key" \
+            --fullchain-file "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" \
+            --reloadcmd "systemctl force-reload nginx.service"
+
+        # Set permissions
+        chgrp prosody "/etc/jitsi/meet/$HOSTNAME_FQDN.key"
+        chmod 640     "/etc/jitsi/meet/$HOSTNAME_FQDN.key"
+        install -D -m 0644 "/etc/jitsi/meet/$HOSTNAME_FQDN.crt" "/usr/local/share/ca-certificates/jitsi-$HOSTNAME_FQDN.crt"
+        update-ca-certificates
+
+        echo "Let's Encrypt certificate installed successfully"
+        fi
+
+        # Create script to update IPs on boot
+        cat > /usr/local/bin/update-jitsi-ips.sh << 'EOFIPUPDATE'
+        #!/bin/bash
+        set -e
+
+        # Wait for metadata server
+        sleep 10
+
+        # Get IPs
+        META="http://metadata.google.internal/computeMetadata/v1"
+        MYIP=$(curl -s -H "Metadata-Flavor: Google" "$META/instance/network-interfaces/0/access-configs/0/external-ip")
+        LOCALIP=$(ip route get 1.1.1.1 | awk '{print $7; exit}')
+
+        echo "$(date): Updating IPs - Public: $MYIP, Local: $LOCALIP" >> /var/log/jitsi-ip-update.log
+
+        # Update sip-communicator.properties
+        cat > /etc/jitsi/videobridge/sip-communicator.properties << EOFPROPS
+        org.ice4j.ice.harvest.NAT_HARVESTER_LOCAL_ADDRESS=${LOCALIP}
+        org.ice4j.ice.harvest.NAT_HARVESTER_PUBLIC_ADDRESS=${MYIP}
+        org.ice4j.ice.harvest.DISABLE_AWS_HARVESTER=true
+        org.ice4j.ice.harvest.STUN_MAPPING_HARVESTER_ADDRESSES=
+        EOFPROPS
+
+        # Update jvb.conf
+        JVB_CONF="/etc/jitsi/videobridge/jvb.conf"
+        sed -i "s/publicAddress = \".*\"/publicAddress = \"${MYIP}\"/" "$JVB_CONF"
+        sed -i "s/privateAddress = \".*\"/privateAddress = \"${LOCALIP}\"/" "$JVB_CONF"
+
+        # Update systemd override
+        mkdir -p /etc/systemd/system/jitsi-videobridge2.service.d
+        cat > /etc/systemd/system/jitsi-videobridge2.service.d/override.conf << EOFSVC
+        [Service]
+        Environment="JVB_OPTS=-Dorg.ice4j.ice.harvest.NAT_HARVESTER_LOCAL_ADDRESS=${LOCALIP} -Dorg.ice4j.ice.harvest.NAT_HARVESTER_PUBLIC_ADDRESS=${MYIP}"
+        EOFSVC
+
+        systemctl daemon-reload
+        systemctl restart jitsi-videobridge2
+
+        echo "$(date): IPs updated successfully" >> /var/log/jitsi-ip-update.log
+        EOFIPUPDATE
+
+        chmod +x /usr/local/bin/update-jitsi-ips.sh
+
+        # Create systemd service for IP updates on boot
+        cat > /etc/systemd/system/update-jitsi-ips.service << 'EOFIPSERVICE'
+        [Unit]
+        Description=Update Jitsi IPs on boot
+        After=network-online.target google-network-daemon.service
+        Wants=network-online.target
+        Before=jitsi-videobridge2.service
+
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/local/bin/update-jitsi-ips.sh
+        RemainAfterExit=yes
+        TimeoutStartSec=60
+
+        [Install]
+        WantedBy=multi-user.target
+        EOFIPSERVICE
+
+        systemctl daemon-reload
+        systemctl enable update-jitsi-ips.service
+
+        # Restart all services in correct order
+        systemctl restart prosody || true
+        sleep 5
+        systemctl restart jicofo || true
+        sleep 3
+        systemctl restart jitsi-videobridge2 || true
+
+        # Marker file
+        mkdir -p /var/local
+        printf '%s\n' "BOOT_DONE=1" > /var/local/jitsi_boot_done
+
+        echo "Jitsi deployment completed successfully"
+
+        # Generar credenciales JWT
+        JWT_APP_ID="jitsi_moodle_$(openssl rand -hex 8)"
+        JWT_SECRET=$(openssl rand -hex 32)
+
+        # Configurar JWT en Jitsi
+        if [ -n "$HOSTNAME_FQDN" ]; then
+        # Configurar prosody para JWT
+        cat >> "/etc/prosody/conf.avail/${HOSTNAME_FQDN}.cfg.lua" << EOFJWT
+
+        -- JWT authentication
         authentication = "token"
         app_id = "${JWT_APP_ID}"
         app_secret = "${JWT_SECRET}"
         allow_empty_token = false
+        EOFJWT
 
-        ssl = {
-            key = "/etc/prosody/certs/${HOSTNAME_FQDN}.key";
-            certificate = "/etc/prosody/certs/${HOSTNAME_FQDN}.crt";
-        }
+        # Reiniciar servicios
+        systemctl restart prosody jicofo jitsi-videobridge2 || true
+        fi
 
-        modules_enabled = {
-            "bosh";
-            "pubsub";
-            "ping";
-            "speakerstats";
-            "external_services";
-            "conference_duration";
-            "muc_lobby_rooms";
-            "muc_breakout_rooms";
-            "av_moderation";
-            "room_metadata";
-        }
+        # Notificar a Moodle con las credenciales
+        if [ -n "$CALLBACK_URL" ]; then
+        echo "Notifying Moodle with credentials..."
+        curl -X POST "${CALLBACK_URL}&ip=$MYIP&hostname=$HOSTNAME_FQDN&phase=completed&appid=${JWT_APP_ID}&secret=${JWT_SECRET}" \
+            --max-time 10 \
+            --retry 3 \
+            --retry-delay 5 \
+            || echo "Warning: Could not notify Moodle (callback failed)"
+        fi
 
-        speakerstats_component = "speakerstats.${HOSTNAME_FQDN}"
-        conference_duration_component = "conferenceduration.${HOSTNAME_FQDN}"
-
-        c2s_require_encryption = false
-        lobby_muc = "lobby.${HOSTNAME_FQDN}"
-        breakout_rooms_muc = "breakout.${HOSTNAME_FQDN}"
-        room_metadata_component = "metadata.${HOSTNAME_FQDN}"
-        main_muc = "conference.${HOSTNAME_FQDN}"
-        muc_mapper_domain_base = "${HOSTNAME_FQDN}"
-
-    -- Internal authentication for moderators (if needed)
-    VirtualHost "auth.${HOSTNAME_FQDN}"
-        ssl = {
-            key = "/etc/prosody/certs/auth.${HOSTNAME_FQDN}.key";
-            certificate = "/etc/prosody/certs/auth.${HOSTNAME_FQDN}.crt";
-        }
-        modules_enabled = {
-            "limits_exception";
-        }
-        authentication = "internal_hashed"
-
-    -- MUC component for conference rooms
-    Component "conference.${HOSTNAME_FQDN}" "muc"
-        restrict_room_creation = true
-        storage = "memory"
-        modules_enabled = {
-            "muc_meeting_id";
-            "muc_domain_mapper";
-            "polls";
-            "token_verification";
-            "muc_rate_limit";
-        }
-        admins = { "focus@auth.${HOSTNAME_FQDN}" }
-        muc_room_locking = false
-        muc_room_default_public_jids = true
-
-    -- Internal MUC for Jicofo
-    Component "internal.auth.${HOSTNAME_FQDN}" "muc"
-        storage = "memory"
-        modules_enabled = {
-            "ping";
-        }
-        admins = { "focus@auth.${HOSTNAME_FQDN}", "jvb@auth.${HOSTNAME_FQDN}" }
-        muc_room_locking = false
-        muc_room_default_public_jids = true
-
-    -- Focus component
-    Component "focus.${HOSTNAME_FQDN}" "client_proxy"
-        target_address = "focus@auth.${HOSTNAME_FQDN}"
-
-    -- Lobby component
-    Component "lobby.${HOSTNAME_FQDN}" "muc"
-        storage = "memory"
-        restrict_room_creation = true
-        muc_room_locking = false
-        muc_room_default_public_jids = true
-        modules_enabled = {
-            "muc_rate_limit";
-            "polls";
-        }
-
-    -- Breakout rooms component
-    Component "breakout.${HOSTNAME_FQDN}" "muc"
-        storage = "memory"
-        restrict_room_creation = true
-        muc_room_locking = false
-        muc_room_default_public_jids = true
-        modules_enabled = {
-            "muc_rate_limit";
-            "polls";
-        }
-
-    -- AV moderation component
-    Component "avmoderation.${HOSTNAME_FQDN}" "av_moderation_component"
-        muc_component = "conference.${HOSTNAME_FQDN}"
-
-    -- Speakerstats component
-    Component "speakerstats.${HOSTNAME_FQDN}" "speakerstats_component"
-        muc_component = "conference.${HOSTNAME_FQDN}"
-
-    -- Conference duration component
-    Component "conferenceduration.${HOSTNAME_FQDN}" "conference_duration_component"
-        muc_component = "conference.${HOSTNAME_FQDN}"
-
-    -- Metadata component
-    Component "metadata.${HOSTNAME_FQDN}" "room_metadata_component"
-        muc_component = "conference.${HOSTNAME_FQDN}"
-        breakout_rooms_component = "breakout.${HOSTNAME_FQDN}"
-    EOFJWT
-
-      # Asegurar que el enlace simbólico existe
-      ln -sf "/etc/prosody/conf.avail/${HOSTNAME_FQDN}.cfg.lua" "/etc/prosody/conf.d/${HOSTNAME_FQDN}.cfg.lua"
-
-      # Configurar Jitsi Meet para JWT
-      MEET_CONFIG="/etc/jitsi/meet/${HOSTNAME_FQDN}-config.js"
-      if [ -f "$MEET_CONFIG" ]; then
-        # Agregar configuración JWT al config.js
-        sed -i "/var config = {/a\\    hosts: {\\n        domain: '${HOSTNAME_FQDN}',\\n        muc: 'conference.${HOSTNAME_FQDN}',\\n        focus: 'focus.${HOSTNAME_FQDN}'\\n    }," "$MEET_CONFIG"
-      fi
-
-      # Reiniciar servicios para aplicar configuración JWT
-      systemctl restart prosody jicofo jitsi-videobridge2 || true
-    fi
-
-    # Notificar a Moodle con las credenciales
-    if [ -n "$CALLBACK_URL" ]; then
-      echo "Notifying Moodle with credentials..."
-      curl -X POST "${CALLBACK_URL}&ip=$MYIP&hostname=$HOSTNAME_FQDN&phase=completed&appid=${JWT_APP_ID}&secret=${JWT_SECRET}" \
-        --max-time 10 \
-        --retry 3 \
-        --retry-delay 5 \
-        || echo "Warning: Could not notify Moodle (callback failed)"
-    fi
-
-    BASH;
+        BASH;
     }
 }
+// phpcs:enable
 if (!function_exists('mod_jitsi_gcp_client')) {
+    /**
+     * Creates and returns a configured Google Compute Engine service client.
+     *
+     * This function initializes a Google API client with appropriate authentication credentials.
+     * It first attempts to load a service account JSON file uploaded via the plugin settings.
+     * If no file is found, it falls back to Application Default Credentials (ADC).
+     *
+     * Authentication priority:
+     * 1. Service account JSON file stored in mod_jitsi file area
+     * 2. Application Default Credentials (environment variable, gcloud CLI, etc.)
+     *
+     * @return \Google\Service\Compute A configured Google Compute Engine service instance.
+     *
+     * @throws \Exception If the service account file exists but cannot be properly decoded as JSON.
+     *
+     * @see https://cloud.google.com/docs/authentication/application-default-credentials
+     * @see https://cloud.google.com/docs/authentication/production
+     */
     function mod_jitsi_gcp_client(): \Google\Service\Compute {
         $client = new \Google\Client();
         $client->setScopes(['https://www.googleapis.com/auth/cloud-platform']);
@@ -888,62 +794,83 @@ if (!function_exists('mod_jitsi_gcp_create_instance')) {
      */
     function mod_jitsi_gcp_create_instance(\Google\Service\Compute $compute, string $project, string $zone, array $opts): string {
         $name = $opts['name'];
-        $machineType = sprintf('zones/%s/machineTypes/%s', $zone, $opts['machineType']);
-        $diskImage = $opts['image'];
+        $machinetype = sprintf('zones/%s/machineTypes/%s', $zone, $opts['machineType']);
+        $diskimage = $opts['image'];
         $network = $opts['network'];
 
         // Optional metadata: startup-script + variables.
-        $metadataItems = [];
+        $metadataitems = [];
         if (!empty($opts['startupScript'])) {
-            $metadataItems[] = ['key' => 'startup-script', 'value' => $opts['startupScript']];
+            $metadataitems[] = ['key' => 'startup-script', 'value' => $opts['startupScript']];
         }
         if (!empty($opts['hostname'])) {
-            $metadataItems[] = ['key' => 'HOSTNAME_FQDN', 'value' => $opts['hostname']];
+            $metadataitems[] = ['key' => 'HOSTNAME_FQDN', 'value' => $opts['hostname']];
         }
         if (!empty($opts['letsencryptEmail'])) {
-            $metadataItems[] = ['key' => 'LE_EMAIL', 'value' => $opts['letsencryptEmail']];
+            $metadataitems[] = ['key' => 'LE_EMAIL', 'value' => $opts['letsencryptEmail']];
         }
         if (!empty($opts['callbackUrl'])) {
-            $metadataItems[] = ['key' => 'CALLBACK_URL', 'value' => $opts['callbackUrl']];
+            $metadataitems[] = ['key' => 'CALLBACK_URL', 'value' => $opts['callbackUrl']];
         }
 
-        // Configure access config (static IP if provided, otherwise ephemeral)
-        $accessConfig = ['name' => 'External NAT', 'type' => 'ONE_TO_ONE_NAT'];
+        // Configure access config (static IP if provided, otherwise ephemeral).
+        $accessconfig = ['name' => 'External NAT', 'type' => 'ONE_TO_ONE_NAT'];
         if (!empty($opts['staticIpAddress'])) {
-            // Use the reserved static IP address
-            $accessConfig['natIP'] = $opts['staticIpAddress'];
+            // Use the reserved static IP address.
+            $accessconfig['natIP'] = $opts['staticIpAddress'];
         }
 
-        $instanceParams = [
+        $instanceparams = [
             'name' => $name,
-            'machineType' => $machineType,
+            'machineType' => $machinetype,
             'labels' => [ 'app' => 'jitsi', 'plugin' => 'mod-jitsi' ],
             'tags' => ['items' => ['mod-jitsi-web']],
             'networkInterfaces' => [[
                 'network' => $network,
-                'accessConfigs' => [$accessConfig]
+                'accessConfigs' => [$accessconfig],
             ]],
             'disks' => [[
                 'boot' => true,
                 'autoDelete' => true,
-                'initializeParams' => ['sourceImage' => $diskImage, 'diskSizeGb' => 20],
+                'initializeParams' => ['sourceImage' => $diskimage, 'diskSizeGb' => 20],
             ]],
         ];
-        if (!empty($metadataItems)) {
-            $instanceParams['metadata'] = ['items' => $metadataItems];
+        if (!empty($metadataitems)) {
+            $instanceparams['metadata'] = ['items' => $metadataitems];
         }
 
-        $instance = new \Google\Service\Compute\Instance($instanceParams);
+        $instance = new \Google\Service\Compute\Instance($instanceparams);
         $op = $compute->instances->insert($project, $zone, $instance);
         return $op->getName();
     }
 }
 
 if (!function_exists('mod_jitsi_gcp_wait_zone_op')) {
-    function mod_jitsi_gcp_wait_zone_op(\Google\Service\Compute $compute, string $project, string $zone, string $opName, int $timeout=420): void {
+    /**
+     * Wait for a Google Cloud Platform zone operation to complete.
+     *
+     * This function polls a GCP zone operation until it reaches a 'DONE' status or times out.
+     * It checks the operation status at regular intervals and throws an exception if an error
+     * occurs during the operation or if the timeout is exceeded.
+     *
+     * @param \Google\Service\Compute $compute The Google Compute API client instance.
+     * @param string $project The GCP project ID.
+     * @param string $zone The GCP zone where the operation is being performed.
+     * @param string $opName The name of the operation to wait for.
+     * @param int $timeout The maximum time in seconds to wait for the operation to complete. Defaults to 420 seconds (7 minutes).
+     * @return void
+     * @throws moodle_exception If the operation fails (gcpoperationerror) or exceeds the timeout (gcpoperationtimeout).
+     */
+    function mod_jitsi_gcp_wait_zone_op(
+        \Google\Service\Compute $compute,
+        string $project,
+        string $zone,
+        string $opname,
+        int $timeout = 420
+    ): void {
         $start = time();
         do {
-            $op = $compute->zoneOperations->get($project, $zone, $opName);
+            $op = $compute->zoneOperations->get($project, $zone, $opname);
             if ($op->getStatus() === 'DONE') {
                 if ($op->getError()) {
                     throw new moodle_exception('gcpoperationerror', 'mod_jitsi', '', json_encode($op->getError()));
@@ -960,10 +887,16 @@ if (!function_exists('mod_jitsi_gcp_wait_region_op')) {
     /**
      * Waits for a regional GCP operation to complete (e.g., address reservation).
      */
-    function mod_jitsi_gcp_wait_region_op(\Google\Service\Compute $compute, string $project, string $region, string $opName, int $timeout=120): void {
+    function mod_jitsi_gcp_wait_region_op(
+        \Google\Service\Compute $compute,
+        string $project,
+        string $region,
+        string $opname,
+        int $timeout=120
+    ): void {
         $start = time();
         do {
-            $op = $compute->regionOperations->get($project, $region, $opName);
+            $op = $compute->regionOperations->get($project, $region, $opname);
             if ($op->getStatus() === 'DONE') {
                 if ($op->getError()) {
                     throw new moodle_exception('gcpoperationerror', 'mod_jitsi', '', json_encode($op->getError()));
@@ -991,17 +924,17 @@ if (!function_exists('mod_jitsi_gcp_find_available_static_ip')) {
 
             if ($addresses->getItems()) {
                 foreach ($addresses->getItems() as $addr) {
-                    // IP is available if it's not assigned to any resource (users array is empty)
+                    // IP is available if it's not assigned to any resource (users array is empty).
                     if (empty($addr->getUsers()) && $addr->getStatus() === 'RESERVED') {
                         return [
                             'name' => $addr->getName(),
-                            'address' => $addr->getAddress()
+                            'address' => $addr->getAddress(),
                         ];
                     }
                 }
             }
         } catch (Exception $e) {
-            error_log('Failed to list addresses: ' . $e->getMessage());
+            debugging('Failed to list addresses: ' . $e->getMessage(), DEBUG_NORMAL);
         }
 
         return null;
@@ -1018,7 +951,12 @@ if (!function_exists('mod_jitsi_gcp_reserve_static_ip')) {
      * @param string $name Name for the static IP address
      * @return string The reserved static IP address name
      */
-    function mod_jitsi_gcp_reserve_static_ip(\Google\Service\Compute $compute, string $project, string $region, string $name): string {
+    function mod_jitsi_gcp_reserve_static_ip(
+        \Google\Service\Compute $compute,
+        string $project,
+        string $region,
+        string $name
+    ): string {
         $address = new \Google\Service\Compute\Address();
         $address->setName($name);
         $address->setDescription('Static IP for Jitsi server ' . $name);
@@ -1040,13 +978,18 @@ if (!function_exists('mod_jitsi_gcp_release_static_ip')) {
      * @param string $region GCP region
      * @param string $name Name of the static IP address to release
      */
-    function mod_jitsi_gcp_release_static_ip(\Google\Service\Compute $compute, string $project, string $region, string $name): void {
+    function mod_jitsi_gcp_release_static_ip(
+        \Google\Service\Compute $compute,
+        string $project,
+        string $region,
+        string $name
+    ): void {
         try {
             $op = $compute->addresses->delete($project, $region, $name);
             mod_jitsi_gcp_wait_region_op($compute, $project, $region, $op->getName());
         } catch (Exception $e) {
-            // Log error but don't throw - IP might already be deleted
-            error_log('Failed to release static IP ' . $name . ': ' . $e->getMessage());
+            // Log error but don't throw - IP might already be deleted.
+            debugging('Failed to release static IP ' . $name . ': ' . $e->getMessage(), DEBUG_NORMAL);
         }
     }
 }
@@ -1079,16 +1022,22 @@ if ($action === 'creategcpvm') {
     if (!empty($hostname) && empty($leemail)) {
         if ($ajax) {
             @header('Content-Type: application/json');
-            echo json_encode(['status' => 'error', 'message' => 'Missing Let\'s Encrypt email (gcp_letsencrypt_email) while hostname is set.']);
+            echo json_encode(['status' => 'error',
+              'message' => 'Missing Let\'s Encrypt email (gcp_letsencrypt_email) while hostname is set.']);
             exit;
         }
-        \core\notification::add('Missing Let\'s Encrypt email (gcp_letsencrypt_email) while hostname is set.', \core\output\notification::NOTIFY_ERROR);
+        \core\notification::add('Missing Let\'s Encrypt email (gcp_letsencrypt_email) while hostname is set.',
+          \core\output\notification::NOTIFY_ERROR);
         redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
     }
     $sscript   = mod_jitsi_default_startup_script();
 
     $missing = [];
-    foreach ([['gcp_project',$project], ['gcp_zone',$zone]] as [$k,$v]) { if (empty($v)) { $missing[] = $k; } }
+    foreach ([['gcp_project', $project], ['gcp_zone', $zone]] as [$k, $v]) {
+        if (empty($v)) {
+            $missing[] = $k;
+        }
+    }
     if ($missing) {
         if ($ajax) {
             @header('Content-Type: application/json');
@@ -1101,10 +1050,10 @@ if ($action === 'creategcpvm') {
 
     $instancename = 'jitsi-'.date('ymdHi');
 
-    // Generar token único para esta VM
+    // Generar token único para esta VM.
     $vmtoken = bin2hex(random_bytes(32));
 
-    // URL del callback (debe ser accesible públicamente)
+    // URL del callback (debe ser accesible públicamente).
     $callbackurl = (new moodle_url('/mod/jitsi/servermanagement.php', [
         'action' => 'jitsiready',
         'instance' => $instancename,
@@ -1121,40 +1070,44 @@ if ($action === 'creategcpvm') {
         }
         // Ensure VPC firewall rule exists for ports 80/443 (tcp) and 10000 (udp).
         $fwwarn = '';
-        $fwwarn_detail = '';
+        $fwwarndetail = '';
         $fwstatus = mod_jitsi_gcp_ensure_firewall($compute, $project, $network);
         if (strpos($fwstatus, 'error:') === 0) {
-            $fwwarn = 'Could not create VPC firewall rule automatically. Please allow TCP 80/443 and UDP 10000 (target tag: mod-jitsi-web).';
-            $fwwarn_detail = substr($fwstatus, 6);
-            \core\notification::add('Warning: could not create VPC firewall rule automatically. Please allow TCP 80/443 and UDP 10000 to this VM. Details: '.s($fwwarn_detail), \core\output\notification::NOTIFY_WARNING);
+            $fwwarn = 'Could not create VPC firewall rule automatically. ' .
+                      'Please allow TCP 80/443 and UDP 10000 (target tag: mod-jitsi-web).';
+            $fwwarndetail = substr($fwstatus, 6);
+            $msg = 'Warning: could not create VPC firewall rule automatically. ' .
+                   'Please allow TCP 80/443 and UDP 10000 to this VM. Details: ' . s($fwwarndetail);
+            \core\notification::add($msg, \core\output\notification::NOTIFY_WARNING);
         }
-        // If status is 'noperms' (e.g., permission denied) or 'exists', do not warn in UI; assume admin-managed firewall or rule already present.
+        // If status is 'noperms' (e.g., permission denied) or 'exists', do not warn in UI;
+        // assume admin-managed firewall or rule already present.
 
-        // ⬅️ GET OR RESERVE STATIC IP ADDRESS
-        // Extract region from zone (e.g., 'europe-west1-b' -> 'europe-west1')
+        // GET OR RESERVE STATIC IP ADDRESS.
+        // Extract region from zone (e.g., 'europe-west1-b' -> 'europe-west1').
         $region = preg_replace('/-[a-z]$/', '', $zone);
         $staticipname = null;
         $staticipaddress = null;
         $ipreused = false;
 
         try {
-            // First, try to find an available (unused) static IP
+            // First, try to find an available (unused) static IP.
             $availableip = mod_jitsi_gcp_find_available_static_ip($compute, $project, $region);
 
             if ($availableip) {
-                // Reuse existing available IP
+                // Reuse existing available IP.
                 $staticipname = $availableip['name'];
                 $staticipaddress = $availableip['address'];
                 $ipreused = true;
-                error_log("✅ Reusing available static IP: {$staticipname} ({$staticipaddress})");
+                debugging("✅ Reusing available static IP: {$staticipname} ({$staticipaddress})", DEBUG_NORMAL);
             } else {
-                // No available IP found, create a new one
+                // No available IP found, create a new one.
                 $staticipname = $instancename . '-ip';
                 mod_jitsi_gcp_reserve_static_ip($compute, $project, $region, $staticipname);
-                // Get the actual IP address from the reserved address
+                // Get the actual IP address from the reserved address.
                 $addressobj = $compute->addresses->get($project, $region, $staticipname);
                 $staticipaddress = $addressobj->getAddress();
-                error_log("✅ Created new static IP: {$staticipname} ({$staticipaddress})");
+                debugging("✅ Created new static IP: {$staticipname} ({$staticipaddress})", DEBUG_NORMAL);
             }
 
         } catch (Exception $e) {
@@ -1163,17 +1116,18 @@ if ($action === 'creategcpvm') {
                 echo json_encode(['status' => 'error', 'message' => 'Failed to get/reserve static IP: ' . $e->getMessage()]);
                 exit;
             }
-            \core\notification::add('Failed to get/reserve static IP: ' . $e->getMessage(), \core\output\notification::NOTIFY_ERROR);
+            \core\notification::add('Failed to get/reserve static IP: ' .
+            $e->getMessage(), \core\output\notification::NOTIFY_ERROR);
             redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
         }
 
-        // ⬅️ INSERT SERVER RECORD IMMEDIATELY with 'provisioning' status
+        // INSERT SERVER RECORD IMMEDIATELY with 'provisioning' status.
         $server = new stdClass();
         $server->name = $instancename;
-        $server->type = 3; // GCP Auto-Managed
-        $server->domain = $hostname ?: $staticipaddress; // Use hostname or fallback to IP
-        $server->appid = ''; // Will be populated by callback
-        $server->secret = ''; // Will be populated by callback
+        $server->type = 3; // GCP Auto-Managed.
+        $server->domain = $hostname ?: $staticipaddress; // Use hostname or fallback to IP.
+        $server->appid = ''; // Will be populated by callback.
+        $server->secret = ''; // Will be populated by callback.
         $server->eightbyeightappid = '';
         $server->eightbyeightapikeyid = '';
         $server->privatekey = '';
@@ -1181,7 +1135,7 @@ if ($action === 'creategcpvm') {
         $server->gcpzone = $zone;
         $server->gcpinstancename = $instancename;
         $server->gcpstaticipname = $staticipname;
-        $server->gcpstaticipaddress = $staticipaddress; // ⬅️ Save the IP address
+        $server->gcpstaticipaddress = $staticipaddress; // Save the IP address.
         $server->provisioningstatus = 'provisioning';
         $server->provisioningtoken = $vmtoken;
         $server->provisioningerror = '';
@@ -1198,17 +1152,19 @@ if ($action === 'creategcpvm') {
             'hostname' => $hostname,
             'letsencryptEmail' => $leemail,
             'startupScript' => $sscript,
-            'callbackUrl' => $callbackurl, // Pasar URL al script
-            'staticIpAddress' => $staticipaddress, // ⬅️ Use reserved static IP
+            'callbackUrl' => $callbackurl, // Pasar URL al script.
+            'staticIpAddress' => $staticipaddress, // Use reserved static IP.
         ]);
         // Save operation info in session for status polling.
-        if (!isset($SESSION->mod_jitsi_ops)) { $SESSION->mod_jitsi_ops = []; }
+        if (!isset($SESSION->mod_jitsi_ops)) {
+            $SESSION->mod_jitsi_ops = [];
+        }
         $SESSION->mod_jitsi_ops[$opname] = [
             'project' => $project,
             'zone' => $zone,
             'instancename' => $instancename,
-            'staticipname' => $staticipname, // ⬅️ Save static IP name
-            'region' => $region, // ⬅️ Save region for IP management
+            'staticipname' => $staticipname, // Save static IP name.
+            'region' => $region, // Save region for IP management.
         ];
         if ($ajax) {
             @header('Content-Type: application/json');
@@ -1217,7 +1173,7 @@ if ($action === 'creategcpvm') {
                 'opname' => $opname,
                 'instancename' => $instancename,
                 'fwwarn' => $fwwarn,
-                'fwwarn_detail' => $fwwarn_detail,
+                'fwwarn_detail' => $fwwarndetail,
                 'network' => $network,
                 'networkshort' => $networkshort,
                 'fwstatus' => $fwstatus,
@@ -1230,8 +1186,8 @@ if ($action === 'creategcpvm') {
             'zone' => $zone,
             'opname' => $opname,
             'instancename' => $instancename,
-            'staticipname' => $staticipname, // ⬅️ Save static IP name
-            'region' => $region, // ⬅️ Save region for IP management
+            'staticipname' => $staticipname, // Save static IP name.
+            'region' => $region, // Save region for IP management.
         ];
         redirect(new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'gcpstatus']));
     } catch (Exception $e) {
@@ -1293,7 +1249,7 @@ if ($action === 'checkjitsiready') {
     $instancename = required_param('instance', PARAM_TEXT);
 
     try {
-        // Read from jitsi_servers table instead of config_plugins
+        // Read from jitsi_servers table instead of config_plugins.
         $server = $DB->get_record('jitsi_servers', ['gcpinstancename' => $instancename]);
 
         if (!$server) {
@@ -1305,14 +1261,15 @@ if ($action === 'checkjitsiready') {
             'status' => $server->provisioningstatus ?: 'provisioning',
             'ip' => $server->gcpstaticipaddress ?: $server->domain ?: '',
             'hostname' => $server->domain ?: '',
+            'serverid' => $server->id,
         ];
 
-        // Include error message if provisioning failed
+        // Include error message if provisioning failed.
         if (!empty($server->provisioningerror)) {
             $response['error'] = $server->provisioningerror;
         }
 
-        // Map 'ready' status to 'completed' for frontend compatibility
+        // Map 'ready' status to 'completed' for frontend compatibility.
         if ($response['status'] === 'ready') {
             $response['status'] = 'completed';
         }
@@ -1327,7 +1284,7 @@ if ($action === 'checkjitsiready') {
 if ($action === 'listprovisioningservers') {
     @header('Content-Type: application/json');
 
-    // Return list of servers being provisioned
+    // Return list of servers being provisioned.
     $servers = $DB->get_records_sql(
         "SELECT id, name, gcpinstancename, domain, gcpstaticipaddress, provisioningstatus
          FROM {jitsi_servers}
@@ -1342,29 +1299,31 @@ if ($action === 'listprovisioningservers') {
 if ($action === 'gcpserversstatus') {
     require_sesskey();
     @header('Content-Type: application/json');
-    
+
     $serverids = required_param('ids', PARAM_TEXT);
     $ids = explode(',', $serverids);
-    
+
     $statuses = [];
-    
+
     try {
         $gcpclient = mod_jitsi_gcp_client();
-        
+
         foreach ($ids as $id) {
             $id = (int)$id;
             if ($server = $DB->get_record('jitsi_servers', ['id' => $id])) {
-                if ($server->type == 3 && !empty($server->gcpproject) && !empty($server->gcpzone) && !empty($server->gcpinstancename)) {
+                if ($server->type == 3 && !empty($server->gcpproject) &&
+                  !empty($server->gcpzone) && !empty($server->gcpinstancename)) {
                     try {
-                        $instance = $gcpclient->instances->get($server->gcpproject, $server->gcpzone, $server->gcpinstancename);
+                        $instance = $gcpclient->instances->get($server->gcpproject,
+                          $server->gcpzone, $server->gcpinstancename);
                         $status = $instance->getStatus();
-                        
+
                         $statuses[$id] = [
                             'status' => $status,
-                            'ip' => ''
+                            'ip' => '',
                         ];
-                        
-                        // Obtener IP pública si está corriendo
+
+                        // Obtener IP pública si está corriendo.
                         if ($status === 'RUNNING') {
                             $nats = $instance->getNetworkInterfaces()[0]->getAccessConfigs();
                             if (!empty($nats) && isset($nats[0])) {
@@ -1385,7 +1344,7 @@ if ($action === 'gcpserversstatus') {
         echo json_encode(['error' => $e->getMessage()]);
         exit;
     }
-    
+
     echo json_encode($statuses);
     exit;
 }
@@ -1427,7 +1386,8 @@ if ($action === 'gcpstatus') {
         if ($op->getStatus() === 'DONE') {
             if ($op->getError()) {
                 unset($SESSION->mod_jitsi_gcp_op);
-                \core\notification::add(get_string('gcpoperationerror', 'mod_jitsi', json_encode($op->getError())), \core\output\notification::NOTIFY_ERROR);
+                \core\notification::add(get_string('gcpoperationerror',
+                  'mod_jitsi', json_encode($op->getError())), \core\output\notification::NOTIFY_ERROR);
                 redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
             }
             // Fetch public IP and notify success.
@@ -1435,7 +1395,8 @@ if ($action === 'gcpstatus') {
             $nats = $inst->getNetworkInterfaces()[0]->getAccessConfigs();
             $ip = (!empty($nats) && isset($nats[0])) ? $nats[0]->getNatIP() : '';
             unset($SESSION->mod_jitsi_gcp_op);
-            \core\notification::add(get_string('gcpservercreated', 'mod_jitsi', $opinfo['instancename'].' '.$ip), \core\output\notification::NOTIFY_SUCCESS);
+            \core\notification::add(get_string('gcpservercreated', 'mod_jitsi', $opinfo['instancename'].' '.$ip),
+              \core\output\notification::NOTIFY_SUCCESS);
             redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
         } else {
             // Not done yet: add meta refresh to poll again in 2s.
@@ -1445,9 +1406,29 @@ if ($action === 'gcpstatus') {
         }
     } catch (Exception $e) {
         unset($SESSION->mod_jitsi_gcp_op);
-        \core\notification::add(get_string('gcpservercreatefail', 'mod_jitsi', $e->getMessage()), \core\output\notification::NOTIFY_ERROR);
+        \core\notification::add(get_string('gcpservercreatefail', 'mod_jitsi', $e->getMessage()),
+          \core\output\notification::NOTIFY_ERROR);
         redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
     }
+}
+
+// Action: Set default server.
+if ($action === 'setdefaultserver' && $id > 0) {
+    require_sesskey();
+
+    if (!$server = $DB->get_record('jitsi_servers', ['id' => $id])) {
+        throw new moodle_exception('Invalid server id');
+    }
+
+    // Update the configuration.
+    set_config('server', $server->id, 'mod_jitsi');
+
+    \core\notification::add(
+        get_string('defaultserverupdated', 'mod_jitsi', $server->name),
+        \core\output\notification::NOTIFY_SUCCESS
+    );
+
+    redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
 }
 
 if ($action === 'delete' && $id > 0) {
@@ -1456,28 +1437,30 @@ if ($action === 'delete' && $id > 0) {
     }
 
     if ($confirm) {
-        // ⬅️ Si es servidor GCP (tipo 3), eliminar también la VM
+        // Si es servidor GCP (tipo 3), eliminar también la VM.
         if ($server->type == 3 && !empty($server->gcpproject) && !empty($server->gcpzone) && !empty($server->gcpinstancename)) {
             try {
                 if (class_exists('Google\\Client') && class_exists('Google\\Service\\Compute')) {
                     $compute = mod_jitsi_gcp_client();
-                    
-                    // Eliminar la instancia de GCP
+
+                    // Eliminar la instancia de GCP.
                     $operation = $compute->instances->delete(
                         $server->gcpproject,
                         $server->gcpzone,
                         $server->gcpinstancename
                     );
-                    
-                    error_log("✅ GCP VM deletion initiated: {$server->gcpinstancename} (Operation: {$operation->getName()})");
 
-                    // ⬅️ NOTE: We do NOT delete the static IP here
-                    // When the VM is deleted, GCP automatically changes the IP status from IN_USE to RESERVED
-                    // This allows the IP to be reused by the next VM created
+                    debugging("✅ GCP VM deletion initiated: {$server->gcpinstancename}
+                      (Operation: {$operation->getName()})", DEBUG_NORMAL);
+
+                    // NOTE: We do NOT delete the static IP here.
+                    // When the VM is deleted, GCP automatically changes the IP status from IN_USE to RESERVED.
+                    // This allows the IP to be reused by the next VM created.
                     if (!empty($server->gcpstaticipname)) {
-                        error_log("ℹ️ Static IP {$server->gcpstaticipname} will be automatically released by GCP and become available for reuse");
+                        debugging("ℹ️ Static IP {$server->gcpstaticipname}
+                          will be automatically released by GCP and become available for reuse", DEBUG_NORMAL);
                     }
-                    
+
                     \core\notification::add(
                         "GCP VM '{$server->gcpinstancename}' is being deleted. This may take a few minutes.",
                         \core\output\notification::NOTIFY_INFO
@@ -1489,17 +1472,27 @@ if ($action === 'delete' && $id > 0) {
                     );
                 }
             } catch (Exception $e) {
-                // Si falla la eliminación en GCP, avisar pero continuar con la BD
+                // Si falla la eliminación en GCP, avisar pero continuar con la BD.
                 \core\notification::add(
                     "Warning: Could not delete GCP VM: " . $e->getMessage() . ". Server removed from Moodle database only.",
                     \core\output\notification::NOTIFY_WARNING
                 );
-                error_log("❌ Failed to delete GCP VM {$server->gcpinstancename}: " . $e->getMessage());
+                debugging("❌ Failed to delete GCP VM {$server->gcpinstancename}: " . $e->getMessage(), DEBUG_NORMAL);
             }
         }
-        
-        // Eliminar de la base de datos
+
+        // Eliminar de la base de datos.
         $DB->delete_records('jitsi_servers', ['id' => $server->id]);
+
+        // Si era el servidor por defecto, limpiar la configuración.
+        $defaultserver = get_config('mod_jitsi', 'server');
+        if ($defaultserver == $server->id) {
+            set_config('server', '', 'mod_jitsi');
+            \core\notification::add(
+                get_string('defaultserverdeleted', 'mod_jitsi'),
+                \core\output\notification::NOTIFY_WARNING
+            );
+        }
 
         \core\notification::add(
             get_string('serverdeleted', 'mod_jitsi', $server->name),
@@ -1509,8 +1502,8 @@ if ($action === 'delete' && $id > 0) {
     } else {
         echo $OUTPUT->header();
         echo $OUTPUT->heading(get_string('delete'));
-        
-        // ⬅️ Mensaje especial para servidores GCP
+
+        // Mensaje especial para servidores GCP.
         if ($server->type == 3 && !empty($server->gcpinstancename)) {
             $msg = html_writer::div(
                 html_writer::tag('strong', 'Warning: This is a GCP Auto-Managed server ') .
@@ -1522,13 +1515,13 @@ if ($action === 'delete' && $id > 0) {
                     html_writer::tag('li', '❌ Stop all active Jitsi sessions')
                 , ['class' => 'text-start']) .
                 html_writer::tag('p', 'Instance name: <code>' . htmlspecialchars($server->gcpinstancename) . '</code>') .
-                html_writer::tag('p', 'Are you sure you want to permanently delete this server?', ['class' => 'text-danger font-weight-bold']),
-                'alert alert-warning'
+                html_writer::tag('p', 'Are you sure you want to permanently delete this server?',
+                  ['class' => 'text-danger font-weight-bold']), 'alert alert-warning'
             );
         } else {
             $msg = get_string('confirmdelete', 'mod_jitsi', format_string($server->name));
         }
-        
+
         echo $OUTPUT->confirm(
             $msg,
             new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'delete', 'id' => $id, 'confirm' => 1]),
@@ -1539,23 +1532,23 @@ if ($action === 'delete' && $id > 0) {
     }
 }
 
-// Action: Start GCP instance
+// Action: Start GCP instance.
 if ($action === 'gcpstart' && $id > 0) {
     require_sesskey();
-    
+
     if (!$server = $DB->get_record('jitsi_servers', ['id' => $id])) {
         throw new moodle_exception('Invalid server id');
     }
-    
+
     if ($server->type != 3 || empty($server->gcpproject) || empty($server->gcpzone) || empty($server->gcpinstancename)) {
         \core\notification::add('This server cannot be managed via GCP API', \core\output\notification::NOTIFY_ERROR);
         redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
     }
-    
+
     try {
         $compute = mod_jitsi_gcp_client();
         $compute->instances->start($server->gcpproject, $server->gcpzone, $server->gcpinstancename);
-        
+
         \core\notification::add(
             "Starting GCP instance: {$server->gcpinstancename}",
             \core\output\notification::NOTIFY_SUCCESS
@@ -1566,27 +1559,27 @@ if ($action === 'gcpstart' && $id > 0) {
             \core\output\notification::NOTIFY_ERROR
         );
     }
-    
+
     redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
 }
 
-// Action: Stop GCP instance
+// Action: Stop GCP instance.
 if ($action === 'gcpstop' && $id > 0) {
     require_sesskey();
-    
+
     if (!$server = $DB->get_record('jitsi_servers', ['id' => $id])) {
         throw new moodle_exception('Invalid server id');
     }
-    
+
     if ($server->type != 3 || empty($server->gcpproject) || empty($server->gcpzone) || empty($server->gcpinstancename)) {
         \core\notification::add('This server cannot be managed via GCP API', \core\output\notification::NOTIFY_ERROR);
         redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
     }
-    
+
     try {
         $compute = mod_jitsi_gcp_client();
         $compute->instances->stop($server->gcpproject, $server->gcpzone, $server->gcpinstancename);
-        
+
         \core\notification::add(
             "Stopping GCP instance: {$server->gcpinstancename}",
             \core\output\notification::NOTIFY_SUCCESS
@@ -1597,16 +1590,16 @@ if ($action === 'gcpstop' && $id > 0) {
             \core\output\notification::NOTIFY_ERROR
         );
     }
-    
+
     redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
 }
 
 $mform = new servermanagement_form();
 
-// Verificar si es GCP antes de mostrar formulario de edición
+// Verificar si es GCP antes de mostrar formulario de edición.
 if ($action === 'edit' && $id > 0) {
     if ($server = $DB->get_record('jitsi_servers', ['id' => $id])) {
-        // ⬅️ Bloquear edición de servidores GCP
+        // Bloquear edición de servidores GCP.
         if ($server->type == 3) {
             \core\notification::add(
                 'GCP Auto-Managed servers (BETA) cannot be edited manually. Use Start/Stop actions or delete and recreate.',
@@ -1688,664 +1681,698 @@ if ($mform->is_cancelled()) {
 }
 
 echo $OUTPUT->header();
-echo $OUTPUT->heading(get_string('servermanagement', 'mod_jitsi'));
 
-
-
-$settingsurl = new moodle_url('/admin/settings.php', ['section' => 'modsettingjitsi']);
-$creategcpvmurl = new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'creategcpvm', 'sesskey' => sesskey()]);
-
-echo html_writer::div(
-    html_writer::link($settingsurl, get_string('backtosettings', 'mod_jitsi'), ['class' => 'btn btn-secondary me-2']) .
-    html_writer::tag('button',
-        'Create VM in Google Cloud ' . html_writer::tag('span', 'BETA', ['class' => 'badge bg-warning text-dark ms-1']),
-        ['id' => 'btn-creategcpvm', 'type' => 'button', 'class' => 'btn btn-primary']
-    )
-);
-
-// Modal markup for progress.
-$creating = get_string('creatingvm', 'mod_jitsi', '');
-$gcpstatusurl = (new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'gcpstatusjson']))->out(false);
-$createvmurl  = (new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'creategcpvm', 'ajax' => 1]))->out(false);
-$listurl      = (new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'listprovisioningservers']))->out(false);
-$redirecturl  = (new moodle_url('/mod/jitsi/servermanagement.php'))->out(false);
-$sesskeyjs    = sesskey();
-
-// Modal markup (HTML only) - SIN spinner inicial
-echo <<<HTML
-<div class="modal fade" id="gcpModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-body text-center" id="gcp-modal-body">
-        <!-- El contenido se inyectará dinámicamente -->
-      </div>
-    </div>
-  </div>
-</div>
-HTML;
-
-$init = [
-    'sesskey' => $sesskeyjs,
-    'statusUrl' => $gcpstatusurl,
-    'createUrl' => $createvmurl,
-    'listUrl' => $listurl,
-    'redirectUrl' => $redirecturl,
-    'creatingText' => $creating,
-    'hostname' => (string) get_config('mod_jitsi', 'gcp_hostname'),
-    'checkReadyUrl' => (new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'checkjitsiready']))->out(false),
-];
-$initjson = json_encode($init, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_AMP|JSON_HEX_QUOT);
-$PAGE->requires->js_init_code(
-    "(function(){\n".
-    "  var cfg = ".$initjson.";\n".
-    "  var btn = document.getElementById('btn-creategcpvm');\n".
-    "  if (!btn) return;\n".
-    "  var modalEl = document.getElementById('gcpModal');\n".
-    "  var modalBody = document.getElementById('gcp-modal-body');\n".
-    "  var backdrop;\n".
-    "  var lastWarnHTML = '';\n".
-    "  var vmInfo = {};\n".
-    "  var dnsWarningShown = false;\n".
-    "  function showModal(){\n".
-    "    if (!modalEl) return;\n".
-    "    modalEl.classList.add('show');\n".
-    "    modalEl.style.display = 'block';\n".
-    "    modalEl.removeAttribute('aria-hidden');\n".
-    "    backdrop = document.createElement('div');\n".
-    "    backdrop.className = 'modal-backdrop fade show';\n".
-    "    document.body.appendChild(backdrop);\n".
-    "  }\n".
-    "  async function postJSON(url, data){\n".
-    "    var res = await fetch(url, {method: 'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: new URLSearchParams(data)});\n".
-    "    if (!res.ok) throw new Error('HTTP ' + res.status);\n".
-    "    return await res.json();\n".
-    "  }\n".
-    "  async function checkJitsiReady(){\n".
-    "    try {\n".
-    "      console.log('[checkJitsiReady] CALLED! vmInfo.instancename:', vmInfo.instancename);\n".
-    "      console.log('[checkJitsiReady] Fetching status from:', cfg.checkReadyUrl);\n".
-    "      var data = await postJSON(cfg.checkReadyUrl, {\n".
-    "        sesskey: cfg.sesskey,\n".
-    "        instance: vmInfo.instancename\n".
-    "      });\n".
-    "      console.log('[checkJitsiReady] Status received:', data);\n".
-    "      if (data.status === 'provisioning') {\n".
-    "        console.log('[checkJitsiReady] Server is still provisioning, will check again in 5s');\n".
-    "        if (modalBody) {\n".
-    "          modalBody.innerHTML = (\n".
-    "            '<h5>⚙️ VM Initializing...</h5>'+ \n".
-    "            '<p>The virtual machine is starting up and running initial setup scripts.</p>'+\n".
-    "            '<div class=\"text-center\">'+\n".
-    "              '<div class=\"spinner-border spinner-border-sm\" role=\"status\"></div>'+\n".
-    "            '</div>'\n".
-    "          );\n".
-    "        }\n".
-    "        setTimeout(checkJitsiReady, 5000);\n".
-    "      } else if (data.status === 'waiting_dns') {\n".
-    "        if (!dnsWarningShown) {\n".
-    "          dnsWarningShown = true;\n".
-    "          var host = data.hostname || cfg.hostname || 'your-hostname.example.com';\n".
-    "          var authHost = 'auth.' + host;\n".
-    "          var ip = data.ip || vmInfo.ip || '';\n".
-    "          if (modalBody) {\n".
-    "            modalBody.innerHTML = (\n".
-    "              '<div class=\"alert alert-warning\"><h5>⚠️ Action Required: Configure DNS</h5>'+ \n".
-    "              '<p><strong>Public IP: <code>'+ ip +'</code></strong></p>'+\n".
-    "              '<p>Please create the following DNS A records:</p>'+\n".
-    "              '<ul class=\"text-start\">'+\n".
-    "                '<li><code>'+ host +' → '+ ip +'</code></li>'+\n".
-    "                '<li><code>'+ authHost +' → '+ ip +'</code></li>'+\n".
-    "              '</ul>'+\n".
-    "              '<p class=\"text-muted\">The installation will continue automatically once DNS propagates (checking every 15 seconds, timeout 15 minutes).</p>'+\n".
-    "              '<div id=\"dns-copy-buttons\" class=\"mt-2\">'+\n".
-    "                '<button id=\"copy-ip-dns\" class=\"btn btn-sm btn-outline-primary me-2\">Copy IP</button>'+\n".
-    "                '<button id=\"copy-records\" class=\"btn btn-sm btn-outline-secondary\">Copy DNS Records</button>'+\n".
-    "              '</div>'+\n".
-    "              '</div>'+\n".
-    "              '<div class=\"text-center\">'+\n".
-    "                '<div class=\"spinner-border spinner-border-sm\" role=\"status\"></div>'+\n".
-    "                '<p class=\"mt-2\">Waiting for DNS propagation...</p>'+\n".
-    "              '</div>'\n".
-    "            );\n".
-    "            var copyIpBtn = document.getElementById('copy-ip-dns');\n".
-    "            var copyRecordsBtn = document.getElementById('copy-records');\n".
-    "            if (copyIpBtn && navigator.clipboard) {\n".
-    "              copyIpBtn.addEventListener('click', function(){ \n".
-    "                navigator.clipboard.writeText(ip);\n".
-    "                copyIpBtn.textContent = '✓ Copied!';\n".
-    "                setTimeout(function(){ copyIpBtn.textContent = 'Copy IP'; }, 2000);\n".
-    "              });\n".
-    "            }\n".
-    "            if (copyRecordsBtn && navigator.clipboard) {\n".
-    "              copyRecordsBtn.addEventListener('click', function(){ \n".
-    "                var records = host + ' A ' + ip + '\\\\n' + authHost + ' A ' + ip;\n".
-    "                navigator.clipboard.writeText(records);\n".
-    "                copyRecordsBtn.textContent = '✓ Copied!';\n".
-    "                setTimeout(function(){ copyRecordsBtn.textContent = 'Copy DNS Records'; }, 2000);\n".
-    "              });\n".
-    "            }\n".
-    "          }\n".
-    "        }\n".
-    "        setTimeout(checkJitsiReady,  10000);\n".
-    "      } else if (data.status === 'dns_ready') {\n".
-    "        if (modalBody) {\n".
-    "          modalBody.innerHTML = (\n".
-    "            '<h5>✅ DNS Configured!</h5>'+ \n".
-    "            '<p class=\"text-success\">DNS records detected. Starting Jitsi installation...</p>'+\n".
-    "            '<div class=\"text-center\">'+\n".
-    "              '<div class=\"spinner-border spinner-border-sm\" role=\"status\"></div>'+\n".
-    "            '</div>'\n".
-    "          );\n".
-    "        }\n".
-    "        setTimeout(checkJitsiReady, 5000);\n".
-    "      } else if (data.status === 'installing') {\n".
-    "        if (modalBody) {\n".
-    "          modalBody.innerHTML = (\n".
-    "            '<h5>⚙️ Installing Jitsi Meet...</h5>'+ \n".
-    "            '<p>The VM is ready. Installing and configuring Jitsi services.</p>'+\n".
-    "            '<p class=\"text-muted\">This takes 8-12 minutes. Please wait...</p>'+\n".
-    "            '<div class=\"text-center\">'+\n".
-    "              '<div class=\"spinner-border spinner-border-sm\" role=\"status\"></div>'+\n".
-    "            '</div>'\n".
-    "          );\n".
-    "        }\n".
-    "        setTimeout(checkJitsiReady, 10000);\n".
-    "      } else if (data.status === 'completed') {\n".
-    "        showSuccessMessage(data.ip, data.hostname);\n".
-    "      } else if (data.status === 'error') {\n".
-    "        var errorMsg = data.error || 'Unknown installation error';\n".
-    "        if (modalBody) {\n".
-    "          modalBody.innerHTML = (\n".
-    "            '<div class=\"alert alert-danger\">'+ \n".
-    "              '<h5>❌ Installation Failed</h5>'+ \n".
-    "              '<p><strong>Error:</strong> ' + errorMsg + '</p>'+ \n".
-    "              '<p class=\"text-muted\">Please check the VM console logs in Google Cloud Console for more details.</p>'+\n".
-    "            '</div>'+\n".
-    "            '<div class=\"mt-3\">'+\n".
-    "              '<a href=\"'+ cfg.redirectUrl +'\" class=\"btn btn-primary\">Close</a>'+\n".
-    "            '</div>'\n".
-    "          );\n".
-    "        }\n".
-    "      }\n".
-    "    } catch(e){\n".
-    "      console.error('Check ready error:', e);\n".
-    "      if (modalBody) modalBody.innerHTML = '<p class=\"text-warning\">Cannot verify status. Check the VM console.</p>';\n".
-    "    }\n".
-    "  }\n".
-    "  function showSuccessMessage(ip, hostname){\n".
-    "    var host = hostname || cfg.hostname || 'your-hostname.example.com';\n".
-    "    if (modalBody) {\n".
-    "      modalBody.innerHTML = (\n".
-    "        '<h5>✅ Jitsi Server Ready & Registered!</h5>'+ \n".
-    "        '<p class=\"text-success\"><strong>Installation completed and server registered in Moodle</strong></p>'+ \n".
-    "        '<p>Public IP: <strong>'+ ip +'</strong></p>'+\n".
-    "        '<p>Your Jitsi Meet server is ready at: <code>https://'+ host +'</code></p>'+\n".
-    "        '<div class=\"mt-3\">'+\n".
-    "          '<button id=\"copy-ip\" class=\"btn btn-outline-secondary me-2\">Copy IP</button>'+\n".
-    "          '<a href=\"'+ cfg.redirectUrl +'\" class=\"btn btn-primary\">Close</a>'+\n".
-    "        '</div>'\n".
-    "      );\n".
-    "      var copyBtn = document.getElementById('copy-ip');\n".
-    "      if (copyBtn && navigator.clipboard) {\n".
-    "        copyBtn.addEventListener('click', function(){ \n".
-    "          navigator.clipboard.writeText(ip);\n".
-    "          copyBtn.textContent = '✓ Copied!';\n".
-    "          setTimeout(function(){ copyBtn.textContent = 'Copy IP'; }, 2000);\n".
-    "        });\n".
-    "      }\n".
-    "    }\n".
-    "  }\n".
-    "  async function pollStatus(opname){\n".
-    "    try {\n".
-    "      console.log('[pollStatus] Checking operation:', opname);\n".
-    "      var data = await postJSON(cfg.statusUrl, {sesskey: cfg.sesskey, opname: opname});\n".
-    "      console.log('[pollStatus] Received response:', data);\n".
-    "\n".
-    "      if (data.status === 'pending') {\n".
-    "        console.log('[pollStatus] Status is pending, will poll again in 1.5s');\n".
-    "        setTimeout(function(){ pollStatus(opname); }, 1500);\n".
-    "      } else if (data.status === 'done') {\n".
-    "        console.log('[pollStatus] Status is DONE! VM ready. IP:', data.ip);\n".
-    "        vmInfo.ip = (data.ip || '');\n".
-    "        if (modalBody) {\n".
-    "          modalBody.innerHTML = (\n".
-    "            '<h5>⚙️ VM Created - Starting Configuration...</h5>'+ \n".
-    "            '<p>Checking installation status...</p>'+\n".
-    "            '<div class=\"text-center\">'+\n".
-    "              '<div class=\"spinner-border spinner-border-sm\" role=\"status\"></div>'+\n".
-    "            '</div>'\n".
-    "          );\n".
-    "        }\n".
-    "        console.log('[pollStatus] About to schedule checkJitsiReady in 3 seconds...');\n".
-    "        console.log('[pollStatus] vmInfo.instancename is:', vmInfo.instancename);\n".
-    "        setTimeout(function(){\n".
-    "          console.log('[pollStatus setTimeout] Executing checkJitsiReady NOW!');\n".
-    "          checkJitsiReady();\n".
-    "        }, 3000);\n".
-    "        console.log('[pollStatus] setTimeout has been scheduled');\n".
-    "      } else {\n".
-    "        console.log('[pollStatus] Unexpected status:', data.status);\n".
-    "        if (modalBody) modalBody.textContent = 'Error: ' + (data.message || 'Unknown');\n".
-    "      }\n".
-    "    } catch(e){\n".
-    "      console.error('[pollStatus] Exception caught:', e);\n".
-    "      if (modalBody) modalBody.textContent = 'Error: ' + e.message;\n".
-    "    }\n".
-    "  }\n".
-    "  btn.addEventListener('click', async function(){\n".
-    "    dnsWarningShown = false;\n".
-    "    showModal();\n".
-    "    if (modalBody) {\n".
-    "      modalBody.innerHTML = (\n".
-    "        '<h5>⏳ Creating VM...</h5>'+\n".
-    "        '<p>Setting up infrastructure in Google Cloud.</p>'+\n".
-    "        '<div class=\"text-center\">'+\n".
-    "          '<div class=\"spinner-border spinner-border-sm\" role=\"status\"></div>'+\n".
-    "        '</div>'\n".
-    "      );\n".
-    "    }\n".
-    "    try {\n".
-    "      console.log('[Button Click] Requesting VM creation...');\n".
-    "      var data = await postJSON(cfg.createUrl, {sesskey: cfg.sesskey});\n".
-    "      console.log('[Button Click] Create response:', data);\n".
-    "      if (data && data.status === 'pending' && data.opname){\n".
-    "        vmInfo.instancename = data.instancename;\n".
-    "        console.log('[Button Click] VM instance name saved:', vmInfo.instancename);\n".
-    "        console.log('[Button Click] Starting pollStatus for operation:', data.opname);\n".
-    "        pollStatus(data.opname);\n".
-    "      } else if (data && data.status === 'error') {\n".
-    "        // Show detailed error message from server\n".
-    "        var errorMsg = data.message || 'Unknown error occurred';\n".
-    "        if (modalBody) {\n".
-    "          modalBody.innerHTML = '<div class=\"alert alert-danger\">' +\n".
-    "            '<strong>Error starting VM creation:</strong><br>' +\n".
-    "            errorMsg +\n".
-    "            '</div>' +\n".
-    "            '<div class=\"text-center mt-3\">' +\n".
-    "            '<button type=\"button\" class=\"btn btn-secondary\" onclick=\"document.getElementById(\\'gcp-progress-modal\\')?.remove(); document.querySelector(\\'.modal-backdrop\\')?.remove();\">Close</button>' +\n".
-    "            '</div>';\n".
-    "        }\n".
-    "        console.error('VM creation error:', errorMsg);\n".
-    "      } else {\n".
-    "        if (modalBody) {\n".
-    "          modalBody.innerHTML = '<div class=\"alert alert-danger\">' +\n".
-    "            'Error: Unexpected response from server' +\n".
-    "            '</div>' +\n".
-    "            '<div class=\"text-center mt-3\">' +\n".
-    "            '<button type=\"button\" class=\"btn btn-secondary\" onclick=\"document.getElementById(\\'gcp-progress-modal\\')?.remove(); document.querySelector(\\'.modal-backdrop\\')?.remove();\">Close</button>' +\n".
-    "            '</div>';\n".
-    "        }\n".
-    "        console.error('Unexpected response:', data);\n".
-    "      }\n".
-    "    } catch(e){\n".
-    "      if (modalBody) {\n".
-    "        modalBody.innerHTML = '<div class=\"alert alert-danger\">' +\n".
-    "          '<strong>Error:</strong><br>' + e.message +\n".
-    "          '</div>' +\n".
-    "          '<div class=\"text-center mt-3\">' +\n".
-    "          '<button type=\"button\" class=\"btn btn-secondary\" onclick=\"document.getElementById(\\'gcp-progress-modal\\')?.remove(); document.querySelector(\\'.modal-backdrop\\')?.remove();\">Close</button>' +\n".
-    "          '</div>';\n".
-    "      }\n".
-    "      console.error('Exception during VM creation:', e);\n".
-    "    }\n".
-    "  });\n".
-    "\n".
-    "  // Check if there's a server in provisioning state on page load\n".
-    "  (async function checkOnLoad(){\n".
-    "    try {\n".
-    "      var response = await fetch(cfg.listUrl);\n".
-    "      var servers = await response.json();\n".
-    "      if (servers && servers.length > 0) {\n".
-    "        for (var i = 0; i < servers.length; i++) {\n".
-    "          var srv = servers[i];\n".
-    "          if (srv.provisioningstatus && srv.provisioningstatus !== 'ready' && srv.provisioningstatus !== 'error') {\n".
-    "            // Found a server being provisioned\n".
-    "            vmInfo.instancename = srv.gcpinstancename;\n".
-    "            console.log('Found server in provisioning:', vmInfo.instancename, 'status:', srv.provisioningstatus);\n".
-    "            showModal();\n".
-    "            if (modalBody) {\n".
-    "              modalBody.innerHTML = '<h5>⚙️ Resuming provisioning...</h5><div class=\"text-center\"><div class=\"spinner-border spinner-border-sm\" role=\"status\"></div></div>';\n".
-    "            }\n".
-    "            setTimeout(checkJitsiReady, 2000);\n".
-    "            break;\n".
-    "          }\n".
-    "        }\n".
-    "      }\n".
-    "    } catch(e) {\n".
-    "      console.log('Could not check for provisioning servers:', e);\n".
-    "    }\n".
-    "  })();\n".
-    "})();"
-);
-
-
-$gcpclient = null;
-try {
-    if (class_exists('Google\\Client') && class_exists('Google\\Service\\Compute')) {
-        $gcpclient = mod_jitsi_gcp_client();
-    }
-} catch (Exception $e) {
-    // Si falla la autenticación, no mostraremos estados
-    error_log('Failed to initialize GCP client: ' . $e->getMessage());
-}
-
-$servers = $DB->get_records('jitsi_servers', null, 'name ASC');
-$table = new html_table();
-$table->head = [
-    get_string('name'),
-    get_string('type', 'mod_jitsi'),
-    get_string('domain', 'mod_jitsi'),
-    get_string('status', 'mod_jitsi'), // ⬅️ Nueva columna
-    get_string('actions', 'mod_jitsi'),
-];
-
-$gcpserverids = []; // Para recopilar IDs de servidores GCP
-
-foreach ($servers as $s) {
-    switch ($s->type) {
-        case 0:
-            $typestring = 'Server without token';
-            break;
-        case 1:
-            $typestring = 'Self-hosted (JWT)';
-            break;
-        case 2:
-            $typestring = '8x8 server';
-            break;
-        case 3:
-            $typestring = '🌩️ GCP Auto-Managed <span class="badge bg-warning text-dark">BETA</span>';
-            break;
-        default:
-            $typestring = get_string('unknowntype', 'mod_jitsi');
-    }
-
-    // ⬅️ Obtener estado del servidor GCP y guardarlo para usar en botones
-    $statushtml = '<span class="badge bg-secondary" id="gcp-status-'.$s->id.'">N/A</span>';
-    $instancestatus = null; // Variable para guardar el estado real
-    
-    if ($s->type == 3 && !empty($s->gcpproject) && !empty($s->gcpzone) && !empty($s->gcpinstancename)) {
-        $gcpserverids[] = $s->id;
-        
-        if ($gcpclient) {
-            try {
-                $instance = $gcpclient->instances->get($s->gcpproject, $s->gcpzone, $s->gcpinstancename);
-                $status = $instance->getStatus();
-                $instancestatus = $status; // ⬅️ Guardar estado para lógica de botones
-                
-                switch ($status) {
-                    case 'RUNNING':
-                        $statushtml = '<span class="badge bg-success" id="gcp-status-'.$s->id.'">🟢 Running</span>';
-                        break;
-                    case 'STOPPED':
-                    case 'TERMINATED':
-                        $statushtml = '<span class="badge bg-danger" id="gcp-status-'.$s->id.'">🔴 Stopped</span>';
-                        break;
-                    case 'STOPPING':
-                        $statushtml = '<span class="badge bg-warning" id="gcp-status-'.$s->id.'">🟡 Stopping...</span>';
-                        break;
-                    case 'PROVISIONING':
-                    case 'STAGING':
-                        $statushtml = '<span class="badge bg-info" id="gcp-status-'.$s->id.'">🔵 Starting...</span>';
-                        break;
-                    case 'SUSPENDING':
-                        $statushtml = '<span class="badge bg-warning" id="gcp-status-'.$s->id.'">🟡 Suspending...</span>';
-                        break;
-                    case 'SUSPENDED':
-                        $statushtml = '<span class="badge bg-secondary" id="gcp-status-'.$s->id.'">⚫ Suspended</span>';
-                        break;
-                    case 'REPAIRING':
-                        $statushtml = '<span class="badge bg-warning" id="gcp-status-'.$s->id.'">🔧 Repairing...</span>';
-                        break;
-                    default:
-                        $statushtml = '<span class="badge bg-secondary" id="gcp-status-'.$s->id.'">' . htmlspecialchars($status) . '</span>';
-                }
-            } catch (Exception $e) {
-                if (strpos($e->getMessage(), 'notFound') !== false || strpos($e->getMessage(), '404') !== false) {
-                    $statushtml = '<span class="badge bg-dark" id="gcp-status-'.$s->id.'">❌ Not Found</span>';
-                    $instancestatus = 'NOT_FOUND';
-                } else {
-                    $statushtml = '<span class="badge bg-secondary" id="gcp-status-'.$s->id.'" title="' . htmlspecialchars($e->getMessage()) . '">⚠️ Error</span>';
-                    $instancestatus = 'ERROR';
-                }
-            }
-        }
-    }
-
-    $editurl = new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'edit', 'id' => $s->id]);
-    $deleteurl = new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'delete', 'id' => $s->id]);
-
-    // Solo mostrar Edit si NO es GCP
-    $links = '';
-    if ($s->type != 3) {
-        $links = html_writer::link($editurl, get_string('edit'));
-    }
-    
-    // ⬅️ Agregar acciones de start/stop según el estado real
-    if ($s->type == 3 && !empty($s->gcpproject) && !empty($s->gcpzone) && !empty($s->gcpinstancename)) {
-        $starturl = new moodle_url('/mod/jitsi/servermanagement.php', [
-            'action' => 'gcpstart',
-            'id' => $s->id,
-            'sesskey' => sesskey()
-        ]);
-        $stopurl = new moodle_url('/mod/jitsi/servermanagement.php', [
-            'action' => 'gcpstop',
-            'id' => $s->id,
-            'sesskey' => sesskey()
-        ]);
-        
-        if (!empty($links)) {
-            $links .= ' | ';
-        }
-        
-        // ⬅️ Lógica condicional de botones según estado
-        $buttonshown = false;
-        
-        // Mostrar botón START solo si está apagado, suspendido o en error
-        if (in_array($instancestatus, ['STOPPED', 'TERMINATED', 'SUSPENDED', 'NOT_FOUND', 'ERROR', null])) {
-            $links .= html_writer::link(
-                $starturl, 
-                '▶️ Start', 
-                ['class' => 'btn btn-sm btn-success', 'id' => 'gcp-btn-start-'.$s->id]
-            );
-            $buttonshown = true;
-        }
-        
-        // Mostrar botón STOP solo si está corriendo o arrancando
-        if (in_array($instancestatus, ['RUNNING', 'PROVISIONING', 'STAGING'])) {
-            if ($buttonshown) {
-                $links .= ' | ';
-            }
-            $links .= html_writer::link(
-                $stopurl, 
-                '⏹️ Stop', 
-                ['class' => 'btn btn-sm btn-warning', 'id' => 'gcp-btn-stop-'.$s->id]
-            );
-            $buttonshown = true;
-        }
-        
-        // Mostrar mensaje de espera si está en transición
-        if (in_array($instancestatus, ['STOPPING', 'SUSPENDING', 'REPAIRING'])) {
-            if ($buttonshown) {
-                $links .= ' | ';
-            }
-            $links .= '<span class="badge bg-secondary" id="gcp-btn-wait-'.$s->id.'">⏳ Please wait...</span>';
-            $buttonshown = true;
-        }
-        
-        // Si no hay estado disponible, mostrar ambos botones deshabilitados
-        if (!$buttonshown) {
-            $links .= '<span class="text-muted">Actions unavailable</span>';
-        }
-    }
-    
-    // Delete siempre disponible
-    if (!empty($links)) {
-        $links .= ' | ';
-    }
-    $links .= html_writer::link($deleteurl, get_string('delete'));
-
-    $table->data[] = [
-        format_string($s->name),
-        $typestring,
-        format_string($s->domain),
-        $statushtml,
-        $links,
-    ];
-}
-echo html_writer::table($table);
-
-// ⬅️ Actualizar JavaScript para también actualizar botones dinámicamente
-if (!empty($gcpserverids)) {
-    $statusurl = (new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'gcpserversstatus']))->out(false);
-    $gcpidsjs = json_encode($gcpserverids);
-    $sesskeyjs = sesskey();
-    $wwwroot = $CFG->wwwroot;
-    
-    $PAGE->requires->js_init_code(
-        "(function(){\n".
-        "  var gcpIds = ".$gcpidsjs.";\n".
-        "  if (gcpIds.length === 0) return;\n".
-        "  \n".
-        "  function updateStatuses(){\n".
-        "    fetch('".$statusurl."', {\n".
-        "      method: 'POST',\n".
-        "      headers: {'Content-Type':'application/x-www-form-urlencoded'},\n".
-        "      body: new URLSearchParams({sesskey: '".$sesskeyjs."', ids: gcpIds.join(',')})\n".
-        "    })\n".
-        "    .then(res => res.json())\n".
-        "    .then(data => {\n".
-        "      if (data.error) {\n".
-        "        console.error('Status update error:', data.error);\n".
-        "        return;\n".
-        "      }\n".
-        "      for (var id in data) {\n".
-        "        var badge = document.getElementById('gcp-status-' + id);\n".
-        "        if (!badge) continue;\n".
-        "        var status = data[id].status;\n".
-        "        var badgeClass = 'badge ';\n".
-        "        var badgeText = '';\n".
-        "        \n".
-        "        // ⬅️ Obtener contenedor de botones (celda de la tabla)\n".
-        "        var row = badge.closest('tr');\n".
-        "        var actionsCell = row ? row.cells[4] : null;\n".
-        "        \n".
-        "        switch(status) {\n".
-        "          case 'RUNNING':\n".
-        "            badgeClass += 'bg-success';\n".
-        "            badgeText = '🟢 Running';\n".
-        "            updateButtons(id, actionsCell, 'running');\n".
-        "            break;\n".
-        "          case 'STOPPED':\n".
-        "          case 'TERMINATED':\n".
-        "            badgeClass += 'bg-danger';\n".
-        "            badgeText = '🔴 Stopped';\n".
-        "            updateButtons(id, actionsCell, 'stopped');\n".
-        "            break;\n".
-        "          case 'STOPPING':\n".
-        "            badgeClass += 'bg-warning';\n".
-        "            badgeText = '🟡 Stopping...';\n".
-        "            updateButtons(id, actionsCell, 'transition');\n".
-        "            break;\n".
-        "          case 'PROVISIONING':\n".
-        "          case 'STAGING':\n".
-        "            badgeClass += 'bg-info';\n".
-        "            badgeText = '🔵 Starting...';\n".
-        "            updateButtons(id, actionsCell, 'running');\n".
-        "            break;\n".
-        "          case 'SUSPENDING':\n".
-        "            badgeClass += 'bg-warning';\n".
-        "            badgeText = '🟡 Suspending...';\n".
-        "            updateButtons(id, actionsCell, 'transition');\n".
-        "            break;\n".
-        "          case 'SUSPENDED':\n".
-        "            badgeClass += 'bg-secondary';\n".
-        "            badgeText = '⚫ Suspended';\n".
-        "            updateButtons(id, actionsCell, 'stopped');\n".
-        "            break;\n".
-        "          case 'REPAIRING':\n".
-        "            badgeClass += 'bg-warning';\n".
-        "            badgeText = '🔧 Repairing...';\n".
-        "            updateButtons(id, actionsCell, 'transition');\n".
-        "            break;\n".
-        "          case 'NOT_FOUND':\n".
-        "            badgeClass += 'bg-dark';\n".
-        "            badgeText = '❌ Not Found';\n".
-        "            updateButtons(id, actionsCell, 'stopped');\n".
-        "            break;\n".
-        "          case 'ERROR':\n".
-        "            badgeClass += 'bg-secondary';\n".
-        "            badgeText = '⚠️ Error';\n".
-        "            if (data[id].message) {\n".
-        "              badge.title = data[id].message;\n".
-        "            }\n".
-        "            updateButtons(id, actionsCell, 'stopped');\n".
-        "            break;\n".
-        "          default:\n".
-        "            badgeClass += 'bg-secondary';\n".
-        "            badgeText = status;\n".
-        "        }\n".
-        "        badge.className = badgeClass;\n".
-        "        badge.textContent = badgeText;\n".
-        "      }\n".
-        "    })\n".
-        "    .catch(err => console.error('Status update failed:', err));\n".
-        "  }\n".
-        "  \n".
-        "  function updateButtons(serverId, actionsCell, state) {\n".
-        "    if (!actionsCell) return;\n".
-        "    \n".
-        "    var startBtn = document.getElementById('gcp-btn-start-' + serverId);\n".
-        "    var stopBtn = document.getElementById('gcp-btn-stop-' + serverId);\n".
-        "    var waitSpan = document.getElementById('gcp-btn-wait-' + serverId);\n".
-        "    \n".
-        "    // Obtener el contenido de la celda para mantener el delete\n".
-        "    var cellHTML = actionsCell.innerHTML;\n".
-        "    var deleteLink = cellHTML.match(/(<a[^>]*delete[^>]*>.*?<\\/a>)/i);\n".
-        "    deleteLink = deleteLink ? deleteLink[0] : '';\n".
-        "    \n".
-        "    var startUrl = '".$wwwroot."/mod/jitsi/servermanagement.php?action=gcpstart&id=' + serverId + '&sesskey=".$sesskeyjs."';\n".
-        "    var stopUrl = '".$wwwroot."/mod/jitsi/servermanagement.php?action=gcpstop&id=' + serverId + '&sesskey=".$sesskeyjs."';\n".
-        "    \n".
-        "    var newButtons = '';\n".
-        "    \n".
-        "    if (state === 'stopped') {\n".
-        "      // Mostrar solo START\n".
-        "      newButtons = '<a href=\"' + startUrl + '\" class=\"btn btn-sm btn-success\" id=\"gcp-btn-start-' + serverId + '\">▶️ Start</a>';\n".
-        "    } else if (state === 'running') {\n".
-        "      // Mostrar solo STOP\n".
-        "      newButtons = '<a href=\"' + stopUrl + '\" class=\"btn btn-sm btn-warning\" id=\"gcp-btn-stop-' + serverId + '\">⏹️ Stop</a>';\n".
-        "    } else if (state === 'transition') {\n".
-        "      // Mostrar mensaje de espera\n".
-        "      newButtons = '<span class=\"badge bg-secondary\" id=\"gcp-btn-wait-' + serverId + '\">⏳ Please wait...</span>';\n".
-        "    }\n".
-        "    \n".
-        "    actionsCell.innerHTML = newButtons + (deleteLink ? ' | ' + deleteLink : '');\n".
-        "  }\n".
-        "  \n".
-        "  // Actualizar cada 10 segundos\n".
-        "  setInterval(updateStatuses, 10000);\n".
-        "  // Primera actualización después de 2 segundos\n".
-        "  setTimeout(updateStatuses, 2000);\n".
-        "})();"
-    );
-}
-
-$showform = true;
-if ($action === 'edit' && $id > 0) {
-    $server = $DB->get_record('jitsi_servers', ['id' => $id]);
-    if ($server && $server->type == 3) {
-        $showform = false;
-    }
-}
+// Determine if we're in form view (add/edit) or table view (list).
+$showform = ($action === 'add' || $action === 'edit');
 
 if ($showform) {
+    // FORM VIEW: Show only the form for adding/editing servers.
     if ($action === 'edit' && $id > 0) {
         echo $OUTPUT->heading(get_string('editserver', 'mod_jitsi'));
     } else {
         echo $OUTPUT->heading(get_string('addnewserver', 'mod_jitsi'));
     }
+
+    // Add cancel button before form.
+    $cancelurl = new moodle_url('/mod/jitsi/servermanagement.php');
+    echo html_writer::div(
+        html_writer::link($cancelurl, get_string('cancel'), ['class' => 'btn btn-secondary mb-3']),
+        'mb-3'
+    );
+
     $mform->display();
-}
+
+} else {
+    // TABLE VIEW: Show server list and management options.
+    echo $OUTPUT->heading(get_string('servermanagement', 'mod_jitsi'));
+
+    $settingsurl = new moodle_url('/admin/settings.php', ['section' => 'modsettingjitsi']);
+    $addserverurl = new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'add']);
+    $creategcpvmurl = new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'creategcpvm', 'sesskey' => sesskey()]);
+
+    echo html_writer::div(
+        html_writer::link($settingsurl, get_string('backtosettings', 'mod_jitsi'), ['class' => 'btn btn-secondary me-2']) .
+        html_writer::link($addserverurl, get_string('addnewserver', 'mod_jitsi'), ['class' => 'btn btn-success me-2']) .
+        html_writer::tag('button',
+            'Create VM in Google Cloud ' . html_writer::tag('span', 'BETA', ['class' => 'badge bg-warning text-dark ms-1']),
+            ['id' => 'btn-creategcpvm', 'type' => 'button', 'class' => 'btn btn-primary']
+        ),
+        'mb-3'
+    );
+
+    // Information about GCP servers.
+    echo html_writer::div(
+        html_writer::div(
+            html_writer::tag('strong', get_string('gcpserverinfo', 'mod_jitsi')) . '<br>' .
+            get_string('gcpserverinfodetail', 'mod_jitsi'),
+            'alert alert-info'
+        ),
+        'mb-3'
+    );
+
+    // Modal markup for progress.
+    $creating = get_string('creatingvm', 'mod_jitsi', '');
+    $gcpstatusurl = (new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'gcpstatusjson']))->out(false);
+    $createvmurl  = (new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'creategcpvm', 'ajax' => 1]))->out(false);
+    $listurl      = (new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'listprovisioningservers']))->out(false);
+    $redirecturl  = (new moodle_url('/mod/jitsi/servermanagement.php'))->out(false);
+    $sesskeyjs    = sesskey();
+
+    // Modal markup (HTML only) - SIN spinner inicial.
+    echo <<<HTML
+    <div class="modal fade" id="gcpModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+        <div class="modal-body text-center" id="gcp-modal-body">
+            <!-- El contenido se inyectará dinámicamente -->
+        </div>
+        </div>
+    </div>
+    </div>
+    HTML;
+
+    $init = [
+        'sesskey' => $sesskeyjs,
+        'statusUrl' => $gcpstatusurl,
+        'createUrl' => $createvmurl,
+        'listUrl' => $listurl,
+        'redirectUrl' => $redirecturl,
+        'creatingText' => $creating,
+        'hostname' => (string) get_config('mod_jitsi', 'gcp_hostname'),
+        'checkReadyUrl' => (new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'checkjitsiready']))->out(false),
+    ];
+    $initjson = json_encode($init, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
+    // phpcs:disable 
+    $PAGE->requires->js_init_code(
+        "(function(){\n".
+        "  var cfg = ".$initjson.";\n".
+        "  var btn = document.getElementById('btn-creategcpvm');\n".
+        "  if (!btn) return;\n".
+        "  var modalEl = document.getElementById('gcpModal');\n".
+        "  var modalBody = document.getElementById('gcp-modal-body');\n".
+        "  var backdrop;\n".
+        "  var lastWarnHTML = '';\n".
+        "  var vmInfo = {};\n".
+        "  var dnsWarningShown = false;\n".
+        "  function showModal(){\n".
+        "    if (!modalEl) return;\n".
+        "    modalEl.classList.add('show');\n".
+        "    modalEl.style.display = 'block';\n".
+        "    modalEl.removeAttribute('aria-hidden');\n".
+        "    backdrop = document.createElement('div');\n".
+        "    backdrop.className = 'modal-backdrop fade show';\n".
+        "    document.body.appendChild(backdrop);\n".
+        "  }\n".
+        "  async function postJSON(url, data){\n".
+        "    var res = await fetch(url, {method: 'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: new URLSearchParams(data)});\n".
+        "    if (!res.ok) throw new Error('HTTP ' + res.status);\n".
+        "    return await res.json();\n".
+        "  }\n".
+        "  async function checkJitsiReady(){\n".
+        "    try {\n".
+        "      console.log('[checkJitsiReady] CALLED! vmInfo.instancename:', vmInfo.instancename);\n".
+        "      console.log('[checkJitsiReady] Fetching status from:', cfg.checkReadyUrl);\n".
+        "      var data = await postJSON(cfg.checkReadyUrl, {\n".
+        "        sesskey: cfg.sesskey,\n".
+        "        instance: vmInfo.instancename\n".
+        "      });\n".
+        "      console.log('[checkJitsiReady] Status received:', data);\n".
+        "      if (data.status === 'provisioning') {\n".
+        "        console.log('[checkJitsiReady] Server is still provisioning, will check again in 5s');\n".
+        "        if (modalBody) {\n".
+        "          modalBody.innerHTML = (\n".
+        "            '<h5>⚙️ VM Initializing...</h5>'+ \n".
+        "            '<p>The virtual machine is starting up and running initial setup scripts.</p>'+\n".
+        "            '<div class=\"text-center\">'+\n".
+        "              '<div class=\"spinner-border spinner-border-sm\" role=\"status\"></div>'+\n".
+        "            '</div>'\n".
+        "          );\n".
+        "        }\n".
+        "        setTimeout(checkJitsiReady, 5000);\n".
+        "      } else if (data.status === 'waiting_dns') {\n".
+        "        if (!dnsWarningShown) {\n".
+        "          dnsWarningShown = true;\n".
+        "          var host = data.hostname || cfg.hostname || 'your-hostname.example.com';\n".
+        "          var authHost = 'auth.' + host;\n".
+        "          var ip = data.ip || vmInfo.ip || '';\n".
+        "          if (modalBody) {\n".
+        "            modalBody.innerHTML = (\n".
+        "              '<div class=\"alert alert-warning\"><h5>⚠️ Action Required: Configure DNS</h5>'+ \n".
+        "              '<p><strong>Public IP: <code>'+ ip +'</code></strong></p>'+\n".
+        "              '<p>Please create the following DNS A records:</p>'+\n".
+        "              '<ul class=\"text-start\">'+\n".
+        "                '<li><code>'+ host +' → '+ ip +'</code></li>'+\n".
+        "                '<li><code>'+ authHost +' → '+ ip +'</code></li>'+\n".
+        "              '</ul>'+\n".
+        "              '<p class=\"text-muted\">The installation will continue automatically once DNS propagates (checking every 15 seconds, timeout 15 minutes).</p>'+\n".
+        "              '<div id=\"dns-copy-buttons\" class=\"mt-2\">'+\n".
+        "                '<button id=\"copy-ip-dns\" class=\"btn btn-sm btn-outline-primary me-2\">Copy IP</button>'+\n".
+        "                '<button id=\"copy-records\" class=\"btn btn-sm btn-outline-secondary\">Copy DNS Records</button>'+\n".
+        "              '</div>'+\n".
+        "              '</div>'+\n".
+        "              '<div class=\"text-center\">'+\n".
+        "                '<div class=\"spinner-border spinner-border-sm\" role=\"status\"></div>'+\n".
+        "                '<p class=\"mt-2\">Waiting for DNS propagation...</p>'+\n".
+        "              '</div>'\n".
+        "            );\n".
+        "            var copyIpBtn = document.getElementById('copy-ip-dns');\n".
+        "            var copyRecordsBtn = document.getElementById('copy-records');\n".
+        "            if (copyIpBtn && navigator.clipboard) {\n".
+        "              copyIpBtn.addEventListener('click', function(){ \n".
+        "                navigator.clipboard.writeText(ip);\n".
+        "                copyIpBtn.textContent = '✓ Copied!';\n".
+        "                setTimeout(function(){ copyIpBtn.textContent = 'Copy IP'; }, 2000);\n".
+        "              });\n".
+        "            }\n".
+        "            if (copyRecordsBtn && navigator.clipboard) {\n".
+        "              copyRecordsBtn.addEventListener('click', function(){ \n".
+        "                var records = host + ' A ' + ip + '\\\\n' + authHost + ' A ' + ip;\n".
+        "                navigator.clipboard.writeText(records);\n".
+        "                copyRecordsBtn.textContent = '✓ Copied!';\n".
+        "                setTimeout(function(){ copyRecordsBtn.textContent = 'Copy DNS Records'; }, 2000);\n".
+        "              });\n".
+        "            }\n".
+        "          }\n".
+        "        }\n".
+        "        setTimeout(checkJitsiReady,  10000);\n".
+        "      } else if (data.status === 'dns_ready') {\n".
+        "        if (modalBody) {\n".
+        "          modalBody.innerHTML = (\n".
+        "            '<h5>✅ DNS Configured!</h5>'+ \n".
+        "            '<p class=\"text-success\">DNS records detected. Starting Jitsi installation...</p>'+\n".
+        "            '<div class=\"text-center\">'+\n".
+        "              '<div class=\"spinner-border spinner-border-sm\" role=\"status\"></div>'+\n".
+        "            '</div>'\n".
+        "          );\n".
+        "        }\n".
+        "        setTimeout(checkJitsiReady, 5000);\n".
+        "      } else if (data.status === 'installing') {\n".
+        "        if (modalBody) {\n".
+        "          modalBody.innerHTML = (\n".
+        "            '<h5>⚙️ Installing Jitsi Meet...</h5>'+ \n".
+        "            '<p>The VM is ready. Installing and configuring Jitsi services.</p>'+\n".
+        "            '<p class=\"text-muted\">This takes 8-12 minutes. Please wait...</p>'+\n".
+        "            '<div class=\"text-center\">'+\n".
+        "              '<div class=\"spinner-border spinner-border-sm\" role=\"status\"></div>'+\n".
+        "            '</div>'\n".
+        "          );\n".
+        "        }\n".
+        "        setTimeout(checkJitsiReady, 10000);\n".
+        "      } else if (data.status === 'completed') {\n".
+        "        showSuccessMessage(data.ip, data.hostname, data.serverid);\n".
+        "      } else if (data.status === 'error') {\n".
+        "        var errorMsg = data.error || 'Unknown installation error';\n".
+        "        if (modalBody) {\n".
+        "          modalBody.innerHTML = (\n".
+        "            '<div class=\"alert alert-danger\">'+ \n".
+        "              '<h5>❌ Installation Failed</h5>'+ \n".
+        "              '<p><strong>Error:</strong> ' + errorMsg + '</p>'+ \n".
+        "              '<p class=\"text-muted\">Please check the VM console logs in Google Cloud Console for more details.</p>'+\n".
+        "            '</div>'+\n".
+        "            '<div class=\"mt-3\">'+\n".
+        "              '<a href=\"'+ cfg.redirectUrl +'\" class=\"btn btn-primary\">Close</a>'+\n".
+        "            '</div>'\n".
+        "          );\n".
+        "        }\n".
+        "      }\n".
+        "    } catch(e){\n".
+        "      console.error('Check ready error:', e);\n".
+        "      if (modalBody) modalBody.innerHTML = '<p class=\"text-warning\">Cannot verify status. Check the VM console.</p>';\n".
+        "    }\n".
+        "  }\n".
+        "  function showSuccessMessage(ip, hostname, serverid){\n".
+        "    var host = hostname || cfg.hostname || 'your-hostname.example.com';\n".
+        "    if (modalBody) {\n".
+        "      modalBody.innerHTML = (\n".
+        "        '<h5>✅ Jitsi Server Ready & Registered!</h5>'+ \n".
+        "        '<p class=\"text-success\"><strong>Installation completed and server registered in Moodle</strong></p>'+ \n".
+        "        '<p>Public IP: <strong>'+ ip +'</strong></p>'+\n".
+        "        '<p>Your Jitsi Meet server is ready at: <code>https://'+ host +'</code></p>'+\n".
+        "        '<div class=\"mt-3\">'+\n".
+        "          '<button id=\"set-default-server\" class=\"btn btn-success me-2\">Set as Default Server</button>'+\n".
+        "          '<button id=\"copy-ip\" class=\"btn btn-outline-secondary me-2\">Copy IP</button>'+\n".
+        "          '<a href=\"'+ cfg.redirectUrl +'\" class=\"btn btn-primary\">Close</a>'+\n".
+        "        '</div>'\n".
+        "      );\n".
+        "      var copyBtn = document.getElementById('copy-ip');\n".
+        "      if (copyBtn && navigator.clipboard) {\n".
+        "        copyBtn.addEventListener('click', function(){ \n".
+        "          navigator.clipboard.writeText(ip);\n".
+        "          copyBtn.textContent = '✓ Copied!';\n".
+        "          setTimeout(function(){ copyBtn.textContent = 'Copy IP'; }, 2000);\n".
+        "        });\n".
+        "      }\n".
+        "      var setDefaultBtn = document.getElementById('set-default-server');\n".
+        "      if (setDefaultBtn && serverid) {\n".
+        "        setDefaultBtn.addEventListener('click', function(){ \n".
+        "          setDefaultBtn.disabled = true;\n".
+        "          setDefaultBtn.textContent = 'Setting...';\n".
+        "          var url = cfg.redirectUrl + '?action=setdefaultserver&id=' + serverid + '&sesskey=' + cfg.sesskey;\n".
+        "          window.location.href = url;\n".
+        "        });\n".
+        "      }\n".
+        "    }\n".
+        "  }\n".
+        "  async function pollStatus(opname){\n".
+        "    try {\n".
+        "      console.log('[pollStatus] Checking operation:', opname);\n".
+        "      var data = await postJSON(cfg.statusUrl, {sesskey: cfg.sesskey, opname: opname});\n".
+        "      console.log('[pollStatus] Received response:', data);\n".
+        "\n".
+        "      if (data.status === 'pending') {\n".
+        "        console.log('[pollStatus] Status is pending, will poll again in 1.5s');\n".
+        "        setTimeout(function(){ pollStatus(opname); }, 1500);\n".
+        "      } else if (data.status === 'done') {\n".
+        "        console.log('[pollStatus] Status is DONE! VM ready. IP:', data.ip);\n".
+        "        vmInfo.ip = (data.ip || '');\n".
+        "        if (modalBody) {\n".
+        "          modalBody.innerHTML = (\n".
+        "            '<h5>⚙️ VM Created - Starting Configuration...</h5>'+ \n".
+        "            '<p>Checking installation status...</p>'+\n".
+        "            '<div class=\"text-center\">'+\n".
+        "              '<div class=\"spinner-border spinner-border-sm\" role=\"status\"></div>'+\n".
+        "            '</div>'\n".
+        "          );\n".
+        "        }\n".
+        "        console.log('[pollStatus] About to schedule checkJitsiReady in 3 seconds...');\n".
+        "        console.log('[pollStatus] vmInfo.instancename is:', vmInfo.instancename);\n".
+        "        setTimeout(function(){\n".
+        "          console.log('[pollStatus setTimeout] Executing checkJitsiReady NOW!');\n".
+        "          checkJitsiReady();\n".
+        "        }, 3000);\n".
+        "        console.log('[pollStatus] setTimeout has been scheduled');\n".
+        "      } else {\n".
+        "        console.log('[pollStatus] Unexpected status:', data.status);\n".
+        "        if (modalBody) modalBody.textContent = 'Error: ' + (data.message || 'Unknown');\n".
+        "      }\n".
+        "    } catch(e){\n".
+        "      console.error('[pollStatus] Exception caught:', e);\n".
+        "      if (modalBody) modalBody.textContent = 'Error: ' + e.message;\n".
+        "    }\n".
+        "  }\n".
+        "  btn.addEventListener('click', async function(){\n".
+        "    dnsWarningShown = false;\n".
+        "    showModal();\n".
+        "    if (modalBody) {\n".
+        "      modalBody.innerHTML = (\n".
+        "        '<h5>⏳ Creating VM...</h5>'+\n".
+        "        '<p>Setting up infrastructure in Google Cloud.</p>'+\n".
+        "        '<div class=\"text-center\">'+\n".
+        "          '<div class=\"spinner-border spinner-border-sm\" role=\"status\"></div>'+\n".
+        "        '</div>'\n".
+        "      );\n".
+        "    }\n".
+        "    try {\n".
+        "      console.log('[Button Click] Requesting VM creation...');\n".
+        "      var data = await postJSON(cfg.createUrl, {sesskey: cfg.sesskey});\n".
+        "      console.log('[Button Click] Create response:', data);\n".
+        "      if (data && data.status === 'pending' && data.opname){\n".
+        "        vmInfo.instancename = data.instancename;\n".
+        "        console.log('[Button Click] VM instance name saved:', vmInfo.instancename);\n".
+        "        console.log('[Button Click] Starting pollStatus for operation:', data.opname);\n".
+        "        pollStatus(data.opname);\n".
+        "      } else if (data && data.status === 'error') {\n".
+        "        // Show detailed error message from server\n".
+        "        var errorMsg = data.message || 'Unknown error occurred';\n".
+        "        if (modalBody) {\n".
+        "          modalBody.innerHTML = '<div class=\"alert alert-danger\">' +\n".
+        "            '<strong>Error starting VM creation:</strong><br>' +\n".
+        "            errorMsg +\n".
+        "            '</div>' +\n".
+        "            '<div class=\"text-center mt-3\">' +\n".
+        "            '<button type=\"button\" class=\"btn btn-secondary\" onclick=\"document.getElementById(\\'gcp-progress-modal\\')?.remove(); document.querySelector(\\'.modal-backdrop\\')?.remove();\">Close</button>' +\n".
+        "            '</div>';\n".
+        "        }\n".
+        "        console.error('VM creation error:', errorMsg);\n".
+        "      } else {\n".
+        "        if (modalBody) {\n".
+        "          modalBody.innerHTML = '<div class=\"alert alert-danger\">' +\n".
+        "            'Error: Unexpected response from server' +\n".
+        "            '</div>' +\n".
+        "            '<div class=\"text-center mt-3\">' +\n".
+        "            '<button type=\"button\" class=\"btn btn-secondary\" onclick=\"document.getElementById(\\'gcp-progress-modal\\')?.remove(); document.querySelector(\\'.modal-backdrop\\')?.remove();\">Close</button>' +\n".
+        "            '</div>';\n".
+        "        }\n".
+        "        console.error('Unexpected response:', data);\n".
+        "      }\n".
+        "    } catch(e){\n".
+        "      if (modalBody) {\n".
+        "        modalBody.innerHTML = '<div class=\"alert alert-danger\">' +\n".
+        "          '<strong>Error:</strong><br>' + e.message +\n".
+        "          '</div>' +\n".
+        "          '<div class=\"text-center mt-3\">' +\n".
+        "          '<button type=\"button\" class=\"btn btn-secondary\" onclick=\"document.getElementById(\\'gcp-progress-modal\\')?.remove(); document.querySelector(\\'.modal-backdrop\\')?.remove();\">Close</button>' +\n".
+        "          '</div>';\n".
+        "      }\n".
+        "      console.error('Exception during VM creation:', e);\n".
+        "    }\n".
+        "  });\n".
+        "\n".
+        "  // Check if there's a server in provisioning state on page load\n".
+        "  (async function checkOnLoad(){\n".
+        "    try {\n".
+        "      var response = await fetch(cfg.listUrl);\n".
+        "      var servers = await response.json();\n".
+        "      if (servers && servers.length > 0) {\n".
+        "        for (var i = 0; i < servers.length; i++) {\n".
+        "          var srv = servers[i];\n".
+        "          if (srv.provisioningstatus && srv.provisioningstatus !== 'ready' && srv.provisioningstatus !== 'error') {\n".
+        "            // Found a server being provisioned\n".
+        "            vmInfo.instancename = srv.gcpinstancename;\n".
+        "            console.log('Found server in provisioning:', vmInfo.instancename, 'status:', srv.provisioningstatus);\n".
+        "            showModal();\n".
+        "            if (modalBody) {\n".
+        "              modalBody.innerHTML = '<h5>⚙️ Resuming provisioning...</h5><div class=\"text-center\"><div class=\"spinner-border spinner-border-sm\" role=\"status\"></div></div>';\n".
+        "            }\n".
+        "            setTimeout(checkJitsiReady, 2000);\n".
+        "            break;\n".
+        "          }\n".
+        "        }\n".
+        "      }\n".
+        "    } catch(e) {\n".
+        "      console.log('Could not check for provisioning servers:', e);\n".
+        "    }\n".
+        "  })();\n".
+        "})();"
+        // phpcs:enable
+    );
+
+
+    $gcpclient = null;
+    try {
+        if (class_exists('Google\\Client') && class_exists('Google\\Service\\Compute')) {
+            $gcpclient = mod_jitsi_gcp_client();
+        }
+    } catch (Exception $e) {
+        // Si falla la autenticación, no mostraremos estados.
+        debugging('Failed to initialize GCP client: ' . $e->getMessage(), DEBUG_NORMAL);
+    }
+
+    $servers = $DB->get_records('jitsi_servers', null, 'name ASC');
+    $table = new html_table();
+    $table->head = [
+        get_string('name'),
+        get_string('type', 'mod_jitsi'),
+        get_string('domain', 'mod_jitsi'),
+        get_string('status', 'mod_jitsi'), // Nueva columna.
+        get_string('actions', 'mod_jitsi'),
+    ];
+
+    $gcpserverids = []; // Para recopilar IDs de servidores GCP.
+
+    foreach ($servers as $s) {
+        switch ($s->type) {
+            case 0:
+                $typestring = 'Server without token';
+                break;
+            case 1:
+                $typestring = 'Self-hosted (JWT)';
+                break;
+            case 2:
+                $typestring = '8x8 server';
+                break;
+            case 3:
+                $typestring = '🌩️ GCP Auto-Managed <span class="badge bg-warning text-dark">BETA</span>';
+                break;
+            default:
+                $typestring = get_string('unknowntype', 'mod_jitsi');
+        }
+
+        // Obtener estado del servidor GCP y guardarlo para usar en botones.
+        $statushtml = '<span class="badge bg-secondary" id="gcp-status-'.$s->id.'">N/A</span>';
+        $instancestatus = null; // Variable para guardar el estado real.
+
+        if ($s->type == 3 && !empty($s->gcpproject) && !empty($s->gcpzone) && !empty($s->gcpinstancename)) {
+            $gcpserverids[] = $s->id;
+
+            if ($gcpclient) {
+                try {
+                    $instance = $gcpclient->instances->get($s->gcpproject, $s->gcpzone, $s->gcpinstancename);
+                    $status = $instance->getStatus();
+                    $instancestatus = $status; // Guardar estado para lógica de botones.
+
+                    switch ($status) {
+                        case 'RUNNING':
+                            $statushtml = '<span class="badge bg-success" id="gcp-status-'.$s->id.'">🟢 Running</span>';
+                            break;
+                        case 'STOPPED':
+                        case 'TERMINATED':
+                            $statushtml = '<span class="badge bg-danger" id="gcp-status-'.$s->id.'">🔴 Stopped</span>';
+                            break;
+                        case 'STOPPING':
+                            $statushtml = '<span class="badge bg-warning" id="gcp-status-'.$s->id.'">🟡 Stopping...</span>';
+                            break;
+                        case 'PROVISIONING':
+                        case 'STAGING':
+                            $statushtml = '<span class="badge bg-info" id="gcp-status-'.$s->id.'">🔵 Starting...</span>';
+                            break;
+                        case 'SUSPENDING':
+                            $statushtml = '<span class="badge bg-warning" id="gcp-status-'.$s->id.'">🟡 Suspending...</span>';
+                            break;
+                        case 'SUSPENDED':
+                            $statushtml = '<span class="badge bg-secondary" id="gcp-status-'.$s->id.'">⚫ Suspended</span>';
+                            break;
+                        case 'REPAIRING':
+                            $statushtml = '<span class="badge bg-warning" id="gcp-status-'.$s->id.'">🔧 Repairing...</span>';
+                            break;
+                        default:
+                            $statushtml = '<span class="badge bg-secondary" id="gcp-status-'.$s->id.'">' .
+                              htmlspecialchars($status) . '</span>';
+                    }
+                } catch (Exception $e) {
+                    if (strpos($e->getMessage(), 'notFound') !== false || strpos($e->getMessage(), '404') !== false) {
+                        $statushtml = '<span class="badge bg-dark" id="gcp-status-'.$s->id.'">❌ Not Found</span>';
+                        $instancestatus = 'NOT_FOUND';
+                    } else {
+                        $statushtml = '<span class="badge bg-secondary" id="gcp-status-'.$s->id.'" title="' .
+                          htmlspecialchars($e->getMessage()) . '">⚠️ Error</span>';
+                        $instancestatus = 'ERROR';
+                    }
+                }
+            }
+        }
+
+        $editurl = new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'edit', 'id' => $s->id]);
+        $deleteurl = new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'delete', 'id' => $s->id]);
+
+        // Solo mostrar Edit si NO es GCP.
+        $links = '';
+        if ($s->type != 3) {
+            $links = html_writer::link($editurl, get_string('edit'));
+        }
+
+        // Agregar acciones de start/stop según el estado real.
+        if ($s->type == 3 && !empty($s->gcpproject) && !empty($s->gcpzone) && !empty($s->gcpinstancename)) {
+            $starturl = new moodle_url('/mod/jitsi/servermanagement.php', [
+                'action' => 'gcpstart',
+                'id' => $s->id,
+                'sesskey' => sesskey(),
+            ]);
+            $stopurl = new moodle_url('/mod/jitsi/servermanagement.php', [
+                'action' => 'gcpstop',
+                'id' => $s->id,
+                'sesskey' => sesskey(),
+            ]);
+
+            if (!empty($links)) {
+                $links .= ' | ';
+            }
+
+            // Lógica condicional de botones según estado.
+            $buttonshown = false;
+
+            // Mostrar botón START solo si está apagado, suspendido o en error.
+            if (in_array($instancestatus, ['STOPPED', 'TERMINATED', 'SUSPENDED', 'NOT_FOUND', 'ERROR', null])) {
+                $links .= html_writer::link(
+                    $starturl,
+                    '▶️ Start',
+                    ['class' => 'btn btn-sm btn-success', 'id' => 'gcp-btn-start-'.$s->id],
+                );
+                $buttonshown = true;
+            }
+
+            // Mostrar botón STOP solo si está corriendo o arrancando.
+            if (in_array($instancestatus, ['RUNNING', 'PROVISIONING', 'STAGING'])) {
+                if ($buttonshown) {
+                    $links .= ' | ';
+                }
+                $links .= html_writer::link(
+                    $stopurl,
+                    '⏹️ Stop',
+                    ['class' => 'btn btn-sm btn-warning', 'id' => 'gcp-btn-stop-'.$s->id],
+                );
+                $buttonshown = true;
+            }
+
+            // Mostrar mensaje de espera si está en transición.
+            if (in_array($instancestatus, ['STOPPING', 'SUSPENDING', 'REPAIRING'])) {
+                if ($buttonshown) {
+                    $links .= ' | ';
+                }
+                $links .= '<span class="badge bg-secondary" id="gcp-btn-wait-'.$s->id.'">⏳ Please wait...</span>';
+                $buttonshown = true;
+            }
+
+            // Si no hay estado disponible, mostrar ambos botones deshabilitados.
+            if (!$buttonshown) {
+                $links .= '<span class="text-muted">Actions unavailable</span>';
+            }
+        }
+
+        // Delete siempre disponible.
+        if (!empty($links)) {
+            $links .= ' | ';
+        }
+        $links .= html_writer::link($deleteurl, get_string('delete'));
+
+        $table->data[] = [
+            format_string($s->name),
+            $typestring,
+            format_string($s->domain),
+            $statushtml,
+            $links,
+        ];
+    }
+    echo html_writer::table($table);
+
+    // Actualizar JavaScript para también actualizar botones dinámicamente.
+    if (!empty($gcpserverids)) {
+        $statusurl = (new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'gcpserversstatus']))->out(false);
+        $gcpidsjs = json_encode($gcpserverids);
+        $sesskeyjs = sesskey();
+        $wwwroot = $CFG->wwwroot;
+        // phpcs:disable
+        $PAGE->requires->js_init_code(
+            "(function(){\n".
+            "  var gcpIds = ".$gcpidsjs.";\n".
+            "  if (gcpIds.length === 0) return;\n".
+            "  \n".
+            "  function updateStatuses(){\n".
+            "    fetch('".$statusurl."', {\n".
+            "      method: 'POST',\n".
+            "      headers: {'Content-Type':'application/x-www-form-urlencoded'},\n".
+            "      body: new URLSearchParams({sesskey: '".$sesskeyjs."', ids: gcpIds.join(',')})\n".
+            "    })\n".
+            "    .then(res => res.json())\n".
+            "    .then(data => {\n".
+            "      if (data.error) {\n".
+            "        console.error('Status update error:', data.error);\n".
+            "        return;\n".
+            "      }\n".
+            "      for (var id in data) {\n".
+            "        var badge = document.getElementById('gcp-status-' + id);\n".
+            "        if (!badge) continue;\n".
+            "        var status = data[id].status;\n".
+            "        var badgeClass = 'badge ';\n".
+            "        var badgeText = '';\n".
+            "        \n".
+            "        // ⬅️ Obtener contenedor de botones (celda de la tabla)\n".
+            "        var row = badge.closest('tr');\n".
+            "        var actionsCell = row ? row.cells[4] : null;\n".
+            "        \n".
+            "        switch(status) {\n".
+            "          case 'RUNNING':\n".
+            "            badgeClass += 'bg-success';\n".
+            "            badgeText = '🟢 Running';\n".
+            "            updateButtons(id, actionsCell, 'running');\n".
+            "            break;\n".
+            "          case 'STOPPED':\n".
+            "          case 'TERMINATED':\n".
+            "            badgeClass += 'bg-danger';\n".
+            "            badgeText = '🔴 Stopped';\n".
+            "            updateButtons(id, actionsCell, 'stopped');\n".
+            "            break;\n".
+            "          case 'STOPPING':\n".
+            "            badgeClass += 'bg-warning';\n".
+            "            badgeText = '🟡 Stopping...';\n".
+            "            updateButtons(id, actionsCell, 'transition');\n".
+            "            break;\n".
+            "          case 'PROVISIONING':\n".
+            "          case 'STAGING':\n".
+            "            badgeClass += 'bg-info';\n".
+            "            badgeText = '🔵 Starting...';\n".
+            "            updateButtons(id, actionsCell, 'running');\n".
+            "            break;\n".
+            "          case 'SUSPENDING':\n".
+            "            badgeClass += 'bg-warning';\n".
+            "            badgeText = '🟡 Suspending...';\n".
+            "            updateButtons(id, actionsCell, 'transition');\n".
+            "            break;\n".
+            "          case 'SUSPENDED':\n".
+            "            badgeClass += 'bg-secondary';\n".
+            "            badgeText = '⚫ Suspended';\n".
+            "            updateButtons(id, actionsCell, 'stopped');\n".
+            "            break;\n".
+            "          case 'REPAIRING':\n".
+            "            badgeClass += 'bg-warning';\n".
+            "            badgeText = '🔧 Repairing...';\n".
+            "            updateButtons(id, actionsCell, 'transition');\n".
+            "            break;\n".
+            "          case 'NOT_FOUND':\n".
+            "            badgeClass += 'bg-dark';\n".
+            "            badgeText = '❌ Not Found';\n".
+            "            updateButtons(id, actionsCell, 'stopped');\n".
+            "            break;\n".
+            "          case 'ERROR':\n".
+            "            badgeClass += 'bg-secondary';\n".
+            "            badgeText = '⚠️ Error';\n".
+            "            if (data[id].message) {\n".
+            "              badge.title = data[id].message;\n".
+            "            }\n".
+            "            updateButtons(id, actionsCell, 'stopped');\n".
+            "            break;\n".
+            "          default:\n".
+            "            badgeClass += 'bg-secondary';\n".
+            "            badgeText = status;\n".
+            "        }\n".
+            "        badge.className = badgeClass;\n".
+            "        badge.textContent = badgeText;\n".
+            "      }\n".
+            "    })\n".
+            "    .catch(err => console.error('Status update failed:', err));\n".
+            "  }\n".
+            "  \n".
+            "  function updateButtons(serverId, actionsCell, state) {\n".
+            "    if (!actionsCell) return;\n".
+            "    \n".
+            "    var startBtn = document.getElementById('gcp-btn-start-' + serverId);\n".
+            "    var stopBtn = document.getElementById('gcp-btn-stop-' + serverId);\n".
+            "    var waitSpan = document.getElementById('gcp-btn-wait-' + serverId);\n".
+            "    \n".
+            "    // Obtener el contenido de la celda para mantener el delete\n".
+            "    var cellHTML = actionsCell.innerHTML;\n".
+            "    var deleteLink = cellHTML.match(/(<a[^>]*delete[^>]*>.*?<\\/a>)/i);\n".
+            "    deleteLink = deleteLink ? deleteLink[0] : '';\n".
+            "    \n".
+            "    var startUrl = '".$wwwroot."/mod/jitsi/servermanagement.php?action=gcpstart&id=' + serverId + '&sesskey=".$sesskeyjs."';\n".
+            "    var stopUrl = '".$wwwroot."/mod/jitsi/servermanagement.php?action=gcpstop&id=' + serverId + '&sesskey=".$sesskeyjs."';\n".
+            "    \n".
+            "    var newButtons = '';\n".
+            "    \n".
+            "    if (state === 'stopped') {\n".
+            "      // Mostrar solo START\n".
+            "      newButtons = '<a href=\"' + startUrl + '\" class=\"btn btn-sm btn-success\" id=\"gcp-btn-start-' + serverId + '\">▶️ Start</a>';\n".
+            "    } else if (state === 'running') {\n".
+            "      // Mostrar solo STOP\n".
+            "      newButtons = '<a href=\"' + stopUrl + '\" class=\"btn btn-sm btn-warning\" id=\"gcp-btn-stop-' + serverId + '\">⏹️ Stop</a>';\n".
+            "    } else if (state === 'transition') {\n".
+            "      // Mostrar mensaje de espera\n".
+            "      newButtons = '<span class=\"badge bg-secondary\" id=\"gcp-btn-wait-' + serverId + '\">⏳ Please wait...</span>';\n".
+            "    }\n".
+            "    \n".
+            "    actionsCell.innerHTML = newButtons + (deleteLink ? ' | ' + deleteLink : '');\n".
+            "  }\n".
+            "  \n".
+            "  // Actualizar cada 10 segundos\n".
+            "  setInterval(updateStatuses, 10000);\n".
+            "  // Primera actualización después de 2 segundos\n".
+            "  setTimeout(updateStatuses, 2000);\n".
+            "})();"
+        );
+        // phpcs:enable
+    }
+
+} // End of TABLE VIEW (else block)
 
 echo $OUTPUT->footer();
 

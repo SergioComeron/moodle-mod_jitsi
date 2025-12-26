@@ -76,6 +76,95 @@ function jitsi_supports($feature) {
 }
 
 /**
+ * Check if a GCP server instance is running
+ *
+ * @param stdClass $server Server record from jitsi_servers table
+ * @return array Array with 'status' ('running'|'stopped'|'error') and optional 'message'
+ */
+function jitsi_check_gcp_server_status($server) {
+    // Only check GCP servers (type 3).
+    if ($server->type != 3) {
+        return ['status' => 'running']; // Non-GCP servers are always considered "running".
+    }
+
+    // Check if server is still provisioning.
+    if ($server->provisioningstatus === 'provisioning' || $server->provisioningstatus === 'error') {
+        return [
+            'status' => 'error',
+            'message' => 'Server is still being provisioned or has an error',
+        ];
+    }
+
+    // If no GCP instance name, assume it's not a GCP-managed server.
+    if (empty($server->gcpinstancename) || empty($server->gcpproject) || empty($server->gcpzone)) {
+        return ['status' => 'running'];
+    }
+
+    // Check if Google API client is available.
+    $autoloader = __DIR__ . '/api/vendor/autoload.php';
+    if (!file_exists($autoloader)) {
+        return [
+            'status' => 'error',
+            'message' => 'Google API client not installed',
+        ];
+    }
+
+    try {
+        require_once($autoloader);
+
+        // Initialize Google Client.
+        $client = new \Google\Client();
+        $client->setScopes(['https://www.googleapis.com/auth/cloud-platform']);
+
+        // Try to read Service Account uploaded via settings.
+        $fs = get_file_storage();
+        $context = context_system::instance();
+        $files = $fs->get_area_files($context->id, 'mod_jitsi', 'gcpserviceaccountjson', 0, 'itemid, filepath, filename', false);
+
+        if (!empty($files)) {
+            $file = reset($files);
+            $jsoncontent = $file->get_content();
+            $client->setAuthConfig(json_decode($jsoncontent, true));
+        } else {
+            // Fallback to Application Default Credentials.
+            $client->useApplicationDefaultCredentials();
+        }
+
+        $compute = new \Google\Service\Compute($client);
+
+        // Get instance status.
+        $instance = $compute->instances->get(
+            $server->gcpproject,
+            $server->gcpzone,
+            $server->gcpinstancename
+        );
+
+        $status = $instance->getStatus();
+
+        // Possible statuses: PROVISIONING, STAGING, RUNNING, STOPPING, STOPPED, SUSPENDING, SUSPENDED, TERMINATED.
+        if ($status === 'RUNNING') {
+            return ['status' => 'running'];
+        } else if ($status === 'STOPPED' || $status === 'TERMINATED' || $status === 'SUSPENDED') {
+            return [
+                'status' => 'stopped',
+                'message' => 'Instance status: ' . $status,
+            ];
+        } else {
+            return [
+                'status' => 'transitioning',
+                'message' => 'Instance status: ' . $status,
+            ];
+        }
+
+    } catch (Exception $e) {
+        return [
+            'status' => 'error',
+            'message' => $e->getMessage(),
+        ];
+    }
+}
+
+/**
  * Saves a new instance of the jitsi into the database
  *
  * Given an object containing all the necessary data,
@@ -262,10 +351,11 @@ function base64urldecode($inputstr) {
  * @param boolean $anal - If set to *true*, will remove all non-alphanumeric characters.
  */
 function string_sanitize($string, $forcelowercase = true, $anal = false) {
-    $strip = ["~", "`", "!", "@", "#", "$", "%", "^", "&", "*", "(", ")",
-            "_", "=", "+", "[", "{", "]", "}", "\\", "|", ";", ":", "\"",
-            "'", "&#8216;", "&#8217;", "&#8220;", "&#8221;", "&#8211;", "&#8212;",
-            "â€”", "â€“", ",", "<", ".", ">", "/", "?", ];
+    $strip = ['~', chr(96), '!', '@', '#', '$', '%', '^', '&', '*', '(', ')',
+            '_', '=', '+', '[', '{', ']', '}', '\\', '|', ';', ':', '"',
+            "'", '&#8216;', '&#8217;', '&#8220;', '&#8221;', '&#8211;', '&#8212;',
+            'â€"', 'â€"', ',', '<', '.', '>', '/', '?',
+        ];
     $clean = trim(str_replace($strip, "", strip_tags($string)));
     $clean = preg_replace('/\s+/', "-", $clean);
     $clean = ($anal) ? preg_replace("/[^a-zA-Z0-9]/", "", $clean) : $clean;
@@ -299,10 +389,22 @@ function createsession(
     $universal = false,
     $user = null
 ) {
-    global $CFG, $DB, $PAGE, $USER;
+    global $CFG, $DB, $PAGE, $USER, $OUTPUT;
 
     $serverid = get_config('mod_jitsi', 'server');
     $server = $DB->get_record('jitsi_servers', ['id' => $serverid]);
+
+    // Check if GCP server is running.
+    $serverstatus = jitsi_check_gcp_server_status($server);
+    if ($serverstatus['status'] === 'stopped') {
+        echo $OUTPUT->notification(get_string('gcpserverstopped', 'jitsi'), 'error');
+        return;
+    } else if ($serverstatus['status'] === 'error') {
+        $errormsg = isset($serverstatus['message']) ? $serverstatus['message'] : 'Unknown error';
+        echo $OUTPUT->notification(get_string('gcpservererror', 'jitsi', $errormsg), 'error');
+        return;
+    }
+
     $servertype = $server->type;
     $appid = $server->appid;
     $domain = $server->domain;
@@ -356,7 +458,8 @@ function createsession(
         $security = 'security';
     }
     $record = '';
-    if (get_config('mod_jitsi', 'record') == 1 && has_capability('mod/jitsi:record', $PAGE->context)) {
+    // Disable recording on GCP auto-managed servers (type 3) - not yet supported.
+    if (get_config('mod_jitsi', 'record') == 1 && has_capability('mod/jitsi:record', $PAGE->context) && $servertype != 3) {
         $record = 'recording';
     }
     $invite = '';
@@ -408,11 +511,13 @@ function createsession(
     }
 
     if ($user == null) {
+        // Don't show integrated recording switch for GCP servers (type 3) - not yet supported.
         if (
             get_config('mod_jitsi', 'livebutton') == 1 &&
             has_capability('mod/jitsi:record', $PAGE->context) &&
             $account != null && $universal == false &&
-            (get_config('mod_jitsi', 'streamingoption') == 1) && $jitsi->sessionwithtoken == 0
+            (get_config('mod_jitsi', 'streamingoption') == 1) && $jitsi->sessionwithtoken == 0 &&
+            $servertype != 3
         ) {
             if ($CFG->branch >= 500) {
                 echo "<div class=\"text-end\">";
@@ -428,7 +533,8 @@ function createsession(
                 echo "</div>";
             } else {
                 echo "<div class=\"custom-control custom-switch\">";
-                echo "<input type=\"checkbox\" class=\"custom-control-input\" id=\"recordSwitch\" onClick=\"activaGrab($(this));\">";
+                echo "<input type=\"checkbox\" class=\"custom-control-input\"
+                  id=\"recordSwitch\" onClick=\"activaGrab($(this));\">";
                 echo "<label class=\"custom-control-label\" for=\"recordSwitch\">"
                     . addslashes(get_string('streamingandrecording', 'jitsi')) . "</label>";
                 echo "</div>";
@@ -543,7 +649,8 @@ function createsession(
         echo "disableReactions: true,\n";
     }
 
-    if (get_config('mod_jitsi', 'livebutton') == 0) {
+    // Disable live streaming if global setting is off OR if it's a GCP server (type 3 - not yet supported).
+    if (get_config('mod_jitsi', 'livebutton') == 0 || $servertype == 3) {
         echo "liveStreamingEnabled: false,\n";
     }
 
@@ -638,9 +745,6 @@ function createsession(
     ) {
         $signatureencoded = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($signature));
         $jwt = $headerencoded . "." . $payloadencoded . "." . $signatureencoded;
-
-        // DEBUG: Log JWT details
-        error_log("JITSI JWT DEBUG - User: " . $nombre . " | Moderator capability: " . (has_capability('mod/jitsi:moderation', $PAGE->context) ? 'YES' : 'NO') . " | Affiliation: " . $affiliation);
 
         echo "jwt: \"" . $jwt . "\",\n";
     }
@@ -1125,9 +1229,21 @@ function createsessionpriv(
     $universal = false,
     $user = null
 ) {
-    global $CFG, $DB, $PAGE, $USER;
+    global $CFG, $DB, $PAGE, $USER, $OUTPUT;
     $serverid = get_config('mod_jitsi', 'server');
     $server = $DB->get_record('jitsi_servers', ['id' => $serverid]);
+
+    // Check if GCP server is running.
+    $serverstatus = jitsi_check_gcp_server_status($server);
+    if ($serverstatus['status'] === 'stopped') {
+        echo $OUTPUT->notification(get_string('gcpserverstopped', 'jitsi'), 'error');
+        return;
+    } else if ($serverstatus['status'] === 'error') {
+        $errormsg = isset($serverstatus['message']) ? $serverstatus['message'] : 'Unknown error';
+        echo $OUTPUT->notification(get_string('gcpservererror', 'jitsi', $errormsg), 'error');
+        return;
+    }
+
     $servertype = $server->type;
     $appid = $server->appid;
     $domain = $server->domain;
@@ -1181,7 +1297,8 @@ function createsessionpriv(
         $security = 'security';
     }
     $record = '';
-    if (get_config('mod_jitsi', 'record') == 1 && has_capability('mod/jitsi:record', $PAGE->context)) {
+    // Disable recording on GCP auto-managed servers (type 3) - not yet supported.
+    if (get_config('mod_jitsi', 'record') == 1 && has_capability('mod/jitsi:record', $PAGE->context) && $servertype != 3) {
         $record = 'recording';
     }
     $invite = '';
@@ -1319,7 +1436,8 @@ function createsessionpriv(
         echo "disableReactions: true,\n";
     }
 
-    if (get_config('mod_jitsi', 'livebutton') == 0) {
+    // Disable live streaming if global setting is off OR if it's a GCP server (type 3 - not yet supported).
+    if (get_config('mod_jitsi', 'livebutton') == 0 || $servertype == 3) {
         echo "liveStreamingEnabled: false,\n";
     }
 
@@ -1413,9 +1531,6 @@ function createsessionpriv(
     ) {
         $signatureencoded = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($signature));
         $jwt = $headerencoded . "." . $payloadencoded . "." . $signatureencoded;
-
-        // DEBUG: Log JWT details
-        error_log("JITSI JWT DEBUG - User: " . $nombre . " | Moderator capability: " . (has_capability('mod/jitsi:moderation', $PAGE->context) ? 'YES' : 'NO') . " | Affiliation: " . $affiliation);
 
         echo "jwt: \"" . $jwt . "\",\n";
     }
@@ -1826,7 +1941,8 @@ function getminutesdates($contextinstanceid, $userid, $init, $end) {
     $params = ['userid' => $userid,
         'contextinstanceid' => $contextinstanceid,
         'init' => $init,
-        'end' => $end];
+        'end' => $end,
+    ];
     $minutos = $DB->get_record_sql($sqlminutos, $params);
 
     $cache->set($cachekey, $minutos->minutes, 120); // Cache for 2 minutes.

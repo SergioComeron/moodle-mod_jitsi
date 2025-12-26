@@ -178,7 +178,8 @@ if (get_config('mod_jitsi', 'oauth_id') == null || get_config('mod_jitsi', 'oaut
                 echo '<p>' . get_string('refreshtokenmissingdetail', 'jitsi') . '</p>';
                 echo '<ol>';
                 echo '<li>' . get_string('refreshtokenstep1', 'jitsi') .
-                     ' <a href="https://myaccount.google.com/permissions" target="_blank">https://myaccount.google.com/permissions</a></li>';
+                     ' <a href="https://myaccount.google.com/permissions" target="_blank">' .
+                     'https://myaccount.google.com/permissions</a></li>';
                 echo '<li>' . get_string('refreshtokenstep2', 'jitsi') . '</li>';
                 echo '<li>' . get_string('refreshtokenstep3', 'jitsi') . '</li>';
                 echo '</ol>';

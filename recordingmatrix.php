@@ -87,7 +87,8 @@ if (is_siteadmin()) {
                 $cm = get_coursemodule_from_instance('jitsi', $jitsilive->id, $jitsilive->course, false, MUST_EXIST);
                 $contextmodule = context_module::instance($cm->id);
                 $sqllastparticipating = 'select timecreated from {logstore_standard_log} where contextid = '
-                    . $contextmodule->id . ' and (action = \'participating\' or action = \'enter\') order by timecreated DESC limit 1';
+                    . $contextmodule->id . ' and (action = \'participating\'
+                    or action = \'enter\') order by timecreated DESC limit 1';
                 $usersconnected = $DB->get_record_sql($sqllastparticipating);
                 if ($usersconnected != null) {
                     if ((getdate()[0] - $usersconnected->timecreated) > 72) {

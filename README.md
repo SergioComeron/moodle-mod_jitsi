@@ -153,6 +153,14 @@ This plugin includes **experimental support** for automatically creating and man
 
 **⚠️ This feature is in BETA testing**. Use it in production environments with caution.
 
+### Current Limitations
+
+**Recording not yet supported**: GCP auto-managed servers do not currently support recording or live streaming functionality. For recording features, please use:
+- Self-hosted servers (Type 1) with Jibri installed
+- 8x8 JaaS servers (Type 2)
+
+Recording support for GCP auto-managed servers is planned for future releases.
+
 ### Prerequisites
 
 Before using the GCP integration, you need:
@@ -168,14 +176,10 @@ Before using the GCP integration, you need:
      - `Service Account User` (roles/iam.serviceAccountUser) - to attach service accounts to instances
    - Download the JSON key file for this service account
 
-3. **Domain Name (Optional but Recommended)**
+3. **Domain Name** (Required)
    - A fully qualified domain name (FQDN) that you can point to the VM's IP address
-   - Required for Let's Encrypt SSL certificates
-   - Without a domain, the server will use a self-signed certificate
-
-4. **PHP Dependencies**
-   - The Google API Client library must be installed
-   - Run `composer require google/apiclient` in the plugin's `api/` directory, or install globally in your Moodle environment
+   - Required for JWT authentication configuration and Let's Encrypt SSL certificates
+   - Example: `jitsi.example.com`
 
 ### Configuration Steps
 
@@ -222,14 +226,14 @@ Navigate to **Site administration > Plugins > Activity modules > Jitsi > Google 
    - Use `global/networks/default` unless you have a custom VPC setup
    - Format: `global/networks/<network-name>` or `projects/<project>/global/networks/<network-name>`
 
-6. **Hostname (FQDN)**: The domain name for your Jitsi server (e.g., `jitsi.example.com`)
-   - **Important**: You must configure DNS to point this domain to the VM's IP address
+6. **Hostname (FQDN)** - **Required**: The fully qualified domain name for your Jitsi server (e.g., `jitsi.example.com`)
+   - **Mandatory**: Required for JWT authentication and SSL configuration
+   - You must configure DNS to point this domain to the VM's IP address (shown during creation)
    - The plugin will reserve a static IP address for consistency
-   - Without proper DNS configuration, Let's Encrypt certificate generation will fail
+   - Also create an A record for `auth.<your-hostname>` pointing to the same IP
 
-7. **Let's Encrypt Email**: Email address for Let's Encrypt notifications (e.g., `admin@example.com`)
-   - Required if you specify a hostname
-   - Used for certificate expiration notices
+7. **Let's Encrypt Email** - **Required**: Email address for Let's Encrypt notifications (e.g., `admin@example.com`)
+   - Used for SSL certificate requests and expiration notices
 
 8. **Service Account JSON**: Upload the JSON key file you downloaded in step 2
 
@@ -257,7 +261,7 @@ Once configuration is complete:
    - Create a Compute Engine VM with the specified configuration
    - Install and configure Jitsi Meet automatically
    - Configure JWT authentication with auto-generated credentials
-   - Attempt to obtain a Let's Encrypt SSL certificate (if DNS is configured)
+   - Wait for DNS propagation and obtain a Let's Encrypt SSL certificate
    - Register the server in Moodle's server list
 
 4. **Monitor the creation process**:
@@ -265,17 +269,15 @@ Once configuration is complete:
    - Creation typically takes 5-10 minutes
    - The startup script will wait up to 15 minutes for DNS propagation
 
-5. **Configure DNS** (if using a hostname):
+5. **Configure DNS** (Required):
    - The modal will display the static IP address assigned to your VM
-   - Create an A record in your DNS provider:
-     - Name: Your hostname (e.g., `jitsi.example.com`)
+   - **Immediately** create the following A records in your DNS provider:
+     - `jitsi.example.com` → Static IP address (main hostname)
+     - `auth.jitsi.example.com` → Same static IP address (required for JWT)
+   - DNS settings:
      - Type: A
-     - Value: The static IP address shown
-     - TTL: 300 (or your preference)
-   - If using JWT auth (recommended), also create:
-     - Name: `auth.<your-hostname>` (e.g., `auth.jitsi.example.com`)
-     - Type: A
-     - Value: The same static IP address
+     - TTL: 300 (recommended for faster propagation)
+   - The VM will wait for DNS to propagate before completing installation
 
 ### How It Works
 
@@ -286,16 +288,16 @@ The plugin uses a cloud-init/bash startup script that runs on first boot:
 1. **DNS Waiting Phase** (0-15 minutes):
    - Checks if the configured hostname resolves to the VM's public IP
    - Waits up to 15 minutes for DNS propagation
-   - Continues even if DNS is not ready (will use self-signed cert)
+   - **Important**: Without proper DNS, JWT authentication may not work correctly
 
 2. **Jitsi Installation**:
    - Installs Jitsi Meet from official repositories
-   - Configures Prosody (XMPP server) for JWT authentication
+   - Configures Prosody (XMPP server) for JWT authentication using the hostname
    - Generates random App ID and Secret for JWT
 
 3. **SSL Certificate**:
    - If DNS is properly configured → requests Let's Encrypt certificate
-   - If DNS is not ready → installs self-signed certificate and schedules retry
+   - If DNS is not ready → installs self-signed certificate (browsers will show warnings)
 
 4. **JWT Configuration**:
    - Configures Jicofo and Prosody for token-based authentication
@@ -343,10 +345,15 @@ Running Jitsi servers in GCP incurs costs:
 3. **Storage**:
    - ~$0.17/month per 20GB SSD (default boot disk)
 
-4. **Network Egress**:
+4. **Network Egress** (outbound traffic from VM):
    - First 1GB/month: Free
    - After 1GB: ~$0.12/GB (varies by region)
-   - Video conferences can use significant bandwidth
+   - **When this matters**:
+     - 1-to-1 calls: Minimal (peer-to-peer, doesn't use server bandwidth)
+     - 3+ participants: High (Jitsi Videobridge retransmits all video/audio streams)
+   - **Estimation**: A 1-hour conference with 10 participants in HD can use 5-10GB of egress
+   - **This can be the largest cost** for institutions with frequent large meetings
+   - Consider monitoring actual usage before scaling to many users
 
 **Cost Saving Tips**:
 - Stop VMs when not in active use (e.g., outside business hours)
@@ -377,4 +384,4 @@ Running Jitsi servers in GCP incurs costs:
 
 ## Disclaimer
 
-This plugin is maintained by UDIMA University (www.udima.es) and is not related or partner with 8x8 Inc. nor with "Jitsi as a Service" (JaaS).
+This plugin is not related to or partnered with 8x8 Inc. nor with "Jitsi as a Service" (JaaS).

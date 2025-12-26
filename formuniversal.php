@@ -29,6 +29,7 @@ require_once(dirname(dirname(dirname(__FILE__))) . '/config.php');
 require_once(dirname(dirname(dirname(__FILE__))) . '/lib/moodlelib.php');
 require_once(dirname(__FILE__) . '/lib.php');
 require_once("$CFG->libdir/formslib.php");
+require_login(0, true);
 global $DB;
 
 $token = required_param('t', PARAM_TEXT);

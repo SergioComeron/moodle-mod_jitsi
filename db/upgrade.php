@@ -932,19 +932,19 @@ function xmldb_jitsi_upgrade($oldversion) {
     }
 
     if ($oldversion < 2025110702) {
-        // Add GCP management fields to jitsi_servers
+        // Add GCP management fields to jitsi_servers.
         $table = new xmldb_table('jitsi_servers');
-        
+
         $field = new xmldb_field('gcpproject', XMLDB_TYPE_CHAR, '255', null, null, null, null, 'privatekey');
         if (!$dbman->field_exists($table, $field)) {
             $dbman->add_field($table, $field);
         }
-        
+
         $field = new xmldb_field('gcpzone', XMLDB_TYPE_CHAR, '100', null, null, null, null, 'gcpproject');
         if (!$dbman->field_exists($table, $field)) {
             $dbman->add_field($table, $field);
         }
-        
+
         $field = new xmldb_field('gcpinstancename', XMLDB_TYPE_CHAR, '255', null, null, null, null, 'gcpzone');
         if (!$dbman->field_exists($table, $field)) {
             $dbman->add_field($table, $field);
@@ -954,7 +954,7 @@ function xmldb_jitsi_upgrade($oldversion) {
     }
 
     if ($oldversion < 2025122000) {
-        // Add gcpstaticipname field to jitsi_servers for static IP management
+        // Add gcpstaticipname field to jitsi_servers for static IP management.
         $table = new xmldb_table('jitsi_servers');
 
         $field = new xmldb_field('gcpstaticipname', XMLDB_TYPE_CHAR, '255', null, null, null, null, 'gcpinstancename');
@@ -966,8 +966,8 @@ function xmldb_jitsi_upgrade($oldversion) {
     }
 
     if ($oldversion < 2025122303) {
-        // Add provisioning tracking fields to jitsi_servers
-        // This replaces the use of mdl_config_plugins for VM state tracking
+        // Add provisioning tracking fields to jitsi_servers.
+        // This replaces the use of mdl_config_plugins for VM state tracking.
         $table = new xmldb_table('jitsi_servers');
 
         $field = new xmldb_field('gcpstaticipaddress', XMLDB_TYPE_CHAR, '45', null, null, null, '', 'gcpstaticipname');
