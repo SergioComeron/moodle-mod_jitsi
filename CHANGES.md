@@ -1,4 +1,35 @@
 # Changelog
+## v4.2.0 (2025012700)
+# Fixed
+ * Mobile app error
+ * Cache error
+# Added
+ * **GCP Auto-Managed Servers**: Create Jitsi servers in Google Cloud Platform with one click
+ * Automatic VM provisioning with Debian 12
+ * JWT authentication automatically configured
+ * Static IP address management (automatic reservation and reuse)
+ * Let's Encrypt SSL certificate provisioning
+ * Real-time server status monitoring (Running, Stopped, Provisioning, Error)
+ * Start/Stop VM instances from Moodle interface to save costs
+ * Detailed provisioning progress modal with status updates
+ * DNS configuration helper with copy-to-clipboard functionality
+ * Automatic cleanup of failed provisioning attempts
+ * **Improved Server Management Interface**:
+ * Separated views: table view for listing servers, dedicated form view for add/edit
+ * "Add new server" button in table view
+ * Cancel button in form view for better navigation
+ * Clearer visual organization
+# Changed
+ * Removed "Deprecated" settings section (watermark link and simultaneous cameras)
+ * Server management page now shows only relevant content based on action (list or form)
+# Limitations
+ * ⚠️ **Recording not yet supported** on GCP auto-managed servers
+ * Recording and live streaming buttons are disabled on servers created via GCP
+ * For recording functionality, use self-hosted servers (Type 1) or 8x8 servers (Type 2)
+ * Recording support planned for future releases (v4.3+)
+
+---
+
 ## v4.0 ()
 # Fixed
  * Code style corrections
