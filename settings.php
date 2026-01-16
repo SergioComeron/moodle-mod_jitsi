@@ -236,6 +236,17 @@ if ($ADMIN->fulltree) {
     );
 
     $settings->add(
+        new admin_setting_configtext(
+            'mod_jitsi/channellastcam',
+            get_string('simultaneouscameras', 'jitsi'),
+            get_string('simultaneouscamerasex', 'jitsi'),
+            '15',
+            PARAM_INT,
+            1
+        )
+    );
+
+    $settings->add(
         new admin_setting_configcheckbox(
             'mod_jitsi/allowbreakoutrooms',
             get_string('allowbreakoutrooms', 'jitsi'),
