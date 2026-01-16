@@ -4,6 +4,7 @@
  * Mobile app error
  * Cache error
 # Added
+ * Add channellast configuration
  * **GCP Auto-Managed Servers**: Create Jitsi servers in Google Cloud Platform with one click
  * Automatic VM provisioning with Debian 12
  * JWT authentication automatically configured
