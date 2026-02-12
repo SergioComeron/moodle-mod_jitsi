@@ -324,6 +324,26 @@ $string['whiteboardex'] = 'Show the whiteboard button to all users. Actually Whi
 $string['youtubebutton'] = 'Youtube sharing option';
 $string['youtubebuttonex'] = 'Show the youtube videos sharing option';
 
+// Session usage statistics strings.
+$string['sessionusagestats'] = 'Session usage statistics';
+$string['sessionsentered'] = 'Sessions entered';
+$string['uniqueusers'] = 'Unique users';
+$string['totalminutes'] = 'Total minutes';
+$string['monthlyusage'] = 'Monthly usage';
+$string['topcourses'] = 'Top courses by usage';
+$string['month'] = 'Month';
+$string['totalsessionsinperiod'] = 'Total sessions in period';
+$string['totaluniqueusersinperiod'] = 'Total unique users in period';
+$string['totalminutesinperiod'] = 'Total minutes in period';
+$string['activity'] = 'Activity';
+$string['course'] = 'Course';
+$string['totaluserminutes'] = 'Total user-minutes';
+$string['averagetimeperuser'] = 'Avg. time per user';
+$string['topcategories'] = 'Top categories by usage';
+$string['category'] = 'Category';
+$string['totaluserminutesinperiod'] = 'Total user-minutes in period';
+$string['averagetimeperuserinperiod'] = 'Avg. time per user in period';
+
 // Google Cloud (GCP) integration strings.
 $string['gcpheading'] = 'Google Cloud (GCP) - BETA';
 $string['gcpheadingex'] = '<span class="badge bg-warning text-dark">BETA</span> Configure the project and VM where the shared Jitsi server will be deployed. This feature is in beta testing.';

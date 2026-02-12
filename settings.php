@@ -374,6 +374,15 @@ if ($ADMIN->fulltree) {
         )
     );
 
+    $link = new moodle_url('/mod/jitsi/sessionusagestats.php');
+    $settings->add(
+        new admin_setting_heading(
+            'mod_jitsi/sessionusagestats',
+            '',
+            '<a href=' . $link . ' >' . get_string('sessionusagestats', 'jitsi') . '</a>'
+        )
+    );
+
     // Google Cloud (GCP) integration for single shared Jitsi server.
     $settings->add(
         new admin_setting_heading(
