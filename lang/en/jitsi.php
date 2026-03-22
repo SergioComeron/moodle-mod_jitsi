@@ -193,6 +193,7 @@ $string['noviewpermission'] = 'You do not have permission for view this Jitsi se
 $string['number_of_recordings'] = 'Number of Recordings';
 $string['numbervideosdeleted'] = 'Number of videos to delete';
 $string['numbervideosdeletedex'] = 'Number of videos to delete in each execution of the cron task';
+$string['openrecording'] = 'Open recording';
 $string['oauthid'] = 'OAuth2 id';
 $string['oauthidex'] = 'Oauth2 id google account with YouTube Data API v3 enabled and this Authorized redirect URIs <b>\'{$a}\'</b> on Google api console.';
 $string['oauthsecret'] = 'OAuth2 secret';

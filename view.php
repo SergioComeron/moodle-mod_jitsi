@@ -474,6 +474,7 @@ if (has_capability('mod/jitsi:viewrecords', $PAGE->context)) {
         $table = new mod_view_table('search');
         $fields = '{jitsi_record}.id,
                    {jitsi_source_record}.link,
+                   {jitsi_source_record}.type,
                    {jitsi_record}.jitsi,
                    {jitsi_record}.name,
                    {jitsi_source_record}.timecreated';

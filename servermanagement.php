@@ -996,12 +996,27 @@ if (!function_exists('mod_jitsi_gcp_release_static_ip')) {
 
 // Action: create a bare VM in Google Cloud to test connectivity and permissions.
 if ($action === 'creategcpvm') {
-    require_sesskey();
     $ajax = optional_param('ajax', 0, PARAM_BOOL);
+    if ($ajax) {
+        // Buffer all output so debugging() messages don't corrupt the JSON response.
+        ob_start();
+    }
+    try {
+        require_sesskey();
+    } catch (\Throwable $e) {
+        if ($ajax) {
+            ob_end_clean();
+            @header('Content-Type: application/json');
+            echo json_encode(['status' => 'error', 'message' => 'Invalid session key: ' . $e->getMessage()]);
+            exit;
+        }
+        throw $e;
+    }
 
     // Guard: check if Google API Client classes are available.
     if (!class_exists('Google\\Client') || !class_exists('Google\\Service\\Compute')) {
         if ($ajax) {
+            ob_end_clean();
             @header('Content-Type: application/json');
             echo json_encode(['status' => 'error', 'message' => get_string('gcpapimissing', 'mod_jitsi')]);
             exit;
@@ -1021,6 +1036,7 @@ if ($action === 'creategcpvm') {
     // If hostname is set, require LE email to avoid interactive prompts later.
     if (!empty($hostname) && empty($leemail)) {
         if ($ajax) {
+            ob_end_clean();
             @header('Content-Type: application/json');
             echo json_encode(['status' => 'error',
               'message' => 'Missing Let\'s Encrypt email (gcp_letsencrypt_email) while hostname is set.']);
@@ -1040,6 +1056,7 @@ if ($action === 'creategcpvm') {
     }
     if ($missing) {
         if ($ajax) {
+            ob_end_clean();
             @header('Content-Type: application/json');
             echo json_encode(['status' => 'error', 'message' => 'Missing GCP settings: '.implode(', ', $missing)]);
             exit;
@@ -1110,8 +1127,9 @@ if ($action === 'creategcpvm') {
                 debugging("✅ Created new static IP: {$staticipname} ({$staticipaddress})", DEBUG_NORMAL);
             }
 
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             if ($ajax) {
+                ob_end_clean();
                 @header('Content-Type: application/json');
                 echo json_encode(['status' => 'error', 'message' => 'Failed to get/reserve static IP: ' . $e->getMessage()]);
                 exit;
@@ -1167,6 +1185,7 @@ if ($action === 'creategcpvm') {
             'region' => $region, // Save region for IP management.
         ];
         if ($ajax) {
+            ob_end_clean();
             @header('Content-Type: application/json');
             echo json_encode([
                 'status' => 'pending',
@@ -1190,8 +1209,9 @@ if ($action === 'creategcpvm') {
             'region' => $region, // Save region for IP management.
         ];
         redirect(new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'gcpstatus']));
-    } catch (Exception $e) {
+    } catch (\Throwable $e) {
         if ($ajax) {
+            ob_end_clean();
             @header('Content-Type: application/json');
             echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
             exit;
@@ -1783,10 +1803,22 @@ if ($showform) {
         "    backdrop.className = 'modal-backdrop fade show';\n".
         "    document.body.appendChild(backdrop);\n".
         "  }\n".
+        "  window.closeModal = function closeModal(){\n".
+        "    if (modalEl) {\n".
+        "      modalEl.classList.remove('show');\n".
+        "      modalEl.style.display = 'none';\n".
+        "      modalEl.setAttribute('aria-hidden', 'true');\n".
+        "    }\n".
+        "    if (backdrop && backdrop.parentNode) {\n".
+        "      backdrop.parentNode.removeChild(backdrop);\n".
+        "    }\n".
+        "  };\n".
         "  async function postJSON(url, data){\n".
         "    var res = await fetch(url, {method: 'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: new URLSearchParams(data)});\n".
         "    if (!res.ok) throw new Error('HTTP ' + res.status);\n".
-        "    return await res.json();\n".
+        "    var text = await res.text();\n".
+        "    console.log('[postJSON] Raw response (first 500 chars):', text.substring(0, 500));\n".
+        "    return JSON.parse(text);\n".
         "  }\n".
         "  async function checkJitsiReady(){\n".
         "    try {\n".
@@ -2000,7 +2032,7 @@ if ($showform) {
         "            errorMsg +\n".
         "            '</div>' +\n".
         "            '<div class=\"text-center mt-3\">' +\n".
-        "            '<button type=\"button\" class=\"btn btn-secondary\" onclick=\"document.getElementById(\\'gcp-progress-modal\\')?.remove(); document.querySelector(\\'.modal-backdrop\\')?.remove();\">Close</button>' +\n".
+        "            '<button type=\"button\" class=\"btn btn-secondary\" onclick=\"closeModal();\">Close</button>' +\n".
         "            '</div>';\n".
         "        }\n".
         "        console.error('VM creation error:', errorMsg);\n".
@@ -2010,7 +2042,7 @@ if ($showform) {
         "            'Error: Unexpected response from server' +\n".
         "            '</div>' +\n".
         "            '<div class=\"text-center mt-3\">' +\n".
-        "            '<button type=\"button\" class=\"btn btn-secondary\" onclick=\"document.getElementById(\\'gcp-progress-modal\\')?.remove(); document.querySelector(\\'.modal-backdrop\\')?.remove();\">Close</button>' +\n".
+        "            '<button type=\"button\" class=\"btn btn-secondary\" onclick=\"closeModal();\">Close</button>' +\n".
         "            '</div>';\n".
         "        }\n".
         "        console.error('Unexpected response:', data);\n".
@@ -2021,7 +2053,7 @@ if ($showform) {
         "          '<strong>Error:</strong><br>' + e.message +\n".
         "          '</div>' +\n".
         "          '<div class=\"text-center mt-3\">' +\n".
-        "          '<button type=\"button\" class=\"btn btn-secondary\" onclick=\"document.getElementById(\\'gcp-progress-modal\\')?.remove(); document.querySelector(\\'.modal-backdrop\\')?.remove();\">Close</button>' +\n".
+        "          '<button type=\"button\" class=\"btn btn-secondary\" onclick=\"closeModal();\">Close</button>' +\n".
         "          '</div>';\n".
         "      }\n".
         "      console.error('Exception during VM creation:', e);\n".

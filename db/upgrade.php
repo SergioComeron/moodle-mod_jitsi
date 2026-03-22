@@ -965,6 +965,17 @@ function xmldb_jitsi_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2025122000, 'jitsi');
     }
 
+    if ($oldversion < 2026032200) {
+        // Add type field to jitsi_source_record to support external recording links.
+        // Type 0 = YouTube (existing behaviour), Type 1 = external link from recordingLinkAvailable event.
+        $table = new xmldb_table('jitsi_source_record');
+        $field = new xmldb_field('type', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '0', 'embed');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        upgrade_mod_savepoint(true, 2026032200, 'jitsi');
+    }
+
     if ($oldversion < 2025122303) {
         // Add provisioning tracking fields to jitsi_servers.
         // This replaces the use of mdl_config_plugins for VM state tracking.

@@ -212,4 +212,15 @@ $functions = [
                 'loginrequired' => false,
                 'services' => [MOODLE_OFFICIAL_MOBILE_SERVICE, 'local_mobile'],
         ],
+
+        'mod_jitsi_save_recording_link' => [
+                'classname' => 'mod_jitsi_external',
+                'methodname' => 'save_recording_link',
+                'classpath' => 'mod/jitsi/classes/external.php',
+                'description' => 'Save a recording link received from Jitsi recordingLinkAvailable event',
+                'type' => 'write',
+                'ajax' => true,
+                'loginrequired' => false,
+                'services' => [MOODLE_OFFICIAL_MOBILE_SERVICE, 'local_mobile'],
+        ],
 ];
