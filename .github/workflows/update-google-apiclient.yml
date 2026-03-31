@@ -1,0 +1,69 @@
+name: Update google/apiclient
+
+on:
+  schedule:
+    - cron: '0 8 * * 1'  # Every Monday at 8:00 UTC
+  workflow_dispatch:      # Allow manual trigger from GitHub UI
+
+jobs:
+  update-deps:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup PHP 8.2
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer
+
+      - name: Get current version
+        id: before
+        run: |
+          VERSION=$(cat api/composer.lock | python3 -c "import json,sys; data=json.load(sys.stdin); pkg=[p for p in data['packages'] if p['name']=='google/apiclient']; print(pkg[0]['version'] if pkg else 'unknown')")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Run composer update
+        working-directory: api
+        run: composer update google/apiclient google/apiclient-services --no-interaction --no-progress
+
+      - name: Get new version
+        id: after
+        run: |
+          VERSION=$(cat api/composer.lock | python3 -c "import json,sys; data=json.load(sys.stdin); pkg=[p for p in data['packages'] if p['name']=='google/apiclient']; print(pkg[0]['version'] if pkg else 'unknown')")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Check for changes
+        id: changes
+        run: |
+          if git diff --quiet api/composer.lock api/vendor/; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Pull Request
+        if: steps.changes.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: update google/apiclient from ${{ steps.before.outputs.version }} to ${{ steps.after.outputs.version }}"
+          title: "chore: update google/apiclient ${{ steps.before.outputs.version }} → ${{ steps.after.outputs.version }}"
+          body: |
+            ## Automatic dependency update
+
+            | Package | Before | After |
+            |---------|--------|-------|
+            | `google/apiclient` | `${{ steps.before.outputs.version }}` | `${{ steps.after.outputs.version }}` |
+
+            This PR was generated automatically by the weekly workflow.
+            Review the changes and merge if everything looks correct.
+
+            ---
+            [google-api-php-client releases](https://github.com/googleapis/google-api-php-client/releases)
+          branch: chore/update-google-apiclient
+          base: master
+          delete-branch: true
+          labels: dependencies
