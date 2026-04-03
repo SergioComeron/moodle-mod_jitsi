@@ -1139,31 +1139,29 @@ function createsession(
         echo "  }";
         echo "});\n";
 
-        if ($servertype != 2) {
-            echo "api.addEventListener('recordingLinkAvailable', function(event) {\n";
-            echo "  console.log('recordingLinkAvailable: ' + event.link);\n";
-            echo "  require(['jquery', 'core/ajax', 'core/notification'], function($, ajax, notification) {\n";
-            echo "    ajax.call([{\n";
-            echo "      methodname: 'mod_jitsi_save_recording_link',\n";
-            echo "      args: {jitsi: " . $jitsi->id . ", link: event.link, ttl: event.ttl || 0},\n";
-            echo "      done: function(response) { console.log('Recording link saved, idsource: ' + response.idsource); },\n";
-            echo "      fail: notification.exception\n";
-            echo "    }]);\n";
-            echo "  });\n";
-            echo "});\n";
-            echo "api.addEventListener('recordingStatusChanged', function(event) {\n";
-            echo "  if (!event.on && event.url) {\n";
-            echo "    require(['jquery', 'core/ajax', 'core/notification'], function($, ajax, notification) {\n";
-            echo "      ajax.call([{\n";
-            echo "        methodname: 'mod_jitsi_save_recording_link',\n";
-            echo "        args: {jitsi: " . $jitsi->id . ", link: event.url, ttl: 0},\n";
-            echo "        done: function(response) { console.log('Recording link saved via recordingStatusChanged, idsource: ' + response.idsource); },\n";
-            echo "        fail: notification.exception\n";
-            echo "      }]);\n";
-            echo "    });\n";
-            echo "  }\n";
-            echo "});\n";
-        }
+        echo "api.addEventListener('recordingLinkAvailable', function(event) {\n";
+        echo "  console.log('recordingLinkAvailable: ' + event.link);\n";
+        echo "  require(['jquery', 'core/ajax', 'core/notification'], function($, ajax, notification) {\n";
+        echo "    ajax.call([{\n";
+        echo "      methodname: 'mod_jitsi_save_recording_link',\n";
+        echo "      args: {jitsi: " . $jitsi->id . ", link: event.link, ttl: event.ttl || 0},\n";
+        echo "      done: function(response) { console.log('Recording link saved, idsource: ' + response.idsource); },\n";
+        echo "      fail: notification.exception\n";
+        echo "    }]);\n";
+        echo "  });\n";
+        echo "});\n";
+        echo "api.addEventListener('recordingStatusChanged', function(event) {\n";
+        echo "  if (!event.on && event.url) {\n";
+        echo "    require(['jquery', 'core/ajax', 'core/notification'], function($, ajax, notification) {\n";
+        echo "      ajax.call([{\n";
+        echo "        methodname: 'mod_jitsi_save_recording_link',\n";
+        echo "        args: {jitsi: " . $jitsi->id . ", link: event.url, ttl: 0},\n";
+        echo "        done: function(response) { console.log('Recording link saved via recordingStatusChanged, idsource: ' + response.idsource); },\n";
+        echo "        fail: notification.exception\n";
+        echo "      }]);\n";
+        echo "    });\n";
+        echo "  }\n";
+        echo "});\n";
 
         echo "function stopStream(){\n";
         echo "  var parar = true;\n";
