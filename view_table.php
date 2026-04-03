@@ -127,16 +127,15 @@ class mod_view_table extends table_sql {
                 }
             }
 
-            $content = "<h5>" . $OUTPUT->render($tmpl) . "</h5>"
-                . "<h6 class=\"card-subtitle mb-2 text-muted\">" . userdate($values->timecreated) . "</h6>"
-                . "<span class=\"align-middle " . $alignmentclass . "\"><p>" . $actions . "</p></span>";
-
             if (!empty($sourcerecord->embed) && strpos($sourcerecord->link, 'dropbox.com') !== false) {
                 $embedurl = preg_replace('/([?&])dl=\d/', '$1raw=1', $sourcerecord->link);
                 if (strpos($embedurl, 'raw=1') === false) {
                     $embedurl .= (strpos($embedurl, '?') !== false ? '&' : '?') . 'raw=1';
                 }
-                $content .= "<video controls style=\"width:100%;max-width:100%\">"
+                $content = "<h5>" . $OUTPUT->render($tmpl) . "</h5>"
+                    . "<h6 class=\"card-subtitle mb-2 text-muted\">" . userdate($values->timecreated) . "</h6>"
+                    . "<span class=\"align-middle " . $alignmentclass . "\"><p>" . $actions . "</p></span>"
+                    . "<video controls style=\"width:100%;max-width:100%\">"
                     . "<source src=\"" . s($embedurl) . "\" type=\"video/mp4\">"
                     . "</video>"
                     . "<p><a href=\"" . s($sourcerecord->link) . "\" target=\"_blank\" class=\"btn btn-sm btn-outline-secondary mt-1\">"
@@ -145,9 +144,13 @@ class mod_view_table extends table_sql {
                 $openlink = html_writer::link(
                     $sourcerecord->link,
                     get_string('openrecording', 'jitsi'),
-                    ['target' => '_blank', 'class' => 'btn btn-primary']
+                    ['target' => '_blank', 'class' => 'btn btn-sm btn-primary']
                 );
-                $content .= "<p>" . $openlink . "</p><br>";
+                $content = "<div class=\"d-flex align-items-center gap-2 py-1\">"
+                    . "<span class=\"text-muted small text-nowrap\">" . userdate($values->timecreated) . "</span>"
+                    . "<span class=\"flex-grow-1\">" . $OUTPUT->render($tmpl) . "</span>"
+                    . "<span class=\"text-nowrap\">" . $actions . $openlink . "</span>"
+                    . "</div>";
             }
 
             return $content;
