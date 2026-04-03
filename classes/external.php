@@ -1054,18 +1054,27 @@ class mod_jitsi_external extends external_api {
             ['link' => $params['link'], 'jitsi' => $params['jitsi']]
         );
         if ($existingsource) {
+            // If we now have a TTL but the existing record has none, update it.
+            if ($params['ttl'] > 0) {
+                $existingfull = $DB->get_record('jitsi_source_record', ['id' => $existingsource->id]);
+                if ($existingfull && empty($existingfull->timeexpires)) {
+                    $existingfull->timeexpires = $existingfull->timecreated + $params['ttl'];
+                    $DB->update_record('jitsi_source_record', $existingfull);
+                }
+            }
             return ['idsource' => $existingsource->id];
         }
 
         // Create the source record with type = 1 (external link).
         $sourcerecord = new stdClass();
-        $sourcerecord->link           = $params['link'];
-        $sourcerecord->account        = null;
-        $sourcerecord->timecreated    = time();
-        $sourcerecord->userid         = $USER->id;
-        $sourcerecord->embed          = 0;
+        $sourcerecord->link            = $params['link'];
+        $sourcerecord->account         = null;
+        $sourcerecord->timecreated     = time();
+        $sourcerecord->userid          = $USER->id;
+        $sourcerecord->embed           = 0;
         $sourcerecord->maxparticipants = 0;
-        $sourcerecord->type           = 1;
+        $sourcerecord->type            = 1;
+        $sourcerecord->timeexpires     = $params['ttl'] > 0 ? (time() + $params['ttl']) : 0;
         $idsource = $DB->insert_record('jitsi_source_record', $sourcerecord);
 
         // Create the jitsi_record linking the source to the session.

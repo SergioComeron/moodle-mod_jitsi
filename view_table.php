@@ -105,11 +105,13 @@ class mod_view_table extends table_sql {
                 get_string('newvaluefor', 'jitsi') . format_string($values->name)
             );
 
-            $openlink = html_writer::link(
-                $sourcerecord->link,
-                get_string('openrecording', 'jitsi'),
-                ['target' => '_blank', 'class' => 'btn btn-primary']
-            );
+            $editurl = new moodle_url('/mod/jitsi/view.php', [
+                'id' => $cm->id,
+                'editrecordid' => $record->id,
+                'tab' => 'record',
+            ]);
+            $editicon = new pix_icon('t/edit', get_string('edit'));
+            $editaction = $OUTPUT->action_icon($editurl, $editicon);
 
             $actions = '';
             if ($jitsi->sessionwithtoken == 0) {
@@ -120,12 +122,35 @@ class mod_view_table extends table_sql {
                 } else if (has_capability('mod/jitsi:hide', $context)) {
                     $actions = ($record->visible != 0) ? $hideaction : $showaction;
                 }
+                if (has_capability('mod/jitsi:record', $context)) {
+                    $actions .= $editaction;
+                }
             }
 
-            return "<h5>" . $OUTPUT->render($tmpl) . "</h5>"
+            $content = "<h5>" . $OUTPUT->render($tmpl) . "</h5>"
                 . "<h6 class=\"card-subtitle mb-2 text-muted\">" . userdate($values->timecreated) . "</h6>"
-                . "<span class=\"align-middle " . $alignmentclass . "\"><p>" . $actions . "</p></span>"
-                . "<p>" . $openlink . "</p><br>";
+                . "<span class=\"align-middle " . $alignmentclass . "\"><p>" . $actions . "</p></span>";
+
+            if (!empty($sourcerecord->embed) && strpos($sourcerecord->link, 'dropbox.com') !== false) {
+                $embedurl = preg_replace('/([?&])dl=\d/', '$1raw=1', $sourcerecord->link);
+                if (strpos($embedurl, 'raw=1') === false) {
+                    $embedurl .= (strpos($embedurl, '?') !== false ? '&' : '?') . 'raw=1';
+                }
+                $content .= "<video controls style=\"width:100%;max-width:100%\">"
+                    . "<source src=\"" . s($embedurl) . "\" type=\"video/mp4\">"
+                    . "</video>"
+                    . "<p><a href=\"" . s($sourcerecord->link) . "\" target=\"_blank\" class=\"btn btn-sm btn-outline-secondary mt-1\">"
+                    . get_string('openrecording', 'jitsi') . "</a></p><br>";
+            } else {
+                $openlink = html_writer::link(
+                    $sourcerecord->link,
+                    get_string('openrecording', 'jitsi'),
+                    ['target' => '_blank', 'class' => 'btn btn-primary']
+                );
+                $content .= "<p>" . $openlink . "</p><br>";
+            }
+
+            return $content;
         }
         if ($sourcerecord->id && $sourcerecord->link != null) {
             $deleteurl = new moodle_url('/mod/jitsi/view.php?id=' . $cm->id . '&deletejitsirecordid=' .

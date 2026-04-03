@@ -600,6 +600,9 @@ function createsession(
         echo "enabled: false,\n";
     }
     echo "},\n";
+    if (get_config('mod_jitsi', 'record') == 1 && $servertype != 2) {
+        echo "fileRecordingsEnabled: true,\n";
+    }
     echo "remoteVideoMenu: {\n";
     echo "disableGrantModerator: true, \n";
     echo "},\n";
@@ -670,6 +673,16 @@ function createsession(
         echo "startWithVideoMuted: true,\n";
     } else {
         echo "startWithVideoMuted: false,\n";
+    }
+    $dropboxappkey = get_config('mod_jitsi', 'dropbox_appkey');
+    if (!empty($dropboxappkey) && $servertype != 2) {
+        echo "dropbox: {\n";
+        echo "    appKey: '" . addslashes($dropboxappkey) . "',\n";
+        $dropboxredirecturi = get_config('mod_jitsi', 'dropbox_redirect_uri');
+        if (!empty($dropboxredirecturi)) {
+            echo "    redirectURI: '" . addslashes($dropboxredirecturi) . "',\n";
+        }
+        echo "},\n";
     }
     echo "},\n";
 
@@ -1048,6 +1061,13 @@ function createsession(
         echo "          fail: notification.exception\n";
         echo "      }]);\n";
         echo "   ;});";
+        if ($universal == false && $user == null) {
+            echo "  setTimeout(function() { location.href=\"" . $CFG->wwwroot . "/mod/jitsi/view.php?id=" . $cmid . "\"; }, 2000);\n";
+        } else if ($universal == true && $user == null) {
+            echo "  setTimeout(function() { location.href=\"" . $CFG->wwwroot . "/mod/jitsi/formuniversal.php?t=" . $jitsi->token . "\"; }, 2000);\n";
+        } else if ($user != null) {
+            echo "  setTimeout(function() { location.href=\"" . $CFG->wwwroot . "/mod/jitsi/viewpriv.php?user=" . $user . "\"; }, 2000);\n";
+        }
         echo "});\n";
 
         // Registro de los diferentes botones.
@@ -1119,17 +1139,31 @@ function createsession(
         echo "  }";
         echo "});\n";
 
-        echo "api.addEventListener('recordingLinkAvailable', function(event) {\n";
-        echo "  console.log('recordingLinkAvailable: ' + event.link);\n";
-        echo "  require(['jquery', 'core/ajax', 'core/notification'], function($, ajax, notification) {\n";
-        echo "    ajax.call([{\n";
-        echo "      methodname: 'mod_jitsi_save_recording_link',\n";
-        echo "      args: {jitsi: " . $jitsi->id . ", link: event.link, ttl: event.ttl || 0},\n";
-        echo "      done: function(response) { console.log('Recording link saved, idsource: ' + response.idsource); },\n";
-        echo "      fail: notification.exception\n";
-        echo "    }]);\n";
-        echo "  });\n";
-        echo "});\n";
+        if ($servertype != 2) {
+            echo "api.addEventListener('recordingLinkAvailable', function(event) {\n";
+            echo "  console.log('recordingLinkAvailable: ' + event.link);\n";
+            echo "  require(['jquery', 'core/ajax', 'core/notification'], function($, ajax, notification) {\n";
+            echo "    ajax.call([{\n";
+            echo "      methodname: 'mod_jitsi_save_recording_link',\n";
+            echo "      args: {jitsi: " . $jitsi->id . ", link: event.link, ttl: event.ttl || 0},\n";
+            echo "      done: function(response) { console.log('Recording link saved, idsource: ' + response.idsource); },\n";
+            echo "      fail: notification.exception\n";
+            echo "    }]);\n";
+            echo "  });\n";
+            echo "});\n";
+            echo "api.addEventListener('recordingStatusChanged', function(event) {\n";
+            echo "  if (!event.on && event.url) {\n";
+            echo "    require(['jquery', 'core/ajax', 'core/notification'], function($, ajax, notification) {\n";
+            echo "      ajax.call([{\n";
+            echo "        methodname: 'mod_jitsi_save_recording_link',\n";
+            echo "        args: {jitsi: " . $jitsi->id . ", link: event.url, ttl: 0},\n";
+            echo "        done: function(response) { console.log('Recording link saved via recordingStatusChanged, idsource: ' + response.idsource); },\n";
+            echo "        fail: notification.exception\n";
+            echo "      }]);\n";
+            echo "    });\n";
+            echo "  }\n";
+            echo "});\n";
+        }
 
         echo "function stopStream(){\n";
         echo "  var parar = true;\n";
@@ -1399,6 +1433,9 @@ function createsessionpriv(
         echo "enabled: false,\n";
     }
     echo "},\n";
+    if (get_config('mod_jitsi', 'record') == 1 && $servertype != 2) {
+        echo "fileRecordingsEnabled: true,\n";
+    }
     echo "remoteVideoMenu: {\n";
     echo "disableGrantModerator: true, \n";
     echo "},\n";
@@ -1468,6 +1505,16 @@ function createsessionpriv(
         echo "startWithVideoMuted: true,\n";
     } else {
         echo "startWithVideoMuted: false,\n";
+    }
+    $dropboxappkey = get_config('mod_jitsi', 'dropbox_appkey');
+    if (!empty($dropboxappkey) && $servertype != 2) {
+        echo "dropbox: {\n";
+        echo "    appKey: '" . addslashes($dropboxappkey) . "',\n";
+        $dropboxredirecturi = get_config('mod_jitsi', 'dropbox_redirect_uri');
+        if (!empty($dropboxredirecturi)) {
+            echo "    redirectURI: '" . addslashes($dropboxredirecturi) . "',\n";
+        }
+        echo "},\n";
     }
     echo "},\n";
 
@@ -1713,7 +1760,7 @@ function marktodelete($idrecord, $option) {
         $record->deleted = 2;
     }
     $records = $DB->get_records('jitsi_record', ['source' => $record->source]);
-    if (count($records) == 1) {
+    if (count($records) == 1 && $source->type == 0) {
         togglestate($source->link);
     }
     $DB->update_record('jitsi_record', $record);
