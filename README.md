@@ -123,10 +123,12 @@ When using a JaaS server with cloud recording enabled, recordings appear automat
 
 ### Dropbox recordings
 
-If Dropbox is configured in the plugin settings (**App Key** and **Redirect URI**), teachers can record sessions directly to their Dropbox account. Two ways to publish the recording link to students:
+If Dropbox is configured in the plugin settings (**App Key** and **Redirect URI**), teachers can record sessions directly to their Dropbox account. Once the recording is saved to Dropbox, the teacher must **manually publish the link** to students:
 
-1. **Automatic capture** — if Jitsi fires the `recordingLinkAvailable` event with the Dropbox URL, the link is saved automatically.
-2. **Manual entry** — teachers can paste the Dropbox share link directly in the Recordings tab using the "Add recording link" form. This is useful when the event does not fire automatically or when the teacher wants to add a recording made outside the session.
+- After the session, the teacher gets the share link from their Dropbox account.
+- In the activity's Recordings tab, the teacher pastes the link using the **"Add recording link"** form.
+
+> Jitsi events (`recordingLinkAvailable`, `recordingStatusChanged`) always fire with the JaaS CDN link (`8x8.vc`), never with the Dropbox URL — so Dropbox links cannot be captured automatically.
 
 #### Dropbox configuration
 
