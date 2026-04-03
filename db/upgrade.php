@@ -1014,5 +1014,18 @@ function xmldb_jitsi_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026040300, 'jitsi');
     }
 
+    if ($oldversion < 2026040301) {
+        // Fix existing 8x8.vc recording links that have no expiry set.
+        // JaaS recordings expire after 24 hours, so set timeexpires = timecreated + 86400
+        // for all type=1 records with an 8x8.vc link and timeexpires = 0.
+        $DB->execute(
+            "UPDATE {jitsi_source_record}
+             SET timeexpires = timecreated + 86400
+             WHERE type = 1 AND timeexpires = 0 AND " . $DB->sql_like('link', ':pattern'),
+            ['pattern' => '%8x8.vc%']
+        );
+        upgrade_mod_savepoint(true, 2026040301, 'jitsi');
+    }
+
     return true;
 }
