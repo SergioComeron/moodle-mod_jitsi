@@ -149,7 +149,10 @@ class mod_view_table extends table_sql {
                     ['target' => '_blank', 'class' => 'btn btn-sm btn-primary']
                 );
                 $content = "<div class=\"d-flex align-items-center gap-2 py-1\">"
-                    . "<span class=\"flex-grow-1\">" . $OUTPUT->render($tmpl) . "</span>"
+                    . "<span class=\"flex-grow-1\">"
+                    . $OUTPUT->render($tmpl)
+                    . " <small class=\"text-muted ms-2\">" . userdate($values->timecreated) . "</small>"
+                    . "</span>"
                     . "<span class=\"text-nowrap\">" . $actions . $openlink . "</span>"
                     . "</div>";
             }
