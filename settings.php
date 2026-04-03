@@ -255,39 +255,27 @@ if ($ADMIN->fulltree) {
         )
     );
 
-    $currentserverid = get_config('mod_jitsi', 'server');
-    $currentserver = $DB->get_manager()->table_exists('jitsi_servers')
-        ? $DB->get_record('jitsi_servers', ['id' => $currentserverid])
-        : null;
-    $is8x8server = ($currentserver && $currentserver->type == 2);
-
-    $dropboxheadingdesc = get_string('dropboxconfigex', 'jitsi');
-    if ($is8x8server) {
-        $dropboxheadingdesc .= ' <span class="badge bg-warning text-dark">' . get_string('dropboxnot8x8', 'jitsi') . '</span>';
-    }
     $settings->add(
         new admin_setting_heading(
             'jitsidropbox',
             get_string('dropboxconfig', 'jitsi'),
-            $dropboxheadingdesc
+            get_string('dropboxconfigex', 'jitsi')
         )
     );
 
-    if (!$is8x8server) {
-        $settings->add(new admin_setting_configtext(
-            'mod_jitsi/dropbox_appkey',
-            get_string('dropboxappkey', 'jitsi'),
-            get_string('dropboxappkeyex', 'jitsi'),
-            ''
-        ));
+    $settings->add(new admin_setting_configtext(
+        'mod_jitsi/dropbox_appkey',
+        get_string('dropboxappkey', 'jitsi'),
+        get_string('dropboxappkeyex', 'jitsi'),
+        ''
+    ));
 
-        $settings->add(new admin_setting_configtext(
-            'mod_jitsi/dropbox_redirect_uri',
-            get_string('dropboxredirecturi', 'jitsi'),
-            get_string('dropboxredirecturiex', 'jitsi'),
-            ''
-        ));
-    }
+    $settings->add(new admin_setting_configtext(
+        'mod_jitsi/dropbox_redirect_uri',
+        get_string('dropboxredirecturi', 'jitsi'),
+        get_string('dropboxredirecturiex', 'jitsi'),
+        ''
+    ));
 
     $settings->add(
         new admin_setting_heading(

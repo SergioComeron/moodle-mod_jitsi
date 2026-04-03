@@ -101,7 +101,6 @@ $string['crontaskdelete'] = 'Delete recordings';
 $string['deeplink'] = 'Deep Link';
 $string['deeplinkex'] = 'When on moodle app allows to transfer Jitsi sessions to Jitsi app.';
 $string['dropboxconfig'] = 'Dropbox recording configuration';
-$string['dropboxnot8x8'] = 'Not applicable for 8x8 (JaaS) servers';
 $string['dropboxconfigex'] = 'Configure the Dropbox app credentials to enable native Jitsi recording to Dropbox. You need to create an app at <a href="https://www.dropbox.com/developers/apps" target="_blank">Dropbox App Console</a> and set the redirect URI there.';
 $string['dropboxappkey'] = 'Dropbox App Key';
 $string['dropboxappkeyex'] = 'The App Key from your Dropbox app (Dropbox Developer Console → your app → Settings tab).';

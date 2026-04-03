@@ -600,7 +600,7 @@ function createsession(
         echo "enabled: false,\n";
     }
     echo "},\n";
-    if (get_config('mod_jitsi', 'record') == 1 && $servertype != 2) {
+    if (get_config('mod_jitsi', 'record') == 1) {
         echo "fileRecordingsEnabled: true,\n";
     }
     echo "remoteVideoMenu: {\n";
@@ -675,7 +675,7 @@ function createsession(
         echo "startWithVideoMuted: false,\n";
     }
     $dropboxappkey = get_config('mod_jitsi', 'dropbox_appkey');
-    if (!empty($dropboxappkey) && $servertype != 2) {
+    if (!empty($dropboxappkey)) {
         echo "dropbox: {\n";
         echo "    appKey: '" . addslashes($dropboxappkey) . "',\n";
         $dropboxredirecturi = get_config('mod_jitsi', 'dropbox_redirect_uri');
@@ -1431,7 +1431,7 @@ function createsessionpriv(
         echo "enabled: false,\n";
     }
     echo "},\n";
-    if (get_config('mod_jitsi', 'record') == 1 && $servertype != 2) {
+    if (get_config('mod_jitsi', 'record') == 1) {
         echo "fileRecordingsEnabled: true,\n";
     }
     echo "remoteVideoMenu: {\n";
@@ -1505,7 +1505,7 @@ function createsessionpriv(
         echo "startWithVideoMuted: false,\n";
     }
     $dropboxappkey = get_config('mod_jitsi', 'dropbox_appkey');
-    if (!empty($dropboxappkey) && $servertype != 2) {
+    if (!empty($dropboxappkey)) {
         echo "dropbox: {\n";
         echo "    appKey: '" . addslashes($dropboxappkey) . "',\n";
         $dropboxredirecturi = get_config('mod_jitsi', 'dropbox_redirect_uri');
