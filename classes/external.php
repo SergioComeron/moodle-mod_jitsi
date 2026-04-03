@@ -1054,11 +1054,15 @@ class mod_jitsi_external extends external_api {
             ['link' => $params['link'], 'jitsi' => $params['jitsi']]
         );
         if ($existingsource) {
-            // If we now have a TTL but the existing record has none, update it.
-            if ($params['ttl'] > 0) {
-                $existingfull = $DB->get_record('jitsi_source_record', ['id' => $existingsource->id]);
-                if ($existingfull && empty($existingfull->timeexpires)) {
+            // If the existing record has no expiry, try to set it now.
+            $existingfull = $DB->get_record('jitsi_source_record', ['id' => $existingsource->id]);
+            if ($existingfull && empty($existingfull->timeexpires)) {
+                $is8x8link = strpos($params['link'], '8x8.vc') !== false;
+                if ($params['ttl'] > 0) {
                     $existingfull->timeexpires = $existingfull->timecreated + $params['ttl'];
+                    $DB->update_record('jitsi_source_record', $existingfull);
+                } else if ($is8x8link) {
+                    $existingfull->timeexpires = $existingfull->timecreated + 86400;
                     $DB->update_record('jitsi_source_record', $existingfull);
                 }
             }
@@ -1074,7 +1078,15 @@ class mod_jitsi_external extends external_api {
         $sourcerecord->embed           = 0;
         $sourcerecord->maxparticipants = 0;
         $sourcerecord->type            = 1;
-        $sourcerecord->timeexpires     = $params['ttl'] > 0 ? (time() + $params['ttl']) : 0;
+        $jaasttl = 86400; // JaaS recordings expire after 24 hours if no TTL is provided.
+        $is8x8link = strpos($params['link'], '8x8.vc') !== false;
+        if ($params['ttl'] > 0) {
+            $sourcerecord->timeexpires = time() + $params['ttl'];
+        } else if ($is8x8link) {
+            $sourcerecord->timeexpires = time() + $jaasttl;
+        } else {
+            $sourcerecord->timeexpires = 0;
+        }
         $idsource = $DB->insert_record('jitsi_source_record', $sourcerecord);
 
         // Create the jitsi_record linking the source to the session.
