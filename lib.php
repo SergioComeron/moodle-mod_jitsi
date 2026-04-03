@@ -674,15 +674,20 @@ function createsession(
     } else {
         echo "startWithVideoMuted: false,\n";
     }
-    $dropboxappkey = get_config('mod_jitsi', 'dropbox_appkey');
-    if (!empty($dropboxappkey)) {
-        echo "dropbox: {\n";
-        echo "    appKey: '" . addslashes($dropboxappkey) . "',\n";
-        $dropboxredirecturi = get_config('mod_jitsi', 'dropbox_redirect_uri');
-        if (!empty($dropboxredirecturi)) {
-            echo "    redirectURI: '" . addslashes($dropboxredirecturi) . "',\n";
+    if ($servertype != 2) {
+        $dropboxappkey = get_config('mod_jitsi', 'dropbox_appkey');
+        if (!empty($dropboxappkey)) {
+            echo "dropbox: {\n";
+            echo "    appKey: '" . addslashes($dropboxappkey) . "',\n";
+            $dropboxredirecturi = get_config('mod_jitsi', 'dropbox_redirect_uri');
+            if (!empty($dropboxredirecturi)) {
+                echo "    redirectURI: '" . addslashes($dropboxredirecturi) . "',\n";
+            }
+            echo "},\n";
         }
-        echo "},\n";
+    }
+    if (get_config('mod_jitsi', 'transcription') == 0) {
+        echo "transcription: { enabled: false },\n";
     }
     echo "},\n";
 
@@ -1504,15 +1509,20 @@ function createsessionpriv(
     } else {
         echo "startWithVideoMuted: false,\n";
     }
-    $dropboxappkey = get_config('mod_jitsi', 'dropbox_appkey');
-    if (!empty($dropboxappkey)) {
-        echo "dropbox: {\n";
-        echo "    appKey: '" . addslashes($dropboxappkey) . "',\n";
-        $dropboxredirecturi = get_config('mod_jitsi', 'dropbox_redirect_uri');
-        if (!empty($dropboxredirecturi)) {
-            echo "    redirectURI: '" . addslashes($dropboxredirecturi) . "',\n";
+    if ($servertype != 2) {
+        $dropboxappkey = get_config('mod_jitsi', 'dropbox_appkey');
+        if (!empty($dropboxappkey)) {
+            echo "dropbox: {\n";
+            echo "    appKey: '" . addslashes($dropboxappkey) . "',\n";
+            $dropboxredirecturi = get_config('mod_jitsi', 'dropbox_redirect_uri');
+            if (!empty($dropboxredirecturi)) {
+                echo "    redirectURI: '" . addslashes($dropboxredirecturi) . "',\n";
+            }
+            echo "},\n";
         }
-        echo "},\n";
+    }
+    if (get_config('mod_jitsi', 'transcription') == 0) {
+        echo "transcription: { enabled: false },\n";
     }
     echo "},\n";
 

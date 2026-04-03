@@ -577,6 +577,7 @@ if (has_capability('mod/jitsi:viewrecords', $PAGE->context) || has_capability('m
                 . (!empty($editsource->embed) ? ' checked' : '') . ">";
             echo "<label class=\"form-check-label\" for=\"embedrecording\">" . get_string('dropboxembedrecording', 'jitsi') . "</label>";
             echo "</div>";
+            echo "<div class=\"form-text text-warning mt-1\">" . get_string('dropboxembedwarning', 'jitsi') . "</div>";
             echo "</div>";
             echo "<div class=\"mb-3\">";
             echo "<label for=\"recordingname\" class=\"form-label\">" . get_string('recordingname', 'jitsi') . "</label>";
@@ -603,6 +604,7 @@ if (has_capability('mod/jitsi:viewrecords', $PAGE->context) || has_capability('m
             echo "<input class=\"form-check-input\" type=\"checkbox\" id=\"embedrecording\" name=\"embedrecording\" value=\"1\">";
             echo "<label class=\"form-check-label\" for=\"embedrecording\">" . get_string('dropboxembedrecording', 'jitsi') . "</label>";
             echo "</div>";
+            echo "<div class=\"form-text text-warning mt-1\">" . get_string('dropboxembedwarning', 'jitsi') . "</div>";
             echo "</div>";
             echo "<div class=\"mb-3\">";
             echo "<label for=\"recordingname\" class=\"form-label\">" . get_string('recordingname', 'jitsi') . "</label>";
