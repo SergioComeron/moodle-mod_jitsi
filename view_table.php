@@ -141,13 +141,14 @@ class mod_view_table extends table_sql {
                     . "<p><a href=\"" . s($sourcerecord->link) . "\" target=\"_blank\" class=\"btn btn-sm btn-outline-secondary mt-1\">"
                     . get_string('openrecording', 'jitsi') . "</a></p><br>";
             } else {
+                $is8x8 = strpos($sourcerecord->link, '8x8.vc') !== false;
+                $btnlabel = $is8x8 ? get_string('download') : get_string('openrecording', 'jitsi');
                 $openlink = html_writer::link(
                     $sourcerecord->link,
-                    get_string('openrecording', 'jitsi'),
+                    $btnlabel,
                     ['target' => '_blank', 'class' => 'btn btn-sm btn-primary']
                 );
                 $content = "<div class=\"d-flex align-items-center gap-2 py-1\">"
-                    . "<span class=\"text-muted small text-nowrap\">" . userdate($values->timecreated) . "</span>"
                     . "<span class=\"flex-grow-1\">" . $OUTPUT->render($tmpl) . "</span>"
                     . "<span class=\"text-nowrap\">" . $actions . $openlink . "</span>"
                     . "</div>";
