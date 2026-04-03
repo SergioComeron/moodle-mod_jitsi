@@ -27,6 +27,8 @@ Glad to see you here again. These are some of the Jitsi features inside Moodle y
 * YouTube video sharing... pause, rewind and comment videos with all your students (cool)
 * Full moderation control in order to silence or kickoff students (token based mode recomended... see below)
 * YouTube streaming and **automatic recordings publishing** in your course...  really cool (requires the streaming configuration... see below)
+* **Dropbox recording** with automatic or manual link publishing in the recordings tab
+* **JaaS (8x8) cloud recordings** automatically captured and available for download, expiring after 24 hours
 * and others...
 
 ## Permissions
@@ -101,6 +103,69 @@ You should consider to get the status of "Publish App"  because in "Testing", au
 **IMPORTANT**: if your institution has **Google Workspace the "User type" in the "OAuth consent screen" can be "INTERNAL"**. In this way, none "Test users" are required to be added and tokens will never expire. **Probably that's the easiest and fastest way to set up this and you don't need to request the "Publish App"**.
 
 **WARNING**: the credentials should never been deleted in the Google console because all the recordings done will be removed in all the YouTube accounts.
+
+## Dropbox and external recording links
+
+In addition to YouTube streaming, the plugin supports publishing recordings stored in **Dropbox** or retrieved directly from the **JaaS (8x8) cloud recording** system.
+
+### How recording links are captured
+
+When a session ends, the plugin listens to two Jitsi events:
+
+- **`recordingLinkAvailable`** — fired by Jitsi when a recording link is ready (Dropbox or other).
+- **`recordingStatusChanged`** — fired when recording stops, may include a direct URL.
+
+Links are saved automatically in the activity's **Recordings** tab. Duplicate links for the same session are ignored.
+
+### JaaS (8x8) cloud recordings
+
+When using a JaaS server with cloud recording enabled, recordings appear automatically in the Recordings tab with a **Download** button. These links are hosted on 8x8's CDN and expire after **24 hours** (or according to your JaaS plan). Once expired, they are automatically hidden from the tab — no manual cleanup is needed.
+
+### Dropbox recordings
+
+If Dropbox is configured in the plugin settings (**App Key** and **Redirect URI**), teachers can record sessions directly to their Dropbox account. Two ways to publish the recording link to students:
+
+1. **Automatic capture** — if Jitsi fires the `recordingLinkAvailable` event with the Dropbox URL, the link is saved automatically.
+2. **Manual entry** — teachers can paste the Dropbox share link directly in the Recordings tab using the "Add recording link" form. This is useful when the event does not fire automatically or when the teacher wants to add a recording made outside the session.
+
+#### Dropbox configuration
+
+Navigate to **Site administration > Plugins > Activity modules > Jitsi** and fill in the **Dropbox recording configuration** section:
+
+- **Dropbox App Key**: the App Key from your Dropbox app (Dropbox Developer Console → your app → Settings tab).
+- **Dropbox Redirect URI**: the OAuth2 redirect URI registered in your Dropbox app. Must match exactly what you set in the Dropbox App Console — usually `https://your-jitsi-domain/static/oauth.html`.
+
+You need to create a Dropbox app at the [Dropbox App Console](https://www.dropbox.com/developers/apps).
+
+#### Embedding Dropbox videos
+
+When adding a Dropbox link manually, teachers can choose to **embed the video** directly in the Recordings tab by checking the "Embed video (Dropbox)" option. The plugin transforms the Dropbox share URL to a direct streaming URL (`?raw=1`) and renders it with an HTML5 `<video>` player. A fallback "Open recording" link is always shown below the player.
+
+> **Note**: Dropbox has a monthly bandwidth limit on free accounts. If many students view the embedded video simultaneously, Dropbox may temporarily block direct access.
+
+### Managing recording links
+
+Teachers with the **Record session** (`mod/jitsi:record`) capability can:
+
+- **Add** external recording links manually via the form at the bottom of the Recordings tab.
+- **Edit** any manually-added link (URL, name, embed option) using the edit icon next to the recording.
+- **Hide/show** recordings from students.
+- **Delete** recordings from the activity (external links are only removed from Moodle; the actual file in Dropbox or 8x8 is not affected).
+
+The Recordings tab is always visible to teachers even when no recordings exist yet, so they can add links at any time.
+
+### Recording link expiry
+
+The `timeexpires` field in the database controls when a recording link is automatically hidden:
+
+| Source | Expiry |
+|--------|--------|
+| JaaS (8x8.vc) | 24 hours from creation (or TTL from event if available) |
+| Dropbox | Never (permanent) |
+| YouTube | Never (managed via YouTube API) |
+| Manual entry | Never (permanent) |
+
+Expired recordings are hidden from the tab but not deleted from the database. They can be deleted manually from the Recordings tab.
 
 ## Token based mode
 
