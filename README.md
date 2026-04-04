@@ -181,6 +181,14 @@ Many Governmental Education Institutions deploy their own Jitsi servers to be us
 
 Basically the token configuration send your teachers (or roles with the mod/jitsi:moderation enabled) as moderators in a Jitsi session in a secure mode and only they are allowed to mute participants, disable cameras or kick-off participants.
 
+### Required plugin for JWT moderation on self-hosted servers
+
+If you are using a **self-hosted Jitsi server with JWT authentication** (Type 1), you need to install the [**jitsi-token-moderation-plugin**](https://github.com/nvonahsen/jitsi-token-moderation-plugin) on your Jitsi server for moderator roles to work correctly.
+
+Without this plugin, the `moderator` field in the JWT token is ignored by Jitsi and **all users will join as moderators**, regardless of their Moodle role.
+
+This plugin is not required for **8x8 JaaS** (Type 2) or **GCP auto-managed** (Type 3) servers, as moderation is handled natively by those services.
+
 ## Recommendations when using public Jitsi servers
 
 As we said "out of the box", the plugin connects with the public servers at meet.jit.si but there many other public Jitsi Meet servers... just make some search with Google or look at the [Community-run instances list](https://jitsi.github.io/handbook/docs/community/community-instances/).  You should test other servers in order to be able change in case of a disruption service or maybe because you find a public server nearest to your users and with less latency.
