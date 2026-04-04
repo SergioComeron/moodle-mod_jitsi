@@ -51,6 +51,16 @@ if ($ADMIN->fulltree) {
         }
     }
 
+    $linkusagestats = new moodle_url('/mod/jitsi/sessionusagestats.php');
+    $settings->add(
+        new admin_setting_heading(
+            'mod_jitsi/sessionusagestats',
+            '',
+            '<a href=' . $linkusagestats . ' >' . get_string('sessionusagestats', 'jitsi') . '</a>'
+            . ' <span class="text-muted small">(' . get_string('sessionusagestatsslow', 'jitsi') . ')</span>'
+        )
+    );
+
     $settings->add(new admin_setting_heading('mod_jitsi/config', get_string('config', 'jitsi'), ''));
     $settings->add(
         new admin_setting_confightmleditor(
@@ -453,16 +463,6 @@ if ($ADMIN->fulltree) {
             'mod_jitsi/stats',
             '',
             '<a href=' . $link . ' >' . get_string('jitsi_recording_statistics', 'jitsi') . '</a>'
-        )
-    );
-
-    $link = new moodle_url('/mod/jitsi/sessionusagestats.php');
-    $settings->add(
-        new admin_setting_heading(
-            'mod_jitsi/sessionusagestats',
-            '',
-            '<a href=' . $link . ' >' . get_string('sessionusagestats', 'jitsi') . '</a>'
-            . ' <span class="text-muted small">(' . get_string('sessionusagestatsslow', 'jitsi') . ')</span>'
         )
     );
 
