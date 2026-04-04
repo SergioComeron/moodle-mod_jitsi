@@ -72,6 +72,29 @@ class mod_jitsi_mod_form extends moodleform_mod {
             s($tokeninterno) . '" style="display:none"></div>'
         );
 
+        // Show the token display with copy button only when editing an existing activity.
+        if (isset($this->current->id) && $this->current->id > 0) {
+            $copyjs = 'navigator.clipboard.writeText(this.dataset.token).then(()=>{'
+                . 'var i=this.querySelector("i");'
+                . 'i.className="fa fa-check fa-lg text-success";'
+                . 'setTimeout(()=>{i.className="fa fa-copy fa-lg";},2000)'
+                . '})';
+            $tokendisplay = '<div class="form-group row fitem">'
+                . '<div class="col-md-3 col-form-label d-flex pb-0 pr-md-0">'
+                . get_string('yoursessiontoken', 'jitsi')
+                . '</div>'
+                . '<div class="col-md-9 form-inline align-items-start felement">'
+                . '<code class="mr-2">' . s($tokeninterno) . '</code>'
+                . '<button type="button" class="btn btn-link p-0 ml-2" '
+                . 'title="' . s(get_string('copytoken', 'jitsi')) . '" '
+                . 'data-token="' . s($tokeninterno) . '" '
+                . 'onclick="' . s($copyjs) . '">'
+                . '<i class="fa fa-copy fa-lg" aria-hidden="true"></i>'
+                . '</button>'
+                . '</div></div>';
+            $mform->addElement('html', $tokendisplay);
+        }
+
         $autocompleteopts = [
             'ajax'              => 'mod_jitsi/session_picker',
             'multiple'          => false,

@@ -1192,6 +1192,21 @@ class mod_jitsi_external extends external_api {
 
         $records = $DB->get_records_sql($sql, array_merge($inparams, $searchparams));
 
+        // If the query looks like an exact token (64 lowercase hex chars), also search
+        // globally by tokeninterno regardless of enrollment, so teachers can use a
+        // token shared by a colleague from another course.
+        if (preg_match('/^[0-9a-f]{64}$/', $query) && $query !== $excludetoken) {
+            $tokensql = "SELECT j.tokeninterno, j.name AS jname, c.fullname, c.shortname
+                           FROM {jitsi} j
+                           JOIN {course} c ON c.id = j.course
+                          WHERE j.sessionwithtoken = 0
+                            AND j.tokeninterno = :tok";
+            $tokenrec = $DB->get_record_sql($tokensql, ['tok' => $query]);
+            if ($tokenrec && !isset($records[$tokenrec->tokeninterno])) {
+                $records[$tokenrec->tokeninterno] = $tokenrec;
+            }
+        }
+
         $results = [];
         foreach ($records as $rec) {
             $results[] = [
