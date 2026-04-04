@@ -1123,7 +1123,7 @@ class mod_jitsi_external extends external_api {
 
     /**
      * Search for Jitsi master sessions (sessionwithtoken=0) available to join.
-     * Only returns sessions from courses where the current user is enrolled.
+     * Site admins search all courses; regular users are filtered to their enrolled courses.
      *
      * @param string $query Search string
      * @return array List of matching sessions [{value, label}]
@@ -1138,14 +1138,6 @@ class mod_jitsi_external extends external_api {
             return [];
         }
 
-        // Get courses where the user is enrolled.
-        $courses = enrol_get_users_courses($USER->id, true, ['id']);
-        if (empty($courses)) {
-            return [];
-        }
-        $courseids = array_keys($courses);
-        [$insql, $inparams] = $DB->get_in_or_equal($courseids, SQL_PARAMS_NAMED, 'cid');
-
         $like1 = $DB->sql_like('j.name', ':q1', false);
         $like2 = $DB->sql_like('c.fullname', ':q2', false);
         $like3 = $DB->sql_like('c.shortname', ':q3', false);
@@ -1156,14 +1148,33 @@ class mod_jitsi_external extends external_api {
             'q3' => '%' . $DB->sql_like_escape($query) . '%',
         ];
 
-        $sql = "SELECT j.tokeninterno, j.name AS jname, c.fullname, c.shortname
-                  FROM {jitsi} j
-                  JOIN {course} c ON c.id = j.course
-                 WHERE j.sessionwithtoken = 0
-                   AND j.course $insql
-                   AND ($like1 OR $like2 OR $like3)
-              ORDER BY c.shortname, j.name
-                 LIMIT 20";
+        // Site admins can see all courses; regular users only their enrolled ones.
+        if (is_siteadmin()) {
+            $sql = "SELECT j.tokeninterno, j.name AS jname, c.fullname, c.shortname
+                      FROM {jitsi} j
+                      JOIN {course} c ON c.id = j.course
+                     WHERE j.sessionwithtoken = 0
+                       AND ($like1 OR $like2 OR $like3)
+                  ORDER BY c.shortname, j.name
+                     LIMIT 20";
+            $inparams = [];
+        } else {
+            $courses = enrol_get_users_courses($USER->id, true, ['id']);
+            if (empty($courses)) {
+                return [];
+            }
+            $courseids = array_keys($courses);
+            [$insql, $inparams] = $DB->get_in_or_equal($courseids, SQL_PARAMS_NAMED, 'cid');
+
+            $sql = "SELECT j.tokeninterno, j.name AS jname, c.fullname, c.shortname
+                      FROM {jitsi} j
+                      JOIN {course} c ON c.id = j.course
+                     WHERE j.sessionwithtoken = 0
+                       AND j.course $insql
+                       AND ($like1 OR $like2 OR $like3)
+                  ORDER BY c.shortname, j.name
+                     LIMIT 20";
+        }
 
         $records = $DB->get_records_sql($sql, array_merge($inparams, $searchparams));
 
