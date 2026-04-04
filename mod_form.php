@@ -63,11 +63,7 @@ class mod_jitsi_mod_form extends moodleform_mod {
             $tokeninterno = $this->current->tokeninterno;
         }
         $mform->addElement('hidden', 'tokeninterno', $tokeninterno);
-
         $mform->setDefault('tokeninterno', $tokeninterno);
-        $mform->addElement('static', 'tokeninternocompartir', get_string('tokeninterno', 'jitsi'), $tokeninterno);
-        $mform->addHelpButton('tokeninternocompartir', 'tokeninternocompartir', 'jitsi');
-
         $mform->setType('tokeninterno', PARAM_TEXT);
 
         // Build pre-selected option when editing an existing shared session.
