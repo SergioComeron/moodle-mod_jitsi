@@ -41,7 +41,7 @@ class mod_jitsi_mod_form extends moodleform_mod {
      * Defines forms elements
      */
     public function definition() {
-        global $CFG, $PAGE;
+        global $CFG, $DB, $PAGE;
         $mform = $this->_form;
         $mform->addElement('header', 'general', get_string('general', 'form'));
         $mform->addElement('text', 'name', get_string('jitsiname', 'jitsi'), ['size' => '64']);
