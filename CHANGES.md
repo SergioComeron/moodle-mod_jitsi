@@ -4,6 +4,7 @@
  * External invitations redirect to login for unauthenticated users on Moodle 5.0
  * Existing 8x8.vc recordings with no expiry updated via upgrade step
  * GCP server moderation: moderator added to JWT context.user, fix token_owner_party module and server config
+ * GCP startup script re-ran on every reboot causing JWT credential mismatch and all users joining as moderators (issue #143)
  * PHP nowdoc indentation error in GCP startup script
  * Compact recording row: remove duplicate date, use Download label for 8x8 links
  * Dropbox config excluded for 8x8 servers and warning shown in settings
