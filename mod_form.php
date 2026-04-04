@@ -70,12 +70,32 @@ class mod_jitsi_mod_form extends moodleform_mod {
 
         $mform->setType('tokeninterno', PARAM_TEXT);
 
-        if ($mform->getElementValue('sessionwithtoken') == 0) {
-            $mform->setDefault('tokeninvitacion', '');
+        // Build pre-selected option when editing an existing shared session.
+        $existingoptions = [];
+        if (!empty($this->current->tokeninvitacion)) {
+            $mastersession = $DB->get_record_sql(
+                "SELECT j.name, c.fullname, c.shortname
+                   FROM {jitsi} j
+                   JOIN {course} c ON c.id = j.course
+                  WHERE " . $DB->sql_compare_text('j.tokeninterno') . " = " . $DB->sql_compare_text(':tok'),
+                ['tok' => $this->current->tokeninvitacion]
+            );
+            if ($mastersession) {
+                $existinglabel = $mastersession->name . ' — ' . $mastersession->fullname .
+                    ' (' . $mastersession->shortname . ')';
+                $existingoptions[$this->current->tokeninvitacion] = $existinglabel;
+            }
         }
-        $mform->addElement('text', 'tokeninvitacion', get_string('tokeninvitacion', 'jitsi'), ['size' => '70']);
-        $mform->hideIf('tokeninvitacion', 'sessionwithtoken', 'notchecked');
 
+        $autocompleteopts = [
+            'ajax'             => 'mod_jitsi/session_picker',
+            'multiple'         => false,
+            'noselectionstring' => get_string('searchsession', 'jitsi'),
+            'showsuggestions'  => true,
+        ];
+        $mform->addElement('autocomplete', 'tokeninvitacion',
+            get_string('tokeninvitacion', 'jitsi'), $existingoptions, $autocompleteopts);
+        $mform->hideIf('tokeninvitacion', 'sessionwithtoken', 'notchecked');
         $mform->addHelpButton('tokeninvitacion', 'tokeninvitacion', 'jitsi');
         $mform->setType('tokeninvitacion', PARAM_TEXT);
 

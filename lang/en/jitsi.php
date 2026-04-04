@@ -281,6 +281,7 @@ $string['sessionisbeingrecordingby'] = 'Session is being recorded by {$a}';
 $string['sessionnamefields'] = 'Session name fields';
 $string['sessionnamefieldsex'] = 'Fields that define the session name';
 $string['sessionshared'] = 'Session shared with \'{$a}\' course';
+$string['searchsession'] = 'Type to search for a session...';
 $string['sharedsessionwithtoken'] = 'Session shared with token. Select this to enter the token of the other course';
 $string['sharestream'] = 'Share stream with users outside of Moodle (experimental function)';
 $string['sharestreamex'] = 'Enable this setting to offer the ability to share the live stream of a session with users outside of Moodle.';

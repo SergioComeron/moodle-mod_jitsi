@@ -1110,4 +1110,83 @@ class mod_jitsi_external extends external_api {
             'idsource' => new external_value(PARAM_INT, 'Id of the created jitsi_source_record'),
         ]);
     }
+
+    /**
+     * Returns description of search_shared_sessions parameters
+     * @return external_function_parameters
+     */
+    public static function search_shared_sessions_parameters() {
+        return new external_function_parameters([
+            'query' => new external_value(PARAM_TEXT, 'Search string (activity name, course name or shortname)'),
+        ]);
+    }
+
+    /**
+     * Search for Jitsi master sessions (sessionwithtoken=0) available to join.
+     * Only returns sessions from courses where the current user is enrolled.
+     *
+     * @param string $query Search string
+     * @return array List of matching sessions [{value, label}]
+     */
+    public static function search_shared_sessions($query) {
+        global $DB, $USER;
+
+        $params = self::validate_parameters(self::search_shared_sessions_parameters(), ['query' => $query]);
+        $query = trim($params['query']);
+
+        if (core_text::strlen($query) < 3) {
+            return [];
+        }
+
+        // Get courses where the user is enrolled.
+        $courses = enrol_get_users_courses($USER->id, true, ['id']);
+        if (empty($courses)) {
+            return [];
+        }
+        $courseids = array_keys($courses);
+        [$insql, $inparams] = $DB->get_in_or_equal($courseids, SQL_PARAMS_NAMED, 'cid');
+
+        $like1 = $DB->sql_like('j.name', ':q1', false);
+        $like2 = $DB->sql_like('c.fullname', ':q2', false);
+        $like3 = $DB->sql_like('c.shortname', ':q3', false);
+
+        $searchparams = [
+            'q1' => '%' . $DB->sql_like_escape($query) . '%',
+            'q2' => '%' . $DB->sql_like_escape($query) . '%',
+            'q3' => '%' . $DB->sql_like_escape($query) . '%',
+        ];
+
+        $sql = "SELECT j.tokeninterno, j.name AS jname, c.fullname, c.shortname
+                  FROM {jitsi} j
+                  JOIN {course} c ON c.id = j.course
+                 WHERE j.sessionwithtoken = 0
+                   AND j.course $insql
+                   AND ($like1 OR $like2 OR $like3)
+              ORDER BY c.shortname, j.name
+                 LIMIT 20";
+
+        $records = $DB->get_records_sql($sql, array_merge($inparams, $searchparams));
+
+        $results = [];
+        foreach ($records as $rec) {
+            $results[] = [
+                'value' => $rec->tokeninterno,
+                'label' => $rec->jname . ' — ' . $rec->fullname . ' (' . $rec->shortname . ')',
+            ];
+        }
+        return $results;
+    }
+
+    /**
+     * Returns description of search_shared_sessions return value
+     * @return external_description
+     */
+    public static function search_shared_sessions_returns() {
+        return new external_multiple_structure(
+            new external_single_structure([
+                'value' => new external_value(PARAM_TEXT, 'tokeninterno of the Jitsi session'),
+                'label' => new external_value(PARAM_TEXT, 'Human-readable label (activity — course)'),
+            ])
+        );
+    }
 }
