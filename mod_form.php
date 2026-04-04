@@ -78,6 +78,12 @@ class mod_jitsi_mod_form extends moodleform_mod {
         $mform->addHelpButton('tokeninvitacion', 'tokeninvitacion', 'jitsi');
         $mform->setType('tokeninvitacion', PARAM_TEXT);
 
+        // Preserve the existing token so get_data() can restore it if the user
+        // saves without making a new selection in the autocomplete.
+        $existingtoken = $this->current->tokeninvitacion ?? '';
+        $mform->addElement('hidden', 'tokeninvitacion_original', $existingtoken);
+        $mform->setType('tokeninvitacion_original', PARAM_TEXT);
+
         $this->standard_intro_elements();
 
         $mform->addElement('header', 'availability', get_string('availability', 'assign'));
@@ -217,6 +223,11 @@ class mod_jitsi_mod_form extends moodleform_mod {
             $data->tokeninvitacion = reset($data->tokeninvitacion) ?: '';
         }
 
+        // If nothing was selected in the autocomplete, preserve the original token.
+        if (empty($data->tokeninvitacion) && !empty($data->tokeninvitacion_original)) {
+            $data->tokeninvitacion = $data->tokeninvitacion_original;
+        }
+
         if (!empty($data->tokeninvitacion)) {
             $sql = "SELECT * FROM {jitsi} WHERE " . $DB->sql_compare_text('tokeninterno') . " = " .
                 $DB->sql_compare_text(':tokeninvitacion');
@@ -304,5 +315,7 @@ class mod_jitsi_mod_form extends moodleform_mod {
         if (empty($defaultvalues['completionminutes'])) {
             $defaultvalues['completionminutes'] = 1;
         }
+        // Always start the session picker empty — the raw token is not useful to display.
+        $defaultvalues['tokeninvitacion'] = '';
     }
 }
