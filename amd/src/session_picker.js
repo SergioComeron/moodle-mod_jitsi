@@ -44,3 +44,15 @@ export const transport = (selector, query, callback, failure) => {
         fail: failure,
     }]);
 };
+
+/**
+ * Process results returned by the transport function before rendering.
+ * Required by core/form-autocomplete alongside transport.
+ *
+ * @param {string} selector  CSS selector of the underlying input element
+ * @param {Array}  results   Array of {value, label} objects from transport callback
+ * @return {Array}           Same array, ready to be added as <option> elements
+ */
+export const processResults = (selector, results) => {
+    return results;
+};
