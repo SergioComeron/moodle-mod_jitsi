@@ -1117,7 +1117,8 @@ class mod_jitsi_external extends external_api {
      */
     public static function search_shared_sessions_parameters() {
         return new external_function_parameters([
-            'query' => new external_value(PARAM_TEXT, 'Search string (activity name, course name or shortname)'),
+            'query'        => new external_value(PARAM_TEXT, 'Search string (activity name, course name or shortname)'),
+            'excludetoken' => new external_value(PARAM_TEXT, 'tokeninterno to exclude from results (current activity)', VALUE_DEFAULT, ''),
         ]);
     }
 
@@ -1128,11 +1129,15 @@ class mod_jitsi_external extends external_api {
      * @param string $query Search string
      * @return array List of matching sessions [{value, label}]
      */
-    public static function search_shared_sessions($query) {
+    public static function search_shared_sessions($query, $excludetoken = '') {
         global $DB, $USER;
 
-        $params = self::validate_parameters(self::search_shared_sessions_parameters(), ['query' => $query]);
-        $query = trim($params['query']);
+        $params = self::validate_parameters(self::search_shared_sessions_parameters(), [
+            'query'        => $query,
+            'excludetoken' => $excludetoken,
+        ]);
+        $query        = trim($params['query']);
+        $excludetoken = trim($params['excludetoken']);
 
         if (core_text::strlen($query) < 3) {
             return [];
@@ -1148,6 +1153,14 @@ class mod_jitsi_external extends external_api {
             'q3' => '%' . $DB->sql_like_escape($query) . '%',
         ];
 
+        // Exclude the current activity's own token so a session cannot join itself.
+        $excludeclause = '';
+        if (!empty($excludetoken)) {
+            $excludeclause = " AND " . $DB->sql_compare_text('j.tokeninterno') .
+                " <> " . $DB->sql_compare_text(':excludetoken');
+            $searchparams['excludetoken'] = $excludetoken;
+        }
+
         // Site admins can see all courses; regular users only their enrolled ones.
         if (is_siteadmin()) {
             $sql = "SELECT j.tokeninterno, j.name AS jname, c.fullname, c.shortname
@@ -1155,6 +1168,7 @@ class mod_jitsi_external extends external_api {
                       JOIN {course} c ON c.id = j.course
                      WHERE j.sessionwithtoken = 0
                        AND ($like1 OR $like2 OR $like3)
+                       $excludeclause
                   ORDER BY c.shortname, j.name
                      LIMIT 20";
             $inparams = [];
@@ -1172,6 +1186,7 @@ class mod_jitsi_external extends external_api {
                      WHERE j.sessionwithtoken = 0
                        AND j.course $insql
                        AND ($like1 OR $like2 OR $like3)
+                       $excludeclause
                   ORDER BY c.shortname, j.name
                      LIMIT 20";
         }

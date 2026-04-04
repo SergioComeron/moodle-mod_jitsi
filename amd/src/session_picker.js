@@ -35,9 +35,13 @@ import Ajax from 'core/ajax';
  * @param {Function} failure   Call with error on failure
  */
 export const transport = (selector, query, callback, failure) => {
+    // Read the current activity's own tokeninterno from the hidden field so it
+    // can be excluded from search results (a session cannot join itself).
+    const excludeToken = document.getElementById('id_tokeninterno')?.value ?? '';
+
     Ajax.call([{
         methodname: 'mod_jitsi_search_shared_sessions',
-        args: {query: query},
+        args: {query: query, excludetoken: excludeToken},
         done: (results) => {
             callback(results);
         },
