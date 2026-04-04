@@ -44,6 +44,7 @@ class provider implements \core_privacy\local\request\data_provider, \core_priva
         $collection->add_external_location_link('jitsi', [
             'username' => 'privacy:metadata:jitsi:username',
             'avatar' => 'privacy:metadata:jitsi:avatar',
+            'email' => 'privacy:metadata:jitsi:email',
             ], 'privacy:metadata:jitsi');
 
         return $collection;

@@ -768,6 +768,8 @@ function createsession(
         $payloadencoded = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($payload));
         $headerencoded = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($header));
         $signature = hash_hmac('sha256', $headerencoded . "." . $payloadencoded, $secret, true);
+    } else {
+        echo "roomName: \"" . urlencode($sessionnorm) . "\",\n";
     }
 
     if (
@@ -1617,6 +1619,8 @@ function createsessionpriv(
         $payloadencoded = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($payload));
         $headerencoded = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($header));
         $signature = hash_hmac('sha256', $headerencoded . "." . $payloadencoded, $secret, true);
+    } else {
+        echo "roomName: \"" . urlencode($sessionnorm) . "\",\n";
     }
 
     if (

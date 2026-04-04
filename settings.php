@@ -290,6 +290,15 @@ if ($ADMIN->fulltree) {
         )
     );
 
+    $settings->add(
+        new admin_setting_configcheckbox(
+            'mod_jitsi/sendemail',
+            get_string('sendemail', 'jitsi'),
+            get_string('sendemailex', 'jitsi'),
+            0
+        )
+    );
+
     $is8x8server = false;
     $currentserverid = get_config('mod_jitsi', 'server');
     if (!empty($currentserverid) && $DB->get_manager()->table_exists('jitsi_servers')) {

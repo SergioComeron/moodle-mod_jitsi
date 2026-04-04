@@ -69,6 +69,8 @@ $string['allowbreakoutrooms'] = 'Allow breakout rooms';
 $string['allowbreakoutroomsex'] = 'Allow to create breakout rooms. Server needs to be configured to allow breakout rooms.';
 $string['transcription'] = 'Enable transcription';
 $string['transcriptionex'] = 'Enable the transcription feature in Jitsi sessions. If disabled, the transcription option will be hidden from participants regardless of the server configuration.';
+$string['sendemail'] = 'Send user email to Jitsi';
+$string['sendemailex'] = 'If enabled, the user\'s Moodle email address will be sent to the Jitsi server. This may be required for some server features such as recording delivery by email. Note: enabling this shares personal data with the Jitsi server — ensure this is compliant with your privacy policy.';
 $string['apikeyid8x8'] = 'Api Key ID';
 $string['apikeyid8x8ex'] = 'Api Key ID to use with 8x8 server. You can get it from the 8x8 server administration. (https://jaas.8x8.com/)';
 $string['appaccessinfo'] = 'If you want to join the meeting using a mobile device, you will need the Jitsi Meet mobile application.';
@@ -230,6 +232,7 @@ $string['pressrecordbutton'] = 'Press the record button';
 $string['privacy:metadata:jitsi'] = 'In order to integrate with a Jitsi session, user data needs to be exchanged with that service.';
 $string['privacy:metadata:jitsi:avatar'] = 'The avatar is sent from moodle to show to the other users of the Jitsi session';
 $string['privacy:metadata:jitsi:username'] = 'The username is sent from moodle to show to the other users of the Jitsi session';
+$string['privacy:metadata:jitsi:email'] = 'The user email is sent to the Jitsi server when the send email setting is enabled';
 $string['privatekey'] = 'Private key';
 $string['privatekeyex'] = 'Private key to sign the token with 8x8 server. You can get it from the 8x8 server administration. (https://jaas.8x8.com/).
 Download the private key file and copy the content here.
