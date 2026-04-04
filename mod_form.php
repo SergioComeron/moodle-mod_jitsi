@@ -233,13 +233,20 @@ class mod_jitsi_mod_form extends moodleform_mod {
             }
         }
 
-        if ($data->tokeninvitacion != null) {
+        // Autocomplete returns an array even when multiple=false; normalize to string.
+        if (is_array($data->tokeninvitacion)) {
+            $data->tokeninvitacion = reset($data->tokeninvitacion) ?: '';
+        }
+
+        if (!empty($data->tokeninvitacion)) {
             $sql = "SELECT * FROM {jitsi} WHERE " . $DB->sql_compare_text('tokeninterno') . " = " .
                 $DB->sql_compare_text(':tokeninvitacion');
             $params = ['tokeninvitacion' => $data->tokeninvitacion];
             $principal = $DB->get_record_sql($sql, $params);
-            $data->timeopen = $principal->timeopen;
-            $data->timeclose = $principal->timeclose;
+            if ($principal) {
+                $data->timeopen = $principal->timeopen;
+                $data->timeclose = $principal->timeclose;
+            }
         }
 
         $sql = "SELECT * FROM {jitsi} WHERE " . $DB->sql_compare_text('tokeninvitacion') . " = :tokeninterno";
@@ -290,9 +297,18 @@ class mod_jitsi_mod_form extends moodleform_mod {
             $errors['validitytime'] = get_string('tokeninvitationnotvalid', 'jitsi');
         }
         if ($data['sessionwithtoken'] == 1) {
-            $sql = "select * from {jitsi} where tokeninterno = '" . $data['tokeninvitacion'] . "'";
-            if ($DB->get_record_sql($sql) == null) {
+            // Autocomplete returns an array even when multiple=false; normalize to string.
+            $tokeninvitacion = is_array($data['tokeninvitacion'])
+                ? (reset($data['tokeninvitacion']) ?: '')
+                : $data['tokeninvitacion'];
+            if (empty($tokeninvitacion)) {
                 $errors['tokeninvitacion'] = get_string('tokeninvitationvalidation', 'jitsi');
+            } else {
+                $sql = "SELECT * FROM {jitsi} WHERE " . $DB->sql_compare_text('tokeninterno') .
+                    " = " . $DB->sql_compare_text(':tok');
+                if ($DB->get_record_sql($sql, ['tok' => $tokeninvitacion]) == null) {
+                    $errors['tokeninvitacion'] = get_string('tokeninvitationvalidation', 'jitsi');
+                }
             }
         }
 
