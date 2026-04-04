@@ -1,5 +1,5 @@
 # Changelog
-## v4.2.2 (2026040301)
+## v4.2.2 (2026040400)
 # Fixed
  * External invitations redirect to login for unauthenticated users on Moodle 5.0
  * Existing 8x8.vc recordings with no expiry updated via upgrade step
