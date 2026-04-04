@@ -720,59 +720,48 @@ if (!function_exists('mod_jitsi_default_startup_script')) {
         if [ -n "$HOSTNAME_FQDN" ] && [ -f "/etc/prosody/conf.avail/${HOSTNAME_FQDN}.cfg.lua" ]; then
 
         python3 << PYEOF
-import re
-
-vhost_file = "/etc/prosody/conf.avail/${HOSTNAME_FQDN}.cfg.lua"
-
-with open(vhost_file, "r") as f:
-    content = f.read()
-
-# 1. Reemplazar authentication = "jitsi-anonymous" (con o sin comentario al final)
-#    El VirtualHost tiene prioridad sobre la config global, hay que reemplazarlo aqui
-new_auth = (
-    'authentication = "token"\n'
-    '    app_id = "${JWT_APP_ID}"\n'
-    '    app_secret = "${JWT_SECRET}"\n'
-    '    allow_empty_token = false'
-)
-content = re.sub(r'authentication\s*=\s*"jitsi-anonymous"[^\n]*', new_auth, content)
-
-# 2. Activar token_verification si estaba comentado
-content = content.replace('--"token_verification"', '"token_verification"')
-
-# 3. Añadir token_owner_party al componente conference (sin depender de token_verification)
-if '"token_owner_party"' not in content:
-    pattern = r'(Component\s+"conference\.[^"]+"\s+"muc".*?modules_enabled\s*=\s*\{)'
-    def add_modules(m):
-        return m.group(1) + '\n        "token_verification";\n        "token_owner_party";'
-    content = re.sub(pattern, add_modules, content, count=1, flags=re.DOTALL)
-
-with open(vhost_file, "w") as f:
-    f.write(content)
-
-print("Prosody vhost configurado para JWT con token_owner_party")
-PYEOF
+        import re
+        vhost_file = "/etc/prosody/conf.avail/${HOSTNAME_FQDN}.cfg.lua"
+        with open(vhost_file, "r") as f:
+            content = f.read()
+        new_auth = (
+            'authentication = "token"\n'
+            '    app_id = "${JWT_APP_ID}"\n'
+            '    app_secret = "${JWT_SECRET}"\n'
+            '    allow_empty_token = false'
+        )
+        content = re.sub(r'authentication\s*=\s*"jitsi-anonymous"[^\n]*', new_auth, content)
+        content = content.replace('--"token_verification"', '"token_verification"')
+        if '"token_owner_party"' not in content:
+            pattern = r'(Component\s+"conference\.[^"]+"\s+"muc".*?modules_enabled\s*=\s*\{)'
+            def add_modules(m):
+                return m.group(1) + '\n        "token_verification";\n        "token_owner_party";'
+            content = re.sub(pattern, add_modules, content, count=1, flags=re.DOTALL)
+        with open(vhost_file, "w") as f:
+            f.write(content)
+        print("Prosody vhost configurado para JWT con token_owner_party")
+        PYEOF
 
         # Crear mod_token_owner_party.lua si no existe en esta version de jitsi-meet
         MODULE_PATH="/usr/share/jitsi-meet/prosody-plugins/mod_token_owner_party.lua"
         if [ ! -f "$MODULE_PATH" ]; then
         cat > "$MODULE_PATH" << 'EOFLUA'
--- mod_token_owner_party.lua
--- Reads context.user.moderator from JWT and assigns owner affiliation.
--- Replacement for the module missing in newer jitsi-meet versions.
-module:log('info', 'mod_token_owner_party loaded');
-module:hook('muc-occupant-joined', function(event)
-    local room, occupant, session = event.room, event.occupant, event.origin;
-    if not session or not session.auth_token then return; end
-    local context_user = session.jitsi_meet_context_user;
-    if context_user then
-        local is_mod = context_user['moderator'];
-        if is_mod == true or is_mod == 'true' then
-            room:set_affiliation(true, occupant.bare_jid, 'owner');
-        end
-    end
-end, 2);
-EOFLUA
+        -- mod_token_owner_party.lua
+        -- Reads context.user.moderator from JWT and assigns owner affiliation.
+        -- Replacement for the module missing in newer jitsi-meet versions.
+        module:log('info', 'mod_token_owner_party loaded');
+        module:hook('muc-occupant-joined', function(event)
+            local room, occupant, session = event.room, event.occupant, event.origin;
+            if not session or not session.auth_token then return; end
+            local context_user = session.jitsi_meet_context_user;
+            if context_user then
+                local is_mod = context_user['moderator'];
+                if is_mod == true or is_mod == 'true' then
+                    room:set_affiliation(true, occupant.bare_jid, 'owner');
+                end
+            end
+        end, 2);
+        EOFLUA
         echo "mod_token_owner_party.lua created"
         fi
 
