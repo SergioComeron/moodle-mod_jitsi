@@ -41,6 +41,13 @@ if ($ADMIN->fulltree) {
         $servers = $DB->get_records_menu('jitsi_servers', null, 'name ASC', 'id, name');
 
         if (!empty($servers)) {
+            // Si el valor guardado no apunta a un servidor existente, corregirlo al primero disponible.
+            $currentserverconfig = get_config('mod_jitsi', 'server');
+            if (empty($currentserverconfig) || !array_key_exists($currentserverconfig, $servers)) {
+                $firstid = array_key_first($servers);
+                set_config('server', $firstid, 'mod_jitsi');
+            }
+
             $settings->add(new admin_setting_configselect(
                 'mod_jitsi/server',
                 get_string('server', 'jitsi'),

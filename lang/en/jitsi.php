@@ -402,6 +402,7 @@ $string['serversetasdefault'] = 'Server "{$a}" set as default';
 $string['setdefault'] = 'Set as default';
 $string['defaultserverupdated'] = 'Default server updated to: {$a}';
 $string['defaultserverdeleted'] = 'Warning: You deleted the default server. Please configure a new default server in the plugin settings.';
+$string['nodefaultserver'] = 'No default server configured. Please go to the plugin settings and set a default server.';
 
 $string['creatingvm'] = 'Creating VM… ({$a})';
 $string['gcpcreatingmodal'] = 'Creating virtual machine in Google Cloud';

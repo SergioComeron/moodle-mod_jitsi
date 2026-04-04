@@ -501,7 +501,7 @@ if (!function_exists('mod_jitsi_default_startup_script')) {
             selection-strategy = "SplitBridgeSelectionStrategy"
         }
         conference {
-            enable-auto-owner = true
+            enable-auto-owner = false
         }
         }
         EOFJICO
@@ -716,19 +716,67 @@ if (!function_exists('mod_jitsi_default_startup_script')) {
         JWT_APP_ID="jitsi_moodle_$(openssl rand -hex 8)"
         JWT_SECRET=$(openssl rand -hex 32)
 
-        # Configurar JWT en Jitsi
-        if [ -n "$HOSTNAME_FQDN" ]; then
-        # Configurar prosody para JWT
-        cat >> "/etc/prosody/conf.avail/${HOSTNAME_FQDN}.cfg.lua" << EOFJWT
+        # Configurar JWT en Jitsi (usando Python para modificación fiable del vhost de Prosody)
+        if [ -n "$HOSTNAME_FQDN" ] && [ -f "/etc/prosody/conf.avail/${HOSTNAME_FQDN}.cfg.lua" ]; then
 
-        -- JWT authentication
-        authentication = "token"
-        app_id = "${JWT_APP_ID}"
-        app_secret = "${JWT_SECRET}"
-        allow_empty_token = false
-        EOFJWT
+        python3 << PYEOF
+import re
 
-        # Reiniciar servicios
+vhost_file = "/etc/prosody/conf.avail/${HOSTNAME_FQDN}.cfg.lua"
+
+with open(vhost_file, "r") as f:
+    content = f.read()
+
+# 1. Reemplazar authentication = "jitsi-anonymous" (con o sin comentario al final)
+#    El VirtualHost tiene prioridad sobre la config global, hay que reemplazarlo aqui
+new_auth = (
+    'authentication = "token"\n'
+    '    app_id = "${JWT_APP_ID}"\n'
+    '    app_secret = "${JWT_SECRET}"\n'
+    '    allow_empty_token = false'
+)
+content = re.sub(r'authentication\s*=\s*"jitsi-anonymous"[^\n]*', new_auth, content)
+
+# 2. Activar token_verification si estaba comentado
+content = content.replace('--"token_verification"', '"token_verification"')
+
+# 3. Añadir token_owner_party al componente conference (sin depender de token_verification)
+if '"token_owner_party"' not in content:
+    pattern = r'(Component\s+"conference\.[^"]+"\s+"muc".*?modules_enabled\s*=\s*\{)'
+    def add_modules(m):
+        return m.group(1) + '\n        "token_verification";\n        "token_owner_party";'
+    content = re.sub(pattern, add_modules, content, count=1, flags=re.DOTALL)
+
+with open(vhost_file, "w") as f:
+    f.write(content)
+
+print("Prosody vhost configurado para JWT con token_owner_party")
+PYEOF
+
+        # Crear mod_token_owner_party.lua si no existe en esta version de jitsi-meet
+        MODULE_PATH="/usr/share/jitsi-meet/prosody-plugins/mod_token_owner_party.lua"
+        if [ ! -f "$MODULE_PATH" ]; then
+        cat > "$MODULE_PATH" << 'EOFLUA'
+-- mod_token_owner_party.lua
+-- Reads context.user.moderator from JWT and assigns owner affiliation.
+-- Replacement for the module missing in newer jitsi-meet versions.
+module:log('info', 'mod_token_owner_party loaded');
+module:hook('muc-occupant-joined', function(event)
+    local room, occupant, session = event.room, event.occupant, event.origin;
+    if not session or not session.auth_token then return; end
+    local context_user = session.jitsi_meet_context_user;
+    if context_user then
+        local is_mod = context_user['moderator'];
+        if is_mod == true or is_mod == 'true' then
+            room:set_affiliation(true, occupant.bare_jid, 'owner');
+        end
+    end
+end, 2);
+EOFLUA
+        echo "mod_token_owner_party.lua created"
+        fi
+
+        # Reiniciar servicios con la nueva configuracion
         systemctl restart prosody jicofo jitsi-videobridge2 || true
         fi
 
@@ -1504,14 +1552,27 @@ if ($action === 'delete' && $id > 0) {
         // Eliminar de la base de datos.
         $DB->delete_records('jitsi_servers', ['id' => $server->id]);
 
-        // Si era el servidor por defecto, limpiar la configuración.
+        // Tras el borrado, verificar si el config apunta a un servidor válido.
+        // Esto cubre tanto el caso de que fuera el predeterminado como que el valor
+        // fuera 0 o vacío (nunca asignado explícitamente).
         $defaultserver = get_config('mod_jitsi', 'server');
-        if ($defaultserver == $server->id) {
-            set_config('server', '', 'mod_jitsi');
-            \core\notification::add(
-                get_string('defaultserverdeleted', 'mod_jitsi'),
-                \core\output\notification::NOTIFY_WARNING
-            );
+        $defaultvalid = !empty($defaultserver) && $DB->record_exists('jitsi_servers', ['id' => $defaultserver]);
+        if (!$defaultvalid) {
+            $remaining = $DB->get_records('jitsi_servers', [], 'id ASC', 'id, name', 0, 1);
+            if (!empty($remaining)) {
+                $nextserver = reset($remaining);
+                set_config('server', $nextserver->id, 'mod_jitsi');
+                \core\notification::add(
+                    get_string('defaultserverupdated', 'mod_jitsi', $nextserver->name),
+                    \core\output\notification::NOTIFY_WARNING
+                );
+            } else {
+                set_config('server', '', 'mod_jitsi');
+                \core\notification::add(
+                    get_string('defaultserverdeleted', 'mod_jitsi'),
+                    \core\output\notification::NOTIFY_WARNING
+                );
+            }
         }
 
         \core\notification::add(

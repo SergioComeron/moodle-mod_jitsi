@@ -394,6 +394,11 @@ function createsession(
     $serverid = get_config('mod_jitsi', 'server');
     $server = $DB->get_record('jitsi_servers', ['id' => $serverid]);
 
+    if (!$server) {
+        echo $OUTPUT->notification(get_string('nodefaultserver', 'jitsi'), 'error');
+        return;
+    }
+
     // Check if GCP server is running.
     $serverstatus = jitsi_check_gcp_server_status($server);
     if ($serverstatus['status'] === 'stopped') {
@@ -739,6 +744,7 @@ function createsession(
             "alg" => "HS256",
         ], JSON_UNESCAPED_SLASHES);
         $base64urlheader = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($header));
+        $ismoderator = has_capability('mod/jitsi:moderation', $PAGE->context);
         $payload = json_encode([
             "context" => [
                 "user" => [
@@ -747,6 +753,7 @@ function createsession(
                     "name" => $nombre,
                     "email" => $mail,
                     "id" => "",
+                    "moderator" => $ismoderator,
                 ],
                 "group" => "",
             ],
@@ -755,7 +762,7 @@ function createsession(
             "sub" => $domain,
             "room" => urlencode($sessionnorm),
             "exp" => time() + 24 * 3600,
-            "moderator" => has_capability('mod/jitsi:moderation', $PAGE->context),
+            "moderator" => $ismoderator,
         ], JSON_UNESCAPED_SLASHES);
         echo "roomName: \"" . urlencode($sessionnorm) . "\",\n";
         $payloadencoded = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($payload));
@@ -1289,6 +1296,11 @@ function createsessionpriv(
     $serverid = get_config('mod_jitsi', 'server');
     $server = $DB->get_record('jitsi_servers', ['id' => $serverid]);
 
+    if (!$server) {
+        echo $OUTPUT->notification(get_string('nodefaultserver', 'jitsi'), 'error');
+        return;
+    }
+
     // Check if GCP server is running.
     $serverstatus = jitsi_check_gcp_server_status($server);
     if ($serverstatus['status'] === 'stopped') {
@@ -1581,6 +1593,7 @@ function createsessionpriv(
             "alg" => "HS256",
         ], JSON_UNESCAPED_SLASHES);
         $base64urlheader = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($header));
+        $ismoderator = has_capability('mod/jitsi:moderation', $PAGE->context);
         $payload = json_encode([
             "context" => [
                 "user" => [
@@ -1589,6 +1602,7 @@ function createsessionpriv(
                     "name" => $nombre,
                     "email" => $mail,
                     "id" => "",
+                    "moderator" => $ismoderator,
                 ],
                 "group" => "",
             ],
@@ -1597,7 +1611,7 @@ function createsessionpriv(
             "sub" => $domain,
             "room" => urlencode($sessionnorm),
             "exp" => time() + 24 * 3600,
-            "moderator" => has_capability('mod/jitsi:moderation', $PAGE->context),
+            "moderator" => $ismoderator,
         ], JSON_UNESCAPED_SLASHES);
         echo "roomName: \"" . urlencode($sessionnorm) . "\",\n";
         $payloadencoded = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($payload));
