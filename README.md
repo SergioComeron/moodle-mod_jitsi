@@ -27,6 +27,8 @@ Glad to see you here again. These are some of the Jitsi features inside Moodle y
 * YouTube video sharing... pause, rewind and comment videos with all your students (cool)
 * Full moderation control in order to silence or kickoff students (token based mode recomended... see below)
 * YouTube streaming and **automatic recordings publishing** in your course...  really cool (requires the streaming configuration... see below)
+* **Dropbox recording** with automatic or manual link publishing in the recordings tab
+* **JaaS (8x8) cloud recordings** automatically captured and available for download, expiring after 24 hours
 * and others...
 
 ## Permissions
@@ -102,6 +104,71 @@ You should consider to get the status of "Publish App"  because in "Testing", au
 
 **WARNING**: the credentials should never been deleted in the Google console because all the recordings done will be removed in all the YouTube accounts.
 
+## Dropbox and external recording links
+
+In addition to YouTube streaming, the plugin supports publishing recordings stored in **Dropbox** or retrieved directly from the **JaaS (8x8) cloud recording** system.
+
+### How recording links are captured
+
+When a session ends, the plugin listens to two Jitsi events:
+
+- **`recordingLinkAvailable`** — fired by Jitsi when a recording link is ready (Dropbox or other).
+- **`recordingStatusChanged`** — fired when recording stops, may include a direct URL.
+
+Links are saved automatically in the activity's **Recordings** tab. Duplicate links for the same session are ignored.
+
+### JaaS (8x8) cloud recordings
+
+When using a JaaS server with cloud recording enabled, recordings appear automatically in the Recordings tab with a **Download** button. These links are hosted on 8x8's CDN and expire after **24 hours** (or according to your JaaS plan). Once expired, they are automatically hidden from the tab — no manual cleanup is needed.
+
+### Dropbox recordings
+
+If Dropbox is configured in the plugin settings (**App Key** and **Redirect URI**), teachers can record sessions directly to their Dropbox account. Once the recording is saved to Dropbox, the teacher must **manually publish the link** to students:
+
+- After the session, the teacher gets the share link from their Dropbox account.
+- In the activity's Recordings tab, the teacher pastes the link using the **"Add recording link"** form.
+
+> Jitsi events (`recordingLinkAvailable`, `recordingStatusChanged`) always fire with the JaaS CDN link (`8x8.vc`), never with the Dropbox URL — so Dropbox links cannot be captured automatically.
+
+#### Dropbox configuration
+
+Navigate to **Site administration > Plugins > Activity modules > Jitsi** and fill in the **Dropbox recording configuration** section:
+
+- **Dropbox App Key**: the App Key from your Dropbox app (Dropbox Developer Console → your app → Settings tab).
+- **Dropbox Redirect URI**: the OAuth2 redirect URI registered in your Dropbox app. Must match exactly what you set in the Dropbox App Console — usually `https://your-jitsi-domain/static/oauth.html`.
+
+You need to create a Dropbox app at the [Dropbox App Console](https://www.dropbox.com/developers/apps).
+
+#### Embedding Dropbox videos
+
+When adding a Dropbox link manually, teachers can choose to **embed the video** directly in the Recordings tab by checking the "Embed video (Dropbox)" option. The plugin transforms the Dropbox share URL to a direct streaming URL (`?raw=1`) and renders it with an HTML5 `<video>` player. A fallback "Open recording" link is always shown below the player.
+
+> **Note**: Dropbox has a monthly bandwidth limit on free accounts. If many students view the embedded video simultaneously, Dropbox may temporarily block direct access.
+
+### Managing recording links
+
+Teachers with the **Record session** (`mod/jitsi:record`) capability can:
+
+- **Add** external recording links manually via the form at the bottom of the Recordings tab.
+- **Edit** any manually-added link (URL, name, embed option) using the edit icon next to the recording.
+- **Hide/show** recordings from students.
+- **Delete** recordings from the activity (external links are only removed from Moodle; the actual file in Dropbox or 8x8 is not affected).
+
+The Recordings tab is always visible to teachers even when no recordings exist yet, so they can add links at any time.
+
+### Recording link expiry
+
+The `timeexpires` field in the database controls when a recording link is automatically hidden:
+
+| Source | Expiry |
+|--------|--------|
+| JaaS (8x8.vc) | 24 hours from creation (or TTL from event if available) |
+| Dropbox | Never (permanent) |
+| YouTube | Never (managed via YouTube API) |
+| Manual entry | Never (permanent) |
+
+Expired recordings are hidden from the tab but not deleted from the database. They can be deleted manually from the Recordings tab.
+
 ## Token based mode
 
 If you decide to deploy this plugin in production you may would like to install your private Jitsi Meet server with "Token based" mode. This configuration will give you extra control with the moderation privileges.
@@ -113,6 +180,14 @@ Alternatively you could explore on buying Jitsi Meet as a service with some prov
 Many Governmental Education Institutions deploy their own Jitsi servers to be used by their schools or universities... you could ask them if they provide Jitsi token credentials for this configuration.
 
 Basically the token configuration send your teachers (or roles with the mod/jitsi:moderation enabled) as moderators in a Jitsi session in a secure mode and only they are allowed to mute participants, disable cameras or kick-off participants.
+
+### Required plugin for JWT moderation on self-hosted servers
+
+If you are using a **self-hosted Jitsi server with JWT authentication** (Type 1), you need to install the [**jitsi-token-moderation-plugin**](https://github.com/nvonahsen/jitsi-token-moderation-plugin) on your Jitsi server for moderator roles to work correctly.
+
+Without this plugin, the `moderator` field in the JWT token is ignored by Jitsi and **all users will join as moderators**, regardless of their Moodle role.
+
+This plugin is not required for **8x8 JaaS** (Type 2) or **GCP auto-managed** (Type 3) servers, as moderation is handled natively by those services.
 
 ## Recommendations when using public Jitsi servers
 

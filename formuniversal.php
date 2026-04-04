@@ -29,7 +29,6 @@ require_once(dirname(dirname(dirname(__FILE__))) . '/config.php');
 require_once(dirname(dirname(dirname(__FILE__))) . '/lib/moodlelib.php');
 require_once(dirname(__FILE__) . '/lib.php');
 require_once("$CFG->libdir/formslib.php");
-require_login(0, true);
 global $DB;
 
 $token = required_param('t', PARAM_TEXT);
@@ -77,8 +76,14 @@ class name_form extends moodleform {
 
 $PAGE->set_url($CFG->wwwroot . '/mod/jitsi/formuniversal.php');
 $sesion = $DB->get_record('jitsi', ['id' => $sessionid]);
-$PAGE->set_cm($cm);
-$PAGE->set_context(context_module::instance($id));
+
+$modulecontext = context_module::instance($id);
+if (isloggedin()) {
+    $PAGE->set_cm($cm);
+    $PAGE->set_context($modulecontext);
+} else {
+    $PAGE->set_context(context_system::instance());
+}
 
 $PAGE->set_title(get_string('accesstotitle', 'jitsi', $sesion->name));
 $PAGE->set_heading(get_string('accesstotitle', 'jitsi', $sesion->name));
@@ -89,12 +94,13 @@ if ($jitsi->intro && $CFG->branch < 40) {
     echo $jitsi->intro;
 }
 
+$course = $DB->get_record('course', ['id' => $cm->course]);
 $event = \mod_jitsi\event\jitsi_session_guest_form::create([
-  'objectid' => $PAGE->cm->instance,
-  'context' => $PAGE->context,
+  'objectid' => $cm->instance,
+  'context' => $modulecontext,
 ]);
-$event->add_record_snapshot('course', $PAGE->course);
-$event->add_record_snapshot($PAGE->cm->modname, $sesion);
+$event->add_record_snapshot('course', $course);
+$event->add_record_snapshot('jitsi', $sesion);
 
 $event->trigger();
 if (!istimedout($sesion)) {

@@ -104,7 +104,8 @@ if (
     echo $OUTPUT->notification(get_string('urlerror', 'jitsi'), 'error');
 } else {
     $nombre = str_replace("'", "\\'", $nombre);
-    createsession($teacher, $cmid, $avatar, $nombre, $session, null, $jitsi);
+    $mail = get_config('mod_jitsi', 'sendemail') ? $USER->email : null;
+    createsession($teacher, $cmid, $avatar, $nombre, $session, $mail, $jitsi);
 }
 
 echo $OUTPUT->footer();

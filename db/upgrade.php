@@ -993,5 +993,39 @@ function xmldb_jitsi_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2025122303, 'jitsi');
     }
 
+    if ($oldversion < 2026032200) {
+        // Add type field to jitsi_source_record to support external recording links.
+        // Type 0 = YouTube (existing behaviour), Type 1 = external link from recordingLinkAvailable event.
+        $table = new xmldb_table('jitsi_source_record');
+        $field = new xmldb_field('type', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '0', 'embed');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        upgrade_mod_savepoint(true, 2026032200, 'jitsi');
+    }
+
+    if ($oldversion < 2026040300) {
+        // Add timeexpires field to jitsi_source_record to support TTL-based expiry (e.g. JaaS recordings expire after 24h).
+        $table = new xmldb_table('jitsi_source_record');
+        $field = new xmldb_field('timeexpires', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0', 'type');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        upgrade_mod_savepoint(true, 2026040300, 'jitsi');
+    }
+
+    if ($oldversion < 2026040301) {
+        // Fix existing 8x8.vc recording links that have no expiry set.
+        // JaaS recordings expire after 24 hours, so set timeexpires = timecreated + 86400
+        // for all type=1 records with an 8x8.vc link and timeexpires = 0.
+        $DB->execute(
+            "UPDATE {jitsi_source_record}
+             SET timeexpires = timecreated + 86400
+             WHERE type = 1 AND timeexpires = 0 AND " . $DB->sql_like('link', ':pattern'),
+            ['pattern' => '%8x8.vc%']
+        );
+        upgrade_mod_savepoint(true, 2026040301, 'jitsi');
+    }
+
     return true;
 }

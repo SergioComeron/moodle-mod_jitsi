@@ -94,6 +94,9 @@ $state = optional_param('state', null, PARAM_TEXT);
 $deletejitsirecordid = optional_param('deletejitsirecordid', 0, PARAM_INT);
 $hidejitsirecordid = optional_param('hidejitsirecordid', 0, PARAM_INT);
 $showjitsirecordid = optional_param('showjitsirecordid', 0, PARAM_INT);
+$addrecordlink = optional_param('addrecordlink', 0, PARAM_INT);
+$editrecordid = optional_param('editrecordid', 0, PARAM_INT);
+$saverecordedit = optional_param('saverecordedit', 0, PARAM_INT);
 $selecteddate = optional_param_array('selecteddate', 0, PARAM_INT);
 $tab = optional_param('tab', 'help', PARAM_TEXT);
 $activetab = $tab;
@@ -282,6 +285,56 @@ if ($errorborrado == false) {
     $today = getdate();
 }
 
+if ($addrecordlink && !$errorborrado && confirm_sesskey()) {
+    require_capability('mod/jitsi:record', context_module::instance($cm->id));
+    $recordingurl = optional_param('recordingurl', '', PARAM_URL);
+    $recordingname = optional_param('recordingname', '', PARAM_TEXT);
+    $embedrecording = optional_param('embedrecording', 0, PARAM_INT);
+    if (!empty($recordingurl)) {
+        $sourcerecord = new stdClass();
+        $sourcerecord->link = $recordingurl;
+        $sourcerecord->account = null;
+        $sourcerecord->timecreated = time();
+        $sourcerecord->userid = $USER->id;
+        $sourcerecord->embed = (strpos($recordingurl, 'dropbox.com') !== false) ? $embedrecording : 0;
+        $sourcerecord->maxparticipants = 0;
+        $sourcerecord->type = 1;
+        $sourcerecord->id = $DB->insert_record('jitsi_source_record', $sourcerecord);
+
+        $record = new stdClass();
+        $record->jitsi = $jitsiid;
+        $record->deleted = 0;
+        $record->source = $sourcerecord->id;
+        $record->visible = 1;
+        $record->name = empty($recordingname) ? userdate(time()) : $recordingname;
+        $DB->insert_record('jitsi_record', $record);
+
+        $redirecturl = new moodle_url('/mod/jitsi/view.php', ['id' => $id, 'tab' => 'record']);
+        redirect($redirecturl, get_string('recordinglinksaved', 'jitsi'));
+    }
+}
+
+if ($saverecordedit && !$errorborrado && confirm_sesskey()) {
+    require_capability('mod/jitsi:record', context_module::instance($cm->id));
+    $editingrecordid = optional_param('editingrecordid', 0, PARAM_INT);
+    $recordingurl = optional_param('recordingurl', '', PARAM_URL);
+    $recordingname = optional_param('recordingname', '', PARAM_TEXT);
+    $embedrecording = optional_param('embedrecording', 0, PARAM_INT);
+    if ($editingrecordid && !empty($recordingurl)) {
+        $record = $DB->get_record('jitsi_record', ['id' => $editingrecordid], '*', MUST_EXIST);
+        $sourcerecord = $DB->get_record('jitsi_source_record', ['id' => $record->source], '*', MUST_EXIST);
+        if ($sourcerecord->type == 1) {
+            $sourcerecord->link = $recordingurl;
+            $sourcerecord->embed = (strpos($recordingurl, 'dropbox.com') !== false) ? $embedrecording : 0;
+            $DB->update_record('jitsi_source_record', $sourcerecord);
+            $record->name = empty($recordingname) ? userdate($sourcerecord->timecreated) : $recordingname;
+            $DB->update_record('jitsi_record', $record);
+        }
+        $redirecturl = new moodle_url('/mod/jitsi/view.php', ['id' => $id, 'tab' => 'record']);
+        redirect($redirecturl, get_string('updated', 'jitsi'));
+    }
+}
+
 if (!$deletejitsirecordid) {
     echo $OUTPUT->header();
 }
@@ -406,7 +459,11 @@ if ($today[0] < $fechacierre || $fechacierre == 0) {
 
 echo "<br><br>";
 
-$sql = 'select * from {jitsi_record} where jitsi = ' . $jitsiid . ' and deleted = 0 order by id desc';
+$sql = 'SELECT r.* FROM {jitsi_record} r
+        JOIN {jitsi_source_record} s ON s.id = r.source
+        WHERE r.jitsi = ' . $jitsiid . ' AND r.deleted = 0
+        AND (s.timeexpires = 0 OR s.timeexpires > ' . time() . ')
+        ORDER BY r.id DESC';
 $records = $DB->get_records_sql($sql);
 
 if (has_capability('mod/jitsi:viewusersonsession', $PAGE->context)) {
@@ -425,10 +482,10 @@ echo "<ul class=\"nav nav-tabs\" id=\"myTab\" role=\"tablist\">";
          ($activetab == 'help' ? 'true' : 'false') . "\">" . get_string('help') . "</a>";
     echo "  </li>";
 
-if (has_capability('mod/jitsi:viewrecords', $PAGE->context)) {
+if (has_capability('mod/jitsi:viewrecords', $PAGE->context) || has_capability('mod/jitsi:record', $PAGE->context)) {
     if (
         ($records && isallvisible($records)) ||
-        (has_capability('mod/jitsi:record', $PAGE->context) && $records) ||
+        has_capability('mod/jitsi:record', $PAGE->context) ||
         get_config('mod_jitsi', 'streamingoption') == 1
     ) {
         echo "  <li class=\"nav-item\">";
@@ -467,31 +524,106 @@ if (get_config('mod_jitsi', 'help') != null) {
 }
 echo "  </div>";
 
-if (has_capability('mod/jitsi:viewrecords', $PAGE->context)) {
+if (has_capability('mod/jitsi:viewrecords', $PAGE->context) || has_capability('mod/jitsi:record', $PAGE->context)) {
     echo "  <div class=\"tab-pane fade " . ($activetab == 'record' ? 'show active' : '') .
         "\" id=\"record\" role=\"tabpanel\" aria-labelledby=\"record-tab\">";
-    if ($records) {
-        $table = new mod_view_table('search');
-        $fields = '{jitsi_record}.id,
-                   {jitsi_source_record}.link,
-                   {jitsi_record}.jitsi,
-                   {jitsi_record}.name,
-                   {jitsi_source_record}.timecreated';
-        $from = '{jitsi_record}, {jitsi_source_record}';
-        $where = '{jitsi_record}.source = {jitsi_source_record}.id AND
-                  {jitsi_record}.jitsi = ' . $jitsiid . ' and
-                  {jitsi_record}.deleted = 0';
-        if (!has_capability('mod/jitsi:hide', $context)) {
-            $where .= ' AND {jitsi_record}.visible = 1';
+    if (has_capability('mod/jitsi:viewrecords', $PAGE->context)) {
+        if ($records) {
+            $table = new mod_view_table('search');
+            $fields = '{jitsi_record}.id,
+                       {jitsi_source_record}.link,
+                       {jitsi_source_record}.type,
+                       {jitsi_record}.jitsi,
+                       {jitsi_record}.name,
+                       {jitsi_source_record}.timecreated';
+            $from = '{jitsi_record}, {jitsi_source_record}';
+            $where = '{jitsi_record}.source = {jitsi_source_record}.id AND
+                      {jitsi_record}.jitsi = ' . $jitsiid . ' and
+                      {jitsi_record}.deleted = 0';
+            if (!has_capability('mod/jitsi:hide', $context)) {
+                $where .= ' AND {jitsi_record}.visible = 1';
+            }
+            $params = ['jitsiid' => $jitsi->id];
+            $table->set_sql($fields, $from, $where, $params);
+            $table->sortable(true, 'id', SORT_DESC);
+            $table->define_baseurl('/mod/jitsi/view.php?id=' . $id . '&tab=record');
+            $table->out(5, true);
+        } else {
+            echo "<br>";
+            echo get_string('norecords', 'jitsi');
         }
-        $params = ['jitsiid' => $jitsi->id];
-        $table->set_sql($fields, $from, $where, $params);
-        $table->sortable(true, 'id', SORT_DESC);
-        $table->define_baseurl('/mod/jitsi/view.php?id=' . $id . '&tab=record');
-        $table->out(5, true);
-    } else {
-        echo "<br>";
-        echo get_string('norecords', 'jitsi');
+    }
+    if (has_capability('mod/jitsi:record', $PAGE->context)) {
+        echo "<br><hr>";
+        if ($editrecordid) {
+            $editrecord = $DB->get_record('jitsi_record', ['id' => $editrecordid]);
+            $editsource = $editrecord ? $DB->get_record('jitsi_source_record', ['id' => $editrecord->source]) : null;
+        }
+        if ($editrecordid && !empty($editrecord) && !empty($editsource) && $editsource->type == 1) {
+            echo "<h5>" . get_string('editrecordinglink', 'jitsi') . "</h5>";
+            echo "<form method=\"post\" action=\"" . (new moodle_url('/mod/jitsi/view.php', ['id' => $id]))->out(false) . "\">";
+            echo "<input type=\"hidden\" name=\"sesskey\" value=\"" . sesskey() . "\">";
+            echo "<input type=\"hidden\" name=\"tab\" value=\"record\">";
+            echo "<input type=\"hidden\" name=\"editingrecordid\" value=\"" . $editrecordid . "\">";
+            echo "<div class=\"mb-3\">";
+            echo "<label for=\"recordingurl\" class=\"form-label\">" . get_string('recordingurl', 'jitsi') . "</label>";
+            echo "<input type=\"url\" class=\"form-control\" id=\"recordingurl\" name=\"recordingurl\""
+                . " value=\"" . s($editsource->link) . "\" required>";
+            echo "</div>";
+            echo "<div class=\"mb-3\" id=\"dropboxembedoption\""
+                . (strpos($editsource->link, 'dropbox.com') !== false ? '' : ' style="display:none"') . ">";
+            echo "<div class=\"form-check\">";
+            echo "<input class=\"form-check-input\" type=\"checkbox\" id=\"embedrecording\" name=\"embedrecording\" value=\"1\""
+                . (!empty($editsource->embed) ? ' checked' : '') . ">";
+            echo "<label class=\"form-check-label\" for=\"embedrecording\">" . get_string('dropboxembedrecording', 'jitsi') . "</label>";
+            echo "</div>";
+            echo "<div class=\"form-text text-warning mt-1\">" . get_string('dropboxembedwarning', 'jitsi') . "</div>";
+            echo "</div>";
+            echo "<div class=\"mb-3\">";
+            echo "<label for=\"recordingname\" class=\"form-label\">" . get_string('recordingname', 'jitsi') . "</label>";
+            echo "<input type=\"text\" class=\"form-control\" id=\"recordingname\" name=\"recordingname\""
+                . " value=\"" . s($editrecord->name) . "\">";
+            echo "</div>";
+            echo "<button type=\"submit\" name=\"saverecordedit\" value=\"1\" class=\"btn btn-primary\">";
+            echo get_string('savechanges');
+            echo "</button> ";
+            $cancelurl = new moodle_url('/mod/jitsi/view.php', ['id' => $id, 'tab' => 'record']);
+            echo "<a href=\"" . $cancelurl->out(false) . "\" class=\"btn btn-secondary\">" . get_string('cancel') . "</a>";
+            echo "</form><br>";
+        } else {
+            echo "<h5>" . get_string('addrecordinglink', 'jitsi') . "</h5>";
+            echo "<form method=\"post\" action=\"" . (new moodle_url('/mod/jitsi/view.php', ['id' => $id]))->out(false) . "\">";
+            echo "<input type=\"hidden\" name=\"sesskey\" value=\"" . sesskey() . "\">";
+            echo "<input type=\"hidden\" name=\"tab\" value=\"record\">";
+            echo "<div class=\"mb-3\">";
+            echo "<label for=\"recordingurl\" class=\"form-label\">" . get_string('recordingurl', 'jitsi') . "</label>";
+            echo "<input type=\"url\" class=\"form-control\" id=\"recordingurl\" name=\"recordingurl\" required>";
+            echo "</div>";
+            echo "<div class=\"mb-3\" id=\"dropboxembedoption\" style=\"display:none\">";
+            echo "<div class=\"form-check\">";
+            echo "<input class=\"form-check-input\" type=\"checkbox\" id=\"embedrecording\" name=\"embedrecording\" value=\"1\">";
+            echo "<label class=\"form-check-label\" for=\"embedrecording\">" . get_string('dropboxembedrecording', 'jitsi') . "</label>";
+            echo "</div>";
+            echo "<div class=\"form-text text-warning mt-1\">" . get_string('dropboxembedwarning', 'jitsi') . "</div>";
+            echo "</div>";
+            echo "<div class=\"mb-3\">";
+            echo "<label for=\"recordingname\" class=\"form-label\">" . get_string('recordingname', 'jitsi') . "</label>";
+            echo "<input type=\"text\" class=\"form-control\" id=\"recordingname\" name=\"recordingname\">";
+            echo "</div>";
+            echo "<button type=\"submit\" name=\"addrecordlink\" value=\"1\" class=\"btn btn-secondary\">";
+            echo get_string('addrecordinglink', 'jitsi');
+            echo "</button>";
+            echo "</form><br>";
+        }
+        echo "<script>
+        document.getElementById('recordingurl').addEventListener('input', function() {
+            var isDropbox = this.value.indexOf('dropbox.com') !== -1;
+            document.getElementById('dropboxembedoption').style.display = isDropbox ? 'block' : 'none';
+            if (!isDropbox) {
+                document.getElementById('embedrecording').checked = false;
+            }
+        });
+        </script>";
     }
     echo "  </div>";
 }

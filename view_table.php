@@ -74,6 +74,91 @@ class mod_view_table extends table_sql {
 
         $record = $DB->get_record('jitsi_record', ['id' => $values->id]);
         $sourcerecord = $DB->get_record('jitsi_source_record', ['id' => $record->source]);
+        if ($sourcerecord->id && $sourcerecord->link != null && isset($sourcerecord->type) && $sourcerecord->type == 1) {
+            // External link (from recordingLinkAvailable event: Dropbox, file, etc.).
+            $deleteurl = new moodle_url('/mod/jitsi/view.php?id=' . $cm->id . '&deletejitsirecordid=' .
+                $record->id . '&sesskey=' . sesskey() . '#record');
+            $deleteicon = new pix_icon('t/delete', get_string('delete'));
+            $deleteaction = $OUTPUT->action_icon(
+                $deleteurl,
+                $deleteicon,
+                new confirm_action(get_string('confirmdeleterecordinactivity', 'jitsi'))
+            );
+
+            $hideurl = new moodle_url('/mod/jitsi/view.php?id=' . $cm->id . '&hidejitsirecordid=' .
+                $record->id . '&sesskey=' . sesskey() . '#record');
+            $showurl = new moodle_url('/mod/jitsi/view.php?id=' . $cm->id . '&showjitsirecordid=' .
+                $record->id . '&sesskey=' . sesskey() . '#record');
+            $hideicon = new pix_icon('t/hide', get_string('hide'));
+            $showicon = new pix_icon('t/show', get_string('show'));
+            $hideaction = $OUTPUT->action_icon($hideurl, $hideicon, new confirm_action('Hide?'));
+            $showaction = $OUTPUT->action_icon($showurl, $showicon, new confirm_action('Show?'));
+
+            $tmpl = new \core\output\inplace_editable(
+                'mod_jitsi',
+                'recordname',
+                $values->id,
+                has_capability('mod/jitsi:editrecordname', $context),
+                format_string($values->name),
+                $values->name,
+                get_string('editrecordname', 'jitsi'),
+                get_string('newvaluefor', 'jitsi') . format_string($values->name)
+            );
+
+            $editurl = new moodle_url('/mod/jitsi/view.php', [
+                'id' => $cm->id,
+                'editrecordid' => $record->id,
+                'tab' => 'record',
+            ]);
+            $editicon = new pix_icon('t/edit', get_string('edit'));
+            $editaction = $OUTPUT->action_icon($editurl, $editicon);
+
+            $actions = '';
+            if ($jitsi->sessionwithtoken == 0) {
+                if (has_capability('mod/jitsi:deleterecord', $context) && has_capability('mod/jitsi:hide', $context)) {
+                    $actions = ($record->visible != 0) ? $deleteaction . $hideaction : $deleteaction . $showaction;
+                } else if (has_capability('mod/jitsi:deleterecord', $context)) {
+                    $actions = $deleteaction;
+                } else if (has_capability('mod/jitsi:hide', $context)) {
+                    $actions = ($record->visible != 0) ? $hideaction : $showaction;
+                }
+                if (has_capability('mod/jitsi:record', $context)) {
+                    $actions .= $editaction;
+                }
+            }
+
+            if (!empty($sourcerecord->embed) && strpos($sourcerecord->link, 'dropbox.com') !== false) {
+                $embedurl = preg_replace('/([?&])dl=\d/', '$1raw=1', $sourcerecord->link);
+                if (strpos($embedurl, 'raw=1') === false) {
+                    $embedurl .= (strpos($embedurl, '?') !== false ? '&' : '?') . 'raw=1';
+                }
+                $content = "<h5>" . $OUTPUT->render($tmpl) . "</h5>"
+                    . "<h6 class=\"card-subtitle mb-2 text-muted\">" . userdate($values->timecreated) . "</h6>"
+                    . "<span class=\"align-middle " . $alignmentclass . "\"><p>" . $actions . "</p></span>"
+                    . "<video controls style=\"width:100%;max-width:100%\">"
+                    . "<source src=\"" . s($embedurl) . "\" type=\"video/mp4\">"
+                    . "</video>"
+                    . "<p><a href=\"" . s($sourcerecord->link) . "\" target=\"_blank\" class=\"btn btn-sm btn-outline-secondary mt-1\">"
+                    . get_string('openrecording', 'jitsi') . "</a></p><br>";
+            } else {
+                $is8x8 = strpos($sourcerecord->link, '8x8.vc') !== false;
+                $btnlabel = $is8x8 ? get_string('download') : get_string('openrecording', 'jitsi');
+                $openlink = html_writer::link(
+                    $sourcerecord->link,
+                    $btnlabel,
+                    ['target' => '_blank', 'class' => 'btn btn-sm btn-primary']
+                );
+                $content = "<div class=\"d-flex align-items-center gap-2 py-1\">"
+                    . "<span class=\"flex-grow-1\">"
+                    . $OUTPUT->render($tmpl)
+                    . " <small class=\"text-muted ms-2\">" . userdate($values->timecreated) . "</small>"
+                    . "</span>"
+                    . "<span class=\"text-nowrap\">" . $actions . $openlink . "</span>"
+                    . "</div>";
+            }
+
+            return $content;
+        }
         if ($sourcerecord->id && $sourcerecord->link != null) {
             $deleteurl = new moodle_url('/mod/jitsi/view.php?id=' . $cm->id . '&deletejitsirecordid=' .
             $record->id . '&sesskey=' . sesskey() . '#record');

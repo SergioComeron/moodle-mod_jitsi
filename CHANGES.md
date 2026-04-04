@@ -1,4 +1,34 @@
 # Changelog
+## v4.3 (2026040400)
+# Fixed
+ * External invitations redirect to login for unauthenticated users on Moodle 5.0
+ * Existing 8x8.vc recordings with no expiry updated via upgrade step
+ * GCP server moderation: moderator added to JWT context.user, fix token_owner_party module and server config
+ * PHP nowdoc indentation error in GCP startup script
+ * Compact recording row: remove duplicate date, use Download label for 8x8 links
+ * Dropbox config excluded for 8x8 servers and warning shown in settings
+ * Room name not passed to Jitsi API for servers without JWT (meet.jit.si, type=0), causing users to land on Jitsi homepage instead of joining the correct room (issue #138)
+# Added
+ * **External/Dropbox recording link management** (issue #141): manually add and manage recording links for Dropbox and other external providers
+ * Automatic recording link capture via Jitsi `recordingLinkAvailable` event for JaaS paid accounts
+ * Force 24h expiry for 8x8.vc recording links when no TTL is provided by JaaS
+ * Allow Dropbox recording config on JaaS servers
+ * Session usage statistics page with date range filtering, monthly chart, top courses/categories, and CSV/Excel download
+ * Chat and polls settings toggle
+ * Transcription setting toggle
+ * GitHub Actions workflow to auto-update google/apiclient
+ * **Send user email to Jitsi** (issue #115): new admin setting (disabled by default) to pass the user's Moodle email to the Jitsi JWT. Declared in privacy provider for GDPR compliance.
+# Changed
+ * Compact single-line layout for non-embedded recording links; date shown as secondary text next to editable name
+ * sessionusagestats link moved to top of settings page
+ * Improved sessionusagestats UI and queries (monthly breakdown, top categories)
+ * google/apiclient minimum version bumped to ^2.19.0
+ * Security: updated phpseclib to 3.0.50 and firebase/php-jwt to v7.0.3
+ * Remove require_login from formuniversal.php to allow unauthenticated access
+ * Add note to README about jitsi-token-moderation-plugin requirement for JWT moderation on self-hosted servers (issue #133)
+
+---
+
 ## v4.2.0 (2025012700)
 # Fixed
  * Mobile app error

@@ -23,7 +23,7 @@
 
 defined('MOODLE_INTERNAL') || die;
 
-global $DB, $CFG;
+global $DB, $CFG, $PAGE;
 
 if ($ADMIN->fulltree) {
     require_once($CFG->dirroot . '/mod/jitsi/lib.php');
@@ -41,6 +41,13 @@ if ($ADMIN->fulltree) {
         $servers = $DB->get_records_menu('jitsi_servers', null, 'name ASC', 'id, name');
 
         if (!empty($servers)) {
+            // Si el valor guardado no apunta a un servidor existente, corregirlo al primero disponible.
+            $currentserverconfig = get_config('mod_jitsi', 'server');
+            if (empty($currentserverconfig) || !array_key_exists($currentserverconfig, $servers)) {
+                $firstid = array_key_first($servers);
+                set_config('server', $firstid, 'mod_jitsi');
+            }
+
             $settings->add(new admin_setting_configselect(
                 'mod_jitsi/server',
                 get_string('server', 'jitsi'),
@@ -50,6 +57,16 @@ if ($ADMIN->fulltree) {
             ));
         }
     }
+
+    $linkusagestats = new moodle_url('/mod/jitsi/sessionusagestats.php');
+    $settings->add(
+        new admin_setting_heading(
+            'mod_jitsi/sessionusagestats',
+            '',
+            '<a href=' . $linkusagestats . ' >' . get_string('sessionusagestats', 'jitsi') . '</a>'
+            . ' <span class="text-muted small">(' . get_string('sessionusagestatsslow', 'jitsi') . ')</span>'
+        )
+    );
 
     $settings->add(new admin_setting_heading('mod_jitsi/config', get_string('config', 'jitsi'), ''));
     $settings->add(
@@ -201,19 +218,28 @@ if ($ADMIN->fulltree) {
 
     $settings->add(
         new admin_setting_configcheckbox(
-            'mod_jitsi/whiteboard',
-            get_string('whiteboard', 'jitsi'),
-            get_string('whiteboardex', 'jitsi'),
+            'mod_jitsi/chat',
+            get_string('chat', 'jitsi'),
+            get_string('chatex', 'jitsi'),
             1
         )
     );
 
     $settings->add(
         new admin_setting_configcheckbox(
-            'mod_jitsi/selfdeclaredmadeforkids',
-            get_string('forkids', 'jitsi'),
-            get_string('forkidsex', 'jitsi'),
-            0
+            'mod_jitsi/polls',
+            get_string('polls', 'jitsi'),
+            get_string('pollsex', 'jitsi'),
+            1
+        )
+    );
+
+    $settings->add(
+        new admin_setting_configcheckbox(
+            'mod_jitsi/whiteboard',
+            get_string('whiteboard', 'jitsi'),
+            get_string('whiteboardex', 'jitsi'),
+            1
         )
     );
 
@@ -256,12 +282,85 @@ if ($ADMIN->fulltree) {
     );
 
     $settings->add(
+        new admin_setting_configcheckbox(
+            'mod_jitsi/transcription',
+            get_string('transcription', 'jitsi'),
+            get_string('transcriptionex', 'jitsi'),
+            1
+        )
+    );
+
+    $settings->add(
+        new admin_setting_configcheckbox(
+            'mod_jitsi/sendemail',
+            get_string('sendemail', 'jitsi'),
+            get_string('sendemailex', 'jitsi'),
+            0
+        )
+    );
+
+    $is8x8server = false;
+    $currentserverid = get_config('mod_jitsi', 'server');
+    if (!empty($currentserverid) && $DB->get_manager()->table_exists('jitsi_servers')) {
+        $currentserver = $DB->get_record('jitsi_servers', ['id' => $currentserverid]);
+        if ($currentserver && $currentserver->type == 2) {
+            $is8x8server = true;
+        }
+    }
+
+    $dropboxheadingdesc = get_string('dropboxconfigex', 'jitsi');
+    if ($is8x8server) {
+        $dropboxheadingdesc = '<div class="alert alert-warning mt-2">'
+            . get_string('dropboxnotwith8x8', 'jitsi')
+            . '</div>' . $dropboxheadingdesc;
+    }
+
+    $settings->add(
+        new admin_setting_heading(
+            'jitsidropbox',
+            get_string('dropboxconfig', 'jitsi'),
+            $dropboxheadingdesc
+        )
+    );
+
+    $settings->add(new admin_setting_configtext(
+        'mod_jitsi/dropbox_appkey',
+        get_string('dropboxappkey', 'jitsi'),
+        get_string('dropboxappkeyex', 'jitsi'),
+        ''
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'mod_jitsi/dropbox_redirect_uri',
+        get_string('dropboxredirecturi', 'jitsi'),
+        get_string('dropboxredirecturiex', 'jitsi'),
+        ''
+    ));
+
+    if ($is8x8server) {
+        $PAGE->requires->js_init_code('
+            (function() {
+                var fields = ["s_mod_jitsi_dropbox_appkey", "s_mod_jitsi_dropbox_redirect_uri"];
+                fields.forEach(function(name) {
+                    var el = document.querySelector("[name=\'" + name + "\']");
+                    if (el) {
+                        el.disabled = true;
+                        el.style.opacity = "0.5";
+                        el.style.cursor = "not-allowed";
+                    }
+                });
+            })();
+        ');
+    }
+
+    $settings->add(
         new admin_setting_heading(
             'jitsistreaming',
             get_string('streamingconfig', 'jitsi'),
             get_string('streamingconfigex', 'jitsi')
         )
     );
+
     $settings->add(
         new admin_setting_configcheckbox(
             'mod_jitsi/livebutton',
@@ -326,6 +425,15 @@ if ($ADMIN->fulltree) {
             get_string('latencyex', 'jitsi'),
             '0',
             ['0' => 'Normal', '1' => 'Low', '2' => 'Ultra Low']
+        )
+    );
+
+    $settings->add(
+        new admin_setting_configcheckbox(
+            'mod_jitsi/selfdeclaredmadeforkids',
+            get_string('forkids', 'jitsi'),
+            get_string('forkidsex', 'jitsi'),
+            0
         )
     );
 

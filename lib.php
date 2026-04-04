@@ -394,6 +394,11 @@ function createsession(
     $serverid = get_config('mod_jitsi', 'server');
     $server = $DB->get_record('jitsi_servers', ['id' => $serverid]);
 
+    if (!$server) {
+        echo $OUTPUT->notification(get_string('nodefaultserver', 'jitsi'), 'error');
+        return;
+    }
+
     // Check if GCP server is running.
     $serverstatus = jitsi_check_gcp_server_status($server);
     if ($serverstatus['status'] === 'stopped') {
@@ -600,6 +605,9 @@ function createsession(
         echo "enabled: false,\n";
     }
     echo "},\n";
+    if (get_config('mod_jitsi', 'record') == 1) {
+        echo "fileRecordingsEnabled: true,\n";
+    }
     echo "remoteVideoMenu: {\n";
     echo "disableGrantModerator: true, \n";
     echo "},\n";
@@ -649,6 +657,13 @@ function createsession(
         echo "disableReactions: true,\n";
     }
 
+    if (get_config('mod_jitsi', 'chat') == 0) {
+        echo "disableChat: true,\n";
+        echo "disablePolls: true,\n";
+    } else if (get_config('mod_jitsi', 'polls') == 0) {
+        echo "disablePolls: true,\n";
+    }
+
     // Disable live streaming if global setting is off OR if it's a GCP server (type 3 - not yet supported).
     if (get_config('mod_jitsi', 'livebutton') == 0 || $servertype == 3) {
         echo "liveStreamingEnabled: false,\n";
@@ -670,6 +685,21 @@ function createsession(
         echo "startWithVideoMuted: true,\n";
     } else {
         echo "startWithVideoMuted: false,\n";
+    }
+    if ($servertype != 2) {
+        $dropboxappkey = get_config('mod_jitsi', 'dropbox_appkey');
+        if (!empty($dropboxappkey)) {
+            echo "dropbox: {\n";
+            echo "    appKey: '" . addslashes($dropboxappkey) . "',\n";
+            $dropboxredirecturi = get_config('mod_jitsi', 'dropbox_redirect_uri');
+            if (!empty($dropboxredirecturi)) {
+                echo "    redirectURI: '" . addslashes($dropboxredirecturi) . "',\n";
+            }
+            echo "},\n";
+        }
+    }
+    if (get_config('mod_jitsi', 'transcription') == 0) {
+        echo "transcription: { enabled: false },\n";
     }
     echo "},\n";
 
@@ -714,6 +744,7 @@ function createsession(
             "alg" => "HS256",
         ], JSON_UNESCAPED_SLASHES);
         $base64urlheader = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($header));
+        $ismoderator = has_capability('mod/jitsi:moderation', $PAGE->context);
         $payload = json_encode([
             "context" => [
                 "user" => [
@@ -722,6 +753,7 @@ function createsession(
                     "name" => $nombre,
                     "email" => $mail,
                     "id" => "",
+                    "moderator" => $ismoderator,
                 ],
                 "group" => "",
             ],
@@ -730,12 +762,14 @@ function createsession(
             "sub" => $domain,
             "room" => urlencode($sessionnorm),
             "exp" => time() + 24 * 3600,
-            "moderator" => has_capability('mod/jitsi:moderation', $PAGE->context),
+            "moderator" => $ismoderator,
         ], JSON_UNESCAPED_SLASHES);
         echo "roomName: \"" . urlencode($sessionnorm) . "\",\n";
         $payloadencoded = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($payload));
         $headerencoded = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($header));
         $signature = hash_hmac('sha256', $headerencoded . "." . $payloadencoded, $secret, true);
+    } else {
+        echo "roomName: \"" . urlencode($sessionnorm) . "\",\n";
     }
 
     if (
@@ -1048,6 +1082,13 @@ function createsession(
         echo "          fail: notification.exception\n";
         echo "      }]);\n";
         echo "   ;});";
+        if ($universal == false && $user == null) {
+            echo "  setTimeout(function() { location.href=\"" . $CFG->wwwroot . "/mod/jitsi/view.php?id=" . $cmid . "\"; }, 2000);\n";
+        } else if ($universal == true && $user == null) {
+            echo "  setTimeout(function() { location.href=\"" . $CFG->wwwroot . "/mod/jitsi/formuniversal.php?t=" . $jitsi->token . "\"; }, 2000);\n";
+        } else if ($user != null) {
+            echo "  setTimeout(function() { location.href=\"" . $CFG->wwwroot . "/mod/jitsi/viewpriv.php?user=" . $user . "\"; }, 2000);\n";
+        }
         echo "});\n";
 
         // Registro de los diferentes botones.
@@ -1117,6 +1158,30 @@ function createsession(
         echo "      }]);\n";
         echo "    })\n";
         echo "  }";
+        echo "});\n";
+
+        echo "api.addEventListener('recordingLinkAvailable', function(event) {\n";
+        echo "  console.log('recordingLinkAvailable: ' + event.link);\n";
+        echo "  require(['jquery', 'core/ajax', 'core/notification'], function($, ajax, notification) {\n";
+        echo "    ajax.call([{\n";
+        echo "      methodname: 'mod_jitsi_save_recording_link',\n";
+        echo "      args: {jitsi: " . $jitsi->id . ", link: event.link, ttl: event.ttl || 0},\n";
+        echo "      done: function(response) { console.log('Recording link saved, idsource: ' + response.idsource); },\n";
+        echo "      fail: notification.exception\n";
+        echo "    }]);\n";
+        echo "  });\n";
+        echo "});\n";
+        echo "api.addEventListener('recordingStatusChanged', function(event) {\n";
+        echo "  if (!event.on && event.url) {\n";
+        echo "    require(['jquery', 'core/ajax', 'core/notification'], function($, ajax, notification) {\n";
+        echo "      ajax.call([{\n";
+        echo "        methodname: 'mod_jitsi_save_recording_link',\n";
+        echo "        args: {jitsi: " . $jitsi->id . ", link: event.url, ttl: 0},\n";
+        echo "        done: function(response) { console.log('Recording link saved via recordingStatusChanged, idsource: ' + response.idsource); },\n";
+        echo "        fail: notification.exception\n";
+        echo "      }]);\n";
+        echo "    });\n";
+        echo "  }\n";
         echo "});\n";
 
         echo "function stopStream(){\n";
@@ -1232,6 +1297,11 @@ function createsessionpriv(
     global $CFG, $DB, $PAGE, $USER, $OUTPUT;
     $serverid = get_config('mod_jitsi', 'server');
     $server = $DB->get_record('jitsi_servers', ['id' => $serverid]);
+
+    if (!$server) {
+        echo $OUTPUT->notification(get_string('nodefaultserver', 'jitsi'), 'error');
+        return;
+    }
 
     // Check if GCP server is running.
     $serverstatus = jitsi_check_gcp_server_status($server);
@@ -1387,6 +1457,9 @@ function createsessionpriv(
         echo "enabled: false,\n";
     }
     echo "},\n";
+    if (get_config('mod_jitsi', 'record') == 1) {
+        echo "fileRecordingsEnabled: true,\n";
+    }
     echo "remoteVideoMenu: {\n";
     echo "disableGrantModerator: true, \n";
     echo "},\n";
@@ -1436,6 +1509,13 @@ function createsessionpriv(
         echo "disableReactions: true,\n";
     }
 
+    if (get_config('mod_jitsi', 'chat') == 0) {
+        echo "disableChat: true,\n";
+        echo "disablePolls: true,\n";
+    } else if (get_config('mod_jitsi', 'polls') == 0) {
+        echo "disablePolls: true,\n";
+    }
+
     // Disable live streaming if global setting is off OR if it's a GCP server (type 3 - not yet supported).
     if (get_config('mod_jitsi', 'livebutton') == 0 || $servertype == 3) {
         echo "liveStreamingEnabled: false,\n";
@@ -1456,6 +1536,21 @@ function createsessionpriv(
         echo "startWithVideoMuted: true,\n";
     } else {
         echo "startWithVideoMuted: false,\n";
+    }
+    if ($servertype != 2) {
+        $dropboxappkey = get_config('mod_jitsi', 'dropbox_appkey');
+        if (!empty($dropboxappkey)) {
+            echo "dropbox: {\n";
+            echo "    appKey: '" . addslashes($dropboxappkey) . "',\n";
+            $dropboxredirecturi = get_config('mod_jitsi', 'dropbox_redirect_uri');
+            if (!empty($dropboxredirecturi)) {
+                echo "    redirectURI: '" . addslashes($dropboxredirecturi) . "',\n";
+            }
+            echo "},\n";
+        }
+    }
+    if (get_config('mod_jitsi', 'transcription') == 0) {
+        echo "transcription: { enabled: false },\n";
     }
     echo "},\n";
 
@@ -1500,6 +1595,7 @@ function createsessionpriv(
             "alg" => "HS256",
         ], JSON_UNESCAPED_SLASHES);
         $base64urlheader = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($header));
+        $ismoderator = has_capability('mod/jitsi:moderation', $PAGE->context);
         $payload = json_encode([
             "context" => [
                 "user" => [
@@ -1508,6 +1604,7 @@ function createsessionpriv(
                     "name" => $nombre,
                     "email" => $mail,
                     "id" => "",
+                    "moderator" => $ismoderator,
                 ],
                 "group" => "",
             ],
@@ -1516,12 +1613,14 @@ function createsessionpriv(
             "sub" => $domain,
             "room" => urlencode($sessionnorm),
             "exp" => time() + 24 * 3600,
-            "moderator" => has_capability('mod/jitsi:moderation', $PAGE->context),
+            "moderator" => $ismoderator,
         ], JSON_UNESCAPED_SLASHES);
         echo "roomName: \"" . urlencode($sessionnorm) . "\",\n";
         $payloadencoded = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($payload));
         $headerencoded = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($header));
         $signature = hash_hmac('sha256', $headerencoded . "." . $payloadencoded, $secret, true);
+    } else {
+        echo "roomName: \"" . urlencode($sessionnorm) . "\",\n";
     }
 
     if (
@@ -1701,7 +1800,7 @@ function marktodelete($idrecord, $option) {
         $record->deleted = 2;
     }
     $records = $DB->get_records('jitsi_record', ['source' => $record->source]);
-    if (count($records) == 1) {
+    if (count($records) == 1 && $source->type == 0) {
         togglestate($source->link);
     }
     $DB->update_record('jitsi_record', $record);
