@@ -225,6 +225,13 @@ if (!function_exists('mod_jitsi_default_startup_script')) {
     function mod_jitsi_default_startup_script(): string {
         return <<<'BASH'
         #!/bin/bash
+
+        # Skip full provisioning if already done (subsequent reboots)
+        if [ -f /var/local/jitsi_boot_done ]; then
+            echo "Already provisioned, skipping startup script"
+            exit 0
+        fi
+
         set -euxo pipefail
 
         export DEBIAN_FRONTEND=noninteractive
