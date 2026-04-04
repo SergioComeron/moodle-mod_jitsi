@@ -41,7 +41,7 @@ class mod_jitsi_mod_form extends moodleform_mod {
      * Defines forms elements
      */
     public function definition() {
-        global $CFG, $DB, $PAGE;
+        global $CFG, $PAGE;
         $mform = $this->_form;
         $mform->addElement('header', 'general', get_string('general', 'form'));
         $mform->addElement('text', 'name', get_string('jitsiname', 'jitsi'), ['size' => '64']);
@@ -66,31 +66,14 @@ class mod_jitsi_mod_form extends moodleform_mod {
         $mform->setDefault('tokeninterno', $tokeninterno);
         $mform->setType('tokeninterno', PARAM_TEXT);
 
-        // Build pre-selected option when editing an existing shared session.
-        $existingoptions = [];
-        if (!empty($this->current->tokeninvitacion)) {
-            $mastersession = $DB->get_record_sql(
-                "SELECT j.name, c.fullname, c.shortname
-                   FROM {jitsi} j
-                   JOIN {course} c ON c.id = j.course
-                  WHERE " . $DB->sql_compare_text('j.tokeninterno') . " = " . $DB->sql_compare_text(':tok'),
-                ['tok' => $this->current->tokeninvitacion]
-            );
-            if ($mastersession) {
-                $existinglabel = $mastersession->name . ' — ' . $mastersession->fullname .
-                    ' (' . $mastersession->shortname . ')';
-                $existingoptions[$this->current->tokeninvitacion] = $existinglabel;
-            }
-        }
-
         $autocompleteopts = [
-            'ajax'             => 'mod_jitsi/session_picker',
-            'multiple'         => false,
+            'ajax'              => 'mod_jitsi/session_picker',
+            'multiple'          => false,
             'noselectionstring' => get_string('searchsession', 'jitsi'),
-            'showsuggestions'  => true,
+            'showsuggestions'   => true,
         ];
         $mform->addElement('autocomplete', 'tokeninvitacion',
-            get_string('tokeninvitacion', 'jitsi'), $existingoptions, $autocompleteopts);
+            get_string('tokeninvitacion', 'jitsi'), [], $autocompleteopts);
         $mform->hideIf('tokeninvitacion', 'sessionwithtoken', 'notchecked');
         $mform->addHelpButton('tokeninvitacion', 'tokeninvitacion', 'jitsi');
         $mform->setType('tokeninvitacion', PARAM_TEXT);
