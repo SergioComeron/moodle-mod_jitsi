@@ -66,6 +66,12 @@ class mod_jitsi_mod_form extends moodleform_mod {
         $mform->setDefault('tokeninterno', $tokeninterno);
         $mform->setType('tokeninterno', PARAM_TEXT);
 
+        // Data carrier read by session_picker.js to exclude the current session.
+        $mform->addElement('html',
+            '<div id="jitsi-session-picker-data" data-exclude-token="' .
+            s($tokeninterno) . '" style="display:none"></div>'
+        );
+
         $autocompleteopts = [
             'ajax'              => 'mod_jitsi/session_picker',
             'multiple'          => false,
