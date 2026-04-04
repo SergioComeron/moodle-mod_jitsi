@@ -114,139 +114,90 @@ if ($dbfamily === 'postgres') {
     $monthexpr = "DATE_FORMAT(FROM_UNIXTIME(timecreated), '%Y-%m')";
 }
 
-// Aggregate enter events by month using SQL.
-$sql = "SELECT $monthexpr AS monthkey, COUNT(*) AS sessions
-       FROM {logstore_standard_log}
-      WHERE component = :component AND action = :action
-            AND timecreated BETWEEN :fromdate AND :todate
-   GROUP BY 1
-   ORDER BY 1 ASC";
-$entersbymonth = $DB->get_records_sql($sql,
-    ['component' => 'mod_jitsi', 'action' => 'enter', 'fromdate' => $fromdate, 'todate' => $todate]);
-
-// Aggregate participating events by month using SQL.
+// Query 1: Monthly stats — sessions + minutes + unique users in a single pass.
+[$insql, $inparams] = $DB->get_in_or_equal(['enter', 'participating'], SQL_PARAMS_NAMED, 'mact');
 $sql = "SELECT $monthexpr AS monthkey,
-            COUNT(*) AS minutes,
-            COUNT(DISTINCT userid) AS uniqueusers
+            SUM(CASE WHEN action = 'enter' THEN 1 ELSE 0 END) AS sessions,
+            SUM(CASE WHEN action = 'participating' THEN 1 ELSE 0 END) AS minutes,
+            COUNT(DISTINCT CASE WHEN action = 'participating' THEN userid END) AS uniqueusers
        FROM {logstore_standard_log}
-      WHERE component = :component AND action = :action
-            AND timecreated BETWEEN :fromdate AND :todate
+      WHERE component = :mcomponent
+            AND action $insql
+            AND timecreated BETWEEN :mfromdate AND :mtodate
    GROUP BY 1
    ORDER BY 1 ASC";
-$participatingbymonth = $DB->get_records_sql($sql,
-    ['component' => 'mod_jitsi', 'action' => 'participating', 'fromdate' => $fromdate, 'todate' => $todate]);
+$bymonth = $DB->get_records_sql($sql, array_merge($inparams, [
+    'mcomponent' => 'mod_jitsi',
+    'mfromdate'  => $fromdate,
+    'mtodate'    => $todate,
+]));
 
-// Total unique users across all months.
+// Build monthly data array.
+$monthlydata = [];
+foreach ($bymonth as $row) {
+    $monthlydata[$row->monthkey] = [
+        'sessions'    => (int)$row->sessions,
+        'minutes'     => (int)$row->minutes,
+        'uniqueusers' => (int)$row->uniqueusers,
+    ];
+}
+
+// Total unique users across the whole period (can't be derived from per-month aggregates).
 $totaluniqueusers = $DB->count_records_sql(
     "SELECT COUNT(DISTINCT userid)
        FROM {logstore_standard_log}
       WHERE component = :component AND action = :action
             AND timecreated BETWEEN :fromdate AND :todate",
-    ['component' => 'mod_jitsi', 'action' => 'participating', 'fromdate' => $fromdate, 'todate' => $todate]);
+    ['component' => 'mod_jitsi', 'action' => 'participating', 'fromdate' => $fromdate, 'todate' => $todate]
+);
 
-// Build monthly data array.
-$monthlydata = [];
-foreach ($entersbymonth as $row) {
-    $monthlydata[$row->monthkey] = ['sessions' => (int)$row->sessions, 'uniqueusers' => 0, 'minutes' => 0];
-}
-foreach ($participatingbymonth as $row) {
-    if (!isset($monthlydata[$row->monthkey])) {
-        $monthlydata[$row->monthkey] = ['sessions' => 0, 'uniqueusers' => 0, 'minutes' => 0];
-    }
-    $monthlydata[$row->monthkey]['uniqueusers'] = (int)$row->uniqueusers;
-    $monthlydata[$row->monthkey]['minutes'] = (int)$row->minutes;
-}
+// Query 2: Per-activity stats with course/activity info resolved via JOINs — no N+1 in display loops.
+[$insql2, $inparams2] = $DB->get_in_or_equal(['enter', 'participating'], SQL_PARAMS_NAMED, 'cact');
+$sql = "SELECT lsl.contextinstanceid AS cmid,
+               c.id AS courseid,
+               c.shortname AS courseshortname,
+               j.name AS activityname,
+               SUM(CASE WHEN lsl.action = 'enter' THEN 1 ELSE 0 END) AS sessions,
+               SUM(CASE WHEN lsl.action = 'participating' THEN 1 ELSE 0 END) AS minutes,
+               COUNT(DISTINCT CASE WHEN lsl.action = 'participating' THEN lsl.userid END) AS uniqueusers
+          FROM {logstore_standard_log} lsl
+          JOIN {course_modules} cm ON cm.id = lsl.contextinstanceid
+          JOIN {course} c ON c.id = cm.course
+          JOIN {jitsi} j ON j.id = cm.instance
+         WHERE lsl.component = :ccomponent
+               AND lsl.action $insql2
+               AND lsl.timecreated BETWEEN :cfromdate AND :ctodate
+      GROUP BY lsl.contextinstanceid, c.id, c.shortname, j.name
+      ORDER BY minutes DESC";
+$coursedata = $DB->get_records_sql($sql, array_merge($inparams2, [
+    'ccomponent' => 'mod_jitsi',
+    'cfromdate'  => $fromdate,
+    'ctodate'    => $todate,
+]));
 
-// Aggregate enter events by course module using SQL.
-$sql = "SELECT contextinstanceid AS cmid, COUNT(*) AS sessions
-       FROM {logstore_standard_log}
-      WHERE component = :component AND action = :action
-            AND timecreated BETWEEN :fromdate AND :todate
-   GROUP BY contextinstanceid";
-$entersbycm = $DB->get_records_sql($sql,
-    ['component' => 'mod_jitsi', 'action' => 'enter', 'fromdate' => $fromdate, 'todate' => $todate]);
-
-// Aggregate participating events by course module using SQL.
-$sql = "SELECT contextinstanceid AS cmid, COUNT(*) AS minutes, COUNT(DISTINCT userid) AS uniqueusers
-       FROM {logstore_standard_log}
-      WHERE component = :component AND action = :action
-            AND timecreated BETWEEN :fromdate AND :todate
-   GROUP BY contextinstanceid";
-$participatingbycm = $DB->get_records_sql($sql,
-    ['component' => 'mod_jitsi', 'action' => 'participating', 'fromdate' => $fromdate, 'todate' => $todate]);
-
-// Build course data array.
-$coursedata = [];
-foreach ($entersbycm as $row) {
-    $coursedata[$row->cmid] = ['sessions' => (int)$row->sessions, 'uniqueusers' => 0, 'minutes' => 0];
-}
-foreach ($participatingbycm as $row) {
-    if (!isset($coursedata[$row->cmid])) {
-        $coursedata[$row->cmid] = ['sessions' => 0, 'uniqueusers' => 0, 'minutes' => 0];
-    }
-    $coursedata[$row->cmid]['uniqueusers'] = (int)$row->uniqueusers;
-    $coursedata[$row->cmid]['minutes'] = (int)$row->minutes;
-}
-
-// Aggregate enter events by course category using SQL.
-$sql = "SELECT cc.id AS catid, cc.name AS catname, COUNT(*) AS sessions
+// Query 3: Per-category stats in a single pass.
+[$insql3, $inparams3] = $DB->get_in_or_equal(['enter', 'participating'], SQL_PARAMS_NAMED, 'kaact');
+$sql = "SELECT cc.id AS catid,
+               cc.name AS catname,
+               SUM(CASE WHEN lsl.action = 'enter' THEN 1 ELSE 0 END) AS sessions,
+               SUM(CASE WHEN lsl.action = 'participating' THEN 1 ELSE 0 END) AS minutes,
+               COUNT(DISTINCT CASE WHEN lsl.action = 'participating' THEN lsl.userid END) AS uniqueusers
           FROM {logstore_standard_log} lsl
           JOIN {course_modules} cm ON cm.id = lsl.contextinstanceid
           JOIN {course} c ON c.id = cm.course
           JOIN {course_categories} cc ON cc.id = c.category
-         WHERE lsl.component = :component AND lsl.action = :action
-               AND lsl.timecreated BETWEEN :fromdate AND :todate
-      GROUP BY cc.id, cc.name";
-$entersbycategory = $DB->get_records_sql($sql,
-    ['component' => 'mod_jitsi', 'action' => 'enter', 'fromdate' => $fromdate, 'todate' => $todate]);
-
-// Aggregate participating events by course category using SQL.
-$sql = "SELECT cc.id AS catid, cc.name AS catname,
-               COUNT(*) AS minutes, COUNT(DISTINCT lsl.userid) AS uniqueusers
-          FROM {logstore_standard_log} lsl
-          JOIN {course_modules} cm ON cm.id = lsl.contextinstanceid
-          JOIN {course} c ON c.id = cm.course
-          JOIN {course_categories} cc ON cc.id = c.category
-         WHERE lsl.component = :component AND lsl.action = :action
-               AND lsl.timecreated BETWEEN :fromdate AND :todate
-      GROUP BY cc.id, cc.name";
-$participatingbycategory = $DB->get_records_sql($sql,
-    ['component' => 'mod_jitsi', 'action' => 'participating', 'fromdate' => $fromdate, 'todate' => $todate]);
-
-// Build category data array.
-$categorydata = [];
-foreach ($entersbycategory as $row) {
-    $categorydata[$row->catid] = [
-        'name' => $row->catname,
-        'sessions' => (int)$row->sessions,
-        'uniqueusers' => 0,
-        'minutes' => 0,
-    ];
-}
-foreach ($participatingbycategory as $row) {
-    if (!isset($categorydata[$row->catid])) {
-        $categorydata[$row->catid] = [
-            'name' => $row->catname,
-            'sessions' => 0,
-            'uniqueusers' => 0,
-            'minutes' => 0,
-        ];
-    }
-    $categorydata[$row->catid]['uniqueusers'] = (int)$row->uniqueusers;
-    $categorydata[$row->catid]['minutes'] = (int)$row->minutes;
-}
+         WHERE lsl.component = :kcomponent
+               AND lsl.action $insql3
+               AND lsl.timecreated BETWEEN :kfromdate AND :ktodate
+      GROUP BY cc.id, cc.name
+      ORDER BY minutes DESC";
+$categorydata = $DB->get_records_sql($sql, array_merge($inparams3, [
+    'kcomponent' => 'mod_jitsi',
+    'kfromdate'  => $fromdate,
+    'ktodate'    => $todate,
+]));
 
 ksort($monthlydata);
-
-// Sort course data by minutes descending.
-uasort($coursedata, function($a, $b) {
-    return $b['minutes'] - $a['minutes'];
-});
-
-// Sort category data by minutes descending.
-uasort($categorydata, function($a, $b) {
-    return $b['minutes'] - $a['minutes'];
-});
 
 // Handle download requests (must be before any output).
 $download = optional_param('download', '', PARAM_ALPHA);
@@ -259,20 +210,20 @@ if ($dataformat !== '') {
     switch ($download) {
         case 'monthly':
             $columns = [
-                'month' => get_string('month', 'jitsi'),
-                'sessions' => get_string('sessionsentered', 'jitsi'),
+                'month'       => get_string('month', 'jitsi'),
+                'sessions'    => get_string('sessionsentered', 'jitsi'),
                 'uniqueusers' => get_string('uniqueusers', 'jitsi'),
-                'time' => get_string('totaluserminutes', 'jitsi'),
-                'avgtime' => get_string('averagetimeperuser', 'jitsi'),
+                'time'        => get_string('totaluserminutes', 'jitsi'),
+                'avgtime'     => get_string('averagetimeperuser', 'jitsi'),
             ];
             foreach ($monthlydata as $month => $data) {
                 $avg = $data['uniqueusers'] > 0 ? round($data['minutes'] / $data['uniqueusers']) : 0;
                 $exportdata[] = [
-                    'month' => $month,
-                    'sessions' => $data['sessions'],
+                    'month'       => $month,
+                    'sessions'    => $data['sessions'],
                     'uniqueusers' => $data['uniqueusers'],
-                    'time' => format_jitsi_time($data['minutes']),
-                    'avgtime' => format_jitsi_time($avg),
+                    'time'        => format_jitsi_time($data['minutes']),
+                    'avgtime'     => format_jitsi_time($avg),
                 ];
             }
             $filename = 'jitsi_monthly_usage';
@@ -280,33 +231,22 @@ if ($dataformat !== '') {
 
         case 'courses':
             $columns = [
-                'course' => get_string('course', 'jitsi'),
-                'activity' => get_string('activity', 'jitsi'),
-                'sessions' => get_string('sessionsentered', 'jitsi'),
+                'course'      => get_string('course', 'jitsi'),
+                'activity'    => get_string('activity', 'jitsi'),
+                'sessions'    => get_string('sessionsentered', 'jitsi'),
                 'uniqueusers' => get_string('uniqueusers', 'jitsi'),
-                'time' => get_string('totaluserminutes', 'jitsi'),
-                'avgtime' => get_string('averagetimeperuser', 'jitsi'),
+                'time'        => get_string('totaluserminutes', 'jitsi'),
+                'avgtime'     => get_string('averagetimeperuser', 'jitsi'),
             ];
-            foreach ($coursedata as $cmid => $data) {
-                $cm = get_coursemodule_from_id('jitsi', $cmid, 0, false, IGNORE_MISSING);
-                if (!$cm) {
-                    continue;
-                }
-                $course = $DB->get_record('course', ['id' => $cm->course], 'id, shortname, fullname', IGNORE_MISSING);
-                if (!$course) {
-                    continue;
-                }
-                $jitsi = $DB->get_record('jitsi', ['id' => $cm->instance], 'id, name', IGNORE_MISSING);
-                $activityname = $jitsi ? $jitsi->name : $cm->name;
-
-                $avg = $data['uniqueusers'] > 0 ? round($data['minutes'] / $data['uniqueusers']) : 0;
+            foreach ($coursedata as $data) {
+                $avg = $data->uniqueusers > 0 ? round($data->minutes / $data->uniqueusers) : 0;
                 $exportdata[] = [
-                    'course' => $course->shortname,
-                    'activity' => $activityname,
-                    'sessions' => $data['sessions'],
-                    'uniqueusers' => $data['uniqueusers'],
-                    'time' => format_jitsi_time($data['minutes']),
-                    'avgtime' => format_jitsi_time($avg),
+                    'course'      => $data->courseshortname,
+                    'activity'    => $data->activityname,
+                    'sessions'    => $data->sessions,
+                    'uniqueusers' => $data->uniqueusers,
+                    'time'        => format_jitsi_time($data->minutes),
+                    'avgtime'     => format_jitsi_time($avg),
                 ];
             }
             $filename = 'jitsi_courses_usage';
@@ -314,20 +254,20 @@ if ($dataformat !== '') {
 
         case 'categories':
             $columns = [
-                'category' => get_string('category', 'jitsi'),
-                'sessions' => get_string('sessionsentered', 'jitsi'),
+                'category'    => get_string('category', 'jitsi'),
+                'sessions'    => get_string('sessionsentered', 'jitsi'),
                 'uniqueusers' => get_string('uniqueusers', 'jitsi'),
-                'time' => get_string('totaluserminutes', 'jitsi'),
-                'avgtime' => get_string('averagetimeperuser', 'jitsi'),
+                'time'        => get_string('totaluserminutes', 'jitsi'),
+                'avgtime'     => get_string('averagetimeperuser', 'jitsi'),
             ];
-            foreach ($categorydata as $catid => $data) {
-                $avg = $data['uniqueusers'] > 0 ? round($data['minutes'] / $data['uniqueusers']) : 0;
+            foreach ($categorydata as $data) {
+                $avg = $data->uniqueusers > 0 ? round($data->minutes / $data->uniqueusers) : 0;
                 $exportdata[] = [
-                    'category' => $data['name'],
-                    'sessions' => $data['sessions'],
-                    'uniqueusers' => $data['uniqueusers'],
-                    'time' => format_jitsi_time($data['minutes']),
-                    'avgtime' => format_jitsi_time($avg),
+                    'category'    => $data->catname,
+                    'sessions'    => $data->sessions,
+                    'uniqueusers' => $data->uniqueusers,
+                    'time'        => format_jitsi_time($data->minutes),
+                    'avgtime'     => format_jitsi_time($avg),
                 ];
             }
             $filename = 'jitsi_categories_usage';
@@ -346,63 +286,83 @@ if ($dataformat !== '') {
 
 // Summary totals.
 $totalsessions = array_sum(array_column($monthlydata, 'sessions'));
-$totalminutes = array_sum(array_column($monthlydata, 'minutes'));
+$totalminutes  = array_sum(array_column($monthlydata, 'minutes'));
+$totalavg      = $totaluniqueusers > 0 ? round($totalminutes / $totaluniqueusers) : 0;
+
+// Common download params to preserve date range.
+$downloadparams = ['fromdate' => $fromdate, 'todate' => $todate];
 
 // Begin HTML output.
 echo $OUTPUT->header();
 echo $OUTPUT->heading(get_string('sessionusagestats', 'jitsi'));
 
-$summaryhtml = html_writer::start_tag('div', ['class' => 'general-stats mb-3']);
-$summaryhtml .= html_writer::tag('p', get_string('totalsessionsinperiod', 'jitsi') . ': '
-    . html_writer::tag('strong', $totalsessions));
-$summaryhtml .= html_writer::tag('p', get_string('totaluniqueusersinperiod', 'jitsi') . ': '
-    . html_writer::tag('strong', $totaluniqueusers));
-$summaryhtml .= html_writer::tag('p', get_string('totaluserminutesinperiod', 'jitsi') . ': '
-    . html_writer::tag('strong', format_jitsi_time($totalminutes)));
-$totalavg = $totaluniqueusers > 0 ? round($totalminutes / $totaluniqueusers) : 0;
-$summaryhtml .= html_writer::tag('p', get_string('averagetimeperuserinperiod', 'jitsi') . ': '
-    . html_writer::tag('strong', format_jitsi_time($totalavg)));
-$summaryhtml .= html_writer::end_tag('div');
+// Back to settings button.
+$settingsurl = new moodle_url('/admin/settings.php', ['section' => 'modsettingjitsi']);
+echo html_writer::link(
+    $settingsurl,
+    '← ' . get_string('backtosettings', 'jitsi'),
+    ['class' => 'btn btn-secondary mb-4']
+);
 
-echo $summaryhtml;
+// Filter form.
+echo html_writer::start_tag('div', ['class' => 'card mb-4']);
+echo html_writer::start_tag('div', ['class' => 'card-body']);
+$mform->display();
+echo html_writer::end_tag('div');
+echo html_writer::end_tag('div');
 
-// Common download params to preserve date range.
-$downloadparams = ['fromdate' => $fromdate, 'todate' => $todate];
+// Summary stat cards.
+echo html_writer::start_tag('div', ['class' => 'row mb-4']);
 
-// Bar chart with monthly data.
+$statcards = [
+    [get_string('totalsessionsinperiod', 'jitsi'),    $totalsessions],
+    [get_string('totaluniqueusersinperiod', 'jitsi'), $totaluniqueusers],
+    [get_string('totaluserminutesinperiod', 'jitsi'), format_jitsi_time($totalminutes)],
+    [get_string('averagetimeperuserinperiod', 'jitsi'), format_jitsi_time($totalavg)],
+];
+
+foreach ($statcards as $card) {
+    echo html_writer::start_tag('div', ['class' => 'col-md-3 col-sm-6 mb-3']);
+    echo html_writer::start_tag('div', ['class' => 'card h-100 text-center border-0 bg-light']);
+    echo html_writer::start_tag('div', ['class' => 'card-body py-3']);
+    echo html_writer::tag('div', $card[1], ['class' => 'h2 mb-1 fw-bold']);
+    echo html_writer::tag('div', $card[0], ['class' => 'text-muted small']);
+    echo html_writer::end_tag('div');
+    echo html_writer::end_tag('div');
+    echo html_writer::end_tag('div');
+}
+
+echo html_writer::end_tag('div');
+
+// Monthly section.
 if (!empty($monthlydata)) {
-    $chartlabels = [];
+    echo html_writer::start_tag('div', ['class' => 'card mb-4']);
+    echo html_writer::start_tag('div', ['class' => 'card-header']);
+    echo html_writer::tag('h3', get_string('monthlyusage', 'jitsi'), ['class' => 'mb-0']);
+    echo html_writer::end_tag('div');
+    echo html_writer::start_tag('div', ['class' => 'card-body']);
+
+    $chartlabels  = [];
     $sessionsdata = [];
-    $usersdata = [];
-    $minutesdata = [];
+    $usersdata    = [];
+    $minutesdata  = [];
+    $avgdata      = [];
 
     foreach ($monthlydata as $month => $data) {
-        $chartlabels[] = $month;
+        $chartlabels[]  = $month;
         $sessionsdata[] = $data['sessions'];
-        $usersdata[] = $data['uniqueusers'];
-        $minutesdata[] = $data['minutes'];
+        $usersdata[]    = $data['uniqueusers'];
+        $minutesdata[]  = $data['minutes'];
+        $avgdata[]      = $data['uniqueusers'] > 0 ? round($data['minutes'] / $data['uniqueusers']) : 0;
     }
 
     $chart = new core\chart_bar();
-    $seriessessions = new core\chart_series(get_string('sessionsentered', 'jitsi'), $sessionsdata);
-    $seriesusers = new core\chart_series(get_string('uniqueusers', 'jitsi'), $usersdata);
-    $seriesminutes = new core\chart_series(get_string('totaluserminutes', 'jitsi') . ' (min)', $minutesdata);
-    $avgdata = [];
-    foreach ($monthlydata as $data) {
-        $avgdata[] = $data['uniqueusers'] > 0 ? round($data['minutes'] / $data['uniqueusers']) : 0;
-    }
-    $seriesavg = new core\chart_series(get_string('averagetimeperuser', 'jitsi') . ' (min)', $avgdata);
-    $chart->add_series($seriessessions);
-    $chart->add_series($seriesusers);
-    $chart->add_series($seriesminutes);
-    $chart->add_series($seriesavg);
+    $chart->add_series(new core\chart_series(get_string('sessionsentered', 'jitsi'), $sessionsdata));
+    $chart->add_series(new core\chart_series(get_string('uniqueusers', 'jitsi'), $usersdata));
+    $chart->add_series(new core\chart_series(get_string('totaluserminutes', 'jitsi') . ' (min)', $minutesdata));
+    $chart->add_series(new core\chart_series(get_string('averagetimeperuser', 'jitsi') . ' (min)', $avgdata));
     $chart->set_labels($chartlabels);
-
     echo $OUTPUT->render_chart($chart);
-
-    // Monthly detail table.
-    echo html_writer::start_tag('div', ['class' => 'mt-4']);
-    echo $OUTPUT->heading(get_string('monthlyusage', 'jitsi'), 3);
 
     $table = new html_table();
     $table->head = [
@@ -412,7 +372,7 @@ if (!empty($monthlydata)) {
         get_string('totaluserminutes', 'jitsi'),
         get_string('averagetimeperuser', 'jitsi'),
     ];
-    $table->attributes['class'] = 'generaltable';
+    $table->attributes['class'] = 'generaltable mt-3';
 
     foreach ($monthlydata as $month => $data) {
         $avg = $data['uniqueusers'] > 0 ? round($data['minutes'] / $data['uniqueusers']) : 0;
@@ -426,7 +386,6 @@ if (!empty($monthlydata)) {
     }
 
     echo html_writer::table($table);
-
     echo $OUTPUT->download_dataformat_selector(
         get_string('download'),
         'sessionusagestats.php',
@@ -435,15 +394,18 @@ if (!empty($monthlydata)) {
     );
 
     echo html_writer::end_tag('div');
+    echo html_writer::end_tag('div');
 }
 
-// Top courses table.
+// Top courses section.
 if (!empty($coursedata)) {
-    echo html_writer::start_tag('div', ['class' => 'mt-4']);
-    echo $OUTPUT->heading(get_string('topcourses', 'jitsi'), 3);
+    echo html_writer::start_tag('div', ['class' => 'card mb-4']);
+    echo html_writer::start_tag('div', ['class' => 'card-header']);
+    echo html_writer::tag('h3', get_string('topcourses', 'jitsi'), ['class' => 'mb-0']);
+    echo html_writer::end_tag('div');
+    echo html_writer::start_tag('div', ['class' => 'card-body']);
 
-    $topcourses = array_slice($coursedata, 0, 10, true);
-
+    $topcourses  = array_slice($coursedata, 0, 10, true);
     $coursetable = new html_table();
     $coursetable->head = [
         get_string('course', 'jitsi'),
@@ -456,36 +418,22 @@ if (!empty($coursedata)) {
     $coursetable->attributes['class'] = 'generaltable';
 
     foreach ($topcourses as $cmid => $data) {
-        $cm = get_coursemodule_from_id('jitsi', $cmid, 0, false, IGNORE_MISSING);
-        if (!$cm) {
-            continue;
-        }
-        $course = $DB->get_record('course', ['id' => $cm->course], 'id, shortname, fullname', IGNORE_MISSING);
-        if (!$course) {
-            continue;
-        }
-        $jitsi = $DB->get_record('jitsi', ['id' => $cm->instance], 'id, name', IGNORE_MISSING);
-        $activityname = $jitsi ? $jitsi->name : $cm->name;
-
-        $urlcourse = new moodle_url('/course/view.php', ['id' => $course->id]);
-        $urlactivity = new moodle_url('/mod/jitsi/view.php', ['id' => $cmid]);
-
-        $courselink = '<a href="' . $urlcourse . '">' . format_string($course->shortname) . '</a>';
-        $activitylink = '<a href="' . $urlactivity . '">' . format_string($activityname) . '</a>';
-
-        $avg = $data['uniqueusers'] > 0 ? round($data['minutes'] / $data['uniqueusers']) : 0;
+        $urlcourse    = new moodle_url('/course/view.php', ['id' => $data->courseid]);
+        $urlactivity  = new moodle_url('/mod/jitsi/view.php', ['id' => $cmid]);
+        $courselink   = '<a href="' . $urlcourse . '">' . format_string($data->courseshortname) . '</a>';
+        $activitylink = '<a href="' . $urlactivity . '">' . format_string($data->activityname) . '</a>';
+        $avg = $data->uniqueusers > 0 ? round($data->minutes / $data->uniqueusers) : 0;
         $coursetable->data[] = [
             $courselink,
             $activitylink,
-            $data['sessions'],
-            $data['uniqueusers'],
-            format_jitsi_time($data['minutes']),
+            $data->sessions,
+            $data->uniqueusers,
+            format_jitsi_time($data->minutes),
             format_jitsi_time($avg),
         ];
     }
 
     echo html_writer::table($coursetable);
-
     echo $OUTPUT->download_dataformat_selector(
         get_string('download'),
         'sessionusagestats.php',
@@ -494,12 +442,16 @@ if (!empty($coursedata)) {
     );
 
     echo html_writer::end_tag('div');
+    echo html_writer::end_tag('div');
 }
 
-// Top categories table.
+// Top categories section.
 if (!empty($categorydata)) {
-    echo html_writer::start_tag('div', ['class' => 'mt-4']);
-    echo $OUTPUT->heading(get_string('topcategories', 'jitsi'), 3);
+    echo html_writer::start_tag('div', ['class' => 'card mb-4']);
+    echo html_writer::start_tag('div', ['class' => 'card-header']);
+    echo html_writer::tag('h3', get_string('topcategories', 'jitsi'), ['class' => 'mb-0']);
+    echo html_writer::end_tag('div');
+    echo html_writer::start_tag('div', ['class' => 'card-body']);
 
     $cattable = new html_table();
     $cattable->head = [
@@ -512,21 +464,19 @@ if (!empty($categorydata)) {
     $cattable->attributes['class'] = 'generaltable';
 
     foreach ($categorydata as $catid => $data) {
-        $urlcat = new moodle_url('/course/index.php', ['categoryid' => $catid]);
-        $catlink = '<a href="' . $urlcat . '">' . format_string($data['name']) . '</a>';
-
-        $avg = $data['uniqueusers'] > 0 ? round($data['minutes'] / $data['uniqueusers']) : 0;
+        $urlcat  = new moodle_url('/course/index.php', ['categoryid' => $catid]);
+        $catlink = '<a href="' . $urlcat . '">' . format_string($data->catname) . '</a>';
+        $avg = $data->uniqueusers > 0 ? round($data->minutes / $data->uniqueusers) : 0;
         $cattable->data[] = [
             $catlink,
-            $data['sessions'],
-            $data['uniqueusers'],
-            format_jitsi_time($data['minutes']),
+            $data->sessions,
+            $data->uniqueusers,
+            format_jitsi_time($data->minutes),
             format_jitsi_time($avg),
         ];
     }
 
     echo html_writer::table($cattable);
-
     echo $OUTPUT->download_dataformat_selector(
         get_string('download'),
         'sessionusagestats.php',
@@ -535,8 +485,7 @@ if (!empty($categorydata)) {
     );
 
     echo html_writer::end_tag('div');
+    echo html_writer::end_tag('div');
 }
-
-$mform->display();
 
 echo $OUTPUT->footer();

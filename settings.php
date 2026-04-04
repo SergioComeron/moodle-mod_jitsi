@@ -201,19 +201,28 @@ if ($ADMIN->fulltree) {
 
     $settings->add(
         new admin_setting_configcheckbox(
-            'mod_jitsi/whiteboard',
-            get_string('whiteboard', 'jitsi'),
-            get_string('whiteboardex', 'jitsi'),
+            'mod_jitsi/chat',
+            get_string('chat', 'jitsi'),
+            get_string('chatex', 'jitsi'),
             1
         )
     );
 
     $settings->add(
         new admin_setting_configcheckbox(
-            'mod_jitsi/selfdeclaredmadeforkids',
-            get_string('forkids', 'jitsi'),
-            get_string('forkidsex', 'jitsi'),
-            0
+            'mod_jitsi/polls',
+            get_string('polls', 'jitsi'),
+            get_string('pollsex', 'jitsi'),
+            1
+        )
+    );
+
+    $settings->add(
+        new admin_setting_configcheckbox(
+            'mod_jitsi/whiteboard',
+            get_string('whiteboard', 'jitsi'),
+            get_string('whiteboardex', 'jitsi'),
+            1
         )
     );
 
@@ -325,6 +334,7 @@ if ($ADMIN->fulltree) {
             get_string('streamingconfigex', 'jitsi')
         )
     );
+
     $settings->add(
         new admin_setting_configcheckbox(
             'mod_jitsi/livebutton',
@@ -392,6 +402,15 @@ if ($ADMIN->fulltree) {
         )
     );
 
+    $settings->add(
+        new admin_setting_configcheckbox(
+            'mod_jitsi/selfdeclaredmadeforkids',
+            get_string('forkids', 'jitsi'),
+            get_string('forkidsex', 'jitsi'),
+            0
+        )
+    );
+
     $link = new moodle_url('/mod/jitsi/adminaccounts.php');
     $settings->add(
         new admin_setting_heading(
@@ -443,6 +462,7 @@ if ($ADMIN->fulltree) {
             'mod_jitsi/sessionusagestats',
             '',
             '<a href=' . $link . ' >' . get_string('sessionusagestats', 'jitsi') . '</a>'
+            . ' <span class="text-muted small">(' . get_string('sessionusagestatsslow', 'jitsi') . ')</span>'
         )
     );
 

@@ -242,6 +242,10 @@ $string['raisehand'] = 'Raise hand button';
 $string['raisehandex'] = 'Show the raisehad button to all users. When users raise their hands they can access to the participants panel. If you hide the participants panels may be you should hide this button.';
 $string['reactions'] = 'Reactions';
 $string['reactionsex'] = 'Shows sound emoticons of applause, surprise, etc ... "Raise hand button" enabled is required';
+$string['chat'] = 'Chat';
+$string['chatex'] = 'Enable the chat for all participants.';
+$string['polls'] = 'Polls';
+$string['pollsex'] = 'Enable the polls feature for all participants. Note: polls are always disabled when chat is disabled.';
 $string['record'] = 'Record';
 $string['recorders'] = 'Recorders';
 $string['recordex'] = 'Enable native Jitsi recording options (actually dropbox) to users with mod/jitsi:record capability enabled (teachers). If you set the "Streaming configuration" with the "Moodle integrated" method probably you will want to disable this.';
@@ -343,6 +347,7 @@ $string['youtubebuttonex'] = 'Show the youtube videos sharing option';
 
 // Session usage statistics strings.
 $string['sessionusagestats'] = 'Session usage statistics';
+$string['sessionusagestatsslow'] = 'may be slow on large installations';
 $string['sessionsentered'] = 'Sessions entered';
 $string['uniqueusers'] = 'Unique users';
 $string['totalminutes'] = 'Total minutes';

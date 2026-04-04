@@ -652,6 +652,13 @@ function createsession(
         echo "disableReactions: true,\n";
     }
 
+    if (get_config('mod_jitsi', 'chat') == 0) {
+        echo "disableChat: true,\n";
+        echo "disablePolls: true,\n";
+    } else if (get_config('mod_jitsi', 'polls') == 0) {
+        echo "disablePolls: true,\n";
+    }
+
     // Disable live streaming if global setting is off OR if it's a GCP server (type 3 - not yet supported).
     if (get_config('mod_jitsi', 'livebutton') == 0 || $servertype == 3) {
         echo "liveStreamingEnabled: false,\n";
@@ -1486,6 +1493,13 @@ function createsessionpriv(
 
     if (get_config('mod_jitsi', 'reactions') == 0) {
         echo "disableReactions: true,\n";
+    }
+
+    if (get_config('mod_jitsi', 'chat') == 0) {
+        echo "disableChat: true,\n";
+        echo "disablePolls: true,\n";
+    } else if (get_config('mod_jitsi', 'polls') == 0) {
+        echo "disablePolls: true,\n";
     }
 
     // Disable live streaming if global setting is off OR if it's a GCP server (type 3 - not yet supported).
