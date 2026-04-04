@@ -49,8 +49,8 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const branches = `${{ steps.behind.outputs.branches }}`;
-            const commitMsg = `${{ steps.commit.outputs.message }}`;
+            const branches = "${{ steps.behind.outputs.branches }}";
+            const commitMsg = "${{ steps.commit.outputs.message }}";
 
             const body = `## Ramas que necesitan rebase
 
