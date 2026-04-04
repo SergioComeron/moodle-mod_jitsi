@@ -1156,8 +1156,7 @@ class mod_jitsi_external extends external_api {
         // Exclude the current activity's own token so a session cannot join itself.
         $excludeclause = '';
         if (!empty($excludetoken)) {
-            $excludeclause = " AND " . $DB->sql_compare_text('j.tokeninterno') .
-                " <> " . $DB->sql_compare_text(':excludetoken');
+            $excludeclause = ' AND j.tokeninterno <> :excludetoken';
             $searchparams['excludetoken'] = $excludetoken;
         }
 
