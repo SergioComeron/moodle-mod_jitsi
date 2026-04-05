@@ -1,0 +1,75 @@
+name: CI — PHPUnit Tests
+
+on:
+  push:
+    branches-ignore:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  phpunit:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: moodle
+          POSTGRES_PASSWORD: moodle
+          POSTGRES_DB: moodle
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout mod_jitsi
+        uses: actions/checkout@v4
+        with:
+          path: mod_jitsi
+
+      - name: Checkout Moodle
+        uses: actions/checkout@v4
+        with:
+          repository: moodle/moodle
+          ref: MOODLE_405_STABLE
+          path: moodle
+
+      - name: Place plugin inside Moodle
+        run: |
+          mv mod_jitsi moodle/mod/jitsi
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pgsql, zip, curl, xml, mbstring, intl
+
+      - name: Install Moodle composer dependencies
+        run: |
+          cd moodle
+          composer install --no-interaction --prefer-dist
+
+      - name: Configure Moodle for testing
+        run: |
+          cd moodle
+          php admin/tool/phpunit/cli/init.php
+        env:
+          DB: pgsql
+          DBHOST: localhost
+          DBUSER: moodle
+          DBPASS: moodle
+          DBNAME: moodle
+          MOODLE_PHPUNIT_DATAROOT: /tmp/moodledata_phpunit
+          MOODLE_PHPUNIT_WWWROOT: http://localhost
+
+      - name: Run mod_jitsi tests
+        run: |
+          cd moodle
+          vendor/bin/phpunit --testsuite mod_jitsi_testsuite --testdox
+        env:
+          MOODLE_PHPUNIT_DATAROOT: /tmp/moodledata_phpunit
+          MOODLE_PHPUNIT_WWWROOT: http://localhost
