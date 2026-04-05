@@ -1,4 +1,30 @@
 # Changelog
+## v4.4.0
+# Added
+
+ * auto-generate CHANGES.md entry on version bump
+# Fixed
+
+ * start JVB before Jicofo to prevent bridge unavailable race condition on boot
+ * generate config.php via PHP to avoid heredoc indentation issues in CI
+ * create moodledata directories before PHPUnit init in CI
+ * add config.php creation step before PHPUnit init in CI
+ * avoid template literals in YAML workflow to prevent syntax errors
+ * sort interface names alphabetically in privacy provider
+ * replace echo with mtrace and translate strings to English in cron_task_delete
+# Changed
+
+ * also run on pull requests to master
+ * add tests for base64url, istimedout, generatecode, isoriginal, jitsi_supports and isdeletable
+ * add MySQL to test matrix alongside PostgreSQL
+ * test against Moodle 4.5, 5.0 and 5.1 using matrix strategy
+ * add more lifecycle tests for timecreated, timemodified, course and independence
+ * add lifecycle tests for add, update and delete instance
+ * run checks on push to master instead of PRs
+ * run checks only on PRs to master, not on every push
+
+---
+
 ## v4.3.1
 # Changed
  * CI/CD: replace github-tag-action with native git versioning to avoid tag conflicts
