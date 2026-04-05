@@ -223,4 +223,14 @@ $functions = [
                 'loginrequired' => false,
                 'services' => [MOODLE_OFFICIAL_MOBILE_SERVICE, 'local_mobile'],
         ],
+
+        'mod_jitsi_search_shared_sessions' => [
+                'classname' => 'mod_jitsi_external',
+                'methodname' => 'search_shared_sessions',
+                'classpath' => 'mod/jitsi/classes/external.php',
+                'description' => 'Search for Jitsi master sessions available to join as a shared session',
+                'type' => 'read',
+                'ajax' => true,
+                'loginrequired' => true,
+        ],
 ];

@@ -1,0 +1,79 @@
+name: Release to Moodle Plugins Directory
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract plugin metadata from version.php
+        id: meta
+        run: |
+          PLUGIN_VERSION=$(grep "\$plugin->version" version.php | grep -oP '\d+')
+          PLUGIN_RELEASE=$(grep "\$plugin->release" version.php | grep -oP "'[^']+'" | tr -d "'")
+          echo "plugin_version=$PLUGIN_VERSION" >> "$GITHUB_OUTPUT"
+          echo "plugin_release=$PLUGIN_RELEASE" >> "$GITHUB_OUTPUT"
+          echo "Version: $PLUGIN_VERSION, Release: $PLUGIN_RELEASE"
+
+      - name: Extract release notes from CHANGES.md
+        id: notes
+        run: |
+          # Extrae el bloque del tag actual (entre el primer ## y el siguiente)
+          TAG="${{ github.ref_name }}"
+          NOTES=$(awk "/^## $TAG/,/^## /" CHANGES.md | head -n -2 | tail -n +2)
+          if [ -z "$NOTES" ]; then
+            NOTES="Release $TAG"
+          fi
+          # Guardar en fichero para evitar problemas con caracteres especiales
+          echo "$NOTES" > /tmp/release_notes.txt
+          echo "Release notes extraídas para $TAG"
+          cat /tmp/release_notes.txt
+
+      - name: Create plugin ZIP
+        run: |
+          mkdir -p /tmp/zip_build/jitsi
+          rsync -av --exclude='.git' --exclude='.github' --exclude='CLAUDE.md' . /tmp/zip_build/jitsi/
+          cd /tmp/zip_build
+          zip -r mod_jitsi.zip jitsi
+          mv mod_jitsi.zip "$GITHUB_WORKSPACE/mod_jitsi.zip"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: mod_jitsi.zip
+          body_path: /tmp/release_notes.txt
+
+      - name: Publish to Moodle Plugins Directory
+        run: |
+          ZIP_URL="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/mod_jitsi.zip"
+          RELEASE_NOTES=$(cat /tmp/release_notes.txt)
+
+          echo "Publicando versión ${{ steps.meta.outputs.plugin_release }} (build ${{ steps.meta.outputs.plugin_version }}) con ZIP: $ZIP_URL"
+
+          RESPONSE=$(curl -s -X POST "https://moodle.org/webservice/rest/server.php" \
+            --data-urlencode "wstoken=${{ secrets.MOODLE_ORG_TOKEN }}" \
+            --data-urlencode "wsfunction=local_plugins_add_version" \
+            --data-urlencode "moodlewsrestformat=json" \
+            --data-urlencode "frankenstyle=mod_jitsi" \
+            --data-urlencode "zipurl=$ZIP_URL" \
+            --data-urlencode "version=${{ steps.meta.outputs.plugin_version }}" \
+            --data-urlencode "release=${{ steps.meta.outputs.plugin_release }}" \
+            --data-urlencode "releasenotes=$RELEASE_NOTES")
+
+          echo "Respuesta: $RESPONSE"
+
+          if echo "$RESPONSE" | grep -q '"exception"'; then
+            echo "ERROR al publicar en el directorio de plugins de Moodle"
+            exit 1
+          fi
+
+          echo "Plugin publicado correctamente en moodle.org"

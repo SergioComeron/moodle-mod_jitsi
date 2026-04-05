@@ -1,0 +1,12 @@
+{
+    "name": "sergiocomeron/moodle-mod_jitsi",
+    "description": "Moodle Jitsi activity module - dev dependencies",
+    "require-dev": {
+        "moodlehq/moodle-cs": "*"
+    },
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        }
+    }
+}

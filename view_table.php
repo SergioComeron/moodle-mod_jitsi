@@ -138,7 +138,8 @@ class mod_view_table extends table_sql {
                     . "<video controls style=\"width:100%;max-width:100%\">"
                     . "<source src=\"" . s($embedurl) . "\" type=\"video/mp4\">"
                     . "</video>"
-                    . "<p><a href=\"" . s($sourcerecord->link) . "\" target=\"_blank\" class=\"btn btn-sm btn-outline-secondary mt-1\">"
+                    . "<p><a href=\"" . s($sourcerecord->link) . "\" target=\"_blank\""
+                    . " class=\"btn btn-sm btn-outline-secondary mt-1\">"
                     . get_string('openrecording', 'jitsi') . "</a></p><br>";
             } else {
                 $is8x8 = strpos($sourcerecord->link, '8x8.vc') !== false;
