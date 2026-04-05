@@ -155,7 +155,6 @@ function jitsi_check_gcp_server_status($server) {
                 'message' => 'Instance status: ' . $status,
             ];
         }
-
     } catch (Exception $e) {
         return [
             'status' => 'error',

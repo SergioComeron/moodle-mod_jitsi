@@ -1,4 +1,4 @@
-name: CI — PHPUnit Tests
+name: CI — Code Style & PHPUnit Tests
 
 on:
   push:
@@ -9,8 +9,36 @@ on:
       - master
 
 jobs:
-  phpunit:
+  codestyle:
+    name: Moodle Code Style
     runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer
+
+      - name: Install moodle-cs (Moodle coding standard)
+        run: composer require moodle/moodle-cs --dev --no-interaction
+
+      - name: Run PHP_CodeSniffer
+        run: |
+          vendor/bin/phpcs \
+            --standard=moodle \
+            --extensions=php \
+            --ignore=api/vendor \
+            --warning-severity=0 \
+            .
+
+  phpunit:
+    name: PHPUnit Tests
+    runs-on: ubuntu-latest
+    needs: codestyle
 
     services:
       postgres:
@@ -39,8 +67,7 @@ jobs:
           path: moodle
 
       - name: Place plugin inside Moodle
-        run: |
-          mv mod_jitsi moodle/mod/jitsi
+        run: mv mod_jitsi moodle/mod/jitsi
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2

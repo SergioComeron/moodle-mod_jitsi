@@ -28,13 +28,10 @@ require_once($CFG->dirroot . '/mod/jitsi/lib.php');
  * @copyright  2026 Sergio Comerón Sánchez-Paniagua <sergiocomeron@icloud.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class lib_test extends \advanced_testcase {
-
-    // -------------------------------------------------------------------------
-    // normalizesessionname() — pure unit tests, no DB needed
-    // -------------------------------------------------------------------------
-
+final class lib_test extends \advanced_testcase {
     /**
+     * Test that spaces are removed from session names.
+     *
      * @covers ::normalizesessionname
      */
     public function test_normalizesessionname_removes_spaces(): void {
@@ -42,6 +39,8 @@ class lib_test extends \advanced_testcase {
     }
 
     /**
+     * Test that special characters are removed from session names.
+     *
      * @covers ::normalizesessionname
      */
     public function test_normalizesessionname_removes_special_chars(): void {
@@ -49,6 +48,8 @@ class lib_test extends \advanced_testcase {
     }
 
     /**
+     * Test that hyphens and underscores are preserved in session names.
+     *
      * @covers ::normalizesessionname
      */
     public function test_normalizesessionname_keeps_hyphens_and_underscores(): void {
@@ -56,29 +57,28 @@ class lib_test extends \advanced_testcase {
     }
 
     /**
+     * Test that accented characters are removed from session names.
+     *
      * @covers ::normalizesessionname
      */
     public function test_normalizesessionname_removes_accents(): void {
-        // Accented characters are not in [a-zA-Z0-9\-_] so they get stripped.
         $this->assertEquals('caf', normalizesessionname('café'));
     }
 
     /**
+     * Test that alphanumeric session names are returned unchanged.
+     *
      * @covers ::normalizesessionname
      */
     public function test_normalizesessionname_alphanumeric_unchanged(): void {
         $this->assertEquals('Room123', normalizesessionname('Room123'));
     }
 
-    // -------------------------------------------------------------------------
-    // createsession() — regression test for issue #138
-    // Type 0 server (no JWT): roomName must appear in the JS output.
-    // -------------------------------------------------------------------------
-
     /**
      * Regression test for issue #138.
+     *
      * On a type-0 server (public/no JWT), createsession() must emit
-     * `roomName: "..."` so users join the correct room instead of landing
+     * roomName so users join the correct room instead of landing
      * on the Jitsi homepage.
      *
      * @covers ::createsession
@@ -89,7 +89,6 @@ class lib_test extends \advanced_testcase {
         $this->resetAfterTest(true);
         $this->setAdminUser();
 
-        // Minimal admin config values consumed by createsession().
         set_config('livebutton', '0', 'mod_jitsi');
         set_config('shareyoutube', '0', 'mod_jitsi');
         set_config('blurbutton', '0', 'mod_jitsi');
@@ -109,39 +108,37 @@ class lib_test extends \advanced_testcase {
         set_config('tokentype', '0', 'mod_jitsi');
         set_config('dropbox_appkey', '', 'mod_jitsi');
 
-        // Create a type-0 server (public Jitsi, no JWT).
         $server = (object)[
-            'name'               => 'Public server',
-            'type'               => 0,
-            'domain'             => 'meet.jit.si',
-            'appid'              => '',
-            'secret'             => '',
-            'eightbyeightappid'  => '',
+            'name'                => 'Public server',
+            'type'                => 0,
+            'domain'              => 'meet.jit.si',
+            'appid'               => '',
+            'secret'              => '',
+            'eightbyeightappid'   => '',
             'eightbyeightapikeyid' => '',
-            'privatekey'         => '',
-            'gcpproject'         => '',
-            'gcpzone'            => '',
-            'gcpinstancename'    => '',
-            'gcpstaticipname'    => '',
-            'gcpstaticipaddress' => '',
-            'provisioningstatus' => '',
-            'provisioningtoken'  => '',
-            'provisioningerror'  => '',
-            'timecreated'        => time(),
-            'timemodified'       => time(),
+            'privatekey'          => '',
+            'gcpproject'          => '',
+            'gcpzone'             => '',
+            'gcpinstancename'     => '',
+            'gcpstaticipname'     => '',
+            'gcpstaticipaddress'  => '',
+            'provisioningstatus'  => '',
+            'provisioningtoken'   => '',
+            'provisioningerror'   => '',
+            'timecreated'         => time(),
+            'timemodified'        => time(),
         ];
         $serverid = $DB->insert_record('jitsi_servers', $server);
         set_config('server', $serverid, 'mod_jitsi');
 
-        // Create course + activity + enrol admin.
         $course = $this->getDataGenerator()->create_course();
         $jitsirecord = $this->getDataGenerator()->create_module('jitsi', [
-            'course'          => $course->id,
-            'name'            => 'Test session',
+            'course'           => $course->id,
+            'name'             => 'Test session',
             'sessionwithtoken' => 0,
-            'token'           => sha1(uniqid('', true)),
-            'tokeninterno'    => sha1(uniqid('', true)),
-            'tokeninvitacion' => '',
+            'token'            => sha1(uniqid('', true)),
+            'tokeninterno'     => sha1(uniqid('', true)),
+            'tokeninvitacion'  => '',
         ]);
         $cm = get_coursemodule_from_instance('jitsi', $jitsirecord->id, $course->id);
 
@@ -149,34 +146,30 @@ class lib_test extends \advanced_testcase {
         $PAGE->set_cm($cm);
         $PAGE->set_context(\context_module::instance($cm->id));
 
-        // Capture all output from createsession().
         ob_start();
         createsession(
-            0,                   // $teacher (student)
-            $cm->id,             // $cmid
-            'https://example.com/avatar.png', // $avatar
-            'Test User',         // $nombre
-            'TestRoom-1',        // $session
-            'test@example.com',  // $mail
-            $jitsirecord         // $jitsi object
+            0,
+            $cm->id,
+            'https://example.com/avatar.png',
+            'Test User',
+            'TestRoom-1',
+            'test@example.com',
+            $jitsirecord
         );
         $output = ob_get_clean();
 
-        // The critical assertion: roomName must be present in the JS output.
         $this->assertStringContainsString(
             'roomName:',
             $output,
             'createsession() must emit roomName for type-0 servers (regression #138)'
         );
 
-        // Also verify the actual room value is the normalised session name.
         $this->assertStringContainsString(
             'TestRoom-1',
             $output,
             'roomName must contain the normalised session name'
         );
 
-        // Verify no JWT token is generated for type-0 servers.
         $this->assertStringNotContainsString(
             'jwt:',
             $output,
