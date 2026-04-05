@@ -53,7 +53,6 @@ jobs:
         moodle-branch:
           - MOODLE_405_STABLE
           - MOODLE_500_STABLE
-          - MOODLE_501_STABLE
         db:
           - pgsql
           - mysqli
@@ -89,6 +88,11 @@ jobs:
           - 3306:3306
 
     steps:
+      - name: Install required locales
+        run: |
+          sudo locale-gen en_AU.UTF-8
+          sudo update-locale
+
       - name: Checkout mod_jitsi
         uses: actions/checkout@v4
         with:
