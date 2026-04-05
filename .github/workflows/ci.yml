@@ -38,7 +38,7 @@ jobs:
             .
 
   phpunit:
-    name: PHPUnit Tests (${{ matrix.moodle-branch }})
+    name: PHPUnit Tests (${{ matrix.moodle-branch }}, ${{ matrix.db }})
     runs-on: ubuntu-latest
     needs: codestyle
     env:
@@ -51,6 +51,9 @@ jobs:
           - MOODLE_405_STABLE
           - MOODLE_500_STABLE
           - MOODLE_501_STABLE
+        db:
+          - pgsql
+          - mysqli
 
     services:
       postgres:
@@ -64,6 +67,23 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+        ports:
+          - 5432:5432
+
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: moodle
+          MYSQL_DATABASE: moodle
+          MYSQL_USER: moodle
+          MYSQL_PASSWORD: moodle
+        options: >-
+          --health-cmd "mysqladmin ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 3306:3306
 
     steps:
       - name: Checkout mod_jitsi
@@ -85,7 +105,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-          extensions: pgsql, zip, curl, xml, mbstring, intl
+          extensions: pgsql, mysqli, zip, curl, xml, mbstring, intl
 
       - name: Install Moodle composer dependencies
         run: |
@@ -101,18 +121,20 @@ jobs:
       - name: Create Moodle config.php
         run: |
           php -r "
+          \$db = '${{ matrix.db }}';
+          \$isMySQL = \$db === 'mysqli';
           \$config = '<?php' . PHP_EOL;
           \$config .= 'unset(\$CFG);' . PHP_EOL;
           \$config .= 'global \$CFG;' . PHP_EOL;
           \$config .= '\$CFG = new stdClass();' . PHP_EOL;
-          \$config .= '\$CFG->dbtype    = \"pgsql\";' . PHP_EOL;
+          \$config .= '\$CFG->dbtype    = \"' . \$db . '\";' . PHP_EOL;
           \$config .= '\$CFG->dblibrary = \"native\";' . PHP_EOL;
-          \$config .= '\$CFG->dbhost    = \"localhost\";' . PHP_EOL;
+          \$config .= '\$CFG->dbhost    = \"127.0.0.1\";' . PHP_EOL;
           \$config .= '\$CFG->dbname    = \"moodle\";' . PHP_EOL;
           \$config .= '\$CFG->dbuser    = \"moodle\";' . PHP_EOL;
           \$config .= '\$CFG->dbpass    = \"moodle\";' . PHP_EOL;
           \$config .= '\$CFG->prefix    = \"mdl_\";' . PHP_EOL;
-          \$config .= '\$CFG->dboptions = array(\"dbport\" => 5432);' . PHP_EOL;
+          \$config .= '\$CFG->dboptions = array(\"dbport\" => ' . (\$isMySQL ? '3306' : '5432') . ');' . PHP_EOL;
           \$config .= '\$CFG->wwwroot   = \"http://localhost\";' . PHP_EOL;
           \$config .= '\$CFG->dataroot  = \"/tmp/moodledata\";' . PHP_EOL;
           \$config .= '\$CFG->admin     = \"admin\";' . PHP_EOL;
@@ -121,7 +143,7 @@ jobs:
           \$config .= '\$CFG->phpunit_dataroot = \"/tmp/moodledata_phpunit\";' . PHP_EOL;
           \$config .= 'require_once(__DIR__ . \"/lib/setup.php\");' . PHP_EOL;
           file_put_contents('moodle/config.php', \$config);
-          echo 'config.php created.' . PHP_EOL;
+          echo 'config.php created for ' . \$db . PHP_EOL;
           "
 
       - name: Configure Moodle for testing
