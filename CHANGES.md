@@ -1,4 +1,11 @@
 # Changelog
+## v4.4.1
+# Fixed
+
+ * install en_AU.UTF-8 locale and remove MOODLE_501_STABLE from CI matrix
+
+---
+
 ## v4.4.0
 # Added
 
