@@ -24,7 +24,10 @@ jobs:
           tools: composer
 
       - name: Install moodle-cs (Moodle coding standard)
-        run: composer require moodle/moodle-cs --dev --no-interaction
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Show moodle-cs version
+        run: composer show moodlehq/moodle-cs
 
       - name: Run PHP_CodeSniffer
         run: |
