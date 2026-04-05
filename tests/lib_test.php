@@ -146,6 +146,7 @@ class lib_test extends \advanced_testcase {
         $cm = get_coursemodule_from_instance('jitsi', $jitsirecord->id, $course->id);
 
         $PAGE->set_url('/mod/jitsi/view.php', ['id' => $cm->id]);
+        $PAGE->set_cm($cm);
         $PAGE->set_context(\context_module::instance($cm->id));
 
         // Capture all output from createsession().

@@ -806,7 +806,7 @@ function createsession(
     echo "api.executeCommand('displayName', '" . $nombre . "');\n";
     echo "api.executeCommand('avatarUrl', '" . $avatar . "');\n";
     echo "});\n";
-    $navigator = $_SERVER['HTTP_USER_AGENT'];
+    $navigator = $_SERVER['HTTP_USER_AGENT'] ?? '';
 
     $cm = get_coursemodule_from_id('jitsi', $cmid, 0, false, MUST_EXIST);
     $event = \mod_jitsi\event\jitsi_session_enter::create([
