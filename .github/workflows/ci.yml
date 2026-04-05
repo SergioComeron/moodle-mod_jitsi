@@ -74,7 +74,7 @@ jobs:
           - 5432:5432
 
       mysql:
-        image: mysql:8.0
+        image: mysql:8.4
         env:
           MYSQL_ROOT_PASSWORD: moodle
           MYSQL_DATABASE: moodle
