@@ -1,9 +1,6 @@
 name: CI — Code Style & PHPUnit Tests
 
 on:
-  push:
-    branches-ignore:
-      - master
   pull_request:
     branches:
       - master
