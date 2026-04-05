@@ -1,4 +1,11 @@
 # Changelog
+## v4.4.2
+# Fixed
+
+ * set max_input_vars=5000 for PHP in CI to meet Moodle requirement
+
+---
+
 ## v4.4.1
 # Fixed
 
