@@ -1,4 +1,11 @@
 # Changelog
+## v4.3.1
+# Changed
+ * CI/CD: replace github-tag-action with native git versioning to avoid tag conflicts
+ * CI/CD: strip v prefix from plugin release string for moodle.org compatibility
+
+---
+
 ## v4.3.0 (2026040501)
 # Fixed
  * External invitations redirect to login for unauthenticated users on Moodle 5.0
