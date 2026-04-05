@@ -1,0 +1,65 @@
+name: Bump Version on Master
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PAT_TOKEN }}
+
+      - name: Determine next version
+        id: tag
+        uses: mathieudutour/github-tag-action@v6.2
+        with:
+          github_token: ${{ secrets.PAT_TOKEN }}
+          dry_run: true
+          default_bump: patch
+          tag_prefix: v
+
+      - name: Update version.php
+        id: version
+        run: |
+          NEW_TAG="${{ steps.tag.outputs.new_tag }}"
+          RELEASE="${NEW_TAG}"  # e.g. v4.4
+          BUILD="$(date +%Y%m%d)01"
+
+          echo "Nuevo tag: $NEW_TAG"
+          echo "Release: $RELEASE"
+          echo "Build: $BUILD"
+
+          # Actualizar $plugin->version
+          sed -i "s/\$plugin->version = [0-9]\+;/\$plugin->version = $BUILD;/" version.php
+          # Actualizar $plugin->release
+          sed -i "s/\$plugin->release = '[^']*';/\$plugin->release = '$RELEASE';/" version.php
+
+          echo "new_tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
+          echo "build=$BUILD" >> "$GITHUB_OUTPUT"
+
+          echo "version.php actualizado:"
+          grep -E "version|release" version.php
+
+      - name: Commit updated version.php
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add version.php
+          git commit -m "chore: bump version to ${{ steps.version.outputs.new_tag }} (build ${{ steps.version.outputs.build }}) [skip ci]"
+          git push
+
+      - name: Create and push tag
+        uses: mathieudutour/github-tag-action@v6.2
+        with:
+          github_token: ${{ secrets.PAT_TOKEN }}
+          custom_tag: ${{ steps.version.outputs.new_tag }}
+          tag_prefix: ""
