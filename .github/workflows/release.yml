@@ -64,6 +64,18 @@ jobs:
 
           echo "Publicando versión ${{ steps.meta.outputs.plugin_release }} (build ${{ steps.meta.outputs.plugin_version }}) con ZIP: $ZIP_URL"
 
+          # Wait for GitHub CDN to make the release asset available
+          echo "Waiting 60s for release to propagate on GitHub CDN..."
+          sleep 60
+
+          # Verify ZIP is accessible before calling moodle.org
+          HTTP_STATUS=$(curl -sIL -o /dev/null -w "%{http_code}" "$ZIP_URL")
+          echo "ZIP URL HTTP status: $HTTP_STATUS"
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "ERROR: ZIP not accessible (HTTP $HTTP_STATUS). Aborting."
+            exit 1
+          fi
+
           RESPONSE=$(curl -s -X POST "https://moodle.org/webservice/rest/server.php" \
             --data-urlencode "wstoken=${{ secrets.MOODLE_ORG_TOKEN }}" \
             --data-urlencode "wsfunction=local_plugins_add_version" \
