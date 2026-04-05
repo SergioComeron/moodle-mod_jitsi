@@ -184,6 +184,128 @@ final class lib_test extends \advanced_testcase {
     }
 
     /**
+     * Test that jitsi_add_instance sets timecreated.
+     *
+     * @covers ::jitsi_add_instance
+     */
+    public function test_add_instance_sets_timecreated(): void {
+        global $DB;
+
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+
+        $before = time();
+        $course = $this->getDataGenerator()->create_course();
+        $jitsi = $this->getDataGenerator()->create_module('jitsi', ['course' => $course->id]);
+        $after = time();
+
+        $record = $DB->get_record('jitsi', ['id' => $jitsi->id]);
+        $this->assertGreaterThanOrEqual($before, $record->timecreated);
+        $this->assertLessThanOrEqual($after, $record->timecreated);
+    }
+
+    /**
+     * Test that jitsi_add_instance stores the correct course ID.
+     *
+     * @covers ::jitsi_add_instance
+     */
+    public function test_add_instance_stores_correct_course(): void {
+        global $DB;
+
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+
+        $course = $this->getDataGenerator()->create_course();
+        $jitsi = $this->getDataGenerator()->create_module('jitsi', ['course' => $course->id]);
+
+        $record = $DB->get_record('jitsi', ['id' => $jitsi->id]);
+        $this->assertEquals($course->id, $record->course);
+    }
+
+    /**
+     * Test that jitsi_update_instance sets timemodified.
+     *
+     * @covers ::jitsi_update_instance
+     */
+    public function test_update_instance_sets_timemodified(): void {
+        global $DB;
+
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+
+        $course = $this->getDataGenerator()->create_course();
+        $jitsi = $this->getDataGenerator()->create_module('jitsi', ['course' => $course->id]);
+        $cm = get_coursemodule_from_instance('jitsi', $jitsi->id, $course->id);
+
+        $before = time();
+        $update = $DB->get_record('jitsi', ['id' => $jitsi->id]);
+        $update->instance = $jitsi->id;
+        $update->coursemodule = $cm->id;
+        jitsi_update_instance($update);
+        $after = time();
+
+        $record = $DB->get_record('jitsi', ['id' => $jitsi->id]);
+        $this->assertGreaterThanOrEqual($before, $record->timemodified);
+        $this->assertLessThanOrEqual($after, $record->timemodified);
+    }
+
+    /**
+     * Test that deleting an instance with multiple recordings removes all of them.
+     *
+     * @covers ::jitsi_delete_instance
+     */
+    public function test_delete_instance_removes_multiple_recordings(): void {
+        global $DB;
+
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+
+        $course = $this->getDataGenerator()->create_course();
+        $jitsi = $this->getDataGenerator()->create_module('jitsi', ['course' => $course->id]);
+
+        for ($i = 0; $i < 3; $i++) {
+            $DB->insert_record('jitsi_record', [
+                'jitsi'       => $jitsi->id,
+                'name'        => 'Recording ' . $i,
+                'source'      => 0,
+                'timecreated' => time(),
+                'deleted'     => 0,
+                'visible'     => 1,
+            ]);
+        }
+
+        $this->assertEquals(3, $DB->count_records('jitsi_record', ['jitsi' => $jitsi->id]));
+
+        jitsi_delete_instance($jitsi->id);
+
+        $this->assertEquals(0, $DB->count_records('jitsi_record', ['jitsi' => $jitsi->id]));
+    }
+
+    /**
+     * Test that two instances in the same course are independent.
+     *
+     * @covers ::jitsi_add_instance
+     */
+    public function test_two_instances_in_same_course_are_independent(): void {
+        global $DB;
+
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+
+        $course = $this->getDataGenerator()->create_course();
+        $jitsi1 = $this->getDataGenerator()->create_module('jitsi', ['course' => $course->id, 'name' => 'Session A']);
+        $jitsi2 = $this->getDataGenerator()->create_module('jitsi', ['course' => $course->id, 'name' => 'Session B']);
+
+        $this->assertNotEquals($jitsi1->id, $jitsi2->id);
+        $this->assertEquals(2, $DB->count_records('jitsi', ['course' => $course->id]));
+
+        jitsi_delete_instance($jitsi1->id);
+
+        $this->assertFalse($DB->record_exists('jitsi', ['id' => $jitsi1->id]));
+        $this->assertTrue($DB->record_exists('jitsi', ['id' => $jitsi2->id]));
+    }
+
+    /**
      * Regression test for issue #138.
      *
      * On a type-0 server (public/no JWT), createsession() must emit
