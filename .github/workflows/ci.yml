@@ -113,6 +113,7 @@ jobs:
         with:
           php-version: '8.2'
           extensions: pgsql, mysqli, zip, curl, xml, mbstring, intl
+          ini-values: max_input_vars=5000
 
       - name: Install Moodle composer dependencies
         run: |
