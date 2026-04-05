@@ -315,7 +315,7 @@ echo html_writer::end_tag('div');
 echo html_writer::start_tag('div', ['class' => 'row mb-4']);
 
 $statcards = [
-    [get_string('totalsessionsinperiod', 'jitsi'),    $totalsessions],
+    [get_string('totalsessionsinperiod', 'jitsi'), $totalsessions],
     [get_string('totaluniqueusersinperiod', 'jitsi'), $totaluniqueusers],
     [get_string('totaluserminutesinperiod', 'jitsi'), format_jitsi_time($totalminutes)],
     [get_string('averagetimeperuserinperiod', 'jitsi'), format_jitsi_time($totalavg)],

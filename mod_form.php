@@ -67,7 +67,8 @@ class mod_jitsi_mod_form extends moodleform_mod {
         $mform->setType('tokeninterno', PARAM_TEXT);
 
         // Data carrier read by session_picker.js to exclude the current session.
-        $mform->addElement('html',
+        $mform->addElement(
+            'html',
             '<div id="jitsi-session-picker-data" data-exclude-token="' .
             s($tokeninterno) . '" style="display:none"></div>'
         );
@@ -101,8 +102,13 @@ class mod_jitsi_mod_form extends moodleform_mod {
             'noselectionstring' => get_string('searchsession', 'jitsi'),
             'showsuggestions'   => true,
         ];
-        $mform->addElement('autocomplete', 'tokeninvitacion',
-            get_string('tokeninvitacion', 'jitsi'), [], $autocompleteopts);
+        $mform->addElement(
+            'autocomplete',
+            'tokeninvitacion',
+            get_string('tokeninvitacion', 'jitsi'),
+            [],
+            $autocompleteopts
+        );
         $mform->hideIf('tokeninvitacion', 'sessionwithtoken', 'notchecked');
         $mform->addHelpButton('tokeninvitacion', 'tokeninvitacion', 'jitsi');
         $mform->setType('tokeninvitacion', PARAM_TEXT);
@@ -202,8 +208,12 @@ class mod_jitsi_mod_form extends moodleform_mod {
         $mform =&  $this->_form;
 
         $group = [
-            $mform->createElement('checkbox', 'completionminutesenabled' . $suffix, ' ',
-              get_string('completionminutesex', 'jitsi')),
+            $mform->createElement(
+                'checkbox',
+                'completionminutesenabled' . $suffix,
+                ' ',
+                get_string('completionminutesex', 'jitsi')
+            ),
             $mform->createElement('text', 'completionminutes' . $suffix, ' ', ['size' => 3]),
         ];
         $mform->setType('completionminutes' . $suffix, PARAM_INT);

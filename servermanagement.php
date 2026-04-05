@@ -147,8 +147,8 @@ require_once($CFG->dirroot . '/mod/jitsi/servermanagement_form.php');
 // Try to load Google API PHP Client autoloader from common locations.
 $gcpautoloaders = [
     $CFG->dirroot . '/mod/jitsi/api/vendor/autoload.php', // User-provided path.
-    $CFG->dirroot . '/mod/jitsi/vendor/autoload.php',     // Plugin-level vendor.
-    $CFG->dirroot . '/vendor/autoload.php',               // Site-level vendor.
+    $CFG->dirroot . '/mod/jitsi/vendor/autoload.php', // Plugin-level vendor.
+    $CFG->dirroot . '/vendor/autoload.php', // Site-level vendor.
 ];
 foreach ($gcpautoloaders as $autoload) {
     if (file_exists($autoload)) {
@@ -201,16 +201,20 @@ if (!function_exists('mod_jitsi_gcp_ensure_firewall')) {
         } catch (\Exception $e) {
             $msg = $e->getMessage();
             // 409 Already exists or similar → treat as exists.
-            if (stripos($msg, 'alreadyexists') !== false || stripos($msg, 'already exists') !== false ||
-              stripos($msg, 'duplicate') !== false) {
+            if (
+                stripos($msg, 'alreadyexists') !== false || stripos($msg, 'already exists') !== false ||
+                stripos($msg, 'duplicate') !== false
+            ) {
                 return 'exists';
             }
             // Permission errors → assume admin manages firewall; don't warn in UI.
-            if (stripos($msg, 'permission') !== false || stripos($msg, 'denied') !== false ||
-              stripos($msg, 'insufficient') !== false) {
+            if (
+                stripos($msg, 'permission') !== false || stripos($msg, 'denied') !== false ||
+                stripos($msg, 'insufficient') !== false
+            ) {
                 return 'noperms';
             }
-            return 'error:'.$msg;
+            return 'error:' . $msg;
         }
     }
 }
@@ -936,7 +940,7 @@ if (!function_exists('mod_jitsi_gcp_wait_region_op')) {
         string $project,
         string $region,
         string $opname,
-        int $timeout=120
+        int $timeout = 120
     ): void {
         $start = time();
         do {
@@ -1086,8 +1090,10 @@ if ($action === 'creategcpvm') {
               'message' => 'Missing Let\'s Encrypt email (gcp_letsencrypt_email) while hostname is set.']);
             exit;
         }
-        \core\notification::add('Missing Let\'s Encrypt email (gcp_letsencrypt_email) while hostname is set.',
-          \core\output\notification::NOTIFY_ERROR);
+        \core\notification::add(
+            'Missing Let\'s Encrypt email (gcp_letsencrypt_email) while hostname is set.',
+            \core\output\notification::NOTIFY_ERROR
+        );
         redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
     }
     $sscript   = mod_jitsi_default_startup_script();
@@ -1102,14 +1108,14 @@ if ($action === 'creategcpvm') {
         if ($ajax) {
             ob_end_clean();
             @header('Content-Type: application/json');
-            echo json_encode(['status' => 'error', 'message' => 'Missing GCP settings: '.implode(', ', $missing)]);
+            echo json_encode(['status' => 'error', 'message' => 'Missing GCP settings: ' . implode(', ', $missing)]);
             exit;
         }
-        \core\notification::add('Missing GCP settings: '.implode(', ', $missing), \core\output\notification::NOTIFY_ERROR);
+        \core\notification::add('Missing GCP settings: ' . implode(', ', $missing), \core\output\notification::NOTIFY_ERROR);
         redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
     }
 
-    $instancename = 'jitsi-'.date('ymdHi');
+    $instancename = 'jitsi-' . date('ymdHi');
 
     // Generar token único para esta VM.
     $vmtoken = bin2hex(random_bytes(32));
@@ -1170,7 +1176,6 @@ if ($action === 'creategcpvm') {
                 $staticipaddress = $addressobj->getAddress();
                 debugging("✅ Created new static IP: {$staticipname} ({$staticipaddress})", DEBUG_NORMAL);
             }
-
         } catch (\Throwable $e) {
             if ($ajax) {
                 ob_end_clean();
@@ -1260,7 +1265,7 @@ if ($action === 'creategcpvm') {
             echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
             exit;
         }
-        \core\notification::add('Failed to create GCP VM: '.$e->getMessage(), \core\output\notification::NOTIFY_ERROR);
+        \core\notification::add('Failed to create GCP VM: ' . $e->getMessage(), \core\output\notification::NOTIFY_ERROR);
         redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
     }
 }
@@ -1375,11 +1380,16 @@ if ($action === 'gcpserversstatus') {
         foreach ($ids as $id) {
             $id = (int)$id;
             if ($server = $DB->get_record('jitsi_servers', ['id' => $id])) {
-                if ($server->type == 3 && !empty($server->gcpproject) &&
-                  !empty($server->gcpzone) && !empty($server->gcpinstancename)) {
+                if (
+                    $server->type == 3 && !empty($server->gcpproject) &&
+                    !empty($server->gcpzone) && !empty($server->gcpinstancename)
+                ) {
                     try {
-                        $instance = $gcpclient->instances->get($server->gcpproject,
-                          $server->gcpzone, $server->gcpinstancename);
+                        $instance = $gcpclient->instances->get(
+                            $server->gcpproject,
+                            $server->gcpzone,
+                            $server->gcpinstancename
+                        );
                         $status = $instance->getStatus();
 
                         $statuses[$id] = [
@@ -1450,8 +1460,11 @@ if ($action === 'gcpstatus') {
         if ($op->getStatus() === 'DONE') {
             if ($op->getError()) {
                 unset($SESSION->mod_jitsi_gcp_op);
-                \core\notification::add(get_string('gcpoperationerror',
-                  'mod_jitsi', json_encode($op->getError())), \core\output\notification::NOTIFY_ERROR);
+                \core\notification::add(get_string(
+                    'gcpoperationerror',
+                    'mod_jitsi',
+                    json_encode($op->getError())
+                ), \core\output\notification::NOTIFY_ERROR);
                 redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
             }
             // Fetch public IP and notify success.
@@ -1459,8 +1472,10 @@ if ($action === 'gcpstatus') {
             $nats = $inst->getNetworkInterfaces()[0]->getAccessConfigs();
             $ip = (!empty($nats) && isset($nats[0])) ? $nats[0]->getNatIP() : '';
             unset($SESSION->mod_jitsi_gcp_op);
-            \core\notification::add(get_string('gcpservercreated', 'mod_jitsi', $opinfo['instancename'].' '.$ip),
-              \core\output\notification::NOTIFY_SUCCESS);
+            \core\notification::add(
+                get_string('gcpservercreated', 'mod_jitsi', $opinfo['instancename'] . ' ' . $ip),
+                \core\output\notification::NOTIFY_SUCCESS
+            );
             redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
         } else {
             // Not done yet: add meta refresh to poll again in 2s.
@@ -1470,8 +1485,10 @@ if ($action === 'gcpstatus') {
         }
     } catch (Exception $e) {
         unset($SESSION->mod_jitsi_gcp_op);
-        \core\notification::add(get_string('gcpservercreatefail', 'mod_jitsi', $e->getMessage()),
-          \core\output\notification::NOTIFY_ERROR);
+        \core\notification::add(
+            get_string('gcpservercreatefail', 'mod_jitsi', $e->getMessage()),
+            \core\output\notification::NOTIFY_ERROR
+        );
         redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
     }
 }
@@ -1586,14 +1603,20 @@ if ($action === 'delete' && $id > 0) {
                 html_writer::tag('strong', 'Warning: This is a GCP Auto-Managed server ') .
                 html_writer::tag('span', 'BETA', ['class' => 'badge bg-warning text-dark']) . '<br>' .
                 'Deleting this server will:' . '<br>' .
-                html_writer::tag('ul',
+                html_writer::tag(
+                    'ul',
                     html_writer::tag('li', '🗑️ Delete the virtual machine from Google Cloud') .
                     html_writer::tag('li', '♻️ Keep the static IP address reserved for reuse') .
-                    html_writer::tag('li', '❌ Stop all active Jitsi sessions')
-                , ['class' => 'text-start']) .
+                    html_writer::tag('li', '❌ Stop all active Jitsi sessions'),
+                    ['class' => 'text-start']
+                ) .
                 html_writer::tag('p', 'Instance name: <code>' . htmlspecialchars($server->gcpinstancename) . '</code>') .
-                html_writer::tag('p', 'Are you sure you want to permanently delete this server?',
-                  ['class' => 'text-danger font-weight-bold']), 'alert alert-warning'
+                html_writer::tag(
+                    'p',
+                    'Are you sure you want to permanently delete this server?',
+                    ['class' => 'text-danger font-weight-bold']
+                ),
+                'alert alert-warning'
             );
         } else {
             $msg = get_string('confirmdelete', 'mod_jitsi', format_string($server->name));
@@ -1778,7 +1801,6 @@ if ($showform) {
     );
 
     $mform->display();
-
 } else {
     // TABLE VIEW: Show server list and management options.
     echo $OUTPUT->heading(get_string('servermanagement', 'mod_jitsi'));
@@ -1790,7 +1812,8 @@ if ($showform) {
     echo html_writer::div(
         html_writer::link($settingsurl, get_string('backtosettings', 'mod_jitsi'), ['class' => 'btn btn-secondary me-2']) .
         html_writer::link($addserverurl, get_string('addnewserver', 'mod_jitsi'), ['class' => 'btn btn-success me-2']) .
-        html_writer::tag('button',
+        html_writer::tag(
+            'button',
             'Create VM in Google Cloud ' . html_writer::tag('span', 'BETA', ['class' => 'badge bg-warning text-dark ms-1']),
             ['id' => 'btn-creategcpvm', 'type' => 'button', 'class' => 'btn btn-primary']
         ),
@@ -2188,7 +2211,7 @@ if ($showform) {
         }
 
         // Obtener estado del servidor GCP y guardarlo para usar en botones.
-        $statushtml = '<span class="badge bg-secondary" id="gcp-status-'.$s->id.'">N/A</span>';
+        $statushtml = '<span class="badge bg-secondary" id="gcp-status-' . $s->id . '">N/A</span>';
         $instancestatus = null; // Variable para guardar el estado real.
 
         if ($s->type == 3 && !empty($s->gcpproject) && !empty($s->gcpzone) && !empty($s->gcpinstancename)) {
@@ -2202,38 +2225,38 @@ if ($showform) {
 
                     switch ($status) {
                         case 'RUNNING':
-                            $statushtml = '<span class="badge bg-success" id="gcp-status-'.$s->id.'">🟢 Running</span>';
+                            $statushtml = '<span class="badge bg-success" id="gcp-status-' . $s->id . '">🟢 Running</span>';
                             break;
                         case 'STOPPED':
                         case 'TERMINATED':
-                            $statushtml = '<span class="badge bg-danger" id="gcp-status-'.$s->id.'">🔴 Stopped</span>';
+                            $statushtml = '<span class="badge bg-danger" id="gcp-status-' . $s->id . '">🔴 Stopped</span>';
                             break;
                         case 'STOPPING':
-                            $statushtml = '<span class="badge bg-warning" id="gcp-status-'.$s->id.'">🟡 Stopping...</span>';
+                            $statushtml = '<span class="badge bg-warning" id="gcp-status-' . $s->id . '">🟡 Stopping...</span>';
                             break;
                         case 'PROVISIONING':
                         case 'STAGING':
-                            $statushtml = '<span class="badge bg-info" id="gcp-status-'.$s->id.'">🔵 Starting...</span>';
+                            $statushtml = '<span class="badge bg-info" id="gcp-status-' . $s->id . '">🔵 Starting...</span>';
                             break;
                         case 'SUSPENDING':
-                            $statushtml = '<span class="badge bg-warning" id="gcp-status-'.$s->id.'">🟡 Suspending...</span>';
+                            $statushtml = '<span class="badge bg-warning" id="gcp-status-' . $s->id . '">🟡 Suspending...</span>';
                             break;
                         case 'SUSPENDED':
-                            $statushtml = '<span class="badge bg-secondary" id="gcp-status-'.$s->id.'">⚫ Suspended</span>';
+                            $statushtml = '<span class="badge bg-secondary" id="gcp-status-' . $s->id . '">⚫ Suspended</span>';
                             break;
                         case 'REPAIRING':
-                            $statushtml = '<span class="badge bg-warning" id="gcp-status-'.$s->id.'">🔧 Repairing...</span>';
+                            $statushtml = '<span class="badge bg-warning" id="gcp-status-' . $s->id . '">🔧 Repairing...</span>';
                             break;
                         default:
-                            $statushtml = '<span class="badge bg-secondary" id="gcp-status-'.$s->id.'">' .
+                            $statushtml = '<span class="badge bg-secondary" id="gcp-status-' . $s->id . '">' .
                               htmlspecialchars($status) . '</span>';
                     }
                 } catch (Exception $e) {
                     if (strpos($e->getMessage(), 'notFound') !== false || strpos($e->getMessage(), '404') !== false) {
-                        $statushtml = '<span class="badge bg-dark" id="gcp-status-'.$s->id.'">❌ Not Found</span>';
+                        $statushtml = '<span class="badge bg-dark" id="gcp-status-' . $s->id . '">❌ Not Found</span>';
                         $instancestatus = 'NOT_FOUND';
                     } else {
-                        $statushtml = '<span class="badge bg-secondary" id="gcp-status-'.$s->id.'" title="' .
+                        $statushtml = '<span class="badge bg-secondary" id="gcp-status-' . $s->id . '" title="' .
                           htmlspecialchars($e->getMessage()) . '">⚠️ Error</span>';
                         $instancestatus = 'ERROR';
                     }
@@ -2275,7 +2298,7 @@ if ($showform) {
                 $links .= html_writer::link(
                     $starturl,
                     '▶️ Start',
-                    ['class' => 'btn btn-sm btn-success', 'id' => 'gcp-btn-start-'.$s->id],
+                    ['class' => 'btn btn-sm btn-success', 'id' => 'gcp-btn-start-' . $s->id],
                 );
                 $buttonshown = true;
             }
@@ -2288,7 +2311,7 @@ if ($showform) {
                 $links .= html_writer::link(
                     $stopurl,
                     '⏹️ Stop',
-                    ['class' => 'btn btn-sm btn-warning', 'id' => 'gcp-btn-stop-'.$s->id],
+                    ['class' => 'btn btn-sm btn-warning', 'id' => 'gcp-btn-stop-' . $s->id],
                 );
                 $buttonshown = true;
             }
@@ -2298,7 +2321,7 @@ if ($showform) {
                 if ($buttonshown) {
                     $links .= ' | ';
                 }
-                $links .= '<span class="badge bg-secondary" id="gcp-btn-wait-'.$s->id.'">⏳ Please wait...</span>';
+                $links .= '<span class="badge bg-secondary" id="gcp-btn-wait-' . $s->id . '">⏳ Please wait...</span>';
                 $buttonshown = true;
             }
 
@@ -2460,8 +2483,6 @@ if ($showform) {
         );
         // phpcs:enable
     }
-
 } // End of TABLE VIEW (else block)
 
 echo $OUTPUT->footer();
-
