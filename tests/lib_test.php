@@ -306,6 +306,166 @@ final class lib_test extends \advanced_testcase {
     }
 
     /**
+     * Test that base64urlencode and base64urldecode are inverse operations.
+     *
+     * @covers ::base64urlencode
+     * @covers ::base64urldecode
+     */
+    public function test_base64url_encode_decode_roundtrip(): void {
+        $original = 'Hello World+/=';
+        $encoded = base64urlencode($original);
+        $this->assertEquals($original, base64urldecode($encoded));
+    }
+
+    /**
+     * Test that base64urlencode replaces +, / and = with URL-safe characters.
+     *
+     * @covers ::base64urlencode
+     */
+    public function test_base64urlencode_uses_url_safe_chars(): void {
+        $encoded = base64urlencode('Hello World+/=');
+        $this->assertStringNotContainsString('+', $encoded);
+        $this->assertStringNotContainsString('/', $encoded);
+        $this->assertStringNotContainsString('=', $encoded);
+    }
+
+    /**
+     * Test that istimedout returns true when validitytime is in the past.
+     *
+     * @covers ::istimedout
+     */
+    public function test_istimedout_returns_true_when_expired(): void {
+        $jitsi = new \stdClass();
+        $jitsi->validitytime = time() - 3600;
+        $this->assertTrue(istimedout($jitsi));
+    }
+
+    /**
+     * Test that istimedout returns false when validitytime is in the future.
+     *
+     * @covers ::istimedout
+     */
+    public function test_istimedout_returns_false_when_not_expired(): void {
+        $jitsi = new \stdClass();
+        $jitsi->validitytime = time() + 3600;
+        $this->assertFalse(istimedout($jitsi));
+    }
+
+    /**
+     * Test that generatecode returns timecreated + id.
+     *
+     * @covers ::generatecode
+     */
+    public function test_generatecode_returns_sum_of_timecreated_and_id(): void {
+        $jitsi = new \stdClass();
+        $jitsi->timecreated = 1000000;
+        $jitsi->id = 42;
+        $this->assertEquals(1000042, generatecode($jitsi));
+    }
+
+    /**
+     * Test that isoriginal returns true when code matches generatecode.
+     *
+     * @covers ::isoriginal
+     */
+    public function test_isoriginal_returns_true_for_correct_code(): void {
+        $jitsi = new \stdClass();
+        $jitsi->timecreated = 1000000;
+        $jitsi->id = 42;
+        $this->assertTrue(isoriginal(1000042, $jitsi));
+    }
+
+    /**
+     * Test that isoriginal returns false for a wrong code.
+     *
+     * @covers ::isoriginal
+     */
+    public function test_isoriginal_returns_false_for_wrong_code(): void {
+        $jitsi = new \stdClass();
+        $jitsi->timecreated = 1000000;
+        $jitsi->id = 42;
+        $this->assertFalse(isoriginal(9999, $jitsi));
+    }
+
+    /**
+     * Test that jitsi_supports returns true for required features.
+     *
+     * @covers ::jitsi_supports
+     */
+    public function test_jitsi_supports_required_features(): void {
+        $this->assertTrue(jitsi_supports(FEATURE_MOD_INTRO));
+        $this->assertTrue(jitsi_supports(FEATURE_SHOW_DESCRIPTION));
+        $this->assertTrue(jitsi_supports(FEATURE_BACKUP_MOODLE2));
+        $this->assertTrue(jitsi_supports(FEATURE_COMPLETION_HAS_RULES));
+    }
+
+    /**
+     * Test that jitsi_supports returns null for unknown features.
+     *
+     * @covers ::jitsi_supports
+     */
+    public function test_jitsi_supports_returns_null_for_unknown_features(): void {
+        $this->assertNull(jitsi_supports(FEATURE_GROUPINGS));
+    }
+
+    /**
+     * Test that isdeletable returns false when a non-deleted record exists for the source.
+     *
+     * @covers ::isdeletable
+     */
+    public function test_isdeletable_returns_false_when_active_record_exists(): void {
+        global $DB;
+
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+
+        $course = $this->getDataGenerator()->create_course();
+        $jitsi = $this->getDataGenerator()->create_module('jitsi', ['course' => $course->id]);
+
+        $sourceid = $DB->insert_record('jitsi_source_record', [
+            'jitsi'       => $jitsi->id,
+            'link'        => 'https://youtube.com/test',
+            'timecreated' => time(),
+            'userid'      => 0,
+        ]);
+
+        $DB->insert_record('jitsi_record', [
+            'jitsi'       => $jitsi->id,
+            'source'      => $sourceid,
+            'name'        => 'Test',
+            'timecreated' => time(),
+            'deleted'     => 0,
+            'visible'     => 1,
+        ]);
+
+        $this->assertFalse(isdeletable($sourceid));
+    }
+
+    /**
+     * Test that isdeletable returns true when no active records exist for the source.
+     *
+     * @covers ::isdeletable
+     */
+    public function test_isdeletable_returns_true_when_no_active_records(): void {
+        global $DB;
+
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+
+        $course = $this->getDataGenerator()->create_course();
+        $jitsi = $this->getDataGenerator()->create_module('jitsi', ['course' => $course->id]);
+
+        $sourceid = $DB->insert_record('jitsi_source_record', [
+            'jitsi'       => $jitsi->id,
+            'link'        => 'https://youtube.com/test',
+            'timecreated' => time(),
+            'userid'      => 0,
+        ]);
+
+        $this->assertTrue(isdeletable($sourceid));
+    }
+
+    /**
      * Regression test for issue #138.
      *
      * On a type-0 server (public/no JWT), createsession() must emit
