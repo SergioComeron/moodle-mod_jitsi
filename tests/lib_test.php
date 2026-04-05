@@ -75,6 +75,115 @@ final class lib_test extends \advanced_testcase {
     }
 
     /**
+     * Test that jitsi_add_instance inserts a record and returns its ID.
+     *
+     * @covers ::jitsi_add_instance
+     */
+    public function test_add_instance_creates_record(): void {
+        global $DB;
+
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+
+        $course = $this->getDataGenerator()->create_course();
+        $jitsi = $this->getDataGenerator()->create_module('jitsi', ['course' => $course->id]);
+
+        $this->assertNotEmpty($jitsi->id);
+        $this->assertTrue($DB->record_exists('jitsi', ['id' => $jitsi->id]));
+    }
+
+    /**
+     * Test that jitsi_update_instance updates the record in the database.
+     *
+     * @covers ::jitsi_update_instance
+     */
+    public function test_update_instance_modifies_record(): void {
+        global $DB;
+
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+
+        $course = $this->getDataGenerator()->create_course();
+        $jitsi = $this->getDataGenerator()->create_module('jitsi', ['course' => $course->id, 'name' => 'Original']);
+
+        $cm = get_coursemodule_from_instance('jitsi', $jitsi->id, $course->id);
+        $update = $DB->get_record('jitsi', ['id' => $jitsi->id]);
+        $update->name = 'Updated';
+        $update->instance = $jitsi->id;
+        $update->coursemodule = $cm->id;
+
+        $result = jitsi_update_instance($update);
+
+        $this->assertTrue((bool)$result);
+        $this->assertEquals('Updated', $DB->get_field('jitsi', 'name', ['id' => $jitsi->id]));
+    }
+
+    /**
+     * Test that jitsi_delete_instance removes the record from the database.
+     *
+     * @covers ::jitsi_delete_instance
+     */
+    public function test_delete_instance_removes_record(): void {
+        global $DB;
+
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+
+        $course = $this->getDataGenerator()->create_course();
+        $jitsi = $this->getDataGenerator()->create_module('jitsi', ['course' => $course->id]);
+
+        $this->assertTrue($DB->record_exists('jitsi', ['id' => $jitsi->id]));
+
+        $result = jitsi_delete_instance($jitsi->id);
+
+        $this->assertTrue($result);
+        $this->assertFalse($DB->record_exists('jitsi', ['id' => $jitsi->id]));
+    }
+
+    /**
+     * Test that jitsi_delete_instance returns false for a non-existent ID.
+     *
+     * @covers ::jitsi_delete_instance
+     */
+    public function test_delete_instance_returns_false_for_nonexistent(): void {
+        $this->resetAfterTest(true);
+
+        $result = jitsi_delete_instance(999999);
+
+        $this->assertFalse($result);
+    }
+
+    /**
+     * Test that jitsi_delete_instance also removes associated records.
+     *
+     * @covers ::jitsi_delete_instance
+     */
+    public function test_delete_instance_removes_associated_records(): void {
+        global $DB;
+
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+
+        $course = $this->getDataGenerator()->create_course();
+        $jitsi = $this->getDataGenerator()->create_module('jitsi', ['course' => $course->id]);
+
+        $DB->insert_record('jitsi_record', [
+            'jitsi'       => $jitsi->id,
+            'name'        => 'Test recording',
+            'source'      => 0,
+            'timecreated' => time(),
+            'deleted'     => 0,
+            'visible'     => 1,
+        ]);
+
+        $this->assertTrue($DB->record_exists('jitsi_record', ['jitsi' => $jitsi->id]));
+
+        jitsi_delete_instance($jitsi->id);
+
+        $this->assertFalse($DB->record_exists('jitsi_record', ['jitsi' => $jitsi->id]));
+    }
+
+    /**
      * Regression test for issue #138.
      *
      * On a type-0 server (public/no JWT), createsession() must emit
