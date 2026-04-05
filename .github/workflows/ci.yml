@@ -84,6 +84,12 @@ jobs:
           cd moodle
           composer install --no-interaction --prefer-dist
 
+      - name: Create Moodle data directories
+        run: |
+          mkdir -p /tmp/moodledata
+          mkdir -p /tmp/moodledata_phpunit
+          chmod 777 /tmp/moodledata /tmp/moodledata_phpunit
+
       - name: Create Moodle config.php
         run: |
           cat > moodle/config.php << 'EOF'
