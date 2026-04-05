@@ -57,7 +57,18 @@ jobs:
         run: |
           NEW_TAG="${{ steps.tag.outputs.new_tag }}"
           RELEASE="${NEW_TAG#v}"  # Strip v prefix: e.g. 4.3.1 (not v4.3.1)
-          BUILD="$(date +%Y%m%d)01"
+
+          # Build number: YYYYMMDDNN — increment NN if already bumped today
+          TODAY="$(date +%Y%m%d)"
+          CURRENT_BUILD=$(grep -oP '(?<=\$plugin->version = )\d+' version.php)
+          CURRENT_DATE="${CURRENT_BUILD:0:8}"
+          CURRENT_NN="${CURRENT_BUILD:8:2}"
+          if [ "$CURRENT_DATE" = "$TODAY" ]; then
+            NN=$(printf "%02d" $((10#$CURRENT_NN + 1)))
+          else
+            NN="01"
+          fi
+          BUILD="${TODAY}${NN}"
 
           echo "Nuevo tag: $NEW_TAG"
           echo "Release: $RELEASE"
