@@ -71,7 +71,7 @@ jobs:
             --data-urlencode "frankenstyle=mod_jitsi" \
             --data-urlencode "zipurl=$ZIP_URL" \
             --data-urlencode "version=${{ steps.meta.outputs.plugin_version }}" \
-            --data-urlencode "release=${{ steps.meta.outputs.plugin_release }}" \
+            --data-urlencode "releasename=${{ steps.meta.outputs.plugin_release }}" \
             --data-urlencode "releasenotes=$RELEASE_NOTES")
 
           echo "Respuesta: $RESPONSE"
