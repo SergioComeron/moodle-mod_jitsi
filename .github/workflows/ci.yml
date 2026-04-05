@@ -1,7 +1,7 @@
 name: CI — Code Style & PHPUnit Tests
 
 on:
-  pull_request:
+  push:
     branches:
       - master
 
