@@ -85,12 +85,54 @@ jobs:
           echo "version.php actualizado:"
           grep -E "version|release" version.php
 
+      - name: Update CHANGES.md
+        run: |
+          NEW_TAG="${{ steps.version.outputs.new_tag }}"
+          LATEST=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
+
+          ADDED=""
+          FIXED=""
+          CHANGED=""
+
+          while IFS= read -r line; do
+            MSG=$(echo "$line" | sed 's/^[a-f0-9]* //')
+            if echo "$MSG" | grep -qE '^\[skip ci\]|^chore: bump version'; then
+              continue
+            elif echo "$MSG" | grep -qE '^feat(\([^)]+\))?!?:'; then
+              CLEAN=$(echo "$MSG" | sed 's/^feat([^)]*): //;s/^feat: //')
+              ADDED="$ADDED\n * $CLEAN"
+            elif echo "$MSG" | grep -qE '^fix(\([^)]+\))?:'; then
+              CLEAN=$(echo "$MSG" | sed 's/^fix([^)]*): //;s/^fix: //')
+              FIXED="$FIXED\n * $CLEAN"
+            else
+              CLEAN=$(echo "$MSG" | sed 's/^[a-z]*([^)]*): //;s/^[a-z]*: //')
+              CHANGED="$CHANGED\n * $CLEAN"
+            fi
+          done < <(git log "${LATEST}..HEAD" --oneline)
+
+          ENTRY="## ${NEW_TAG}\n"
+          if [ -n "$ADDED" ]; then
+            ENTRY="${ENTRY}# Added\n${ADDED}\n"
+          fi
+          if [ -n "$FIXED" ]; then
+            ENTRY="${ENTRY}# Fixed\n${FIXED}\n"
+          fi
+          if [ -n "$CHANGED" ]; then
+            ENTRY="${ENTRY}# Changed\n${CHANGED}\n"
+          fi
+          ENTRY="${ENTRY}\n---\n"
+
+          TMPFILE=$(mktemp)
+          echo -e "# Changelog\n${ENTRY}" > "$TMPFILE"
+          tail -n +2 CHANGES.md >> "$TMPFILE"
+          mv "$TMPFILE" CHANGES.md
+
       - name: Commit updated version.php
         id: commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add version.php
+          git add version.php CHANGES.md
           if git diff --staged --quiet; then
             echo "No changes to version.php — skipping commit and release"
             echo "skipped=true" >> "$GITHUB_OUTPUT"
