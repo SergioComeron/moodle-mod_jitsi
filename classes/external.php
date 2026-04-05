@@ -1118,7 +1118,12 @@ class mod_jitsi_external extends external_api {
     public static function search_shared_sessions_parameters() {
         return new external_function_parameters([
             'query'        => new external_value(PARAM_TEXT, 'Search string (activity name, course name or shortname)'),
-            'excludetoken' => new external_value(PARAM_TEXT, 'tokeninterno to exclude from results (current activity)', VALUE_DEFAULT, ''),
+            'excludetoken' => new external_value(
+                PARAM_TEXT,
+                'tokeninterno to exclude from results (current activity)',
+                VALUE_DEFAULT,
+                ''
+            ),
         ]);
     }
 

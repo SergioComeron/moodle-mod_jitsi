@@ -1082,11 +1082,14 @@ function createsession(
         echo "      }]);\n";
         echo "   ;});";
         if ($universal == false && $user == null) {
-            echo "  setTimeout(function() { location.href=\"" . $CFG->wwwroot . "/mod/jitsi/view.php?id=" . $cmid . "\"; }, 2000);\n";
+            $redirecturl = $CFG->wwwroot . "/mod/jitsi/view.php?id=" . $cmid;
+            echo "  setTimeout(function() { location.href=\"" . $redirecturl . "\"; }, 2000);\n";
         } else if ($universal == true && $user == null) {
-            echo "  setTimeout(function() { location.href=\"" . $CFG->wwwroot . "/mod/jitsi/formuniversal.php?t=" . $jitsi->token . "\"; }, 2000);\n";
+            $redirecturl = $CFG->wwwroot . "/mod/jitsi/formuniversal.php?t=" . $jitsi->token;
+            echo "  setTimeout(function() { location.href=\"" . $redirecturl . "\"; }, 2000);\n";
         } else if ($user != null) {
-            echo "  setTimeout(function() { location.href=\"" . $CFG->wwwroot . "/mod/jitsi/viewpriv.php?user=" . $user . "\"; }, 2000);\n";
+            $redirecturl = $CFG->wwwroot . "/mod/jitsi/viewpriv.php?user=" . $user;
+            echo "  setTimeout(function() { location.href=\"" . $redirecturl . "\"; }, 2000);\n";
         }
         echo "});\n";
 
@@ -1176,7 +1179,9 @@ function createsession(
         echo "      ajax.call([{\n";
         echo "        methodname: 'mod_jitsi_save_recording_link',\n";
         echo "        args: {jitsi: " . $jitsi->id . ", link: event.url, ttl: 0},\n";
-        echo "        done: function(response) { console.log('Recording link saved via recordingStatusChanged, idsource: ' + response.idsource); },\n";
+        echo "        done: function(response) {\n";
+        echo "          console.log('Recording link saved via recordingStatusChanged, idsource: ' + response.idsource);\n";
+        echo "        },\n";
         echo "        fail: notification.exception\n";
         echo "      }]);\n";
         echo "    });\n";

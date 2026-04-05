@@ -101,9 +101,11 @@ $selecteddate = optional_param_array('selecteddate', 0, PARAM_INT);
 $tab = optional_param('tab', 'help', PARAM_TEXT);
 $activetab = $tab;
 
-if (is_array($selecteddate) &&
+if (
+    is_array($selecteddate) &&
     isset($selecteddate['year']) && isset($selecteddate['month']) && isset($selecteddate['day']) &&
-    $selecteddate['year'] > 0 && $selecteddate['month'] > 0 && $selecteddate['day'] > 0) {
+    $selecteddate['year'] > 0 && $selecteddate['month'] > 0 && $selecteddate['day'] > 0
+) {
     $selecteddate = make_timestamp(
         $selecteddate['year'],
         $selecteddate['month'],
@@ -575,7 +577,8 @@ if (has_capability('mod/jitsi:viewrecords', $PAGE->context) || has_capability('m
             echo "<div class=\"form-check\">";
             echo "<input class=\"form-check-input\" type=\"checkbox\" id=\"embedrecording\" name=\"embedrecording\" value=\"1\""
                 . (!empty($editsource->embed) ? ' checked' : '') . ">";
-            echo "<label class=\"form-check-label\" for=\"embedrecording\">" . get_string('dropboxembedrecording', 'jitsi') . "</label>";
+            echo "<label class=\"form-check-label\" for=\"embedrecording\">"
+                . get_string('dropboxembedrecording', 'jitsi') . "</label>";
             echo "</div>";
             echo "<div class=\"form-text text-warning mt-1\">" . get_string('dropboxembedwarning', 'jitsi') . "</div>";
             echo "</div>";
@@ -602,7 +605,8 @@ if (has_capability('mod/jitsi:viewrecords', $PAGE->context) || has_capability('m
             echo "<div class=\"mb-3\" id=\"dropboxembedoption\" style=\"display:none\">";
             echo "<div class=\"form-check\">";
             echo "<input class=\"form-check-input\" type=\"checkbox\" id=\"embedrecording\" name=\"embedrecording\" value=\"1\">";
-            echo "<label class=\"form-check-label\" for=\"embedrecording\">" . get_string('dropboxembedrecording', 'jitsi') . "</label>";
+            echo "<label class=\"form-check-label\" for=\"embedrecording\">"
+                . get_string('dropboxembedrecording', 'jitsi') . "</label>";
             echo "</div>";
             echo "<div class=\"form-text text-warning mt-1\">" . get_string('dropboxembedwarning', 'jitsi') . "</div>";
             echo "</div>";
