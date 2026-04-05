@@ -85,22 +85,17 @@ jobs:
             const branches = process.env.BRANCHES;
             const commitMsg = process.env.COMMIT_MSG;
 
-            const body = `## Ramas que necesitan rebase
-
-Se ha actualizado \`master\` con: _${commitMsg}_
-
-Las siguientes ramas están desactualizadas:
-
-${branches}
-
-### Para actualizar cada rama:
-\`\`\`bash
-git checkout <nombre-rama>
-git rebase master
-git push --force-with-lease
-\`\`\`
-
-_Cierra esta issue cuando hayas actualizado todas las ramas._`;
+            const body = '## Ramas que necesitan rebase\n\n' +
+              'Se ha actualizado `master` con: _' + commitMsg + '_\n\n' +
+              'Las siguientes ramas están desactualizadas:\n\n' +
+              branches + '\n\n' +
+              '### Para actualizar cada rama:\n' +
+              '```bash\n' +
+              'git checkout <nombre-rama>\n' +
+              'git rebase master\n' +
+              'git push --force-with-lease\n' +
+              '```\n\n' +
+              '_Cierra esta issue cuando hayas actualizado todas las ramas._';
 
             if (existing) {
               await github.rest.issues.update({
