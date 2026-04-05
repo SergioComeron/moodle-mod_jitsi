@@ -45,7 +45,7 @@ class cron_task_delete extends \core\task\scheduled_task {
      * Run jitsi cron.
      */
     public function execute() {
-        global $CFG, $DB;
+        global $DB;
 
         $recordstodelete = $DB->get_records(
             'jitsi_record',
@@ -55,19 +55,18 @@ class cron_task_delete extends \core\task\scheduled_task {
             0,
             get_config('mod_jitsi', 'numbervideosdeleted')
         );
-        $cont = 0;
-        echo "Fecha: " . userdate(time()) . PHP_EOL;
-        echo "Borrando hasta: " . userdate(time() - get_config('mod_jitsi', 'videosexpiry')) . PHP_EOL;
+        mtrace("Date: " . userdate(time()));
+        mtrace("Deleting until: " . userdate(time() - get_config('mod_jitsi', 'videosexpiry')));
         foreach ($recordstodelete as $recordtodelete) {
             $source = $DB->get_record('jitsi_source_record', ['id' => $recordtodelete->source]);
             if (($source->timecreated < time() - get_config('mod_jitsi', 'videosexpiry'))) {
                 if (deleterecordyoutube($source->id)) {
-                    echo "eliminando source: " . $source->link . " del " . userdate($source->timecreated) . PHP_EOL;
+                    mtrace("Deleting source: " . $source->link . " from " . userdate($source->timecreated));
                     $DB->delete_records('jitsi_source_record', ['id' => $recordtodelete->source]);
-                    echo "eliminando record: " . $recordtodelete->name . PHP_EOL;
+                    mtrace("Deleting record: " . $recordtodelete->name);
                     $DB->delete_records('jitsi_record', ['id' => $recordtodelete->id]);
                 } else {
-                    echo "no se ha podido eliminar el source: " . $source->link;
+                    mtrace("Could not delete source: " . $source->link);
                 }
             }
         }
