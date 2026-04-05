@@ -50,19 +50,28 @@ jobs:
           grep -E "version|release" version.php
 
       - name: Commit updated version.php
+        id: commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add version.php
-          git commit -m "chore: bump version to ${{ steps.version.outputs.new_tag }} (build ${{ steps.version.outputs.build }}) [skip ci]"
-          git push
+          if git diff --staged --quiet; then
+            echo "No changes to version.php — skipping commit and release"
+            echo "skipped=true" >> "$GITHUB_OUTPUT"
+          else
+            git commit -m "chore: bump version to ${{ steps.version.outputs.new_tag }} (build ${{ steps.version.outputs.build }}) [skip ci]"
+            git push
+            echo "skipped=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Create and push tag
+        if: steps.commit.outputs.skipped == 'false'
         run: |
           git tag ${{ steps.version.outputs.new_tag }}
           git push origin ${{ steps.version.outputs.new_tag }}
 
       - name: Trigger release workflow
+        if: steps.commit.outputs.skipped == 'false'
         run: |
           gh workflow run release.yml --ref ${{ steps.version.outputs.new_tag }} \
             --field tag=${{ steps.version.outputs.new_tag }}
