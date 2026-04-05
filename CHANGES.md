@@ -1,4 +1,14 @@
 # Changelog
+## v4.4.3
+# Fixed
+
+ * upgrade MySQL image to 8.4 for MOODLE_500_STABLE compatibility
+# Changed
+
+ * also run CI on push to dev branch
+
+---
+
 ## v4.4.2
 # Fixed
 
