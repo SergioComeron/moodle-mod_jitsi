@@ -34,7 +34,7 @@ jobs:
           vendor/bin/phpcs \
             --standard=moodle \
             --extensions=php \
-            --ignore=api/vendor \
+            --ignore=api/vendor,vendor \
             --warning-severity=0 \
             .
 

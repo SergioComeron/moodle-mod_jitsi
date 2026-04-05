@@ -18,8 +18,8 @@ jobs:
       - name: Extract plugin metadata from version.php
         id: meta
         run: |
-          PLUGIN_VERSION=$(grep "\$plugin->version" version.php | grep -oP '\d+')
-          PLUGIN_RELEASE=$(grep "\$plugin->release" version.php | grep -oP "'[^']+'" | tr -d "'")
+          PLUGIN_VERSION=$(grep -oP '(?<=\$plugin->version = )\d+' version.php)
+          PLUGIN_RELEASE=$(grep -oP "(?<=\\\$plugin->release = ')[^']+" version.php)
           echo "plugin_version=$PLUGIN_VERSION" >> "$GITHUB_OUTPUT"
           echo "plugin_release=$PLUGIN_RELEASE" >> "$GITHUB_OUTPUT"
           echo "Version: $PLUGIN_VERSION, Release: $PLUGIN_RELEASE"
