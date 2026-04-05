@@ -58,8 +58,6 @@ jobs:
           git push
 
       - name: Create and push tag
-        uses: mathieudutour/github-tag-action@v6.2
-        with:
-          github_token: ${{ secrets.PAT_TOKEN }}
-          custom_tag: ${{ steps.version.outputs.new_tag }}
-          tag_prefix: ""
+        run: |
+          git tag ${{ steps.version.outputs.new_tag }}
+          git push origin ${{ steps.version.outputs.new_tag }}
