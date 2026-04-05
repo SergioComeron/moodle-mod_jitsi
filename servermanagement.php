@@ -710,12 +710,23 @@ if (!function_exists('mod_jitsi_default_startup_script')) {
         systemctl daemon-reload
         systemctl enable update-jitsi-ips.service
 
+        # Ensure Jicofo starts after JVB is registered (race condition fix)
+        mkdir -p /etc/systemd/system/jicofo.service.d
+        cat > /etc/systemd/system/jicofo.service.d/override.conf << EOFJICOFOD
+[Unit]
+After=jitsi-videobridge2.service
+
+[Service]
+ExecStartPre=/bin/sleep 30
+EOFJICOFOD
+        systemctl daemon-reload
+
         # Restart all services in correct order
         systemctl restart prosody || true
         sleep 5
-        systemctl restart jicofo || true
-        sleep 3
         systemctl restart jitsi-videobridge2 || true
+        sleep 30
+        systemctl restart jicofo || true
 
         # Marker file
         mkdir -p /var/local
@@ -777,7 +788,11 @@ if (!function_exists('mod_jitsi_default_startup_script')) {
         fi
 
         # Reiniciar servicios con la nueva configuracion
-        systemctl restart prosody jicofo jitsi-videobridge2 || true
+        systemctl restart prosody || true
+        sleep 5
+        systemctl restart jitsi-videobridge2 || true
+        sleep 30
+        systemctl restart jicofo || true
         fi
 
         # Notificar a Moodle con las credenciales
