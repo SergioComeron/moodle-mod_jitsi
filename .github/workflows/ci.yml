@@ -92,27 +92,29 @@ jobs:
 
       - name: Create Moodle config.php
         run: |
-          cat > moodle/config.php << 'EOF'
-          <?php
-          unset($CFG);
-          global $CFG;
-          $CFG = new stdClass();
-          $CFG->dbtype    = 'pgsql';
-          $CFG->dblibrary = 'native';
-          $CFG->dbhost    = 'localhost';
-          $CFG->dbname    = 'moodle';
-          $CFG->dbuser    = 'moodle';
-          $CFG->dbpass    = 'moodle';
-          $CFG->prefix    = 'mdl_';
-          $CFG->dboptions = array('dbport' => 5432);
-          $CFG->wwwroot   = 'http://localhost';
-          $CFG->dataroot  = '/tmp/moodledata';
-          $CFG->admin     = 'admin';
-          $CFG->directorypermissions = 0777;
-          $CFG->phpunit_prefix   = 'phpu_';
-          $CFG->phpunit_dataroot = '/tmp/moodledata_phpunit';
-          require_once(__DIR__ . '/lib/setup.php');
-          EOF
+          php -r "
+          \$config = '<?php' . PHP_EOL;
+          \$config .= 'unset(\$CFG);' . PHP_EOL;
+          \$config .= 'global \$CFG;' . PHP_EOL;
+          \$config .= '\$CFG = new stdClass();' . PHP_EOL;
+          \$config .= '\$CFG->dbtype    = \"pgsql\";' . PHP_EOL;
+          \$config .= '\$CFG->dblibrary = \"native\";' . PHP_EOL;
+          \$config .= '\$CFG->dbhost    = \"localhost\";' . PHP_EOL;
+          \$config .= '\$CFG->dbname    = \"moodle\";' . PHP_EOL;
+          \$config .= '\$CFG->dbuser    = \"moodle\";' . PHP_EOL;
+          \$config .= '\$CFG->dbpass    = \"moodle\";' . PHP_EOL;
+          \$config .= '\$CFG->prefix    = \"mdl_\";' . PHP_EOL;
+          \$config .= '\$CFG->dboptions = array(\"dbport\" => 5432);' . PHP_EOL;
+          \$config .= '\$CFG->wwwroot   = \"http://localhost\";' . PHP_EOL;
+          \$config .= '\$CFG->dataroot  = \"/tmp/moodledata\";' . PHP_EOL;
+          \$config .= '\$CFG->admin     = \"admin\";' . PHP_EOL;
+          \$config .= '\$CFG->directorypermissions = 0777;' . PHP_EOL;
+          \$config .= '\$CFG->phpunit_prefix   = \"phpu_\";' . PHP_EOL;
+          \$config .= '\$CFG->phpunit_dataroot = \"/tmp/moodledata_phpunit\";' . PHP_EOL;
+          \$config .= 'require_once(__DIR__ . \"/lib/setup.php\");' . PHP_EOL;
+          file_put_contents('moodle/config.php', \$config);
+          echo 'config.php created.' . PHP_EOL;
+          "
 
       - name: Configure Moodle for testing
         run: |
