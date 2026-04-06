@@ -36,7 +36,7 @@ jobs:
         run: |
           # Extrae el bloque del tag actual (entre el primer ## y el siguiente)
           TAG="${{ github.ref_name }}"
-          NOTES=$(awk "/^## $TAG/,/^## /" CHANGES.md | head -n -2 | tail -n +2)
+          NOTES=$(awk "/^## $TAG/{found=1; next} found && /^## v[0-9]/{exit} found{print}" CHANGES.md)
           if [ -z "$NOTES" ]; then
             NOTES="Release $TAG"
           fi
