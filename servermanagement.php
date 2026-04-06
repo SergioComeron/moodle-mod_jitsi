@@ -2185,8 +2185,10 @@ if ($action === 'delete' && $id > 0) {
         }
 
         // Delete the Jibri VM if one was provisioned.
-        if ($server->type == 3 && !empty($server->jibri_enabled) && !empty($server->jibri_gcpinstancename)
-                && !empty($server->gcpproject) && !empty($server->gcpzone)) {
+        if (
+            $server->type == 3 && !empty($server->jibri_enabled) && !empty($server->jibri_gcpinstancename)
+                && !empty($server->gcpproject) && !empty($server->gcpzone)
+        ) {
             try {
                 if (class_exists('Google\\Client') && class_exists('Google\\Service\\Compute')) {
                     $compute = mod_jitsi_gcp_client();
