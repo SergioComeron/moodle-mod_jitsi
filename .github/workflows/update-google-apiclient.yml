@@ -2,7 +2,7 @@ name: Update google/apiclient
 
 on:
   schedule:
-    - cron: '0 8 * * 1'  # Every Monday at 8:00 UTC
+    - cron: '0 1 * * 1'  # Every Monday at 1:00 UTC (3:00 Madrid time)
   workflow_dispatch:      # Allow manual trigger from GitHub UI
 
 jobs:
