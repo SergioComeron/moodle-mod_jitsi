@@ -3297,10 +3297,12 @@ if ($showform) {
             "    var stopBtn = document.getElementById('gcp-btn-stop-' + serverId);\n".
             "    var waitSpan = document.getElementById('gcp-btn-wait-' + serverId);\n".
             "    \n".
-            "    // Obtener el contenido de la celda para mantener el delete\n".
+            "    // Obtener el contenido de la celda para mantener links estáticos\n".
             "    var cellHTML = actionsCell.innerHTML;\n".
-            "    var deleteLink = cellHTML.match(/(<a[^>]*delete[^>]*>.*?<\\/a>)/i);\n".
+            "    var deleteLink = cellHTML.match(/(<a[^>]*action=delete[^>]*>.*?<\\/a>)/i);\n".
             "    deleteLink = deleteLink ? deleteLink[0] : '';\n".
+            "    var jibriLink = cellHTML.match(/(<a[^>]*action=addjibri[^>]*>.*?<\\/a>)/i);\n".
+            "    jibriLink = jibriLink ? jibriLink[0] : '';\n".
             "    \n".
             "    var startUrl = '".$wwwroot."/mod/jitsi/servermanagement.php?action=gcpstart&id=' + serverId + '&sesskey=".$sesskeyjs."';\n".
             "    var stopUrl = '".$wwwroot."/mod/jitsi/servermanagement.php?action=gcpstop&id=' + serverId + '&sesskey=".$sesskeyjs."';\n".
@@ -3308,17 +3310,17 @@ if ($showform) {
             "    var newButtons = '';\n".
             "    \n".
             "    if (state === 'stopped') {\n".
-            "      // Mostrar solo START\n".
             "      newButtons = '<a href=\"' + startUrl + '\" class=\"btn btn-sm btn-success\" id=\"gcp-btn-start-' + serverId + '\">▶️ Start</a>';\n".
             "    } else if (state === 'running') {\n".
-            "      // Mostrar solo STOP\n".
             "      newButtons = '<a href=\"' + stopUrl + '\" class=\"btn btn-sm btn-warning\" id=\"gcp-btn-stop-' + serverId + '\">⏹️ Stop</a>';\n".
             "    } else if (state === 'transition') {\n".
-            "      // Mostrar mensaje de espera\n".
             "      newButtons = '<span class=\"badge bg-secondary\" id=\"gcp-btn-wait-' + serverId + '\">⏳ Please wait...</span>';\n".
             "    }\n".
             "    \n".
-            "    actionsCell.innerHTML = newButtons + (deleteLink ? ' | ' + deleteLink : '');\n".
+            "    var extra = '';\n".
+            "    if (jibriLink) { extra += ' | ' + jibriLink; }\n".
+            "    if (deleteLink) { extra += ' | ' + deleteLink; }\n".
+            "    actionsCell.innerHTML = newButtons + extra;\n".
             "  }\n".
             "  \n".
             "  // Actualizar cada 10 segundos\n".
