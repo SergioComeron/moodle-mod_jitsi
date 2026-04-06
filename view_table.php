@@ -149,9 +149,20 @@ class mod_view_table extends table_sql {
                     $btnlabel,
                     ['target' => '_blank', 'class' => 'btn btn-sm btn-primary']
                 );
+
+                // Detect Jibri recordings (served directly from a GCP VM IP).
+                $jibriwarn = '';
+                if (preg_match('/^http:\/\/\d+\.\d+\.\d+\.\d+\//', $sourcerecord->link)) {
+                    $jibriwarn = ' <span class="badge bg-warning text-dark ms-1" title="'
+                        . s(get_string('jibrirecordingoffline', 'jitsi')) . '">'
+                        . '⚠ ' . get_string('jibrirecordingoffline', 'jitsi')
+                        . '</span>';
+                }
+
                 $content = "<div class=\"d-flex align-items-center gap-2 py-1\">"
                     . "<span class=\"flex-grow-1\">"
                     . $OUTPUT->render($tmpl)
+                    . $jibriwarn
                     . " <small class=\"text-muted ms-2\">" . userdate($values->timecreated) . "</small>"
                     . "</span>"
                     . "<span class=\"text-nowrap\">" . $actions . $openlink . "</span>"

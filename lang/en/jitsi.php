@@ -265,6 +265,7 @@ $string['oauthidex'] = 'Oauth2 id google account with YouTube Data API v3 enable
 $string['oauthsecret'] = 'OAuth2 secret';
 $string['oauthsecretex'] = 'Oauth2 Secret google account';
 $string['openrecording'] = 'Open recording';
+$string['jibrirecordingoffline'] = 'Stored on GCP server — may be unavailable if the server is stopped';
 $string['participantspane'] = 'Participants panel';
 $string['participantspaneex'] = 'Show the participants panel to all users. When uncheck only users with Jitsi Moderation capability (mod/jitsi:moderation), usually teachers, can watch the panel.';
 $string['participatingsession'] = 'Participating in session';
