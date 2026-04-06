@@ -1753,9 +1753,9 @@ if ($action === 'creategcpvm') {
         $jitsiextrameta = [];
         if ($enablejibri) {
             $jitsiextrameta = [
-                ['key' => 'ENABLE_JIBRI',        'value' => '1'],
-                ['key' => 'JIBRI_XMPP_PASS',     'value' => $jibrixmpppass],
-                ['key' => 'JIBRI_RECORDER_PASS',  'value' => $jibrirecorderpass],
+                ['key' => 'ENABLE_JIBRI', 'value' => '1'],
+                ['key' => 'JIBRI_XMPP_PASS', 'value' => $jibrixmpppass],
+                ['key' => 'JIBRI_RECORDER_PASS', 'value' => $jibrirecorderpass],
             ];
         }
 
@@ -2183,7 +2183,6 @@ if ($action === 'delete' && $id > 0) {
 
 // Action: Add Jibri to an existing GCP server.
 if ($action === 'addjibri' && $id > 0) {
-
     if (!$server = $DB->get_record('jitsi_servers', ['id' => $id])) {
         throw new moodle_exception('invalidserverid', 'mod_jitsi');
     }
@@ -2305,16 +2304,20 @@ SCRIPT;
     echo $OUTPUT->heading('Add Jibri recording to: ' . format_string($server->name));
 
     echo html_writer::div(
-        html_writer::tag('p',
+        html_writer::tag(
+            'p',
             'This will create a dedicated Jibri recording VM alongside your existing Jitsi server. ' .
             'Two steps are required:'
         ) .
-        html_writer::tag('ol',
-            html_writer::tag('li',
+        html_writer::tag(
+            'ol',
+            html_writer::tag(
+                'li',
                 html_writer::tag('strong', 'Run the script below on your Jitsi VM') .
                 ' — reconfigures Prosody and Jicofo to accept Jibri connections.'
             ) .
-            html_writer::tag('li',
+            html_writer::tag(
+                'li',
                 html_writer::tag('strong', 'Click "Confirm"') .
                 ' — Moodle will create and configure the Jibri VM in GCP automatically.'
             )
@@ -2326,7 +2329,8 @@ SCRIPT;
     $scriptescaped = htmlspecialchars($reconfigscript);
     echo html_writer::div(
         html_writer::tag('h5', 'Reconfiguration script for the Jitsi VM') .
-        html_writer::tag('p',
+        html_writer::tag(
+            'p',
             html_writer::tag('code', 'ssh user@' . s($hostname) . ' \'sudo bash -s\' < script.sh'),
             ['class' => 'text-muted small']
         ) .

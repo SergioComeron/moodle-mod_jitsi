@@ -34,7 +34,6 @@ defined('MOODLE_INTERNAL') || die();
  * @package mod_jitsi
  */
 class provision_jibri_vm extends \core\task\adhoc_task {
-
     /**
      * Returns the component that owns this task.
      */
@@ -125,12 +124,12 @@ class provision_jibri_vm extends \core\task\adhoc_task {
                 'callbackUrl'   => $callbackurl,
                 // Extra metadata items read by the Jibri startup script.
                 'extraMetadata' => [
-                    ['key' => 'JITSI_HOSTNAME',      'value' => $jitsihostname],
-                    ['key' => 'JIBRI_XMPP_PASS',     'value' => $server->jibri_xmpp_pass],
+                    ['key' => 'JITSI_HOSTNAME', 'value' => $jitsihostname],
+                    ['key' => 'JIBRI_XMPP_PASS', 'value' => $server->jibri_xmpp_pass],
                     ['key' => 'JIBRI_RECORDER_PASS', 'value' => $server->jibri_recorder_pass],
-                    ['key' => 'JIBRI_SERVER_ID',     'value' => (string)$server->id],
-                    ['key' => 'JIBRI_TOKEN',         'value' => $server->provisioningtoken],
-                    ['key' => 'JIBRI_MOODLE_URL',    'value' => $recordingingesturl],
+                    ['key' => 'JIBRI_SERVER_ID', 'value' => (string)$server->id],
+                    ['key' => 'JIBRI_TOKEN', 'value' => $server->provisioningtoken],
+                    ['key' => 'JIBRI_MOODLE_URL', 'value' => $recordingingesturl],
                 ],
                 'tags' => ['mod-jitsi-web', 'mod-jibri'],
             ]);

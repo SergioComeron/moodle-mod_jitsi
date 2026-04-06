@@ -167,7 +167,7 @@ $string['gcpservercreated'] = 'Google Cloud server created: {$a}';
 $string['gcpservercreatefail'] = 'Failed to create Google Cloud server: {$a}';
 $string['gcpservererror'] = 'Error checking server status: {$a}';
 $string['gcpserverinfo'] = 'GCP Auto-Managed Servers (BETA)';
-$string['gcpserverinfodetail'] = 'GCP auto-managed servers provide automatic provisioning with JWT authentication. <strong>Note:</strong> Recording functionality is not yet available on auto-managed servers. For recording, please use self-hosted servers (Type 1) or wait for future updates.';
+$string['gcpserverinfodetail'] = 'GCP auto-managed servers provide automatic provisioning with JWT authentication. Optionally, a dedicated Jibri recording VM can be created alongside the Jitsi server.';
 
 $string['gcpserverstopped'] = 'The selected Jitsi server is currently stopped. Please contact your administrator to start the server.';
 $string['gcpserviceaccountjsonfile'] = 'Service Account JSON';
@@ -188,7 +188,6 @@ $string['jibri_machinetypeex'] = 'Compute Engine machine type for the Jibri reco
 $string['jibri_provisioning'] = 'Jibri recording VM: provisioning';
 $string['jibri_provisioningerror'] = 'Jibri recording VM provisioning error: {$a}';
 $string['jibri_ready'] = 'Jibri recording VM: ready';
-$string['gcpserverinfodetail'] = 'GCP auto-managed servers provide automatic provisioning with JWT authentication. Optionally, a dedicated Jibri recording VM can be created alongside the Jitsi server.';
 $string['guestform'] = 'Enter to guest form';
 $string['hasentered'] = 'has entered on your private Jitsi session';
 $string['help'] = 'Help';
