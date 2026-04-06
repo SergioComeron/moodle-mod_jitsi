@@ -1,4 +1,12 @@
 # Changelog
+## v4.4.4
+# Changed
+
+ * Merge pull request #159 from SergioComeron/chore/update-google-apiclient
+ * update google/apiclient from v2.19.0 to v2.19.2
+
+---
+
 ## v4.4.3
 # Fixed
 
