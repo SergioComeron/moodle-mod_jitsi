@@ -26,10 +26,13 @@
 $rawaction = filter_input(INPUT_GET, 'action', FILTER_UNSAFE_RAW) ??
              filter_input(INPUT_POST, 'action', FILTER_UNSAFE_RAW) ?? '';
 
-if ($rawaction === 'jitsiready') {
-    // Para este endpoint necesitamos config.php pero SIN require_login.
+// Callbacks from VMs don't need a Moodle session — define NO_MOODLE_COOKIES before config.php.
+if ($rawaction === 'jitsiready' || $rawaction === 'jibriready' || $rawaction === 'jibrirecording') {
     define('NO_MOODLE_COOKIES', true);
     require_once(__DIR__ . '/../../config.php');
+}
+
+if ($rawaction === 'jitsiready') {
 
     @header('Content-Type: application/json');
 
@@ -76,6 +79,18 @@ if ($rawaction === 'jitsiready') {
 
             debugging("✅ Jitsi GCP server ready: {$hostname} (ID: {$server->id}, instance: {$instancename})", DEBUG_NORMAL);
 
+            // If Jibri is requested, enqueue an ad-hoc task to create the Jibri VM.
+            if (!empty($server->jibri_enabled) && empty($server->jibri_gcpinstancename)) {
+                $jibrimachtype = !empty($server->jibri_machinetype) ? $server->jibri_machinetype : 'n2-standard-4';
+                $task = new \mod_jitsi\task\provision_jibri_vm();
+                $task->set_custom_data([
+                    'serverid'         => $server->id,
+                    'jibrimachinetype' => $jibrimachtype,
+                ]);
+                \core\task\manager::queue_adhoc_task($task, true);
+                debugging("⏳ Queued provision_jibri_vm task for server {$server->id}", DEBUG_NORMAL);
+            }
+
             http_response_code(200);
             echo json_encode([
                 'status' => 'ok',
@@ -121,6 +136,147 @@ if ($rawaction === 'jitsiready') {
             'status' => 'error',
             'message' => 'Database error: ' . $e->getMessage(),
         ]);
+    }
+    exit;
+}
+// phpcs:enable
+
+// phpcs:disable
+if ($rawaction === 'jibriready') {
+    // Callback from the Jibri VM — config.php already loaded above without session.
+    @header('Content-Type: application/json');
+
+    global $DB;
+
+    $serverid = filter_input(INPUT_GET, 'serverid', FILTER_VALIDATE_INT) ?:
+                filter_input(INPUT_POST, 'serverid', FILTER_VALIDATE_INT) ?: 0;
+    $token    = filter_input(INPUT_GET, 'token', FILTER_UNSAFE_RAW) ?:
+                filter_input(INPUT_POST, 'token', FILTER_UNSAFE_RAW) ?? '';
+    $phase    = filter_input(INPUT_GET, 'phase', FILTER_UNSAFE_RAW) ?:
+                filter_input(INPUT_POST, 'phase', FILTER_UNSAFE_RAW) ?? 'completed';
+    $error    = filter_input(INPUT_GET, 'error', FILTER_UNSAFE_RAW) ?:
+                filter_input(INPUT_POST, 'error', FILTER_UNSAFE_RAW) ?? '';
+
+    try {
+        $server = $DB->get_record('jitsi_servers', ['id' => (int)$serverid]);
+
+        if (!$server) {
+            http_response_code(404);
+            echo json_encode(['status' => 'error', 'message' => 'Server not found']);
+            exit;
+        }
+
+        // Reuse the same provisioning token as the Jitsi VM for simplicity.
+        if (empty($server->provisioningtoken) || $server->provisioningtoken !== $token) {
+            http_response_code(401);
+            echo json_encode(['status' => 'error', 'message' => 'Invalid token']);
+            exit;
+        }
+
+        $server->timemodified = time();
+
+        if ($phase === 'completed') {
+            $server->jibri_provisioningstatus = 'ready';
+            $server->jibri_provisioningerror  = '';
+            $DB->update_record('jitsi_servers', $server);
+
+            debugging("✅ Jibri VM ready for server ID {$server->id}", DEBUG_NORMAL);
+
+            http_response_code(200);
+            echo json_encode(['status' => 'ok', 'phase' => 'ready']);
+        } else if ($phase === 'error' || !empty($error)) {
+            $server->jibri_provisioningstatus = 'error';
+            $server->jibri_provisioningerror  = $error ?: 'Unknown Jibri provisioning error';
+            $DB->update_record('jitsi_servers', $server);
+
+            debugging("❌ Jibri VM error for server ID {$server->id}: {$error}", DEBUG_NORMAL);
+
+            http_response_code(200);
+            echo json_encode(['status' => 'ok', 'phase' => 'error']);
+        } else {
+            $server->jibri_provisioningstatus = $phase;
+            $DB->update_record('jitsi_servers', $server);
+
+            http_response_code(200);
+            echo json_encode(['status' => 'ok', 'phase' => $phase]);
+        }
+    } catch (Exception $e) {
+        http_response_code(500);
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    }
+    exit;
+}
+// phpcs:enable
+
+// phpcs:disable
+if ($rawaction === 'jibrirecording') {
+    // Callback from the Jibri finalize script when a recording is ready.
+    @header('Content-Type: application/json');
+
+    global $DB;
+
+    $serverid = filter_input(INPUT_GET, 'serverid', FILTER_VALIDATE_INT) ?:
+                filter_input(INPUT_POST, 'serverid', FILTER_VALIDATE_INT) ?: 0;
+    $token    = filter_input(INPUT_GET, 'token', FILTER_UNSAFE_RAW) ?:
+                filter_input(INPUT_POST, 'token', FILTER_UNSAFE_RAW) ?? '';
+    $roomname = filter_input(INPUT_GET, 'room', FILTER_UNSAFE_RAW) ?:
+                filter_input(INPUT_POST, 'room', FILTER_UNSAFE_RAW) ?? '';
+    $filename = filter_input(INPUT_GET, 'filename', FILTER_UNSAFE_RAW) ?:
+                filter_input(INPUT_POST, 'filename', FILTER_UNSAFE_RAW) ?? '';
+    $recurl   = filter_input(INPUT_GET, 'url', FILTER_VALIDATE_URL) ?:
+                filter_input(INPUT_POST, 'url', FILTER_VALIDATE_URL) ?: '';
+
+    try {
+        $server = $DB->get_record('jitsi_servers', ['id' => (int)$serverid]);
+
+        if (!$server) {
+            http_response_code(404);
+            echo json_encode(['status' => 'error', 'message' => 'Server not found']);
+            exit;
+        }
+
+        if (empty($server->provisioningtoken) || $server->provisioningtoken !== $token) {
+            http_response_code(401);
+            echo json_encode(['status' => 'error', 'message' => 'Invalid token']);
+            exit;
+        }
+
+        if (empty($recurl)) {
+            http_response_code(400);
+            echo json_encode(['status' => 'error', 'message' => 'Missing recording URL']);
+            exit;
+        }
+
+        // Find the jitsi activity record matching the room name.
+        // Room names are stored in the jitsi table as the session name.
+        $jitsi = null;
+        if (!empty($roomname)) {
+            $jitsi = $DB->get_record_select(
+                'jitsi',
+                $DB->sql_like('name', ':room', false),
+                ['room' => $roomname],
+                '*',
+                IGNORE_MULTIPLE
+            );
+        }
+
+        // Create a source record (type=1 = external link).
+        $sourcerecord = new stdClass();
+        $sourcerecord->jitsi      = $jitsi ? $jitsi->id : 0;
+        $sourcerecord->link       = $recurl;
+        $sourcerecord->name       = !empty($filename) ? $filename : basename(parse_url($recurl, PHP_URL_PATH));
+        $sourcerecord->type       = 1;
+        $sourcerecord->timeexpires = 0; // Recordings don't expire.
+        $sourcerecord->timecreated = time();
+        $DB->insert_record('jitsi_source_record', $sourcerecord);
+
+        debugging("🎥 Jibri recording imported for server {$server->id}: {$recurl}", DEBUG_NORMAL);
+
+        http_response_code(200);
+        echo json_encode(['status' => 'ok', 'message' => 'Recording imported']);
+    } catch (Exception $e) {
+        http_response_code(500);
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
     }
     exit;
 }
@@ -713,12 +869,12 @@ if (!function_exists('mod_jitsi_default_startup_script')) {
         # Ensure Jicofo starts after JVB is registered (race condition fix)
         mkdir -p /etc/systemd/system/jicofo.service.d
         cat > /etc/systemd/system/jicofo.service.d/override.conf << EOFJICOFOD
-[Unit]
-After=jitsi-videobridge2.service
+        [Unit]
+        After=jitsi-videobridge2.service
 
-[Service]
-ExecStartPre=/bin/sleep 30
-EOFJICOFOD
+        [Service]
+        ExecStartPre=/bin/sleep 30
+        EOFJICOFOD
         systemctl daemon-reload
 
         # Restart all services in correct order
@@ -795,6 +951,88 @@ EOFJICOFOD
         systemctl restart jicofo || true
         fi
 
+        # Configurar Prosody y Jicofo para Jibri si se ha solicitado
+        ENABLE_JIBRI=$(curl -sf -H "Metadata-Flavor: Google" "$META/instance/attributes/ENABLE_JIBRI" || true)
+        JIBRI_XMPP_PASS=$(curl -sf -H "Metadata-Flavor: Google" "$META/instance/attributes/JIBRI_XMPP_PASS" || true)
+        JIBRI_RECORDER_PASS=$(curl -sf -H "Metadata-Flavor: Google" "$META/instance/attributes/JIBRI_RECORDER_PASS" || true)
+
+        if [ "$ENABLE_JIBRI" = "1" ] && [ -n "$HOSTNAME_FQDN" ] && [ -n "$AUTH_DOMAIN" ]; then
+        echo "Configuring Prosody and Jicofo for Jibri..."
+
+        # Register Jibri XMPP users in Prosody
+        prosodyctl register jibri "$AUTH_DOMAIN" "$JIBRI_XMPP_PASS" 2>/dev/null || true
+        prosodyctl register recorder "recorder.$HOSTNAME_FQDN" "$JIBRI_RECORDER_PASS" 2>/dev/null || true
+
+        # Add recorder virtual host to Prosody config
+        RECORDER_VHOST="/etc/prosody/conf.avail/recorder.${HOSTNAME_FQDN}.cfg.lua"
+        cat > "$RECORDER_VHOST" << EOFRECVHOST
+        VirtualHost "recorder.${HOSTNAME_FQDN}"
+          modules_enabled = {
+            "ping";
+          }
+          authentication = "internal_hashed"
+        EOFRECVHOST
+        ln -sf "$RECORDER_VHOST" "/etc/prosody/conf.d/recorder.${HOSTNAME_FQDN}.cfg.lua" || true
+
+        # Enable token_affiliation and muc_lobby in main vhost if present
+        VHOST_FILE="/etc/prosody/conf.avail/${HOSTNAME_FQDN}.cfg.lua"
+        if [ -f "$VHOST_FILE" ]; then
+            # Add jibri to trusted_senders in main MUC component if not already there
+            python3 << PYJIBRI
+        import re
+        vf = "${VHOST_FILE}"
+        with open(vf) as f:
+            c = f.read()
+        # Add "token_affiliation" module to conference MUC if not present
+        if '"token_affiliation"' not in c:
+            c = re.sub(
+                r'(Component\s+"conference\.[^"]+"\s+"muc".*?modules_enabled\s*=\s*\{)',
+                lambda m: m.group(1) + '\n        "token_affiliation";',
+                c, count=1, flags=re.DOTALL
+            )
+        with open(vf, 'w') as f:
+            f.write(c)
+        print("Prosody vhost updated for Jibri")
+        PYJIBRI
+        fi
+
+        # Extend Jicofo config to know about Jibri
+        JICOFO_CONF="/etc/jitsi/jicofo/jicofo.conf"
+        if [ -f "$JICOFO_CONF" ] && ! grep -q "jibri" "$JICOFO_CONF"; then
+            # Append Jibri brewery config
+            python3 << PYJICOFO
+        import re
+        with open("${JICOFO_CONF}") as f:
+            c = f.read()
+        # Inject jibri section before the closing brace of the top-level jicofo { block
+        jibri_block = """
+          jibri {
+            brewery-jid = "JibriBrewery@internal.${AUTH_DOMAIN}"
+            pending-timeout = 90 seconds
+          }
+        """
+        # Insert before the last closing brace
+        idx = c.rfind('}')
+        if idx != -1 and 'JibriBrewery' not in c:
+            c = c[:idx] + jibri_block + c[idx:]
+        with open("${JICOFO_CONF}", 'w') as f:
+            f.write(c)
+        print("Jicofo updated with Jibri brewery")
+        PYJICOFO
+        fi
+
+        # Open XMPP port 5222 for Jibri (already open from ufw allow earlier, but be explicit)
+        ufw allow 5222/tcp || true
+
+        # Restart services to apply Jibri configuration
+        systemctl restart prosody || true
+        sleep 5
+        systemctl restart jicofo || true
+        sleep 10
+
+        echo "Jibri Prosody/Jicofo configuration complete"
+        fi
+
         # Notificar a Moodle con las credenciales
         if [ -n "$CALLBACK_URL" ]; then
         echo "Notifying Moodle with credentials..."
@@ -809,6 +1047,266 @@ EOFJICOFOD
     }
 }
 // phpcs:enable
+
+// phpcs:disable
+if (!function_exists('mod_jitsi_jibri_startup_script')) {
+    /**
+     * Startup script for the dedicated Jibri recording VM (Debian 12).
+     * Reads JITSI_HOSTNAME, JIBRI_XMPP_PASS, JIBRI_RECORDER_PASS and CALLBACK_URL from instance metadata.
+     */
+    function mod_jitsi_jibri_startup_script(): string {
+        return <<<'BASH'
+        #!/bin/bash
+
+        # Skip if already provisioned
+        if [ -f /var/local/jibri_boot_done ]; then
+            echo "Jibri already provisioned, skipping"
+            exit 0
+        fi
+
+        set -euxo pipefail
+        export DEBIAN_FRONTEND=noninteractive
+
+        META="http://metadata.google.internal/computeMetadata/v1"
+        JITSI_HOSTNAME=$(curl -sf -H "Metadata-Flavor: Google" "$META/instance/attributes/JITSI_HOSTNAME" || true)
+        JIBRI_XMPP_PASS=$(curl -sf -H "Metadata-Flavor: Google" "$META/instance/attributes/JIBRI_XMPP_PASS" || true)
+        JIBRI_RECORDER_PASS=$(curl -sf -H "Metadata-Flavor: Google" "$META/instance/attributes/JIBRI_RECORDER_PASS" || true)
+        CALLBACK_URL=$(curl -sf -H "Metadata-Flavor: Google" "$META/instance/attributes/CALLBACK_URL" || true)
+
+        AUTH_DOMAIN="auth.${JITSI_HOSTNAME}"
+        RECORDER_DOMAIN="recorder.${JITSI_HOSTNAME}"
+
+        # Error handler
+        exit_handler() {
+            local exit_code=$?
+            if [ $exit_code -ne 0 ] && [ -n "$CALLBACK_URL" ]; then
+                local err="Jibri installation failed with exit code $exit_code"
+                curl -X POST "${CALLBACK_URL}&phase=error&error=$(echo "$err" | sed 's/ /%20/g')" \
+                    --max-time 10 --retry 3 --retry-delay 3 || true
+            fi
+        }
+        trap exit_handler EXIT
+
+        # Notify Moodle: starting
+        if [ -n "$CALLBACK_URL" ]; then
+            curl -X POST "${CALLBACK_URL}&phase=installing" --max-time 10 --retry 2 || true
+        fi
+
+        # Basic packages + ALSA loopback module (required by Jibri)
+        apt-get update -y
+        apt-get install -y curl gnupg2 apt-transport-https ca-certificates ca-certificates-java \
+            linux-image-amd64 linux-headers-amd64 alsa-utils ffmpeg unzip nginx
+
+        # Load snd-aloop kernel module and make it persistent
+        modprobe snd-aloop || true
+        echo "snd-aloop" >> /etc/modules
+
+        # Install Java 11 (Jibri requires Java 11+)
+        apt-get install -y openjdk-11-jre-headless
+
+        # Jitsi repository for Jibri
+        curl https://download.jitsi.org/jitsi-key.gpg.key | gpg --dearmor > /usr/share/keyrings/jitsi.gpg
+        echo 'deb [signed-by=/usr/share/keyrings/jitsi.gpg] https://download.jitsi.org stable/' > /etc/apt/sources.list.d/jitsi-stable.list
+        apt-get update -y
+
+        # Install Jibri (no Jitsi Meet, just Jibri)
+        apt-get install -y jibri
+
+        # Install Chromium (headless) for Jibri
+        apt-get install -y chromium || apt-get install -y chromium-browser || true
+
+        # Configure Xvfb (virtual framebuffer)
+        apt-get install -y xvfb x11-xserver-utils
+
+        # Jibri configuration
+        mkdir -p /etc/jitsi/jibri /srv/recordings
+        chown jibri:jibri /srv/recordings 2>/dev/null || true
+
+        cat > /etc/jitsi/jibri/jibri.conf << EOFJIBRICONF
+        jibri {
+          id = ""
+          single-use-mode = false
+
+          api {
+            http {
+              host = "127.0.0.1"
+              port = 2222
+            }
+            xmpp {
+              environments = [
+                {
+                  name = "prod"
+                  xmpp-server-hosts = ["${JITSI_HOSTNAME}"]
+                  xmpp-domain = "${JITSI_HOSTNAME}"
+
+                  control-muc {
+                    domain = "internal.${AUTH_DOMAIN}"
+                    room-name = "JibriBrewery"
+                    nickname = "jibri-$(hostname)"
+                  }
+
+                  control-login {
+                    domain = "${AUTH_DOMAIN}"
+                    username = "jibri"
+                    password = "${JIBRI_XMPP_PASS}"
+                  }
+
+                  call-login {
+                    domain = "${RECORDER_DOMAIN}"
+                    username = "recorder"
+                    password = "${JIBRI_RECORDER_PASS}"
+                  }
+
+                  strip-from-room-domain = "conference."
+                  usage-timeout = 0
+                  trust-all-xmpp-certs = true
+                }
+              ]
+            }
+          }
+
+          recording {
+            recordings-directory = "/srv/recordings"
+            finalize-script = ""
+          }
+
+          streaming {
+            rtmp-allow-list = [".*"]
+          }
+
+          ffmpeg {
+            resolution = "1920x1080"
+            audio-source = "alsa"
+            audio-device = "plug:bsnoop"
+          }
+
+          chrome {
+            flags = [
+              "--use-fake-ui-for-media-stream",
+              "--start-maximized",
+              "--kiosk",
+              "--enabled",
+              "--disable-infobars",
+              "--autoplay-policy=no-user-gesture-required",
+              "--ignore-certificate-errors"
+            ]
+          }
+
+          stats {
+            enable-stats-d = false
+          }
+        }
+        EOFJIBRICONF
+
+        chown jibri:jibri /etc/jitsi/jibri/jibri.conf 2>/dev/null || true
+        chmod 640 /etc/jitsi/jibri/jibri.conf
+
+        # Serve recordings via nginx at /recordings/
+        JIBRI_MYIP=$(curl -sf -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip" || true)
+        cat > /etc/nginx/sites-available/jibri-recordings.conf << 'EOFNGINX'
+        server {
+            listen 80 default_server;
+            listen [::]:80 default_server;
+            server_name _;
+
+            location /recordings/ {
+                alias /srv/recordings/;
+                autoindex off;
+                add_header Content-Disposition "attachment";
+            }
+
+            location / {
+                return 404;
+            }
+        }
+        EOFNGINX
+        rm -f /etc/nginx/sites-enabled/default
+        ln -sf /etc/nginx/sites-available/jibri-recordings.conf /etc/nginx/sites-enabled/jibri-recordings.conf
+        nginx -t && systemctl restart nginx || true
+
+        # Create Jibri finalize script to notify Moodle when a recording is ready
+        RECORDING_CALLBACK_URL="${CALLBACK_URL}"
+        RECORDING_SERVER_ID="${serverid}"
+        RECORDING_TOKEN="${provisiontoken}"
+
+        # Re-read metadata for finalize script generation
+        META_FIN="http://metadata.google.internal/computeMetadata/v1"
+        FIN_SERVER_ID=$(curl -sf -H "Metadata-Flavor: Google" "$META_FIN/instance/attributes/JIBRI_SERVER_ID" || echo "0")
+        FIN_TOKEN=$(curl -sf -H "Metadata-Flavor: Google" "$META_FIN/instance/attributes/JIBRI_TOKEN" || echo "")
+        FIN_MOODLE_URL=$(curl -sf -H "Metadata-Flavor: Google" "$META_FIN/instance/attributes/JIBRI_MOODLE_URL" || echo "")
+        FIN_MYIP=$(curl -sf -H "Metadata-Flavor: Google" "$META_FIN/instance/network-interfaces/0/access-configs/0/external-ip" || echo "")
+
+        cat > /usr/local/bin/jibri-finalize.sh << EOFFINALIZE
+        #!/bin/bash
+        # Jibri finalize script — called when a recording is complete.
+        # Arguments: \$1 = recording directory
+        set -e
+        RECORDING_DIR="\$1"
+        if [ -z "\$RECORDING_DIR" ]; then exit 0; fi
+
+        # Find the latest MP4 in the recording directory
+        RECFILE=\$(ls -t "\$RECORDING_DIR"/*.mp4 2>/dev/null | head -1 || true)
+        if [ -z "\$RECFILE" ]; then
+            echo "No MP4 found in \$RECORDING_DIR"
+            exit 0
+        fi
+
+        # Move file to /srv/recordings for serving
+        FILENAME=\$(basename "\$RECFILE")
+        mv "\$RECFILE" "/srv/recordings/\$FILENAME" || cp "\$RECFILE" "/srv/recordings/\$FILENAME"
+
+        # Extract room name from directory path (Jibri uses room name as subdirectory)
+        ROOM=\$(basename "\$RECORDING_DIR")
+
+        # Notify Moodle
+        MOODLE_URL="${FIN_MOODLE_URL}"
+        SERVERID="${FIN_SERVER_ID}"
+        TOKEN="${FIN_TOKEN}"
+        MYIP="${FIN_MYIP}"
+        REC_URL="http://\${MYIP}/recordings/\${FILENAME}"
+
+        if [ -n "\$MOODLE_URL" ]; then
+            curl -X POST "\${MOODLE_URL}" \
+                --data-urlencode "serverid=\${SERVERID}" \
+                --data-urlencode "token=\${TOKEN}" \
+                --data-urlencode "room=\${ROOM}" \
+                --data-urlencode "filename=\${FILENAME}" \
+                --data-urlencode "url=\${REC_URL}" \
+                --max-time 30 --retry 3 --retry-delay 5 \
+                || echo "Warning: Could not notify Moodle"
+        fi
+
+        echo "Recording finalized: \$REC_URL"
+        EOFFINALIZE
+
+        chmod +x /usr/local/bin/jibri-finalize.sh
+
+        # Update Jibri config to use the finalize script
+        sed -i 's|finalize-script = ""|finalize-script = "/usr/local/bin/jibri-finalize.sh"|' /etc/jitsi/jibri/jibri.conf || true
+
+        # Enable and start Jibri
+        systemctl daemon-reload
+        systemctl enable jibri
+        systemctl start jibri
+
+        # Mark provisioning complete
+        mkdir -p /var/local
+        printf '%s\n' "JIBRI_BOOT_DONE=1" > /var/local/jibri_boot_done
+
+        echo "Jibri installation completed"
+
+        # Notify Moodle: ready
+        if [ -n "$CALLBACK_URL" ]; then
+            curl -X POST "${CALLBACK_URL}&phase=completed" \
+                --max-time 10 --retry 3 --retry-delay 5 \
+                || echo "Warning: Could not notify Moodle"
+        fi
+
+        BASH;
+    }
+}
+// phpcs:enable
+
 if (!function_exists('mod_jitsi_gcp_client')) {
     /**
      * Creates and returns a configured Google Compute Engine service client.
@@ -875,6 +1373,14 @@ if (!function_exists('mod_jitsi_gcp_create_instance')) {
         if (!empty($opts['callbackUrl'])) {
             $metadataitems[] = ['key' => 'CALLBACK_URL', 'value' => $opts['callbackUrl']];
         }
+        // Allow callers to inject arbitrary extra metadata items.
+        if (!empty($opts['extraMetadata']) && is_array($opts['extraMetadata'])) {
+            foreach ($opts['extraMetadata'] as $item) {
+                if (!empty($item['key'])) {
+                    $metadataitems[] = ['key' => $item['key'], 'value' => (string)$item['value']];
+                }
+            }
+        }
 
         // Configure access config (static IP if provided, otherwise ephemeral).
         $accessconfig = ['name' => 'External NAT', 'type' => 'ONE_TO_ONE_NAT'];
@@ -883,11 +1389,12 @@ if (!function_exists('mod_jitsi_gcp_create_instance')) {
             $accessconfig['natIP'] = $opts['staticIpAddress'];
         }
 
+        $tags = !empty($opts['tags']) ? $opts['tags'] : ['mod-jitsi-web'];
         $instanceparams = [
             'name' => $name,
             'machineType' => $machinetype,
             'labels' => [ 'app' => 'jitsi', 'plugin' => 'mod-jitsi' ],
-            'tags' => ['items' => ['mod-jitsi-web']],
+            'tags' => ['items' => $tags],
             'networkInterfaces' => [[
                 'network' => $network,
                 'accessConfigs' => [$accessconfig],
@@ -1111,7 +1618,12 @@ if ($action === 'creategcpvm') {
         );
         redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
     }
-    $sscript   = mod_jitsi_default_startup_script();
+    $sscript       = mod_jitsi_default_startup_script();
+    $enablejibri   = (bool) optional_param('enablejibri', 0, PARAM_BOOL);
+    $jibrimachtype = trim((string) optional_param('jibrimachinetype', 'n2-standard-4', PARAM_TEXT));
+    if (empty($jibrimachtype)) {
+        $jibrimachtype = 'n2-standard-4';
+    }
 
     $missing = [];
     foreach ([['gcp_project', $project], ['gcp_zone', $zone]] as [$k, $v]) {
@@ -1221,21 +1733,43 @@ if ($action === 'creategcpvm') {
         $server->provisioningstatus = 'provisioning';
         $server->provisioningtoken = $vmtoken;
         $server->provisioningerror = '';
+        $server->jibri_enabled = $enablejibri ? 1 : 0;
+        $server->jibri_gcpinstancename = '';
+        $server->jibri_provisioningstatus = '';
+        $server->jibri_provisioningerror = '';
+
+        // Generate Jibri XMPP credentials upfront so both VMs can share them.
+        $jibrixmpppass     = $enablejibri ? bin2hex(random_bytes(16)) : '';
+        $jibrirecorderpass = $enablejibri ? bin2hex(random_bytes(16)) : '';
+        $server->jibri_xmpp_pass     = $jibrixmpppass;
+        $server->jibri_recorder_pass = $jibrirecorderpass;
+
         $server->timecreated = time();
         $server->timemodified = time();
 
         $serverid = $DB->insert_record('jitsi_servers', $server);
 
+        // Extra metadata for the Jitsi VM when Jibri is requested.
+        $jitsiextrameta = [];
+        if ($enablejibri) {
+            $jitsiextrameta = [
+                ['key' => 'ENABLE_JIBRI',        'value' => '1'],
+                ['key' => 'JIBRI_XMPP_PASS',     'value' => $jibrixmpppass],
+                ['key' => 'JIBRI_RECORDER_PASS',  'value' => $jibrirecorderpass],
+            ];
+        }
+
         $opname = mod_jitsi_gcp_create_instance($compute, $project, $zone, [
-            'name' => $instancename,
-            'machineType' => $mach,
-            'image' => $image,
-            'network' => $network,
-            'hostname' => $hostname,
+            'name'             => $instancename,
+            'machineType'      => $mach,
+            'image'            => $image,
+            'network'          => $network,
+            'hostname'         => $hostname,
             'letsencryptEmail' => $leemail,
-            'startupScript' => $sscript,
-            'callbackUrl' => $callbackurl, // Pasar URL al script.
-            'staticIpAddress' => $staticipaddress, // Use reserved static IP.
+            'startupScript'    => $sscript,
+            'callbackUrl'      => $callbackurl,
+            'staticIpAddress'  => $staticipaddress,
+            'extraMetadata'    => $jitsiextrameta,
         ]);
         // Save operation info in session for status polling.
         if (!isset($SESSION->mod_jitsi_ops)) {
@@ -1647,6 +2181,222 @@ if ($action === 'delete' && $id > 0) {
     }
 }
 
+// Action: Add Jibri to an existing GCP server.
+if ($action === 'addjibri' && $id > 0) {
+
+    if (!$server = $DB->get_record('jitsi_servers', ['id' => $id])) {
+        throw new moodle_exception('invalidserverid', 'mod_jitsi');
+    }
+
+    if ($server->type != 3 || empty($server->gcpinstancename)) {
+        \core\notification::add('Jibri can only be added to GCP Auto-Managed servers.', \core\output\notification::NOTIFY_ERROR);
+        redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
+    }
+
+    if (!empty($server->jibri_enabled)) {
+        \core\notification::add('This server already has Jibri enabled.', \core\output\notification::NOTIFY_WARNING);
+        redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
+    }
+
+    $confirm = optional_param('confirm', 0, PARAM_BOOL);
+    $jibrimachtype = trim((string) optional_param('jibrimachinetype', 'n2-standard-4', PARAM_TEXT));
+    if (empty($jibrimachtype)) {
+        $jibrimachtype = 'n2-standard-4';
+    }
+
+    if ($confirm) {
+        require_sesskey();
+
+        // Generate XMPP credentials.
+        $jibrixmpppass     = bin2hex(random_bytes(16));
+        $jibrirecorderpass = bin2hex(random_bytes(16));
+
+        // Save to DB and enable Jibri.
+        $server->jibri_enabled            = 1;
+        $server->jibri_xmpp_pass          = $jibrixmpppass;
+        $server->jibri_recorder_pass      = $jibrirecorderpass;
+        $server->jibri_gcpinstancename    = '';
+        $server->jibri_provisioningstatus = '';
+        $server->jibri_provisioningerror  = '';
+        $server->timemodified             = time();
+        $DB->update_record('jitsi_servers', $server);
+
+        // Queue the Jibri VM provisioning task.
+        $task = new \mod_jitsi\task\provision_jibri_vm();
+        $task->set_custom_data([
+            'serverid'         => $server->id,
+            'jibrimachinetype' => $jibrimachtype,
+        ]);
+        \core\task\manager::queue_adhoc_task($task, true);
+
+        \core\notification::add(
+            'Jibri VM creation queued. Run the reconfiguration script on the Jitsi VM to complete setup.',
+            \core\output\notification::NOTIFY_SUCCESS
+        );
+        redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
+    }
+
+    // Show confirmation page with reconfiguration script.
+    $hostname = $server->domain;
+    $authdomain = 'auth.' . $hostname;
+
+    // Generate credentials for preview (will be regenerated on confirm).
+    // We show placeholder text; actual values are generated on confirm.
+    $jibrixmpppass     = bin2hex(random_bytes(16));
+    $jibrirecorderpass = bin2hex(random_bytes(16));
+
+    // Build the reconfiguration bash script for the existing Jitsi VM.
+    $reconfigscript = <<<SCRIPT
+#!/bin/bash
+# Run this script on the Jitsi VM ({$hostname}) via SSH to enable Jibri support.
+# ssh user@{$hostname} 'sudo bash -s' < this_script.sh
+set -euo pipefail
+AUTH_DOMAIN="{$authdomain}"
+HOSTNAME_FQDN="{$hostname}"
+JIBRI_XMPP_PASS="{$jibrixmpppass}"
+JIBRI_RECORDER_PASS="{$jibrirecorderpass}"
+RECORDER_DOMAIN="recorder.\${HOSTNAME_FQDN}"
+
+echo "Registering Jibri XMPP users..."
+prosodyctl register jibri "\$AUTH_DOMAIN" "\$JIBRI_XMPP_PASS" || true
+prosodyctl register recorder "\$RECORDER_DOMAIN" "\$JIBRI_RECORDER_PASS" || true
+
+echo "Adding recorder virtual host..."
+cat > "/etc/prosody/conf.avail/recorder.\${HOSTNAME_FQDN}.cfg.lua" << 'EOF'
+VirtualHost "recorder.HOSTNAME_PLACEHOLDER"
+  modules_enabled = { "ping"; }
+  authentication = "internal_hashed"
+EOF
+sed -i "s/HOSTNAME_PLACEHOLDER/\${HOSTNAME_FQDN}/" "/etc/prosody/conf.avail/recorder.\${HOSTNAME_FQDN}.cfg.lua"
+ln -sf "/etc/prosody/conf.avail/recorder.\${HOSTNAME_FQDN}.cfg.lua" \\
+       "/etc/prosody/conf.d/recorder.\${HOSTNAME_FQDN}.cfg.lua" || true
+
+echo "Updating Jicofo for Jibri brewery..."
+JICOFO_CONF="/etc/jitsi/jicofo/jicofo.conf"
+if ! grep -q "JibriBrewery" "\$JICOFO_CONF"; then
+  python3 -c "
+import re
+with open('\${JICOFO_CONF}') as f:
+    c = f.read()
+jibri = '''
+  jibri {
+    brewery-jid = \"JibriBrewery@internal.\${AUTH_DOMAIN}\"
+    pending-timeout = 90 seconds
+  }
+'''
+idx = c.rfind('}')
+if idx != -1:
+    c = c[:idx] + jibri + c[idx:]
+with open('\${JICOFO_CONF}', 'w') as f:
+    f.write(c)
+print('Jicofo updated')
+"
+fi
+
+echo "Restarting services..."
+systemctl restart prosody
+sleep 5
+systemctl restart jicofo
+
+echo "Done. Jibri Prosody/Jicofo configuration complete."
+SCRIPT;
+
+    echo $OUTPUT->header();
+    echo $OUTPUT->heading('Add Jibri recording to: ' . format_string($server->name));
+
+    echo html_writer::div(
+        html_writer::tag('p',
+            'This will create a dedicated Jibri recording VM alongside your existing Jitsi server. ' .
+            'Two steps are required:'
+        ) .
+        html_writer::tag('ol',
+            html_writer::tag('li',
+                html_writer::tag('strong', 'Run the script below on your Jitsi VM') .
+                ' — reconfigures Prosody and Jicofo to accept Jibri connections.'
+            ) .
+            html_writer::tag('li',
+                html_writer::tag('strong', 'Click "Confirm"') .
+                ' — Moodle will create and configure the Jibri VM in GCP automatically.'
+            )
+        ),
+        'alert alert-info mb-3'
+    );
+
+    // Script display with copy button.
+    $scriptescaped = htmlspecialchars($reconfigscript);
+    echo html_writer::div(
+        html_writer::tag('h5', 'Reconfiguration script for the Jitsi VM') .
+        html_writer::tag('p',
+            html_writer::tag('code', 'ssh user@' . s($hostname) . ' \'sudo bash -s\' < script.sh'),
+            ['class' => 'text-muted small']
+        ) .
+        html_writer::tag('pre', $scriptescaped, [
+            'id' => 'jibri-reconfig-script',
+            'class' => 'bg-dark text-light p-3 rounded',
+            'style' => 'max-height:300px; overflow-y:auto; font-size:0.8em;',
+        ]) .
+        html_writer::tag(
+            'button',
+            'Copy script',
+            ['type' => 'button', 'class' => 'btn btn-sm btn-outline-secondary mb-3', 'id' => 'copy-reconfig-script']
+        ),
+        'mb-4'
+    );
+
+    // Machine type form + confirm.
+    $confirmurl = new moodle_url('/mod/jitsi/servermanagement.php', [
+        'action'  => 'addjibri',
+        'id'      => $id,
+        'confirm' => 1,
+        'sesskey' => sesskey(),
+    ]);
+    $cancelurl = new moodle_url('/mod/jitsi/servermanagement.php');
+
+    echo html_writer::start_tag('form', ['method' => 'post', 'action' => $confirmurl->out(false)]);
+    echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'sesskey', 'value' => sesskey()]);
+
+    echo html_writer::div(
+        html_writer::tag('label', 'Jibri VM machine type', ['class' => 'form-label fw-semibold', 'for' => 'jibri-machine']) .
+        html_writer::empty_tag('input', [
+            'type'  => 'text',
+            'id'    => 'jibri-machine',
+            'name'  => 'jibrimachinetype',
+            'value' => 'n2-standard-4',
+            'class' => 'form-control mb-1',
+        ]) .
+        html_writer::tag('small', 'Minimum recommended: <code>n2-standard-4</code> (4 vCPUs, 16 GB RAM).', ['class' => 'text-muted']),
+        'mb-4'
+    );
+
+    echo html_writer::div(
+        html_writer::tag('button', 'Confirm — Create Jibri VM', ['type' => 'submit', 'class' => 'btn btn-primary me-2']) .
+        html_writer::link($cancelurl, 'Cancel', ['class' => 'btn btn-secondary'])
+    );
+
+    echo html_writer::end_tag('form');
+
+    // JS for copy button.
+    // phpcs:disable
+    $PAGE->requires->js_init_code(
+        "(function(){\n".
+        "  var btn = document.getElementById('copy-reconfig-script');\n".
+        "  var pre = document.getElementById('jibri-reconfig-script');\n".
+        "  if (btn && pre && navigator.clipboard) {\n".
+        "    btn.addEventListener('click', function(){\n".
+        "      navigator.clipboard.writeText(pre.textContent).then(function(){\n".
+        "        btn.textContent = '✓ Copied!';\n".
+        "        setTimeout(function(){ btn.textContent = 'Copy script'; }, 2000);\n".
+        "      });\n".
+        "    });\n".
+        "  }\n".
+        "})();\n"
+    );
+    // phpcs:enable
+
+    echo $OUTPUT->footer();
+    exit;
+}
+
 // Action: Start GCP instance.
 if ($action === 'gcpstart' && $id > 0) {
     require_sesskey();
@@ -1853,12 +2603,12 @@ if ($showform) {
     $redirecturl  = (new moodle_url('/mod/jitsi/servermanagement.php'))->out(false);
     $sesskeyjs    = sesskey();
 
-    // Modal markup (HTML only) - SIN spinner inicial.
+    // Modal markup (HTML only).
     echo <<<HTML
     <div class="modal fade" id="gcpModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-        <div class="modal-body text-center" id="gcp-modal-body">
+        <div class="modal-body" id="gcp-modal-body">
             <!-- El contenido se inyectará dinámicamente -->
         </div>
         </div>
@@ -2097,9 +2847,8 @@ if ($showform) {
         "      if (modalBody) modalBody.textContent = 'Error: ' + e.message;\n".
         "    }\n".
         "  }\n".
-        "  btn.addEventListener('click', async function(){\n".
+        "  async function startVMCreation(enableJibri, jibriMachineType) {\n".
         "    dnsWarningShown = false;\n".
-        "    showModal();\n".
         "    if (modalBody) {\n".
         "      modalBody.innerHTML = (\n".
         "        '<h5>⏳ Creating VM...</h5>'+\n".
@@ -2110,8 +2859,13 @@ if ($showform) {
         "      );\n".
         "    }\n".
         "    try {\n".
-        "      console.log('[Button Click] Requesting VM creation...');\n".
-        "      var data = await postJSON(cfg.createUrl, {sesskey: cfg.sesskey});\n".
+        "      console.log('[Button Click] Requesting VM creation... jibri:', enableJibri);\n".
+        "      var postData = {sesskey: cfg.sesskey};\n".
+        "      if (enableJibri) {\n".
+        "        postData.enablejibri = '1';\n".
+        "        postData.jibrimachinetype = jibriMachineType || 'n2-standard-4';\n".
+        "      }\n".
+        "      var data = await postJSON(cfg.createUrl, postData);\n".
         "      console.log('[Button Click] Create response:', data);\n".
         "      if (data && data.status === 'pending' && data.opname){\n".
         "        vmInfo.instancename = data.instancename;\n".
@@ -2119,7 +2873,6 @@ if ($showform) {
         "        console.log('[Button Click] Starting pollStatus for operation:', data.opname);\n".
         "        pollStatus(data.opname);\n".
         "      } else if (data && data.status === 'error') {\n".
-        "        // Show detailed error message from server\n".
         "        var errorMsg = data.message || 'Unknown error occurred';\n".
         "        if (modalBody) {\n".
         "          modalBody.innerHTML = '<div class=\"alert alert-danger\">' +\n".
@@ -2153,6 +2906,52 @@ if ($showform) {
         "      }\n".
         "      console.error('Exception during VM creation:', e);\n".
         "    }\n".
+        "  }\n".
+        "  function showStep0() {\n".
+        "    if (modalBody) {\n".
+        "      modalBody.innerHTML =\n".
+        "        '<h5 class=\"mb-3\">Create VM in Google Cloud</h5>' +\n".
+        "        '<div class=\"mb-3 text-start\">' +\n".
+        "          '<div class=\"form-check\">' +\n".
+        "            '<input class=\"form-check-input\" type=\"checkbox\" id=\"jibri-enable-check\">' +\n".
+        "            '<label class=\"form-check-label fw-semibold\" for=\"jibri-enable-check\">' +\n".
+        "              'Enable Jibri recording (dedicated VM)' +\n".
+        "            '</label>' +\n".
+        "          '</div>' +\n".
+        "          '<small class=\"text-muted d-block mt-1 ms-4\">' +\n".
+        "            'A second VM will be created as a dedicated Jibri recording server. Requires at least 4 vCPUs / 8 GB RAM.' +\n".
+        "          '</small>' +\n".
+        "        '</div>' +\n".
+        "        '<div class=\"mb-3 text-start\" id=\"jibri-machine-row\" style=\"display:none\">' +\n".
+        "          '<label class=\"form-label fw-semibold\" for=\"jibri-machine-type\">Jibri VM machine type</label>' +\n".
+        "          '<input type=\"text\" class=\"form-control\" id=\"jibri-machine-type\" value=\"n2-standard-4\">' +\n".
+        "          '<small class=\"text-muted\">Minimum recommended: <code>n2-standard-4</code> (4 vCPUs, 16 GB RAM).</small>' +\n".
+        "        '</div>' +\n".
+        "        '<div class=\"d-flex justify-content-end gap-2 mt-3\">' +\n".
+        "          '<button type=\"button\" class=\"btn btn-secondary\" onclick=\"closeModal();\">Cancel</button>' +\n".
+        "          '<button type=\"button\" class=\"btn btn-primary\" id=\"jibri-confirm-btn\">Create VM</button>' +\n".
+        "        '</div>';\n".
+        "      var check = document.getElementById('jibri-enable-check');\n".
+        "      var machineRow = document.getElementById('jibri-machine-row');\n".
+        "      var confirmBtn = document.getElementById('jibri-confirm-btn');\n".
+        "      if (check && machineRow) {\n".
+        "        check.addEventListener('change', function() {\n".
+        "          machineRow.style.display = check.checked ? '' : 'none';\n".
+        "        });\n".
+        "      }\n".
+        "      if (confirmBtn) {\n".
+        "        confirmBtn.addEventListener('click', function() {\n".
+        "          var enableJibri = check && check.checked;\n".
+        "          var machineTypeEl = document.getElementById('jibri-machine-type');\n".
+        "          var jibriMachine = (machineTypeEl && machineTypeEl.value.trim()) || 'n2-standard-4';\n".
+        "          startVMCreation(enableJibri, jibriMachine);\n".
+        "        });\n".
+        "      }\n".
+        "    }\n".
+        "  }\n".
+        "  btn.addEventListener('click', function(){\n".
+        "    showModal();\n".
+        "    showStep0();\n".
         "  });\n".
         "\n".
         "  // Check if there's a server in provisioning state on page load\n".
@@ -2226,6 +3025,22 @@ if ($showform) {
         }
 
         // Obtener estado del servidor GCP y guardarlo para usar en botones.
+        $jibribadge = '';
+        if (!empty($s->jibri_enabled)) {
+            switch ($s->jibri_provisioningstatus ?? '') {
+                case 'ready':
+                    $jibribadge = ' <span class="badge bg-success ms-1" title="' . s($s->jibri_gcpinstancename) . '">🎥 Jibri ready</span>';
+                    break;
+                case 'error':
+                    $jibribadge = ' <span class="badge bg-danger ms-1" title="' . s($s->jibri_provisioningerror) . '">🎥 Jibri error</span>';
+                    break;
+                case '':
+                    $jibribadge = ' <span class="badge bg-secondary ms-1">🎥 Jibri pending</span>';
+                    break;
+                default:
+                    $jibribadge = ' <span class="badge bg-info ms-1">🎥 Jibri: ' . s($s->jibri_provisioningstatus) . '</span>';
+            }
+        }
         $statushtml = '<span class="badge bg-secondary" id="gcp-status-' . $s->id . '">N/A</span>';
         $instancestatus = null; // Variable para guardar el estado real.
 
@@ -2346,6 +3161,18 @@ if ($showform) {
             }
         }
 
+        // Show "Add Jibri" button for GCP servers that are ready and don't have Jibri yet.
+        if ($s->type == 3 && empty($s->jibri_enabled) && ($s->provisioningstatus ?? '') === 'ready') {
+            $addjibriurl = new moodle_url('/mod/jitsi/servermanagement.php', [
+                'action' => 'addjibri',
+                'id'     => $s->id,
+            ]);
+            if (!empty($links)) {
+                $links .= ' | ';
+            }
+            $links .= html_writer::link($addjibriurl, '🎥 Add Jibri', ['class' => 'btn btn-sm btn-outline-info']);
+        }
+
         // Delete siempre disponible.
         if (!empty($links)) {
             $links .= ' | ';
@@ -2356,7 +3183,7 @@ if ($showform) {
             format_string($s->name),
             $typestring,
             format_string($s->domain),
-            $statushtml,
+            $statushtml . $jibribadge,
             $links,
         ];
     }
