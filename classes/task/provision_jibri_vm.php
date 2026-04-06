@@ -115,6 +115,21 @@ class provision_jibri_vm extends \core\task\adhoc_task {
         try {
             $compute = mod_jitsi_gcp_client();
 
+            // Get the Jitsi VM's internal IP so Jibri can connect without going through
+            // the public DNS, which GCP does not NAT-loopback between VMs in the same VPC.
+            $jitsiinternalip = '';
+            if (!empty($server->gcpinstancename)) {
+                try {
+                    $jitsiinstance = $compute->instances->get($project, $zone, $server->gcpinstancename);
+                    $ifaces = $jitsiinstance->getNetworkInterfaces();
+                    if (!empty($ifaces[0])) {
+                        $jitsiinternalip = $ifaces[0]->getNetworkIP();
+                    }
+                } catch (\Throwable $ipex) {
+                    mtrace("provision_jibri_vm: could not get Jitsi VM internal IP: " . $ipex->getMessage());
+                }
+            }
+
             $opname = mod_jitsi_gcp_create_instance($compute, $project, $zone, [
                 'name'          => $jibriinstancename,
                 'machineType'   => $mach,
@@ -125,6 +140,7 @@ class provision_jibri_vm extends \core\task\adhoc_task {
                 // Extra metadata items read by the Jibri startup script.
                 'extraMetadata' => [
                     ['key' => 'JITSI_HOSTNAME', 'value' => $jitsihostname],
+                    ['key' => 'JITSI_INTERNAL_IP', 'value' => $jitsiinternalip],
                     ['key' => 'JIBRI_XMPP_PASS', 'value' => $server->jibri_xmpp_pass],
                     ['key' => 'JIBRI_RECORDER_PASS', 'value' => $server->jibri_recorder_pass],
                     ['key' => 'JIBRI_SERVER_ID', 'value' => (string)$server->id],

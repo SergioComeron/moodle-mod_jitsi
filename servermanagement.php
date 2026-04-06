@@ -248,27 +248,62 @@ if ($rawaction === 'jibrirecording') {
         }
 
         // Find the jitsi activity record matching the room name.
-        // Room names are stored in the jitsi table as the session name.
+        // The room name is a composite built from course shortname, jitsi id, and jitsi name
+        // using the admin settings 'sesionname' and 'separator' — same logic as view.php.
         $jitsi = null;
         if (!empty($roomname)) {
-            $jitsi = $DB->get_record_select(
-                'jitsi',
-                $DB->sql_like('name', ':room', false),
-                ['room' => $roomname],
-                '*',
-                IGNORE_MULTIPLE
+            $separatormap   = ['.', '-', '_', ''];
+            $fieldssesname  = (string)get_config('mod_jitsi', 'sesionname');
+            $separatorindex = (int)get_config('mod_jitsi', 'separator');
+            $sep = $separatormap[$separatorindex] ?? '';
+
+            $alljitsis = $DB->get_records_sql(
+                'SELECT j.*, c.shortname AS courseshortname FROM {jitsi} j JOIN {course} c ON c.id = j.course'
             );
+            foreach ($alljitsis as $candidate) {
+                $allowed = explode(',', $fieldssesname);
+                $max = count($allowed);
+                $sesparam = '';
+                for ($i = 0; $i < $max; $i++) {
+                    $part = '';
+                    if ($allowed[$i] == 0) {
+                        $part = preg_replace('/[^a-zA-Z0-9]/', '', $candidate->courseshortname);
+                    } else if ($allowed[$i] == 1) {
+                        $part = (string)$candidate->id;
+                    } else if ($allowed[$i] == 2) {
+                        $part = preg_replace('/[^a-zA-Z0-9]/', '', $candidate->name);
+                    }
+                    $sesparam .= $part;
+                    if ($i < $max - 1) {
+                        $sesparam .= preg_replace('/[^a-zA-Z0-9\-_]/', '', $sep);
+                    }
+                }
+                if (strtolower($sesparam) === strtolower($roomname)) {
+                    $jitsi = $candidate;
+                    break;
+                }
+            }
         }
 
         // Create a source record (type=1 = external link).
         $sourcerecord = new stdClass();
-        $sourcerecord->jitsi      = $jitsi ? $jitsi->id : 0;
-        $sourcerecord->link       = $recurl;
-        $sourcerecord->name       = !empty($filename) ? $filename : basename(parse_url($recurl, PHP_URL_PATH));
-        $sourcerecord->type       = 1;
+        $sourcerecord->link        = $recurl;
+        $sourcerecord->name        = !empty($filename) ? $filename : basename(parse_url($recurl, PHP_URL_PATH));
+        $sourcerecord->type        = 1;
         $sourcerecord->timeexpires = 0; // Recordings don't expire.
         $sourcerecord->timecreated = time();
-        $DB->insert_record('jitsi_source_record', $sourcerecord);
+        $sourceid = $DB->insert_record('jitsi_source_record', $sourcerecord);
+
+        // Create a jitsi_record to link the source to the activity (required for display in view.php).
+        if ($jitsi) {
+            $record = new stdClass();
+            $record->jitsi   = $jitsi->id;
+            $record->source  = $sourceid;
+            $record->deleted = 0;
+            $record->visible = 1;
+            $record->name    = $sourcerecord->name;
+            $DB->insert_record('jitsi_record', $record);
+        }
 
         debugging("🎥 Jibri recording imported for server {$server->id}: {$recurl}", DEBUG_NORMAL);
 
@@ -1058,25 +1093,18 @@ if (!function_exists('mod_jitsi_jibri_startup_script')) {
         return <<<'BASH'
         #!/bin/bash
 
-        # Skip if already provisioned
+        # Skip if already fully provisioned
         if [ -f /var/local/jibri_boot_done ]; then
             echo "Jibri already provisioned, skipping"
             exit 0
         fi
 
-        set -euxo pipefail
         export DEBIAN_FRONTEND=noninteractive
 
         META="http://metadata.google.internal/computeMetadata/v1"
-        JITSI_HOSTNAME=$(curl -sf -H "Metadata-Flavor: Google" "$META/instance/attributes/JITSI_HOSTNAME" || true)
-        JIBRI_XMPP_PASS=$(curl -sf -H "Metadata-Flavor: Google" "$META/instance/attributes/JIBRI_XMPP_PASS" || true)
-        JIBRI_RECORDER_PASS=$(curl -sf -H "Metadata-Flavor: Google" "$META/instance/attributes/JIBRI_RECORDER_PASS" || true)
         CALLBACK_URL=$(curl -sf -H "Metadata-Flavor: Google" "$META/instance/attributes/CALLBACK_URL" || true)
 
-        AUTH_DOMAIN="auth.${JITSI_HOSTNAME}"
-        RECORDER_DOMAIN="recorder.${JITSI_HOSTNAME}"
-
-        # Error handler
+        # Error handler — defined before set -e so it always runs
         exit_handler() {
             local exit_code=$?
             if [ $exit_code -ne 0 ] && [ -n "$CALLBACK_URL" ]; then
@@ -1087,22 +1115,59 @@ if (!function_exists('mod_jitsi_jibri_startup_script')) {
         }
         trap exit_handler EXIT
 
-        # Notify Moodle: starting
-        if [ -n "$CALLBACK_URL" ]; then
-            curl -X POST "${CALLBACK_URL}&phase=installing" --max-time 10 --retry 2 || true
+        set -euxo pipefail
+
+        # Phase 1: install basic packages + generic kernel, then reboot so snd-aloop is available.
+        # The GCP startup script re-runs on every boot until the VM is stopped/deleted.
+        if [ ! -f /var/local/jibri_phase1_done ]; then
+            if [ -n "$CALLBACK_URL" ]; then
+                curl -X POST "${CALLBACK_URL}&phase=installing" --max-time 10 --retry 2 || true
+            fi
+
+            apt-get update -y
+            apt-get install -y curl gnupg2 apt-transport-https ca-certificates ca-certificates-java \
+                linux-image-amd64 linux-headers-amd64 alsa-utils unzip nginx
+
+            # Remove the GCP cloud kernel so GRUB boots the generic kernel (which has snd-aloop)
+            CLOUD_PKGS=$(dpkg -l 'linux-image-*-cloud-amd64' 2>/dev/null | awk '/^ii/{print $2}' | tr '\n' ' ' || true)
+            if [ -n "$CLOUD_PKGS" ]; then
+                # shellcheck disable=SC2086
+                apt-get remove -y $CLOUD_PKGS || true
+                apt-get autoremove -y || true
+            fi
+            update-grub || true
+
+            # Make snd-aloop load automatically on next boot (generic kernel includes it)
+            echo "snd-aloop" >> /etc/modules
+
+            mkdir -p /var/local
+            touch /var/local/jibri_phase1_done
+
+            # Reboot into the generic kernel (which includes snd-aloop)
+            reboot
+            exit 0
         fi
 
-        # Basic packages + ALSA loopback module (required by Jibri)
-        apt-get update -y
-        apt-get install -y curl gnupg2 apt-transport-https ca-certificates ca-certificates-java \
-            linux-image-amd64 linux-headers-amd64 alsa-utils ffmpeg unzip nginx
+        # Phase 2: running with generic kernel — snd-aloop is now available.
+        JITSI_HOSTNAME=$(curl -sf -H "Metadata-Flavor: Google" "$META/instance/attributes/JITSI_HOSTNAME" || true)
+        JITSI_INTERNAL_IP=$(curl -sf -H "Metadata-Flavor: Google" "$META/instance/attributes/JITSI_INTERNAL_IP" || true)
+        JIBRI_XMPP_PASS=$(curl -sf -H "Metadata-Flavor: Google" "$META/instance/attributes/JIBRI_XMPP_PASS" || true)
+        JIBRI_RECORDER_PASS=$(curl -sf -H "Metadata-Flavor: Google" "$META/instance/attributes/JIBRI_RECORDER_PASS" || true)
 
-        # Load snd-aloop kernel module and make it persistent
-        modprobe snd-aloop || true
-        echo "snd-aloop" >> /etc/modules
+        AUTH_DOMAIN="auth.${JITSI_HOSTNAME}"
+        RECORDER_DOMAIN="recorder.${JITSI_HOSTNAME}"
 
-        # Install Java 11 (Jibri requires Java 11+)
-        apt-get install -y openjdk-11-jre-headless
+        # Route Jitsi hostnames to the internal IP to avoid GCP NAT-loopback issues
+        # (Jibri must reach Jitsi via VPC, not via its public IP).
+        if [ -n "$JITSI_INTERNAL_IP" ]; then
+            echo "$JITSI_INTERNAL_IP $JITSI_HOSTNAME $AUTH_DOMAIN $RECORDER_DOMAIN" >> /etc/hosts
+        fi
+
+        # Load snd-aloop (succeeds with the generic kernel loaded after phase-1 reboot)
+        modprobe snd-aloop
+
+        # Install Java 17 (Jibri requires Java 11+; Java 17 is the available version on Debian 12)
+        apt-get install -y openjdk-17-jre-headless
 
         # Jitsi repository for Jibri
         curl https://download.jitsi.org/jitsi-key.gpg.key | gpg --dearmor > /usr/share/keyrings/jitsi.gpg
@@ -1112,11 +1177,23 @@ if (!function_exists('mod_jitsi_jibri_startup_script')) {
         # Install Jibri (no Jitsi Meet, just Jibri)
         apt-get install -y jibri
 
-        # Install Chromium (headless) for Jibri
-        apt-get install -y chromium || apt-get install -y chromium-browser || true
+        # Install Google Chrome — Jibri requires /usr/bin/google-chrome.
+        # Chromium from Debian 12 repos has dependency conflicts with jibri packages.
+        wget -q -O /tmp/google-chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+        apt-get install -y /tmp/google-chrome.deb
+        rm -f /tmp/google-chrome.deb
 
-        # Configure Xvfb (virtual framebuffer)
-        apt-get install -y xvfb x11-xserver-utils
+        # Install matching ChromeDriver (Jibri uses Selenium to drive Chrome).
+        CHROME_VER=$(google-chrome --version | grep -oP '\d+\.\d+\.\d+\.\d+')
+        wget -q -O /tmp/chromedriver.zip \
+            "https://storage.googleapis.com/chrome-for-testing-public/${CHROME_VER}/linux64/chromedriver-linux64.zip"
+        unzip -o /tmp/chromedriver.zip -d /tmp/
+        mv /tmp/chromedriver-linux64/chromedriver /usr/local/bin/chromedriver
+        chmod +x /usr/local/bin/chromedriver
+        rm -f /tmp/chromedriver.zip
+
+        # Install ffmpeg and Xvfb (virtual framebuffer for headless Chrome)
+        apt-get install -y ffmpeg xvfb x11-xserver-utils
 
         # Jibri configuration
         mkdir -p /etc/jitsi/jibri /srv/recordings
@@ -1225,10 +1302,6 @@ if (!function_exists('mod_jitsi_jibri_startup_script')) {
         nginx -t && systemctl restart nginx || true
 
         # Create Jibri finalize script to notify Moodle when a recording is ready
-        RECORDING_CALLBACK_URL="${CALLBACK_URL}"
-        RECORDING_SERVER_ID="${serverid}"
-        RECORDING_TOKEN="${provisiontoken}"
-
         # Re-read metadata for finalize script generation
         META_FIN="http://metadata.google.internal/computeMetadata/v1"
         FIN_SERVER_ID=$(curl -sf -H "Metadata-Flavor: Google" "$META_FIN/instance/attributes/JIBRI_SERVER_ID" || echo "0")
@@ -1255,8 +1328,8 @@ if (!function_exists('mod_jitsi_jibri_startup_script')) {
         FILENAME=\$(basename "\$RECFILE")
         mv "\$RECFILE" "/srv/recordings/\$FILENAME" || cp "\$RECFILE" "/srv/recordings/\$FILENAME"
 
-        # Extract room name from directory path (Jibri uses room name as subdirectory)
-        ROOM=\$(basename "\$RECORDING_DIR")
+        # Extract room name from filename (strip trailing _YYYY-MM-DD-HH-MM-SS.mp4)
+        ROOM=\$(echo "\$FILENAME" | sed 's/_[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}-[0-9]\{2\}-[0-9]\{2\}-[0-9]\{2\}\.mp4\$//')
 
         # Notify Moodle
         MOODLE_URL="${FIN_MOODLE_URL}"
@@ -2111,6 +2184,41 @@ if ($action === 'delete' && $id > 0) {
             }
         }
 
+        // Delete the Jibri VM if one was provisioned.
+        if ($server->type == 3 && !empty($server->jibri_enabled) && !empty($server->jibri_gcpinstancename)
+                && !empty($server->gcpproject) && !empty($server->gcpzone)) {
+            try {
+                if (class_exists('Google\\Client') && class_exists('Google\\Service\\Compute')) {
+                    $compute = mod_jitsi_gcp_client();
+
+                    $operation = $compute->instances->delete(
+                        $server->gcpproject,
+                        $server->gcpzone,
+                        $server->jibri_gcpinstancename
+                    );
+
+                    debugging("✅ Jibri VM deletion initiated: {$server->jibri_gcpinstancename}
+                      (Operation: {$operation->getName()})", DEBUG_NORMAL);
+
+                    \core\notification::add(
+                        "Jibri VM '{$server->jibri_gcpinstancename}' is being deleted. This may take a few minutes.",
+                        \core\output\notification::NOTIFY_INFO
+                    );
+                } else {
+                    \core\notification::add(
+                        'Warning: Google Cloud API not available. Jibri VM was not deleted from GCP.',
+                        \core\output\notification::NOTIFY_WARNING
+                    );
+                }
+            } catch (Exception $e) {
+                \core\notification::add(
+                    "Warning: Could not delete Jibri VM: " . $e->getMessage() . ". Server removed from Moodle database only.",
+                    \core\output\notification::NOTIFY_WARNING
+                );
+                debugging("❌ Failed to delete Jibri VM {$server->jibri_gcpinstancename}: " . $e->getMessage(), DEBUG_NORMAL);
+            }
+        }
+
         // Eliminar de la base de datos.
         $DB->delete_records('jitsi_servers', ['id' => $server->id]);
 
@@ -2422,6 +2530,22 @@ if ($action === 'gcpstart' && $id > 0) {
             "Starting GCP instance: {$server->gcpinstancename}",
             \core\output\notification::NOTIFY_SUCCESS
         );
+
+        // Also start the Jibri VM if present.
+        if (!empty($server->jibri_enabled) && !empty($server->jibri_gcpinstancename)) {
+            try {
+                $compute->instances->start($server->gcpproject, $server->gcpzone, $server->jibri_gcpinstancename);
+                \core\notification::add(
+                    "Starting Jibri GCP instance: {$server->jibri_gcpinstancename}",
+                    \core\output\notification::NOTIFY_SUCCESS
+                );
+            } catch (Exception $ejibri) {
+                \core\notification::add(
+                    "Failed to start Jibri instance: " . $ejibri->getMessage(),
+                    \core\output\notification::NOTIFY_WARNING
+                );
+            }
+        }
     } catch (Exception $e) {
         \core\notification::add(
             "Failed to start instance: " . $e->getMessage(),
@@ -2453,6 +2577,22 @@ if ($action === 'gcpstop' && $id > 0) {
             "Stopping GCP instance: {$server->gcpinstancename}",
             \core\output\notification::NOTIFY_SUCCESS
         );
+
+        // Also stop the Jibri VM if present.
+        if (!empty($server->jibri_enabled) && !empty($server->jibri_gcpinstancename)) {
+            try {
+                $compute->instances->stop($server->gcpproject, $server->gcpzone, $server->jibri_gcpinstancename);
+                \core\notification::add(
+                    "Stopping Jibri GCP instance: {$server->jibri_gcpinstancename}",
+                    \core\output\notification::NOTIFY_SUCCESS
+                );
+            } catch (Exception $ejibri) {
+                \core\notification::add(
+                    "Failed to stop Jibri instance: " . $ejibri->getMessage(),
+                    \core\output\notification::NOTIFY_WARNING
+                );
+            }
+        }
     } catch (Exception $e) {
         \core\notification::add(
             "Failed to stop instance: " . $e->getMessage(),

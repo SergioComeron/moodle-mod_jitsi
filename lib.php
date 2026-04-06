@@ -462,8 +462,11 @@ function createsession(
         $security = 'security';
     }
     $record = '';
-    // Disable recording on GCP auto-managed servers (type 3) - not yet supported.
-    if (get_config('mod_jitsi', 'record') == 1 && has_capability('mod/jitsi:record', $PAGE->context) && $servertype != 3) {
+    // Enable the Jitsi recording toolbar button when the record setting is on.
+    // For GCP servers (type 3), only enable it when Jibri is provisioned and ready.
+    $jibrienabled = ($servertype == 3 && !empty($server->jibri_enabled) && ($server->jibri_provisioningstatus ?? '') === 'ready');
+    if (get_config('mod_jitsi', 'record') == 1 && has_capability('mod/jitsi:record', $PAGE->context) &&
+            ($servertype != 3 || $jibrienabled)) {
         $record = 'recording';
     }
     $invite = '';
@@ -1371,8 +1374,11 @@ function createsessionpriv(
         $security = 'security';
     }
     $record = '';
-    // Disable recording on GCP auto-managed servers (type 3) - not yet supported.
-    if (get_config('mod_jitsi', 'record') == 1 && has_capability('mod/jitsi:record', $PAGE->context) && $servertype != 3) {
+    // Enable the Jitsi recording toolbar button when the record setting is on.
+    // For GCP servers (type 3), only enable it when Jibri is provisioned and ready.
+    $jibrienabled = ($servertype == 3 && !empty($server->jibri_enabled) && ($server->jibri_provisioningstatus ?? '') === 'ready');
+    if (get_config('mod_jitsi', 'record') == 1 && has_capability('mod/jitsi:record', $PAGE->context) &&
+            ($servertype != 3 || $jibrienabled)) {
         $record = 'recording';
     }
     $invite = '';
