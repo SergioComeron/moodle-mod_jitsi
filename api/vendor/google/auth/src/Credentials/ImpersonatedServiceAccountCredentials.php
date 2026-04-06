@@ -73,6 +73,11 @@ class ImpersonatedServiceAccountCredentials extends CredentialsLoader implements
     private int $lifetime;
 
     /**
+     * @var array<mixed>|null
+     */
+    protected array|null $lastReceivedToken = null;
+
+    /**
      * Instantiate an instance of ImpersonatedServiceAccountCredentials from a credentials file that
      * has be created with the --impersonate-service-account flag.
      *
@@ -87,11 +92,14 @@ class ImpersonatedServiceAccountCredentials extends CredentialsLoader implements
      *     @type string[]                       $delegates The delegates to impersonate
      * }
      * @param string|null $targetAudience The audience to request an ID token.
+     * @param string|string[]|null $defaultScope The scopes to be used if no "scopes" field exists
+     *                                           in the `$jsonKey`.
      */
     public function __construct(
         string|array|null $scope,
         string|array $jsonKey,
-        private ?string $targetAudience = null
+        private ?string $targetAudience = null,
+        string|array|null $defaultScope = null,
     ) {
         if (is_string($jsonKey)) {
             if (!file_exists($jsonKey)) {
@@ -110,6 +118,9 @@ class ImpersonatedServiceAccountCredentials extends CredentialsLoader implements
         if (!array_key_exists('source_credentials', $jsonKey)) {
             throw new LogicException('json key is missing the source_credentials field');
         }
+
+        $jsonKeyScope = $jsonKey['scopes'] ?? null;
+        $scope = $scope ?: $jsonKeyScope ?: $defaultScope;
         if ($scope && $targetAudience) {
             throw new InvalidArgumentException(
                 'Scope and targetAudience cannot both be supplied'
@@ -246,7 +257,7 @@ class ImpersonatedServiceAccountCredentials extends CredentialsLoader implements
         $response = $httpHandler($request);
         $body = json_decode((string) $response->getBody(), true);
 
-        return match ($this->isIdTokenRequest()) {
+        return $this->lastReceivedToken = match ($this->isIdTokenRequest()) {
             true => ['id_token' => $body['token']],
             false => [
                 'access_token' => $body['accessToken'],
@@ -273,7 +284,7 @@ class ImpersonatedServiceAccountCredentials extends CredentialsLoader implements
      */
     public function getLastReceivedToken()
     {
-        return $this->sourceCredentials->getLastReceivedToken();
+        return $this->lastReceivedToken;
     }
 
     protected function getCredType(): string
