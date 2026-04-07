@@ -154,7 +154,7 @@ class generate_ai_summary extends \core\task\adhoc_task {
             // Use HTTPS URL (public GCS) so Vertex AI can access without SA permissions on the bucket.
             $httpsurl = "https://storage.googleapis.com/{$bucketname}/{$objectname}";
 
-            $lang = current_language();
+            $lang = !empty($data->lang) ? $data->lang : current_language();
             $prompt = "You are an educational assistant. Please provide a concise summary (3-5 paragraphs) "
                 . "of the following video recording from an online class. "
                 . "Identify the main topics covered, key concepts explained, and any important conclusions. "

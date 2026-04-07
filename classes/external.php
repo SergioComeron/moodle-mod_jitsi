@@ -1274,7 +1274,7 @@ class mod_jitsi_external extends external_api {
 
         // Enqueue the ad-hoc task.
         $task = new \mod_jitsi\task\generate_ai_summary();
-        $task->set_custom_data(['sourcerecordid' => $params['sourcerecordid']]);
+        $task->set_custom_data(['sourcerecordid' => $params['sourcerecordid'], 'lang' => current_language()]);
         \core\task\manager::queue_adhoc_task($task, true);
 
         return ['success' => true, 'message' => get_string('aisummaryqueued', 'jitsi')];
