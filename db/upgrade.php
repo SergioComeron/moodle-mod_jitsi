@@ -1087,5 +1087,16 @@ function xmldb_jitsi_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026040703, 'jitsi');
     }
 
+    if ($oldversion < 2026040704) {
+        $table = new xmldb_table('jitsi_source_record');
+
+        $field = new xmldb_field('ai_summary', XMLDB_TYPE_TEXT, null, null, null, null, null, 'timeexpires');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        upgrade_mod_savepoint(true, 2026040704, 'jitsi');
+    }
+
     return true;
 }

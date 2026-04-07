@@ -155,4 +155,13 @@ $capabilities = [
             'teacher' => CAP_ALLOW,
         ],
     ],
+
+    'mod/jitsi:generateaisummary' => [
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_MODULE,
+        'archetypes' => [
+            'editingteacher' => CAP_ALLOW,
+            'manager' => CAP_ALLOW,
+        ],
+    ],
 ];

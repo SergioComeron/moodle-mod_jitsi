@@ -140,6 +140,29 @@ class mod_view_table extends table_sql {
                 } else {
                     $embedurl = $sourcerecord->link;
                 }
+
+                // AI summary button (GCS only).
+                $aisummaryhtml = '';
+                if ($isgcs && has_capability('mod/jitsi:generateaisummary', $context)) {
+                    $aisummaryhtml = '<div class="mt-2">'
+                        . '<button type="button" class="btn btn-sm btn-outline-primary jitsi-ai-summary-btn"'
+                        . ' data-sourcerecordid="' . (int)$sourcerecord->id . '"'
+                        . ' data-cmid="' . (int)$cm->id . '">'
+                        . '✨ ' . get_string('generateaisummary', 'jitsi')
+                        . '</button>'
+                        . '<span class="jitsi-ai-summary-status ms-2 text-muted small" style="display:none"></span>'
+                        . '</div>';
+                }
+
+                // Display existing AI summary if available.
+                $aisummarytext = '';
+                if ($isgcs && !empty($sourcerecord->ai_summary)) {
+                    $aisummarytext = '<div class="jitsi-ai-summary-text mt-3 p-3 bg-light rounded">'
+                        . '<strong>✨ ' . get_string('aisummary', 'jitsi') . '</strong><br>'
+                        . nl2br(s($sourcerecord->ai_summary))
+                        . '</div>';
+                }
+
                 $content = "<h5>" . $OUTPUT->render($tmpl) . "</h5>"
                     . "<h6 class=\"card-subtitle mb-2 text-muted\">" . userdate($values->timecreated) . "</h6>"
                     . "<span class=\"align-middle " . $alignmentclass . "\"><p>" . $actions . "</p></span>"
@@ -148,7 +171,10 @@ class mod_view_table extends table_sql {
                     . "</video>"
                     . "<p><a href=\"" . s($sourcerecord->link) . "\" target=\"_blank\""
                     . " class=\"btn btn-sm btn-outline-secondary mt-1\">"
-                    . get_string('openrecording', 'jitsi') . "</a></p><br>";
+                    . get_string('openrecording', 'jitsi') . "</a></p>"
+                    . $aisummaryhtml
+                    . $aisummarytext
+                    . "<br>";
             } else {
                 $is8x8 = strpos($sourcerecord->link, '8x8.vc') !== false;
                 $btnlabel = $is8x8 ? get_string('download') : get_string('openrecording', 'jitsi');

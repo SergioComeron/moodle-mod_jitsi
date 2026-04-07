@@ -692,4 +692,35 @@ if (has_capability('mod/jitsi:viewusersonsession', $PAGE->context)) {
 echo "</div>";
 
 echo "<hr>";
+
+// JS for AI summary buttons.
+$PAGE->requires->strings_for_js(['aisummarygenerating', 'aisummaryqueued', 'aisummaryerror'], 'jitsi');
+$PAGE->requires->js_amd_inline("
+require(['core/ajax', 'core/notification'], function(Ajax, Notification) {
+    document.addEventListener('click', function(e) {
+        var btn = e.target.closest('.jitsi-ai-summary-btn');
+        if (!btn) return;
+        e.preventDefault();
+        var sourcerecordid = parseInt(btn.dataset.sourcerecordid, 10);
+        var cmid = parseInt(btn.dataset.cmid, 10);
+        var status = btn.parentNode.querySelector('.jitsi-ai-summary-status');
+        btn.disabled = true;
+        if (status) { status.style.display = ''; status.textContent = M.util.get_string('aisummarygenerating', 'mod_jitsi'); }
+        Ajax.call([{
+            methodname: 'mod_jitsi_queue_ai_summary',
+            args: {sourcerecordid: sourcerecordid, cmid: cmid},
+            done: function(result) {
+                if (status) { status.textContent = result.message; }
+                if (!result.success) { btn.disabled = false; }
+            },
+            fail: function(ex) {
+                Notification.exception(ex);
+                btn.disabled = false;
+                if (status) { status.textContent = ''; }
+            }
+        }]);
+    });
+});
+");
+
 echo $OUTPUT->footer();
