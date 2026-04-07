@@ -34,7 +34,6 @@ defined('MOODLE_INTERNAL') || die();
  * @package mod_jitsi
  */
 class generate_ai_summary extends \core\task\adhoc_task {
-
     /**
      * Returns the component that owns this task.
      */
@@ -63,8 +62,12 @@ class generate_ai_summary extends \core\task\adhoc_task {
         // Only GCS recordings (https://storage.googleapis.com/...) are supported.
         if (!preg_match('/^https:\/\/storage\.googleapis\.com\/([^\/]+)\/(.+)$/', $sourcerecord->link, $m)) {
             mtrace("generate_ai_summary: recording is not a GCS URL: {$sourcerecord->link}");
-            $DB->set_field('jitsi_source_record', 'ai_summary',
-                get_string('aisummarynotavailable', 'jitsi'), ['id' => $sourcerecord->id]);
+            $DB->set_field(
+                'jitsi_source_record',
+                'ai_summary',
+                get_string('aisummarynotavailable', 'jitsi'),
+                ['id' => $sourcerecord->id]
+            );
             return;
         }
 
@@ -77,8 +80,12 @@ class generate_ai_summary extends \core\task\adhoc_task {
         $project = !empty($server->gcpproject) ? $server->gcpproject : '';
         if (empty($project)) {
             mtrace("generate_ai_summary: could not determine GCP project for bucket {$bucketname}");
-            $DB->set_field('jitsi_source_record', 'ai_summary',
-                get_string('aisummaryerror', 'jitsi'), ['id' => $sourcerecord->id]);
+            $DB->set_field(
+                'jitsi_source_record',
+                'ai_summary',
+                get_string('aisummaryerror', 'jitsi'),
+                ['id' => $sourcerecord->id]
+            );
             return;
         }
 
@@ -97,8 +104,12 @@ class generate_ai_summary extends \core\task\adhoc_task {
 
         if (!class_exists('Google\\Client')) {
             mtrace('generate_ai_summary: Google API client not available');
-            $DB->set_field('jitsi_source_record', 'ai_summary',
-                get_string('aisummaryerror', 'jitsi'), ['id' => $sourcerecord->id]);
+            $DB->set_field(
+                'jitsi_source_record',
+                'ai_summary',
+                get_string('aisummaryerror', 'jitsi'),
+                ['id' => $sourcerecord->id]
+            );
             return;
         }
 
@@ -110,8 +121,12 @@ class generate_ai_summary extends \core\task\adhoc_task {
             $fs = get_file_storage();
             $ctx = \context_system::instance();
             $files = $fs->get_area_files(
-                $ctx->id, 'mod_jitsi', 'gcpserviceaccountjson', 0,
-                'itemid, filepath, filename', false
+                $ctx->id,
+                'mod_jitsi',
+                'gcpserviceaccountjson',
+                0,
+                'itemid, filepath, filename',
+                false
             );
             if (!empty($files)) {
                 $file = reset($files);
@@ -188,11 +203,14 @@ class generate_ai_summary extends \core\task\adhoc_task {
 
             $DB->set_field('jitsi_source_record', 'ai_summary', $summary, ['id' => $sourcerecord->id]);
             mtrace("generate_ai_summary: summary saved for source record {$sourcerecord->id}");
-
         } catch (\Throwable $e) {
             mtrace("generate_ai_summary: ERROR: " . $e->getMessage());
-            $DB->set_field('jitsi_source_record', 'ai_summary',
-                get_string('aisummaryerror', 'jitsi'), ['id' => $sourcerecord->id]);
+            $DB->set_field(
+                'jitsi_source_record',
+                'ai_summary',
+                get_string('aisummaryerror', 'jitsi'),
+                ['id' => $sourcerecord->id]
+            );
         }
     }
 }
