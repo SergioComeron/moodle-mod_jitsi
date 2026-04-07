@@ -1904,7 +1904,15 @@ function deleterecordyoutube($idsource) {
             $tokensessionkey = 'token-' . "https://www.googleapis.com/auth/youtube";
 
             $_SESSION[$tokensessionkey] = $account->clientaccesstoken;
-            $client->setAccessToken($_SESSION[$tokensessionkey]);
+            try {
+                $client->setAccessToken($_SESSION[$tokensessionkey]);
+            } catch (\Exception $e) {
+                $account->clientaccesstoken = null;
+                $account->clientrefreshtoken = null;
+                $account->tokencreated = 0;
+                $DB->update_record('jitsi_record_account', $account);
+                return false;
+            }
             if ($client->isAccessTokenExpired()) {
                 // Validate refresh token exists before attempting to use it.
                 if (empty($account->clientrefreshtoken)) {
