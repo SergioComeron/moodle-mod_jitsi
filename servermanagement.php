@@ -1059,10 +1059,12 @@ if (!function_exists('mod_jitsi_default_startup_script')) {
         # Open XMPP port 5222 for Jibri (already open from ufw allow earlier, but be explicit)
         ufw allow 5222/tcp || true
 
-        # Set hiddenDomain in Jitsi Meet config so Jibri's Chrome session is hidden from participants
+        # Set hiddenDomain in Jitsi Meet config so Jibri's Chrome session is hidden from participants.
+        # Must be set both inside hosts{} and at the top level (required by this Jitsi Meet version).
         MEET_CONFIG="/etc/jitsi/meet/${HOSTNAME_FQDN}-config.js"
         if [ -f "$MEET_CONFIG" ] && ! grep -q "hiddenDomain:" "$MEET_CONFIG"; then
             sed -i "s|muc: 'conference\.' + subdomain + '${HOSTNAME_FQDN}',|muc: 'conference.' + subdomain + '${HOSTNAME_FQDN}',\n        hiddenDomain: 'recorder.${HOSTNAME_FQDN}',|" "$MEET_CONFIG" || true
+            sed -i "s|^};|    hiddenDomain: 'recorder.${HOSTNAME_FQDN}',\n};|" "$MEET_CONFIG" || true
         fi
 
         # Restart services to apply Jibri configuration
