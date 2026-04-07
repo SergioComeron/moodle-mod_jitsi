@@ -1827,13 +1827,37 @@ function marktodelete($idrecord, $option) {
 }
 
 /**
- * Delete physical recording file from Jibri VM via its HTTP delete endpoint.
- * Best-effort: returns false if URL is not IP-based or VM is unreachable.
- * @param string $link Recording URL (http://<ip>/recordings/<filename>)
- * @return bool True if the delete request was accepted, false otherwise.
+ * Delete physical recording file from Jibri VM or GCS bucket.
+ * Best-effort: returns false if URL is not recognised or VM/GCS is unreachable.
+ * @param string $link Recording URL (http://<ip>/recordings/<file> or https://storage.googleapis.com/<bucket>/<file>)
+ * @return bool True if deletion was accepted, false otherwise.
  */
 function delete_jibri_file($link) {
     global $DB;
+
+    // GCS URL: https://storage.googleapis.com/<bucket>/<filename>
+    if (preg_match('/^https:\/\/storage\.googleapis\.com\/([^\/]+)\/(.+)$/', $link, $m)) {
+        $bucketname = $m[1];
+        $objectname = $m[2];
+        $server = $DB->get_record('jitsi_servers', ['gcs_bucket' => $bucketname, 'gcs_enabled' => 1]);
+        if (!$server || empty($server->privatekey)) {
+            return false;
+        }
+        try {
+            require_once(__DIR__ . '/api/vendor/autoload.php');
+            $client = new Google\Client();
+            $key = json_decode($server->privatekey, true);
+            $client->setAuthConfig($key);
+            $client->addScope(Google\Service\Storage::DEVSTORAGE_FULL_CONTROL);
+            $storage = new Google\Service\Storage($client);
+            $storage->objects->delete($bucketname, $objectname);
+            return true;
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    // VM URL: http://<ip>/recordings/<filename>
     if (!preg_match('/^http:\/\/(\d+\.\d+\.\d+\.\d+)\/recordings\/(.+)$/', $link, $m)) {
         return false;
     }

@@ -138,7 +138,7 @@ class provision_jibri_vm extends \core\task\adhoc_task {
                 'startupScript' => mod_jitsi_jibri_startup_script(),
                 'callbackUrl'   => $callbackurl,
                 // Extra metadata items read by the Jibri startup script.
-                'extraMetadata' => [
+                'extraMetadata' => array_merge([
                     ['key' => 'JITSI_HOSTNAME', 'value' => $jitsihostname],
                     ['key' => 'JITSI_INTERNAL_IP', 'value' => $jitsiinternalip],
                     ['key' => 'JIBRI_XMPP_PASS', 'value' => $server->jibri_xmpp_pass],
@@ -146,7 +146,9 @@ class provision_jibri_vm extends \core\task\adhoc_task {
                     ['key' => 'JIBRI_SERVER_ID', 'value' => (string)$server->id],
                     ['key' => 'JIBRI_TOKEN', 'value' => $server->provisioningtoken],
                     ['key' => 'JIBRI_MOODLE_URL', 'value' => $recordingingesturl],
-                ],
+                ], !empty($server->gcs_enabled) && !empty($server->gcs_bucket) ? [
+                    ['key' => 'GCS_BUCKET', 'value' => $server->gcs_bucket],
+                ] : []),
                 'tags' => ['mod-jitsi-web', 'mod-jibri'],
             ]);
 

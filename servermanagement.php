@@ -1367,9 +1367,19 @@ if (!function_exists('mod_jitsi_jibri_startup_script')) {
         MOODLE_URL="${FIN_MOODLE_URL}"
         SERVERID="${FIN_SERVER_ID}"
         TOKEN="${FIN_TOKEN}"
-        # Read own external IP dynamically from GCP metadata so it stays correct after stop/start
-        MYIP=\$(curl -sf -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip" || echo "")
-        REC_URL="http://\${MYIP}/recordings/\${FILENAME}"
+
+        # Upload to GCS if enabled, otherwise serve from VM disk
+        GCS_BUCKET=\$(curl -sf -H "Metadata-Flavor: Google" \
+            "http://metadata.google.internal/computeMetadata/v1/instance/attributes/GCS_BUCKET" || echo "")
+        if [ -n "\$GCS_BUCKET" ]; then
+            gsutil cp -a public-read "/srv/recordings/\$FILENAME" "gs://\$GCS_BUCKET/\$FILENAME"
+            REC_URL="https://storage.googleapis.com/\$GCS_BUCKET/\$FILENAME"
+        else
+            # Read own external IP dynamically from GCP metadata so it stays correct after stop/start
+            MYIP=\$(curl -sf -H "Metadata-Flavor: Google" \
+                "http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip" || echo "")
+            REC_URL="http://\${MYIP}/recordings/\${FILENAME}"
+        fi
 
         if [ -n "\$MOODLE_URL" ]; then
             curl -X POST "\${MOODLE_URL}" \
@@ -1591,6 +1601,119 @@ if (!function_exists('mod_jitsi_gcp_create_instance')) {
     }
 }
 
+if (!function_exists('mod_jitsi_gcs_client')) {
+    /**
+     * Creates and returns a configured Google Cloud Storage service client.
+     *
+     * @return \Google_Service_Storage
+     */
+    function mod_jitsi_gcs_client(): \Google_Service_Storage {
+        $client = new \Google\Client();
+        $client->setScopes(['https://www.googleapis.com/auth/cloud-platform']);
+        $fs = get_file_storage();
+        $context = context_system::instance();
+        $files = $fs->get_area_files($context->id, 'mod_jitsi', 'gcpserviceaccountjson', 0, 'itemid, filepath, filename', false);
+        if (!empty($files)) {
+            $file = reset($files);
+            $content = $file->get_content();
+            $json = json_decode($content, true);
+            if (is_array($json)) {
+                $client->setAuthConfig($json);
+            } else {
+                $client->useApplicationDefaultCredentials();
+            }
+        } else {
+            $client->useApplicationDefaultCredentials();
+        }
+        return new \Google_Service_Storage($client);
+    }
+}
+
+if (!function_exists('mod_jitsi_gcs_ensure_bucket')) {
+    /**
+     * Creates a GCS bucket if it does not exist. Returns the bucket name.
+     *
+     * @param \Google_Service_Storage $gcs
+     * @param string $project GCP project ID
+     * @param string $bucketname Bucket name (must be globally unique)
+     * @param string $location GCS location (e.g. 'europe-west1')
+     * @return string The bucket name
+     */
+    function mod_jitsi_gcs_ensure_bucket(\Google_Service_Storage $gcs, string $project, string $bucketname, string $location): string {
+        try {
+            $gcs->buckets->get($bucketname);
+        } catch (\Google\Service\Exception $e) {
+            if ($e->getCode() == 404) {
+                $bucket = new \Google_Service_Storage_Bucket([
+                    'name' => $bucketname,
+                    'location' => $location,
+                    'storageClass' => 'STANDARD',
+                ]);
+                $gcs->buckets->insert($project, $bucket);
+            } else {
+                throw $e;
+            }
+        }
+        return $bucketname;
+    }
+}
+
+if (!function_exists('mod_jitsi_gcp_update_instance_metadata')) {
+    /**
+     * Updates specific metadata keys on a GCP instance, preserving existing ones.
+     *
+     * @param \Google\Service\Compute $compute
+     * @param string $project
+     * @param string $zone
+     * @param string $instancename
+     * @param array $updates Key-value pairs to update or add
+     */
+    function mod_jitsi_gcp_update_instance_metadata(
+        \Google\Service\Compute $compute,
+        string $project,
+        string $zone,
+        string $instancename,
+        array $updates
+    ): void {
+        $instance = $compute->instances->get($project, $zone, $instancename);
+        $metadata = $instance->getMetadata();
+        $items = $metadata->getItems() ?? [];
+        foreach ($updates as $key => $value) {
+            $found = false;
+            foreach ($items as $item) {
+                if ($item->getKey() === $key) {
+                    $item->setValue($value);
+                    $found = true;
+                    break;
+                }
+            }
+            if (!$found) {
+                $newitem = new \Google\Service\Compute\MetadataItems();
+                $newitem->setKey($key);
+                $newitem->setValue($value);
+                $items[] = $newitem;
+            }
+        }
+        $metadata->setItems($items);
+        $compute->instances->setMetadata($project, $zone, $instancename, $metadata);
+    }
+}
+
+if (!function_exists('mod_jitsi_gcs_bucket_name')) {
+    /**
+     * Derives a globally-unique GCS bucket name for a server.
+     *
+     * @param string $project GCP project ID
+     * @param int $serverid jitsi_servers record ID
+     * @return string Bucket name (max 63 chars, lowercase, hyphens only)
+     */
+    function mod_jitsi_gcs_bucket_name(string $project, int $serverid): string {
+        $slug = preg_replace('/[^a-z0-9-]/', '-', strtolower($project));
+        $name = 'mod-jitsi-' . $slug . '-s' . $serverid;
+        return substr($name, 0, 63);
+    }
+}
+
 if (!function_exists('mod_jitsi_gcp_wait_zone_op')) {
     /**
      * Wait for a Google Cloud Platform zone operation to complete.
@@ -1796,6 +1919,7 @@ if ($action === 'creategcpvm') {
     }
     $sscript       = mod_jitsi_default_startup_script();
     $enablejibri   = (bool) optional_param('enablejibri', 0, PARAM_BOOL);
+    $enablegcs     = $enablejibri && (bool) optional_param('enablegcs', 0, PARAM_BOOL);
     $jibrimachtype = trim((string) optional_param('jibrimachinetype', 'n2-standard-4', PARAM_TEXT));
     if (empty($jibrimachtype)) {
         $jibrimachtype = 'n2-standard-4';
@@ -1919,11 +2043,27 @@ if ($action === 'creategcpvm') {
         $jibrirecorderpass = $enablejibri ? bin2hex(random_bytes(16)) : '';
         $server->jibri_xmpp_pass     = $jibrixmpppass;
         $server->jibri_recorder_pass = $jibrirecorderpass;
+        $server->gcs_enabled = 0;
+        $server->gcs_bucket  = '';
 
         $server->timecreated = time();
         $server->timemodified = time();
 
         $serverid = $DB->insert_record('jitsi_servers', $server);
+
+        // Create GCS bucket if requested.
+        if ($enablegcs) {
+            try {
+                $gcs = mod_jitsi_gcs_client();
+                $location = preg_replace('/-[a-z]$/', '', $zone);
+                $bucketname = mod_jitsi_gcs_bucket_name($project, $serverid);
+                mod_jitsi_gcs_ensure_bucket($gcs, $project, $bucketname, $location);
+                $DB->set_field('jitsi_servers', 'gcs_enabled', 1, ['id' => $serverid]);
+                $DB->set_field('jitsi_servers', 'gcs_bucket', $bucketname, ['id' => $serverid]);
+            } catch (\Throwable $gcse) {
+                debugging('Could not create GCS bucket: ' . $gcse->getMessage(), DEBUG_NORMAL);
+            }
+        }
 
         // Extra metadata for the Jitsi VM when Jibri is requested.
         $jitsiextrameta = [];
@@ -2708,6 +2848,90 @@ if ($action === 'gcpstop' && $id > 0) {
     redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
 }
 
+// Action: Enable GCS recordings for a GCP server with Jibri.
+if ($action === 'enablegcs' && $id > 0) {
+    require_sesskey();
+
+    if (!$server = $DB->get_record('jitsi_servers', ['id' => $id])) {
+        throw new moodle_exception('Invalid server id');
+    }
+
+    if ($server->type != 3 || empty($server->jibri_enabled)) {
+        \core\notification::add('GCS is only available for GCP servers with Jibri enabled.', \core\output\notification::NOTIFY_ERROR);
+        redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
+    }
+
+    try {
+        $project = $server->gcpproject;
+        $zone = $server->gcpzone;
+        $location = preg_replace('/-[a-z]$/', '', $zone);
+        $bucketname = !empty($server->gcs_bucket) ? $server->gcs_bucket : mod_jitsi_gcs_bucket_name($project, $server->id);
+
+        $gcs = mod_jitsi_gcs_client();
+        mod_jitsi_gcs_ensure_bucket($gcs, $project, $bucketname, $location);
+
+        $server->gcs_enabled = 1;
+        $server->gcs_bucket = $bucketname;
+        $server->timemodified = time();
+        $DB->update_record('jitsi_servers', $server);
+
+        // Update Jibri VM metadata so finalize script uses GCS for new recordings.
+        if (!empty($server->jibri_gcpinstancename)) {
+            try {
+                $compute = mod_jitsi_gcp_client();
+                mod_jitsi_gcp_update_instance_metadata($compute, $project, $zone, $server->jibri_gcpinstancename, [
+                    'GCS_BUCKET' => $bucketname,
+                ]);
+            } catch (\Throwable $metaex) {
+                debugging('Could not update Jibri VM metadata: ' . $metaex->getMessage(), DEBUG_NORMAL);
+                \core\notification::add(
+                    'GCS enabled in DB but could not update Jibri VM metadata (VM may be stopped). New recordings will use GCS when VM is next started.',
+                    \core\output\notification::NOTIFY_WARNING
+                );
+            }
+        }
+
+        \core\notification::add('GCS recordings enabled. Bucket: ' . $bucketname, \core\output\notification::NOTIFY_SUCCESS);
+    } catch (\Throwable $e) {
+        \core\notification::add('Failed to enable GCS: ' . $e->getMessage(), \core\output\notification::NOTIFY_ERROR);
+    }
+
+    redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
+}
+
+// Action: Disable GCS recordings for a GCP server.
+if ($action === 'disablegcs' && $id > 0) {
+    require_sesskey();
+
+    if (!$server = $DB->get_record('jitsi_servers', ['id' => $id])) {
+        throw new moodle_exception('Invalid server id');
+    }
+
+    try {
+        $server->gcs_enabled = 0;
+        $server->timemodified = time();
+        $DB->update_record('jitsi_servers', $server);
+
+        // Remove GCS_BUCKET from Jibri VM metadata so finalize script falls back to IP.
+        if (!empty($server->jibri_gcpinstancename) && !empty($server->gcpproject) && !empty($server->gcpzone)) {
+            try {
+                $compute = mod_jitsi_gcp_client();
+                mod_jitsi_gcp_update_instance_metadata($compute, $server->gcpproject, $server->gcpzone, $server->jibri_gcpinstancename, [
+                    'GCS_BUCKET' => '',
+                ]);
+            } catch (\Throwable $metaex) {
+                debugging('Could not update Jibri VM metadata: ' . $metaex->getMessage(), DEBUG_NORMAL);
+            }
+        }
+
+        \core\notification::add('GCS recordings disabled. Existing recordings in GCS are preserved.', \core\output\notification::NOTIFY_SUCCESS);
+    } catch (\Throwable $e) {
+        \core\notification::add('Failed to disable GCS: ' . $e->getMessage(), \core\output\notification::NOTIFY_ERROR);
+    }
+
+    redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
+}
+
 $mform = new servermanagement_form();
 
 // Verificar si es GCP antes de mostrar formulario de edición.
@@ -3096,7 +3320,7 @@ if ($showform) {
         "      if (modalBody) modalBody.textContent = 'Error: ' + e.message;\n".
         "    }\n".
         "  }\n".
-        "  async function startVMCreation(enableJibri, jibriMachineType) {\n".
+        "  async function startVMCreation(enableJibri, jibriMachineType, enableGcs) {\n".
         "    dnsWarningShown = false;\n".
         "    if (modalBody) {\n".
         "      modalBody.innerHTML = (\n".
@@ -3108,11 +3332,12 @@ if ($showform) {
         "      );\n".
         "    }\n".
         "    try {\n".
-        "      console.log('[Button Click] Requesting VM creation... jibri:', enableJibri);\n".
+        "      console.log('[Button Click] Requesting VM creation... jibri:', enableJibri, 'gcs:', enableGcs);\n".
         "      var postData = {sesskey: cfg.sesskey};\n".
         "      if (enableJibri) {\n".
         "        postData.enablejibri = '1';\n".
         "        postData.jibrimachinetype = jibriMachineType || 'n2-standard-4';\n".
+        "        if (enableGcs) { postData.enablegcs = '1'; }\n".
         "      }\n".
         "      var data = await postJSON(cfg.createUrl, postData);\n".
         "      console.log('[Button Click] Create response:', data);\n".
@@ -3176,16 +3401,29 @@ if ($showform) {
         "          '<input type=\"text\" class=\"form-control\" id=\"jibri-machine-type\" value=\"n2-standard-4\">' +\n".
         "          '<small class=\"text-muted\">Minimum recommended: <code>n2-standard-4</code> (4 vCPUs, 16 GB RAM).</small>' +\n".
         "        '</div>' +\n".
+        "        '<div class=\"mb-3 text-start\" id=\"gcs-enable-row\" style=\"display:none\">' +\n".
+        "          '<div class=\"form-check\">' +\n".
+        "            '<input class=\"form-check-input\" type=\"checkbox\" id=\"gcs-enable-check\">' +\n".
+        "            '<label class=\"form-check-label fw-semibold\" for=\"gcs-enable-check\">' +\n".
+        "              'Upload recordings to Google Cloud Storage' +\n".
+        "            '</label>' +\n".
+        "          '</div>' +\n".
+        "          '<small class=\"text-muted d-block mt-1 ms-4\">' +\n".
+        "            'Recordings will be uploaded to a GCS bucket and served via a permanent public URL instead of the Jibri VM disk.' +\n".
+        "          '</small>' +\n".
+        "        '</div>' +\n".
         "        '<div class=\"d-flex justify-content-end gap-2 mt-3\">' +\n".
         "          '<button type=\"button\" class=\"btn btn-secondary\" onclick=\"closeModal();\">Cancel</button>' +\n".
         "          '<button type=\"button\" class=\"btn btn-primary\" id=\"jibri-confirm-btn\">Create VM</button>' +\n".
         "        '</div>';\n".
         "      var check = document.getElementById('jibri-enable-check');\n".
         "      var machineRow = document.getElementById('jibri-machine-row');\n".
+        "      var gcsRow = document.getElementById('gcs-enable-row');\n".
         "      var confirmBtn = document.getElementById('jibri-confirm-btn');\n".
         "      if (check && machineRow) {\n".
         "        check.addEventListener('change', function() {\n".
         "          machineRow.style.display = check.checked ? '' : 'none';\n".
+        "          if (gcsRow) gcsRow.style.display = check.checked ? '' : 'none';\n".
         "        });\n".
         "      }\n".
         "      if (confirmBtn) {\n".
@@ -3193,7 +3431,9 @@ if ($showform) {
         "          var enableJibri = check && check.checked;\n".
         "          var machineTypeEl = document.getElementById('jibri-machine-type');\n".
         "          var jibriMachine = (machineTypeEl && machineTypeEl.value.trim()) || 'n2-standard-4';\n".
-        "          startVMCreation(enableJibri, jibriMachine);\n".
+        "          var gcsCheck = document.getElementById('gcs-enable-check');\n".
+        "          var enableGcs = enableJibri && gcsCheck && gcsCheck.checked;\n".
+        "          startVMCreation(enableJibri, jibriMachine, enableGcs);\n".
         "        });\n".
         "      }\n".
         "    }\n".
@@ -3407,6 +3647,32 @@ if ($showform) {
             // Si no hay estado disponible, mostrar ambos botones deshabilitados.
             if (!$buttonshown) {
                 $links .= '<span class="text-muted">Actions unavailable</span>';
+            }
+        }
+
+        // Show Enable/Disable GCS button for GCP servers with Jibri ready.
+        if ($s->type == 3 && !empty($s->jibri_enabled) && ($s->jibri_provisioningstatus ?? '') === 'ready') {
+            if (!empty($links)) {
+                $links .= ' | ';
+            }
+            if (empty($s->gcs_enabled)) {
+                $enablegcsurl = new moodle_url('/mod/jitsi/servermanagement.php', [
+                    'action' => 'enablegcs', 'id' => $s->id, 'sesskey' => sesskey(),
+                ]);
+                $links .= html_writer::link(
+                    $enablegcsurl,
+                    get_string('enablegcs', 'jitsi'),
+                    ['class' => 'btn btn-sm btn-outline-secondary']
+                );
+            } else {
+                $disablegcsurl = new moodle_url('/mod/jitsi/servermanagement.php', [
+                    'action' => 'disablegcs', 'id' => $s->id, 'sesskey' => sesskey(),
+                ]);
+                $links .= html_writer::link(
+                    $disablegcsurl,
+                    get_string('disablegcs', 'jitsi'),
+                    ['class' => 'btn btn-sm btn-outline-warning']
+                );
             }
         }
 

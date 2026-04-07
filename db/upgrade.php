@@ -1071,5 +1071,21 @@ function xmldb_jitsi_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026040702, 'jitsi');
     }
 
+    if ($oldversion < 2026040703) {
+        $table = new xmldb_table('jitsi_servers');
+
+        $field = new xmldb_field('gcs_enabled', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '0', 'jibri_recorder_pass');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        $field = new xmldb_field('gcs_bucket', XMLDB_TYPE_CHAR, '255', null, null, null, '', 'gcs_enabled');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        upgrade_mod_savepoint(true, 2026040703, 'jitsi');
+    }
+
     return true;
 }
