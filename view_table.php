@@ -122,7 +122,9 @@ class mod_view_table extends table_sql {
                 } else if (has_capability('mod/jitsi:hide', $context)) {
                     $actions = ($record->visible != 0) ? $hideaction : $showaction;
                 }
-                if (has_capability('mod/jitsi:record', $context)) {
+                $isjibriorgs = strpos($sourcerecord->link, 'storage.googleapis.com') !== false
+                    || preg_match('/^http:\/\/\d+\.\d+\.\d+\.\d+\//', $sourcerecord->link);
+                if (has_capability('mod/jitsi:record', $context) && !$isjibriorgs) {
                     $actions .= $editaction;
                 }
             }
