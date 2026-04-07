@@ -147,7 +147,7 @@ class generate_ai_summary extends \core\task\adhoc_task {
 
             $token = $accesstoken['access_token'];
             $location = 'us-central1';
-            $model = 'gemini-2.0-flash-001';
+            $model = 'gemini-1.5-flash-001';
             $endpoint = "https://{$location}-aiplatform.googleapis.com/v1/projects/{$project}"
                 . "/locations/{$location}/publishers/google/models/{$model}:generateContent";
 
