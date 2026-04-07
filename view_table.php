@@ -141,17 +141,26 @@ class mod_view_table extends table_sql {
                     $embedurl = $sourcerecord->link;
                 }
 
-                // AI summary button (GCS only).
-                $aisummaryhtml = '';
+                // AI buttons (GCS only).
+                $aibuttonshtml = '';
                 if ($isgcs && has_capability('mod/jitsi:generateaisummary', $context)) {
-                    $aisummaryhtml = '<div class="mt-2">'
-                        . '<button type="button" class="btn btn-sm btn-outline-primary jitsi-ai-summary-btn"'
+                    $aibuttonshtml .= '<button type="button" class="btn btn-sm btn-outline-primary jitsi-ai-summary-btn"'
                         . ' data-sourcerecordid="' . (int)$sourcerecord->id . '"'
                         . ' data-cmid="' . (int)$cm->id . '">'
                         . '✨ ' . get_string('generateaisummary', 'jitsi')
                         . '</button>'
-                        . '<span class="jitsi-ai-summary-status ms-2 text-muted small" style="display:none"></span>'
-                        . '</div>';
+                        . '<span class="jitsi-ai-summary-status ms-2 text-muted small" style="display:none"></span>';
+                }
+                if ($isgcs && has_capability('mod/jitsi:generateaiquiz', $context)) {
+                    $aibuttonshtml .= ' <button type="button" class="btn btn-sm btn-outline-success jitsi-ai-quiz-btn"'
+                        . ' data-sourcerecordid="' . (int)$sourcerecord->id . '"'
+                        . ' data-cmid="' . (int)$cm->id . '">'
+                        . '&#128221; ' . get_string('aiquizgenerate', 'jitsi')
+                        . '</button>'
+                        . '<span class="jitsi-ai-quiz-status ms-2 text-muted small" style="display:none"></span>';
+                }
+                if ($aibuttonshtml) {
+                    $aibuttonshtml = '<div class="mt-2">' . $aibuttonshtml . '</div>';
                 }
 
                 // Display existing AI summary if available.
@@ -160,6 +169,19 @@ class mod_view_table extends table_sql {
                     $aisummarytext = '<div class="jitsi-ai-summary-text mt-3 p-3 bg-light rounded">'
                         . '<strong>✨ ' . get_string('aisummary', 'jitsi') . '</strong><br>'
                         . nl2br(s($sourcerecord->ai_summary))
+                        . '</div>';
+                }
+
+                // Display link to AI quiz if available.
+                $aiquizlink = '';
+                if ($isgcs && !empty($sourcerecord->ai_quiz_id) && $sourcerecord->ai_quiz_id > 0) {
+                    $quizurl = new moodle_url('/mod/quiz/view.php', ['id' => $sourcerecord->ai_quiz_id]);
+                    $aiquizlink = '<div class="mt-2">'
+                        . html_writer::link(
+                            $quizurl,
+                            '&#128221; ' . get_string('aiquizview', 'jitsi'),
+                            ['class' => 'btn btn-sm btn-success', 'target' => '_blank']
+                        )
                         . '</div>';
                 }
 
@@ -172,8 +194,9 @@ class mod_view_table extends table_sql {
                     . "<p><a href=\"" . s($sourcerecord->link) . "\" target=\"_blank\""
                     . " class=\"btn btn-sm btn-outline-secondary mt-1\">"
                     . get_string('openrecording', 'jitsi') . "</a></p>"
-                    . $aisummaryhtml
+                    . $aibuttonshtml
                     . $aisummarytext
+                    . $aiquizlink
                     . "<br>";
             } else {
                 $is8x8 = strpos($sourcerecord->link, '8x8.vc') !== false;

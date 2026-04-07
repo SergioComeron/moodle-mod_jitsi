@@ -592,4 +592,14 @@ if ($ADMIN->fulltree) {
             0
         )
     );
+
+    $settings->add(
+        new admin_setting_configtext(
+            'mod_jitsi/aiquizquestions',
+            get_string('aiquizquestions', 'jitsi'),
+            get_string('aiquizquestionsex', 'jitsi'),
+            10,
+            PARAM_INT
+        )
+    );
 }
