@@ -3814,6 +3814,8 @@ if ($showform) {
             "    deleteLink = deleteLink ? deleteLink[0] : '';\n".
             "    var jibriLink = cellHTML.match(/(<a[^>]*action=addjibri[^>]*>.*?<\\/a>)/i);\n".
             "    jibriLink = jibriLink ? jibriLink[0] : '';\n".
+            "    var gcsLink = cellHTML.match(/(<a[^>]*action=(?:enablegcs|disablegcs)[^>]*>.*?<\\/a>)/i);\n".
+            "    gcsLink = gcsLink ? gcsLink[0] : '';\n".
             "    \n".
             "    var startUrl = '".$wwwroot."/mod/jitsi/servermanagement.php?action=gcpstart&id=' + serverId + '&sesskey=".$sesskeyjs."';\n".
             "    var stopUrl = '".$wwwroot."/mod/jitsi/servermanagement.php?action=gcpstop&id=' + serverId + '&sesskey=".$sesskeyjs."';\n".
@@ -3830,6 +3832,7 @@ if ($showform) {
             "    \n".
             "    var extra = '';\n".
             "    if (jibriLink) { extra += ' | ' + jibriLink; }\n".
+            "    if (gcsLink) { extra += ' | ' + gcsLink; }\n".
             "    if (deleteLink) { extra += ' | ' + deleteLink; }\n".
             "    actionsCell.innerHTML = newButtons + extra;\n".
             "  }\n".
