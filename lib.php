@@ -1840,15 +1840,35 @@ function delete_jibri_file($link) {
         $bucketname = $m[1];
         $objectname = $m[2];
         $server = $DB->get_record('jitsi_servers', ['gcs_bucket' => $bucketname, 'gcs_enabled' => 1]);
-        if (!$server || empty($server->privatekey)) {
+        if (!$server) {
             return false;
         }
         try {
             require_once(__DIR__ . '/api/vendor/autoload.php');
             $client = new Google\Client();
-            $key = json_decode($server->privatekey, true);
-            $client->setAuthConfig($key);
             $client->addScope(Google\Service\Storage::DEVSTORAGE_FULL_CONTROL);
+            // GCP servers store credentials in Moodle file storage, not in privatekey field.
+            $fs = get_file_storage();
+            $ctx = context_system::instance();
+            $files = $fs->get_area_files(
+                $ctx->id,
+                'mod_jitsi',
+                'gcpserviceaccountjson',
+                0,
+                'itemid, filepath, filename',
+                false
+            );
+            if (!empty($files)) {
+                $file = reset($files);
+                $key = json_decode($file->get_content(), true);
+                if (is_array($key)) {
+                    $client->setAuthConfig($key);
+                } else {
+                    $client->useApplicationDefaultCredentials();
+                }
+            } else {
+                $client->useApplicationDefaultCredentials();
+            }
             $storage = new Google\Service\Storage($client);
             $storage->objects->delete($bucketname, $objectname);
             return true;
