@@ -179,9 +179,13 @@ class generate_ai_quiz extends \core\task\adhoc_task {
             ]);
             curl_setopt($ch, CURLOPT_TIMEOUT, 120);
             $response = curl_exec($ch);
+            $curlerror = curl_error($ch);
             $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
 
+            if ($response === false || $httpcode === 0) {
+                throw new \Exception("Curl error: {$curlerror}");
+            }
             if ($httpcode !== 200) {
                 throw new \Exception("Vertex AI returned HTTP {$httpcode}: {$response}");
             }
