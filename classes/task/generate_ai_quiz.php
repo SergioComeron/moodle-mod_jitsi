@@ -395,7 +395,7 @@ class generate_ai_quiz extends \core\task\adhoc_task {
             $cm->deletioninprogress = 0;
             $cmid = add_course_module($cm);
 
-            course_add_cm_to_section($cm, $cmid, 0);
+            course_add_cm_to_section($course, $cmid, 0);
             rebuild_course_cache($course->id, true);
 
             // Store the cmid in jitsi_source_record.
