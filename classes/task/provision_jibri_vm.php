@@ -149,7 +149,9 @@ class provision_jibri_vm extends \core\task\adhoc_task {
                 ], !empty($server->gcs_enabled) && !empty($server->gcs_bucket) ? [
                     ['key' => 'GCS_BUCKET', 'value' => $server->gcs_bucket],
                 ] : []),
-                'tags' => ['mod-jitsi-web', 'mod-jibri'],
+                'tags'                 => ['mod-jitsi-web', 'mod-jibri'],
+                // Attach default compute SA with cloud-platform scope so gsutil works via ADC.
+                'serviceAccount'       => 'default',
             ]);
 
             $server->jibri_gcpinstancename    = $jibriinstancename;

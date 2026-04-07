@@ -1467,6 +1467,28 @@ if (!function_exists('mod_jitsi_jibri_startup_script')) {
         systemctl enable jibri-delete
         systemctl start jibri-delete
 
+        # Ensure gsutil can authenticate as both root and jibri user.
+        # New VMs have the default compute SA attached (ADC works automatically).
+        # This service handles the jibri user's gcloud config on every boot.
+        cat > /etc/systemd/system/gcs-auth.service << 'EOFGCSAUTH'
+        [Unit]
+        Description=Activate GCS credentials for root and jibri user
+        After=network-online.target
+        Wants=network-online.target
+
+        [Service]
+        Type=oneshot
+        ExecStart=/bin/bash -c "gcloud auth application-default print-access-token > /dev/null 2>&1 || true"
+        ExecStart=/bin/su -s /bin/bash -c "gcloud auth application-default print-access-token > /dev/null 2>&1 || true" jibri
+        RemainAfterExit=yes
+
+        [Install]
+        WantedBy=multi-user.target
+        EOFGCSAUTH
+        systemctl daemon-reload
+        systemctl enable gcs-auth
+        systemctl start gcs-auth
+
         # Update Jibri config to use the finalize script
         sed -i 's|finalize-script = ""|finalize-script = "/usr/local/bin/jibri-finalize.sh"|' /etc/jitsi/jibri/jibri.conf || true
 
@@ -1591,6 +1613,16 @@ if (!function_exists('mod_jitsi_gcp_create_instance')) {
                 'initializeParams' => ['sourceImage' => $diskimage, 'diskSizeGb' => 20],
             ]],
         ];
+        // Attach a service account if requested (gives GCP tools like gsutil ADC access).
+        if (!empty($opts['serviceAccount'])) {
+            $scopes = !empty($opts['serviceAccountScopes'])
+                ? $opts['serviceAccountScopes']
+                : ['https://www.googleapis.com/auth/cloud-platform'];
+            $instanceparams['serviceAccounts'] = [[
+                'email' => $opts['serviceAccount'],
+                'scopes' => $scopes,
+            ]];
+        }
         if (!empty($metadataitems)) {
             $instanceparams['metadata'] = ['items' => $metadataitems];
         }
