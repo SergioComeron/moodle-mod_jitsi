@@ -151,10 +151,13 @@ class generate_ai_summary extends \core\task\adhoc_task {
             $endpoint = "https://{$location}-aiplatform.googleapis.com/v1/projects/{$project}"
                 . "/locations/{$location}/publishers/google/models/{$model}:generateContent";
 
+            // Use HTTPS URL (public GCS) so Vertex AI can access without SA permissions on the bucket.
+            $httpsurl = "https://storage.googleapis.com/{$bucketname}/{$objectname}";
+
             $prompt = "You are an educational assistant. Please provide a concise summary (3-5 paragraphs) "
                 . "of the following video recording from an online class. "
                 . "Identify the main topics covered, key concepts explained, and any important conclusions. "
-                . "Focus on educational content. The video is available at: {$gsuri}";
+                . "Focus on educational content.";
 
             $body = json_encode([
                 'contents' => [
@@ -165,7 +168,7 @@ class generate_ai_summary extends \core\task\adhoc_task {
                             [
                                 'fileData' => [
                                     'mimeType' => 'video/mp4',
-                                    'fileUri' => $gsuri,
+                                    'fileUri' => $httpsurl,
                                 ],
                             ],
                         ],
