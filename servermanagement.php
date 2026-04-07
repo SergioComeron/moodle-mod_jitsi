@@ -1067,6 +1067,16 @@ if (!function_exists('mod_jitsi_default_startup_script')) {
             sed -i "s|^};|    hiddenDomain: 'recorder.${HOSTNAME_FQDN}',\n};|" "$MEET_CONFIG" || true
         fi
 
+        # Enable live streaming in Jitsi Meet config (required for the livestreaming toolbar button).
+        if [ -f "$MEET_CONFIG" ] && ! grep -q "enabled: true" "$MEET_CONFIG"; then
+            sed -i 's|    // liveStreaming: {|    liveStreaming: {|' "$MEET_CONFIG" || true
+            sed -i 's|    //    enabled: false,|    enabled: true,|' "$MEET_CONFIG" || true
+            sed -i 's|    //    termsLink:|    termsLink:|' "$MEET_CONFIG" || true
+            sed -i 's|    //    dataPrivacyLink:|    dataPrivacyLink:|' "$MEET_CONFIG" || true
+            sed -i 's|    //    validatorRegExpString:|    validatorRegExpString:|' "$MEET_CONFIG" || true
+            sed -i 's|    //    helpLink:|    helpLink:|' "$MEET_CONFIG" || true
+        fi
+
         # Restart services to apply Jibri configuration
         systemctl restart prosody || true
         sleep 5
