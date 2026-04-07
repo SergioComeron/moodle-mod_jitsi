@@ -1320,6 +1320,11 @@ if (!function_exists('mod_jitsi_jibri_startup_script')) {
                 add_header Content-Disposition "attachment";
             }
 
+            location /delete-recording {
+                proxy_pass http://127.0.0.1:8099;
+                proxy_read_timeout 10s;
+            }
+
             location / {
                 return 404;
             }
@@ -1381,6 +1386,76 @@ if (!function_exists('mod_jitsi_jibri_startup_script')) {
         EOFFINALIZE
 
         chmod +x /usr/local/bin/jibri-finalize.sh
+
+        # Create delete-recording HTTP service (for physical file removal when Moodle deletes a recording)
+        echo "${FIN_TOKEN}" > /etc/jibri/delete-token
+        chmod 600 /etc/jibri/delete-token
+
+        cat > /usr/local/bin/jibri-delete-server.py << 'EOFDEL'
+        #!/usr/bin/env python3
+        import http.server
+        import urllib.parse
+        import os
+        TOKEN_FILE = '/etc/jibri/delete-token'
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                parsed = urllib.parse.urlparse(self.path)
+                if parsed.path != '/delete-recording':
+                    self.send_response(404)
+                    self.end_headers()
+                    return
+                try:
+                    with open(TOKEN_FILE) as fh:
+                        expected = fh.read().strip()
+                except Exception:
+                    self.send_response(500)
+                    self.end_headers()
+                    return
+                params = urllib.parse.parse_qs(parsed.query)
+                token = params.get('token', [''])[0]
+                filename = params.get('file', [''])[0]
+                if token != expected:
+                    self.send_response(403)
+                    self.end_headers()
+                    return
+                filename = os.path.basename(filename)
+                if not filename:
+                    self.send_response(400)
+                    self.end_headers()
+                    return
+                filepath = '/srv/recordings/' + filename
+                if os.path.isfile(filepath):
+                    os.remove(filepath)
+                    self.send_response(200)
+                    self.end_headers()
+                    self.wfile.write(b'OK')
+                else:
+                    self.send_response(404)
+                    self.end_headers()
+                    self.wfile.write(b'Not found')
+            def log_message(self, fmt, *args):
+                pass
+        if __name__ == '__main__':
+            http.server.HTTPServer(('127.0.0.1', 8099), Handler).serve_forever()
+        EOFDEL
+        chmod +x /usr/local/bin/jibri-delete-server.py
+
+        cat > /etc/systemd/system/jibri-delete.service << 'EOFSVC'
+        [Unit]
+        Description=Jibri Delete Recording Service
+        After=network.target
+
+        [Service]
+        ExecStart=/usr/bin/python3 /usr/local/bin/jibri-delete-server.py
+        Restart=always
+        User=root
+
+        [Install]
+        WantedBy=multi-user.target
+        EOFSVC
+        systemctl daemon-reload
+        systemctl enable jibri-delete
+        systemctl start jibri-delete
 
         # Update Jibri config to use the finalize script
         sed -i 's|finalize-script = ""|finalize-script = "/usr/local/bin/jibri-finalize.sh"|' /etc/jitsi/jibri/jibri.conf || true

@@ -1827,6 +1827,36 @@ function marktodelete($idrecord, $option) {
 }
 
 /**
+ * Delete physical recording file from Jibri VM via its HTTP delete endpoint.
+ * Best-effort: returns false if URL is not IP-based or VM is unreachable.
+ * @param string $link Recording URL (http://<ip>/recordings/<filename>)
+ * @return bool True if the delete request was accepted, false otherwise.
+ */
+function delete_jibri_file($link) {
+    global $DB;
+    if (!preg_match('/^http:\/\/(\d+\.\d+\.\d+\.\d+)\/recordings\/(.+)$/', $link, $m)) {
+        return false;
+    }
+    $ip = $m[1];
+    $filename = basename($m[2]);
+    $servers = $DB->get_records('jitsi_servers', ['jibri_enabled' => 1]);
+    foreach ($servers as $server) {
+        if (empty($server->provisioningtoken)) {
+            continue;
+        }
+        $url = 'http://' . $ip . '/delete-recording'
+            . '?file=' . rawurlencode($filename)
+            . '&token=' . rawurlencode($server->provisioningtoken);
+        $ctx = stream_context_create(['http' => ['timeout' => 5, 'ignore_errors' => true]]);
+        $response = @file_get_contents($url, false, $ctx);
+        if ($response !== false) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
  * Delete Jitsi record
  * @param int $source - Jitsi source record to delete
  */
