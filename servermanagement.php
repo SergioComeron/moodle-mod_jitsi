@@ -1064,25 +1064,25 @@ if (!function_exists('mod_jitsi_default_startup_script')) {
         MEET_CONFIG="/etc/jitsi/meet/${HOSTNAME_FQDN}-config.js"
         if [ -f "$MEET_CONFIG" ]; then
             python3 << PYJITSICFG
-import re
-f = '${MEET_CONFIG}'
-with open(f) as fh:
-    c = fh.read()
-# hiddenDomain inside hosts{}
-old_muc = "muc: 'conference.' + subdomain + '${HOSTNAME_FQDN}',"
-new_muc = old_muc + "\n        hiddenDomain: 'recorder.${HOSTNAME_FQDN}',"
-if 'hiddenDomain' not in c:
-    c = c.replace(old_muc, new_muc, 1)
-# hiddenDomain + liveStreaming at top level (insert before closing }; of config object)
-if 'liveStreaming: { enabled: true }' not in c:
-    idx = c.find('\n};')
-    if idx != -1:
-        insert = "\n    hiddenDomain: 'recorder.${HOSTNAME_FQDN}',\n    liveStreaming: { enabled: true },"
-        c = c[:idx] + insert + c[idx:]
-with open(f, 'w') as fh:
-    fh.write(c)
-print('Jitsi Meet config updated')
-PYJITSICFG
+        import re
+        f = '${MEET_CONFIG}'
+        with open(f) as fh:
+            c = fh.read()
+        # hiddenDomain inside hosts{}
+        old_muc = "muc: 'conference.' + subdomain + '${HOSTNAME_FQDN}',"
+        new_muc = old_muc + "\n        hiddenDomain: 'recorder.${HOSTNAME_FQDN}',"
+        if 'hiddenDomain' not in c:
+            c = c.replace(old_muc, new_muc, 1)
+        # hiddenDomain + liveStreaming at top level (insert before closing }; of config object)
+        if 'liveStreaming: { enabled: true }' not in c:
+            idx = c.find('\n};')
+            if idx != -1:
+                insert = "\n    hiddenDomain: 'recorder.${HOSTNAME_FQDN}',\n    liveStreaming: { enabled: true },"
+                c = c[:idx] + insert + c[idx:]
+        with open(f, 'w') as fh:
+            fh.write(c)
+        print('Jitsi Meet config updated')
+        PYJITSICFG
         fi
 
         # Restart services to apply Jibri configuration
