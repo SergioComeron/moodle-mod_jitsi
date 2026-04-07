@@ -127,10 +127,16 @@ class mod_view_table extends table_sql {
                 }
             }
 
-            if (!empty($sourcerecord->embed) && strpos($sourcerecord->link, 'dropbox.com') !== false) {
-                $embedurl = preg_replace('/([?&])dl=\d/', '$1raw=1', $sourcerecord->link);
-                if (strpos($embedurl, 'raw=1') === false) {
-                    $embedurl .= (strpos($embedurl, '?') !== false ? '&' : '?') . 'raw=1';
+            $isgcs = strpos($sourcerecord->link, 'storage.googleapis.com') !== false;
+            $isdropbox = !empty($sourcerecord->embed) && strpos($sourcerecord->link, 'dropbox.com') !== false;
+            if ($isdropbox || $isgcs) {
+                if ($isdropbox) {
+                    $embedurl = preg_replace('/([?&])dl=\d/', '$1raw=1', $sourcerecord->link);
+                    if (strpos($embedurl, 'raw=1') === false) {
+                        $embedurl .= (strpos($embedurl, '?') !== false ? '&' : '?') . 'raw=1';
+                    }
+                } else {
+                    $embedurl = $sourcerecord->link;
                 }
                 $content = "<h5>" . $OUTPUT->render($tmpl) . "</h5>"
                     . "<h6 class=\"card-subtitle mb-2 text-muted\">" . userdate($values->timecreated) . "</h6>"
