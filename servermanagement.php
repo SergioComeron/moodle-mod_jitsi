@@ -1310,12 +1310,11 @@ if (!function_exists('mod_jitsi_jibri_startup_script')) {
         nginx -t && systemctl restart nginx || true
 
         # Create Jibri finalize script to notify Moodle when a recording is ready
-        # Re-read metadata for finalize script generation
+        # Re-read metadata for finalize script generation (static values embedded at provision time)
         META_FIN="http://metadata.google.internal/computeMetadata/v1"
         FIN_SERVER_ID=$(curl -sf -H "Metadata-Flavor: Google" "$META_FIN/instance/attributes/JIBRI_SERVER_ID" || echo "0")
         FIN_TOKEN=$(curl -sf -H "Metadata-Flavor: Google" "$META_FIN/instance/attributes/JIBRI_TOKEN" || echo "")
         FIN_MOODLE_URL=$(curl -sf -H "Metadata-Flavor: Google" "$META_FIN/instance/attributes/JIBRI_MOODLE_URL" || echo "")
-        FIN_MYIP=$(curl -sf -H "Metadata-Flavor: Google" "$META_FIN/instance/network-interfaces/0/access-configs/0/external-ip" || echo "")
 
         cat > /usr/local/bin/jibri-finalize.sh << EOFFINALIZE
         #!/bin/bash
@@ -1343,7 +1342,8 @@ if (!function_exists('mod_jitsi_jibri_startup_script')) {
         MOODLE_URL="${FIN_MOODLE_URL}"
         SERVERID="${FIN_SERVER_ID}"
         TOKEN="${FIN_TOKEN}"
-        MYIP="${FIN_MYIP}"
+        # Read own external IP dynamically from GCP metadata so it stays correct after stop/start
+        MYIP=\$(curl -sf -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip" || echo "")
         REC_URL="http://\${MYIP}/recordings/\${FILENAME}"
 
         if [ -n "\$MOODLE_URL" ]; then
