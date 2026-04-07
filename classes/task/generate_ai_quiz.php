@@ -227,6 +227,10 @@ class generate_ai_quiz extends \core\task\adhoc_task {
                 $category->id = $DB->insert_record('question_categories', $category);
             }
 
+            // Moodle 4.x uses 'question_bank_entry' (singular), Moodle 5.x renamed it to 'question_bank_entries'.
+            $qbetable = $DB->get_manager()->table_exists('question_bank_entries')
+                ? 'question_bank_entries' : 'question_bank_entry';
+
             // Create each true/false question.
             $questionids = [];
             $qbeids = [];
@@ -235,12 +239,12 @@ class generate_ai_quiz extends \core\task\adhoc_task {
                     continue;
                 }
 
-                // question_bank_entry.
+                // question_bank_entry / question_bank_entries.
                 $qbe = new \stdClass();
                 $qbe->questioncategoryid = $category->id;
                 $qbe->idnumber = null;
                 $qbe->ownerid = $adminid;
-                $qbeid = $DB->insert_record('question_bank_entry', $qbe);
+                $qbeid = $DB->insert_record($qbetable, $qbe);
 
                 // question.
                 $question = new \stdClass();
