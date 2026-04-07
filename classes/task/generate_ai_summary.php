@@ -180,9 +180,9 @@ class generate_ai_summary extends \core\task\adhoc_task {
                 'generationConfig' => [
                     'temperature' => 0.2,
                     'maxOutputTokens' => 8192,
-                ],
-                'thinkingConfig' => [
-                    'thinkingBudget' => 0,
+                    'thinkingConfig' => [
+                        'thinkingBudget' => 0,
+                    ],
                 ],
             ]);
 
