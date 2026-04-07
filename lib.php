@@ -522,13 +522,13 @@ function createsession(
     }
 
     if ($user == null) {
-        // Don't show integrated recording switch for GCP servers (type 3) - not yet supported.
+        // Show integrated streaming switch for GCP servers (type 3) only when Jibri is ready.
         if (
             get_config('mod_jitsi', 'livebutton') == 1 &&
             has_capability('mod/jitsi:record', $PAGE->context) &&
             $account != null && $universal == false &&
             (get_config('mod_jitsi', 'streamingoption') == 1) && $jitsi->sessionwithtoken == 0 &&
-            $servertype != 3
+            ($servertype != 3 || $jibrienabled)
         ) {
             if ($CFG->branch >= 500) {
                 echo "<div class=\"text-end\">";
