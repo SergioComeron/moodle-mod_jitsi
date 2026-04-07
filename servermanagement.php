@@ -1273,6 +1273,7 @@ if (!function_exists('mod_jitsi_jibri_startup_script')) {
               "--enabled",
               "--disable-infobars",
               "--exclude-switches=enable-automation",
+              "--disable-blink-features=AutomationControlled",
               "--autoplay-policy=no-user-gesture-required",
               "--ignore-certificate-errors"
             ]
