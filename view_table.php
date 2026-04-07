@@ -155,6 +155,7 @@ class mod_view_table extends table_sql {
                 if (preg_match('/^http:\/\/\d+\.\d+\.\d+\.\d+\//', $sourcerecord->link)) {
                     $jibriwarn = ' <small class="text-warning ms-1" title="'
                         . s(get_string('jibrirecordingoffline', 'jitsi')) . '">⚠</small>';
+                }
 
                 $content = "<div class=\"d-flex align-items-center gap-2 py-1\">"
                     . "<span class=\"flex-grow-1\">"
