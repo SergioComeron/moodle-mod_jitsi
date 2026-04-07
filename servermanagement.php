@@ -1272,6 +1272,7 @@ if (!function_exists('mod_jitsi_jibri_startup_script')) {
               "--kiosk",
               "--enabled",
               "--disable-infobars",
+              "--exclude-switches=enable-automation",
               "--autoplay-policy=no-user-gesture-required",
               "--ignore-certificate-errors"
             ]
