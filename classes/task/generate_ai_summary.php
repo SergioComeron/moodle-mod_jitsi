@@ -148,8 +148,7 @@ class generate_ai_summary extends \core\task\adhoc_task {
             $token = $accesstoken['access_token'];
             $location = 'us-central1';
             $model = 'gemini-2.5-flash';
-            // Use v1beta for Gemini 2.5 Flash (preview/thinking model).
-            $endpoint = "https://{$location}-aiplatform.googleapis.com/v1beta1/projects/{$project}"
+            $endpoint = "https://{$location}-aiplatform.googleapis.com/v1/projects/{$project}"
                 . "/locations/{$location}/publishers/google/models/{$model}:generateContent";
 
             // Use HTTPS URL (public GCS) so Vertex AI can access without SA permissions on the bucket.
@@ -179,10 +178,7 @@ class generate_ai_summary extends \core\task\adhoc_task {
                 ],
                 'generationConfig' => [
                     'temperature' => 0.2,
-                    'maxOutputTokens' => 8192,
-                    'thinkingConfig' => [
-                        'thinkingBudget' => 0,
-                    ],
+                    'maxOutputTokens' => 1024,
                 ],
             ]);
 
