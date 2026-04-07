@@ -1605,9 +1605,9 @@ if (!function_exists('mod_jitsi_gcs_client')) {
     /**
      * Creates and returns a configured Google Cloud Storage service client.
      *
-     * @return \Google_Service_Storage
+     * @return \Google\Service\Storage
      */
-    function mod_jitsi_gcs_client(): \Google_Service_Storage {
+    function mod_jitsi_gcs_client(): \Google\Service\Storage {
         $client = new \Google\Client();
         $client->setScopes(['https://www.googleapis.com/auth/cloud-platform']);
         $fs = get_file_storage();
@@ -1625,7 +1625,7 @@ if (!function_exists('mod_jitsi_gcs_client')) {
         } else {
             $client->useApplicationDefaultCredentials();
         }
-        return new \Google_Service_Storage($client);
+        return new \Google\Service\Storage($client);
     }
 }
 
@@ -1633,18 +1633,18 @@ if (!function_exists('mod_jitsi_gcs_ensure_bucket')) {
     /**
      * Creates a GCS bucket if it does not exist. Returns the bucket name.
      *
-     * @param \Google_Service_Storage $gcs
+     * @param \Google\Service\Storage $gcs
      * @param string $project GCP project ID
      * @param string $bucketname Bucket name (must be globally unique)
      * @param string $location GCS location (e.g. 'europe-west1')
      * @return string The bucket name
      */
-    function mod_jitsi_gcs_ensure_bucket(\Google_Service_Storage $gcs, string $project, string $bucketname, string $location): string {
+    function mod_jitsi_gcs_ensure_bucket(\Google\Service\Storage $gcs, string $project, string $bucketname, string $location): string {
         try {
             $gcs->buckets->get($bucketname);
         } catch (\Google\Service\Exception $e) {
             if ($e->getCode() == 404) {
-                $bucket = new \Google_Service_Storage_Bucket([
+                $bucket = new \Google\Service\Storage\Bucket([
                     'name' => $bucketname,
                     'location' => $location,
                     'storageClass' => 'STANDARD',
