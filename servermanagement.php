@@ -1059,22 +1059,30 @@ if (!function_exists('mod_jitsi_default_startup_script')) {
         # Open XMPP port 5222 for Jibri (already open from ufw allow earlier, but be explicit)
         ufw allow 5222/tcp || true
 
-        # Set hiddenDomain in Jitsi Meet config so Jibri's Chrome session is hidden from participants.
-        # Must be set both inside hosts{} and at the top level (required by this Jitsi Meet version).
+        # Set hiddenDomain and enable liveStreaming in Jitsi Meet config.
+        # Uses Python to avoid sed multiline issues.
         MEET_CONFIG="/etc/jitsi/meet/${HOSTNAME_FQDN}-config.js"
-        if [ -f "$MEET_CONFIG" ] && ! grep -q "hiddenDomain:" "$MEET_CONFIG"; then
-            sed -i "s|muc: 'conference\.' + subdomain + '${HOSTNAME_FQDN}',|muc: 'conference.' + subdomain + '${HOSTNAME_FQDN}',\n        hiddenDomain: 'recorder.${HOSTNAME_FQDN}',|" "$MEET_CONFIG" || true
-            sed -i "s|^};|    hiddenDomain: 'recorder.${HOSTNAME_FQDN}',\n};|" "$MEET_CONFIG" || true
-        fi
-
-        # Enable live streaming in Jitsi Meet config (required for the livestreaming toolbar button).
-        if [ -f "$MEET_CONFIG" ] && ! grep -q "enabled: true" "$MEET_CONFIG"; then
-            sed -i 's|    // liveStreaming: {|    liveStreaming: {|' "$MEET_CONFIG" || true
-            sed -i 's|    //    enabled: false,|    enabled: true,|' "$MEET_CONFIG" || true
-            sed -i 's|    //    termsLink:|    termsLink:|' "$MEET_CONFIG" || true
-            sed -i 's|    //    dataPrivacyLink:|    dataPrivacyLink:|' "$MEET_CONFIG" || true
-            sed -i 's|    //    validatorRegExpString:|    validatorRegExpString:|' "$MEET_CONFIG" || true
-            sed -i 's|    //    helpLink:|    helpLink:|' "$MEET_CONFIG" || true
+        if [ -f "$MEET_CONFIG" ]; then
+            python3 << PYJITSICFG
+import re
+f = '${MEET_CONFIG}'
+with open(f) as fh:
+    c = fh.read()
+# hiddenDomain inside hosts{}
+old_muc = "muc: 'conference.' + subdomain + '${HOSTNAME_FQDN}',"
+new_muc = old_muc + "\n        hiddenDomain: 'recorder.${HOSTNAME_FQDN}',"
+if 'hiddenDomain' not in c:
+    c = c.replace(old_muc, new_muc, 1)
+# hiddenDomain + liveStreaming at top level (insert before closing }; of config object)
+if 'liveStreaming: { enabled: true }' not in c:
+    idx = c.find('\n};')
+    if idx != -1:
+        insert = "\n    hiddenDomain: 'recorder.${HOSTNAME_FQDN}',\n    liveStreaming: { enabled: true },"
+        c = c[:idx] + insert + c[idx:]
+with open(f, 'w') as fh:
+    fh.write(c)
+print('Jitsi Meet config updated')
+PYJITSICFG
         fi
 
         # Restart services to apply Jibri configuration
