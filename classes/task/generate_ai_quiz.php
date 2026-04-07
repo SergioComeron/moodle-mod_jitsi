@@ -234,6 +234,11 @@ class generate_ai_quiz extends \core\task\adhoc_task {
             // Moodle 4.x uses 'question_bank_entry' (singular), Moodle 5.x renamed it to 'question_bank_entries'.
             $qbetable = $DB->get_manager()->table_exists('question_bank_entries')
                 ? 'question_bank_entries' : 'question_bank_entry';
+            // In Moodle 5.x, question.category was removed (stored in question_bank_entries only).
+            $questionhascategory = array_key_exists('category', $DB->get_columns('question'));
+            // In Moodle 5.x, quiz_slots no longer has questionbankentryid; links via question_references.
+            $slotshasqbeid = array_key_exists('questionbankentryid', $DB->get_columns('quiz_slots'));
+            $hasquestionrefs = $DB->get_manager()->table_exists('question_references');
 
             // Create each true/false question.
             $questionids = [];
@@ -252,7 +257,9 @@ class generate_ai_quiz extends \core\task\adhoc_task {
 
                 // question.
                 $question = new \stdClass();
-                $question->category = $category->id;
+                if ($questionhascategory) {
+                    $question->category = $category->id;
+                }
                 $question->name = \core_text::substr($q['question'], 0, 255);
                 $question->questiontext = $q['question'];
                 $question->questiontextformat = FORMAT_HTML;
@@ -357,16 +364,33 @@ class generate_ai_quiz extends \core\task\adhoc_task {
             $quiz->allowofflineattempts = 0;
             $quizid = $DB->insert_record('quiz', $quiz);
 
-            // Add questions to quiz_slots.
+            // Add questions to quiz_slots (+ question_references for Moodle 5.x).
+            $quizcontext = \context_module::instance($cmid);
             foreach ($qbeids as $slot => $qbeid) {
                 $quizslot = new \stdClass();
                 $quizslot->quizid = $quizid;
-                $quizslot->questionbankentryid = $qbeid;
                 $quizslot->maxmark = 1;
                 $quizslot->slot = $slot + 1;
                 $quizslot->requireprevious = 0;
                 $quizslot->page = $slot + 1;
-                $DB->insert_record('quiz_slots', $quizslot);
+                if ($slotshasqbeid) {
+                    // Moodle 4.x: reference stored directly in slot.
+                    $quizslot->questionbankentryid = $qbeid;
+                    $DB->insert_record('quiz_slots', $quizslot);
+                } else {
+                    // Moodle 5.x: slot has no question reference; use question_references table.
+                    $slotid = $DB->insert_record('quiz_slots', $quizslot);
+                    if ($hasquestionrefs) {
+                        $qref = new \stdClass();
+                        $qref->usingcontextid = $quizcontext->id;
+                        $qref->component = 'mod_quiz';
+                        $qref->questionarea = 'slot';
+                        $qref->itemid = $slotid;
+                        $qref->questionbankentryid = $qbeid;
+                        $qref->version = null;
+                        $DB->insert_record('question_references', $qref);
+                    }
+                }
             }
 
             // Add quiz_grade row for the quiz.
