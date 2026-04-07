@@ -153,11 +153,8 @@ class mod_view_table extends table_sql {
                 // Detect Jibri recordings (served directly from a GCP VM IP).
                 $jibriwarn = '';
                 if (preg_match('/^http:\/\/\d+\.\d+\.\d+\.\d+\//', $sourcerecord->link)) {
-                    $jibriwarn = ' <span class="badge bg-warning text-dark ms-1" title="'
-                        . s(get_string('jibrirecordingoffline', 'jitsi')) . '">'
-                        . '⚠ ' . get_string('jibrirecordingoffline', 'jitsi')
-                        . '</span>';
-                }
+                    $jibriwarn = ' <small class="text-warning ms-1" title="'
+                        . s(get_string('jibrirecordingoffline', 'jitsi')) . '">⚠</small>';
 
                 $content = "<div class=\"d-flex align-items-center gap-2 py-1\">"
                     . "<span class=\"flex-grow-1\">"
