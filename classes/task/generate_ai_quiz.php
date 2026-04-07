@@ -364,6 +364,27 @@ class generate_ai_quiz extends \core\task\adhoc_task {
             $quiz->allowofflineattempts = 0;
             $quizid = $DB->insert_record('quiz', $quiz);
 
+            // Create course module FIRST so we have the context for question_references.
+            $quizcm = new \stdClass();
+            $quizcm->course = $course->id;
+            $quizcm->module = $quizmodule->id;
+            $quizcm->instance = $quizid;
+            $quizcm->section = 0;
+            $quizcm->visible = 1;
+            $quizcm->visibleoncoursepage = 1;
+            $quizcm->groupmode = 0;
+            $quizcm->groupingid = 0;
+            $quizcm->completion = 0;
+            $quizcm->completiongradeitemnumber = null;
+            $quizcm->completionview = 0;
+            $quizcm->completionexpected = 0;
+            $quizcm->showdescription = 0;
+            $quizcm->availability = null;
+            $quizcm->deletioninprogress = 0;
+            $cmid = add_course_module($quizcm);
+
+            course_add_cm_to_section($course, $cmid, 0);
+
             // Add questions to quiz_slots (+ question_references for Moodle 5.x).
             $quizcontext = \context_module::instance($cmid);
             foreach ($qbeids as $slot => $qbeid) {
@@ -393,33 +414,6 @@ class generate_ai_quiz extends \core\task\adhoc_task {
                 }
             }
 
-            // Add quiz_grade row for the quiz.
-            $quizgrade = new \stdClass();
-            $quizgrade->quiz = $quizid;
-            $quizgrade->userid = 0;
-            $quizgrade->grade = 0;
-            $quizgrade->timemodified = time();
-
-            // Create course module.
-            $cm = new \stdClass();
-            $cm->course = $course->id;
-            $cm->module = $quizmodule->id;
-            $cm->instance = $quizid;
-            $cm->section = 0;
-            $cm->visible = 1;
-            $cm->visibleoncoursepage = 1;
-            $cm->groupmode = 0;
-            $cm->groupingid = 0;
-            $cm->completion = 0;
-            $cm->completiongradeitemnumber = null;
-            $cm->completionview = 0;
-            $cm->completionexpected = 0;
-            $cm->showdescription = 0;
-            $cm->availability = null;
-            $cm->deletioninprogress = 0;
-            $cmid = add_course_module($cm);
-
-            course_add_cm_to_section($course, $cmid, 0);
             rebuild_course_cache($course->id, true);
 
             // Store the cmid in jitsi_source_record.
