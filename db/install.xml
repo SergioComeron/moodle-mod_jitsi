@@ -98,6 +98,14 @@
         <FIELD NAME="provisioningstatus" TYPE="char" LENGTH="50" NOTNULL="false" DEFAULT="" SEQUENCE="false" COMMENT="Provisioning status: provisioning, ready, error"/>
         <FIELD NAME="provisioningtoken" TYPE="char" LENGTH="64" NOTNULL="false" DEFAULT="" SEQUENCE="false" COMMENT="Security token for VM callback authentication"/>
         <FIELD NAME="provisioningerror" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Error message if provisioning failed"/>
+        <FIELD NAME="jibri_enabled" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Whether a dedicated Jibri recording VM is enabled for this server"/>
+        <FIELD NAME="jibri_gcpinstancename" TYPE="char" LENGTH="255" NOTNULL="false" DEFAULT="" SEQUENCE="false" COMMENT="GCP instance name of the Jibri VM"/>
+        <FIELD NAME="jibri_provisioningstatus" TYPE="char" LENGTH="50" NOTNULL="false" DEFAULT="" SEQUENCE="false" COMMENT="Provisioning status of the Jibri VM"/>
+        <FIELD NAME="jibri_provisioningerror" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Error message if Jibri VM provisioning failed"/>
+        <FIELD NAME="jibri_xmpp_pass" TYPE="char" LENGTH="64" NOTNULL="false" DEFAULT="" SEQUENCE="false" COMMENT="XMPP password for the Jibri Prosody user"/>
+        <FIELD NAME="jibri_recorder_pass" TYPE="char" LENGTH="64" NOTNULL="false" DEFAULT="" SEQUENCE="false" COMMENT="XMPP password for the recorder Prosody user"/>
+        <FIELD NAME="gcs_enabled" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Whether GCS upload is enabled for Jibri recordings"/>
+        <FIELD NAME="gcs_bucket" TYPE="char" LENGTH="255" NOTNULL="false" DEFAULT="" SEQUENCE="false" COMMENT="GCS bucket name for Jibri recordings"/>
         <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
         <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
       </FIELDS>

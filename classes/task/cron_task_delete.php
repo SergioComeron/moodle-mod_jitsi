@@ -60,7 +60,20 @@ class cron_task_delete extends \core\task\scheduled_task {
         foreach ($recordstodelete as $recordtodelete) {
             $source = $DB->get_record('jitsi_source_record', ['id' => $recordtodelete->source]);
             if (($source->timecreated < time() - get_config('mod_jitsi', 'videosexpiry'))) {
-                if (deleterecordyoutube($source->id)) {
+                if (!empty($source->type) && $source->type == 1) {
+                    // External/Jibri recording — try to delete physical file from VM (best-effort).
+                    if (preg_match('/^http:\/\/\d+\.\d+\.\d+\.\d+\//', $source->link)) {
+                        if (delete_jibri_file($source->link)) {
+                            mtrace("Deleted Jibri file: " . $source->link);
+                        } else {
+                            mtrace("Could not delete Jibri file (VM may be stopped): " . $source->link);
+                        }
+                    }
+                    mtrace("Deleting source: " . $source->link . " from " . userdate($source->timecreated));
+                    $DB->delete_records('jitsi_source_record', ['id' => $recordtodelete->source]);
+                    mtrace("Deleting record: " . $recordtodelete->name);
+                    $DB->delete_records('jitsi_record', ['id' => $recordtodelete->id]);
+                } else if (deleterecordyoutube($source->id)) {
                     mtrace("Deleting source: " . $source->link . " from " . userdate($source->timecreated));
                     $DB->delete_records('jitsi_source_record', ['id' => $recordtodelete->source]);
                     mtrace("Deleting record: " . $recordtodelete->name);

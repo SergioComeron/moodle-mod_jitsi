@@ -122,15 +122,23 @@ class mod_view_table extends table_sql {
                 } else if (has_capability('mod/jitsi:hide', $context)) {
                     $actions = ($record->visible != 0) ? $hideaction : $showaction;
                 }
-                if (has_capability('mod/jitsi:record', $context)) {
+                $isjibriorgs = strpos($sourcerecord->link, 'storage.googleapis.com') !== false
+                    || preg_match('/^http:\/\/\d+\.\d+\.\d+\.\d+\//', $sourcerecord->link);
+                if (has_capability('mod/jitsi:record', $context) && !$isjibriorgs) {
                     $actions .= $editaction;
                 }
             }
 
-            if (!empty($sourcerecord->embed) && strpos($sourcerecord->link, 'dropbox.com') !== false) {
-                $embedurl = preg_replace('/([?&])dl=\d/', '$1raw=1', $sourcerecord->link);
-                if (strpos($embedurl, 'raw=1') === false) {
-                    $embedurl .= (strpos($embedurl, '?') !== false ? '&' : '?') . 'raw=1';
+            $isgcs = strpos($sourcerecord->link, 'storage.googleapis.com') !== false;
+            $isdropbox = !empty($sourcerecord->embed) && strpos($sourcerecord->link, 'dropbox.com') !== false;
+            if ($isdropbox || $isgcs) {
+                if ($isdropbox) {
+                    $embedurl = preg_replace('/([?&])dl=\d/', '$1raw=1', $sourcerecord->link);
+                    if (strpos($embedurl, 'raw=1') === false) {
+                        $embedurl .= (strpos($embedurl, '?') !== false ? '&' : '?') . 'raw=1';
+                    }
+                } else {
+                    $embedurl = $sourcerecord->link;
                 }
                 $content = "<h5>" . $OUTPUT->render($tmpl) . "</h5>"
                     . "<h6 class=\"card-subtitle mb-2 text-muted\">" . userdate($values->timecreated) . "</h6>"
@@ -149,9 +157,18 @@ class mod_view_table extends table_sql {
                     $btnlabel,
                     ['target' => '_blank', 'class' => 'btn btn-sm btn-primary']
                 );
+
+                // Detect Jibri recordings (served directly from a GCP VM IP).
+                $jibriwarn = '';
+                if (preg_match('/^http:\/\/\d+\.\d+\.\d+\.\d+\//', $sourcerecord->link)) {
+                    $jibriwarn = ' <small class="text-warning ms-1" title="'
+                        . s(get_string('jibrirecordingoffline', 'jitsi')) . '">⚠</small>';
+                }
+
                 $content = "<div class=\"d-flex align-items-center gap-2 py-1\">"
                     . "<span class=\"flex-grow-1\">"
                     . $OUTPUT->render($tmpl)
+                    . $jibriwarn
                     . " <small class=\"text-muted ms-2\">" . userdate($values->timecreated) . "</small>"
                     . "</span>"
                     . "<span class=\"text-nowrap\">" . $actions . $openlink . "</span>"
