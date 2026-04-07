@@ -441,10 +441,12 @@ function createsession(
     echo "<script src=\"https://" . $domain . "/external_api.js\"></script>\n";
 
     $streamingoption = '';
+    $jibrienabled = ($servertype == 3 && !empty($server->jibri_enabled) && ($server->jibri_provisioningstatus ?? '') === 'ready');
     if (
         (get_config('mod_jitsi', 'livebutton') == 1) &&
         (has_capability('mod/jitsi:record', $PAGE->context)) &&
-        (get_config('mod_jitsi', 'streamingoption') == 0)
+        (get_config('mod_jitsi', 'streamingoption') == 0) &&
+        ($servertype != 3 || $jibrienabled)
     ) {
         $streamingoption = 'livestreaming';
     }
@@ -668,8 +670,9 @@ function createsession(
         echo "disablePolls: true,\n";
     }
 
-    // Disable live streaming if global setting is off OR if it's a GCP server (type 3 - not yet supported).
-    if (get_config('mod_jitsi', 'livebutton') == 0 || $servertype == 3) {
+    // Disable live streaming if global setting is off, or if GCP (type 3) without Jibri ready.
+    $jibrilivestream = ($servertype == 3 && !empty($server->jibri_enabled) && ($server->jibri_provisioningstatus ?? '') === 'ready');
+    if (get_config('mod_jitsi', 'livebutton') == 0 || ($servertype == 3 && !$jibrilivestream)) {
         echo "liveStreamingEnabled: false,\n";
     }
 
@@ -1355,10 +1358,12 @@ function createsessionpriv(
     echo "<script src=\"https://" . $domain . "/external_api.js\"></script>\n";
 
     $streamingoption = '';
+    $jibrienabled = ($servertype == 3 && !empty($server->jibri_enabled) && ($server->jibri_provisioningstatus ?? '') === 'ready');
     if (
         (get_config('mod_jitsi', 'livebutton') == 1) &&
         (has_capability('mod/jitsi:record', $PAGE->context)) &&
-        (get_config('mod_jitsi', 'streamingoption') == 0)
+        (get_config('mod_jitsi', 'streamingoption') == 0) &&
+        ($servertype != 3 || $jibrienabled)
     ) {
         $streamingoption = 'livestreaming';
     }
@@ -1530,8 +1535,9 @@ function createsessionpriv(
         echo "disablePolls: true,\n";
     }
 
-    // Disable live streaming if global setting is off OR if it's a GCP server (type 3 - not yet supported).
-    if (get_config('mod_jitsi', 'livebutton') == 0 || $servertype == 3) {
+    // Disable live streaming if global setting is off, or if GCP (type 3) without Jibri ready.
+    $jibrilivestream = ($servertype == 3 && !empty($server->jibri_enabled) && ($server->jibri_provisioningstatus ?? '') === 'ready');
+    if (get_config('mod_jitsi', 'livebutton') == 0 || ($servertype == 3 && !$jibrilivestream)) {
         echo "liveStreamingEnabled: false,\n";
     }
 
