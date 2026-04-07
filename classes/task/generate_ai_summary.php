@@ -187,7 +187,7 @@ class generate_ai_summary extends \core\task\adhoc_task {
                 'Authorization: Bearer ' . $token,
                 'Content-Type: application/json',
             ]);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 120);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 300);
             $response = curl_exec($ch);
             $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);

@@ -177,7 +177,7 @@ class generate_ai_quiz extends \core\task\adhoc_task {
                 'Authorization: Bearer ' . $token,
                 'Content-Type: application/json',
             ]);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 120);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 300);
             $response = curl_exec($ch);
             $curlerror = curl_error($ch);
             $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
