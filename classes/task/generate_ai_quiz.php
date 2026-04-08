@@ -391,7 +391,6 @@ class generate_ai_quiz extends \core\task\adhoc_task {
                 $gradeitem = new \stdClass();
                 $gradeitem->quizid = $quizid;
                 $gradeitem->sortorder = 1;
-                $gradeitem->name = null;
                 $quizgradeitemid = $DB->insert_record('quiz_grade_items', $gradeitem);
             }
 
