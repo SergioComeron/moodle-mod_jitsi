@@ -402,7 +402,7 @@ class generate_ai_quiz extends \core\task\adhoc_task {
                 $quizslot->maxmark = 1;
                 $quizslot->slot = $slot + 1;
                 $quizslot->requireprevious = 0;
-                $quizslot->page = $slot + 1;
+                $quizslot->page = 1;
                 if ($quizgradeitemid !== null) {
                     $quizslot->quizgradeitemid = $quizgradeitemid;
                 }
