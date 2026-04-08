@@ -142,8 +142,18 @@ class mod_view_table extends table_sql {
                 }
 
                 // AI buttons (GCS only).
+                // Summary error strings that allow regeneration.
+                $summaryerrorstrs = [
+                    get_string('aisummaryerror', 'jitsi'),
+                    get_string('aisummarynotavailable', 'jitsi'),
+                ];
+                $summaryisfailed = in_array($sourcerecord->ai_summary ?? '', $summaryerrorstrs);
+                $summaryexists = !empty($sourcerecord->ai_summary) && !$summaryisfailed;
+                $quizid = (int)($sourcerecord->ai_quiz_id ?? 0);
+
                 $aibuttonshtml = '';
-                if ($isgcs && has_capability('mod/jitsi:generateaisummary', $context)) {
+                // Show summary button only if no valid summary exists yet (or previous attempt failed).
+                if ($isgcs && has_capability('mod/jitsi:generateaisummary', $context) && !$summaryexists) {
                     $aibuttonshtml .= '<button type="button" class="btn btn-sm btn-outline-primary jitsi-ai-summary-btn"'
                         . ' data-sourcerecordid="' . (int)$sourcerecord->id . '"'
                         . ' data-cmid="' . (int)$cm->id . '">'
@@ -151,31 +161,41 @@ class mod_view_table extends table_sql {
                         . '</button>'
                         . '<span class="jitsi-ai-summary-status ms-2 text-muted small" style="display:none"></span>';
                 }
-                if ($isgcs && has_capability('mod/jitsi:generateaiquiz', $context)) {
+                // Show quiz button only if quiz not yet generated (0 = never, -1 = failed).
+                if ($isgcs && has_capability('mod/jitsi:generateaiquiz', $context) && $quizid <= 0) {
+                    $quizbtnextra = '';
+                    if ($quizid === -1) {
+                        $quizbtnextra = ' <small class="text-danger">(' . get_string('aiquizerror', 'jitsi') . ')</small>';
+                    }
                     $aibuttonshtml .= ' <button type="button" class="btn btn-sm btn-outline-success jitsi-ai-quiz-btn"'
                         . ' data-sourcerecordid="' . (int)$sourcerecord->id . '"'
                         . ' data-cmid="' . (int)$cm->id . '">'
                         . '&#128221; ' . get_string('aiquizgenerate', 'jitsi')
                         . '</button>'
+                        . $quizbtnextra
                         . '<span class="jitsi-ai-quiz-status ms-2 text-muted small" style="display:none"></span>';
                 }
                 if ($aibuttonshtml) {
                     $aibuttonshtml = '<div class="mt-2">' . $aibuttonshtml . '</div>';
                 }
 
-                // Display existing AI summary if available.
+                // Display existing AI summary if available (not shown if it's an error message).
                 $aisummarytext = '';
-                if ($isgcs && !empty($sourcerecord->ai_summary)) {
+                if ($isgcs && $summaryexists) {
                     $aisummarytext = '<div class="jitsi-ai-summary-text mt-3 p-3 bg-light rounded">'
                         . '<strong>✨ ' . get_string('aisummary', 'jitsi') . '</strong><br>'
                         . nl2br(s($sourcerecord->ai_summary))
+                        . '</div>';
+                } else if ($isgcs && $summaryisfailed) {
+                    $aisummarytext = '<div class="mt-2 text-danger small">'
+                        . s($sourcerecord->ai_summary)
                         . '</div>';
                 }
 
                 // Display link to AI quiz if available.
                 $aiquizlink = '';
-                if ($isgcs && !empty($sourcerecord->ai_quiz_id) && $sourcerecord->ai_quiz_id > 0) {
-                    $quizurl = new moodle_url('/mod/quiz/view.php', ['id' => $sourcerecord->ai_quiz_id]);
+                if ($isgcs && $quizid > 0) {
+                    $quizurl = new moodle_url('/mod/quiz/view.php', ['id' => $quizid]);
                     $aiquizlink = '<div class="mt-2">'
                         . html_writer::link(
                             $quizurl,
