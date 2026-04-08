@@ -150,6 +150,11 @@ class mod_view_table extends table_sql {
                 $summaryisfailed = in_array($sourcerecord->ai_summary ?? '', $summaryerrorstrs);
                 $summaryexists = !empty($sourcerecord->ai_summary) && !$summaryisfailed;
                 $quizid = (int)($sourcerecord->ai_quiz_id ?? 0);
+                // If quiz cmid no longer exists, reset before building buttons.
+                if ($quizid > 0 && !$DB->record_exists('course_modules', ['id' => $quizid])) {
+                    $DB->set_field('jitsi_source_record', 'ai_quiz_id', 0, ['id' => $sourcerecord->id]);
+                    $quizid = 0;
+                }
 
                 $aibuttonshtml = '';
                 // Show summary button only if no valid summary exists yet (or previous attempt failed).
@@ -192,23 +197,17 @@ class mod_view_table extends table_sql {
                         . '</div>';
                 }
 
-                // Display link to AI quiz if available and the course module still exists.
+                // Display link to AI quiz if available (cmid validity already checked above).
                 $aiquizlink = '';
                 if ($isgcs && $quizid > 0) {
-                    if ($DB->record_exists('course_modules', ['id' => $quizid])) {
-                        $quizurl = new moodle_url('/mod/quiz/view.php', ['id' => $quizid]);
-                        $aiquizlink = '<div class="mt-2">'
-                            . html_writer::link(
-                                $quizurl,
-                                '&#128221; ' . get_string('aiquizview', 'jitsi'),
-                                ['class' => 'btn btn-sm btn-success', 'target' => '_blank']
-                            )
-                            . '</div>';
-                    } else {
-                        // Quiz was deleted externally — reset so the generate button reappears.
-                        $DB->set_field('jitsi_source_record', 'ai_quiz_id', 0, ['id' => $sourcerecord->id]);
-                        $quizid = 0;
-                    }
+                    $quizurl = new moodle_url('/mod/quiz/view.php', ['id' => $quizid]);
+                    $aiquizlink = '<div class="mt-2">'
+                        . html_writer::link(
+                            $quizurl,
+                            '&#128221; ' . get_string('aiquizview', 'jitsi'),
+                            ['class' => 'btn btn-sm btn-success', 'target' => '_blank']
+                        )
+                        . '</div>';
                 }
 
                 $content = "<h5>" . $OUTPUT->render($tmpl) . "</h5>"
