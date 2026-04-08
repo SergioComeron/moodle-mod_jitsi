@@ -192,17 +192,23 @@ class mod_view_table extends table_sql {
                         . '</div>';
                 }
 
-                // Display link to AI quiz if available.
+                // Display link to AI quiz if available and the course module still exists.
                 $aiquizlink = '';
                 if ($isgcs && $quizid > 0) {
-                    $quizurl = new moodle_url('/mod/quiz/view.php', ['id' => $quizid]);
-                    $aiquizlink = '<div class="mt-2">'
-                        . html_writer::link(
-                            $quizurl,
-                            '&#128221; ' . get_string('aiquizview', 'jitsi'),
-                            ['class' => 'btn btn-sm btn-success', 'target' => '_blank']
-                        )
-                        . '</div>';
+                    if ($DB->record_exists('course_modules', ['id' => $quizid])) {
+                        $quizurl = new moodle_url('/mod/quiz/view.php', ['id' => $quizid]);
+                        $aiquizlink = '<div class="mt-2">'
+                            . html_writer::link(
+                                $quizurl,
+                                '&#128221; ' . get_string('aiquizview', 'jitsi'),
+                                ['class' => 'btn btn-sm btn-success', 'target' => '_blank']
+                            )
+                            . '</div>';
+                    } else {
+                        // Quiz was deleted externally — reset so the generate button reappears.
+                        $DB->set_field('jitsi_source_record', 'ai_quiz_id', 0, ['id' => $sourcerecord->id]);
+                        $quizid = 0;
+                    }
                 }
 
                 $content = "<h5>" . $OUTPUT->render($tmpl) . "</h5>"
