@@ -426,6 +426,14 @@ class generate_ai_quiz extends \core\task\adhoc_task {
                 }
             }
 
+            // quiz_sections is required for Moodle to display questions.
+            $section = new \stdClass();
+            $section->quizid = $quizid;
+            $section->firstslot = 1;
+            $section->heading = '';
+            $section->shufflequestions = 0;
+            $DB->insert_record('quiz_sections', $section);
+
             rebuild_course_cache($course->id, true);
 
             // Store the cmid in jitsi_source_record.
