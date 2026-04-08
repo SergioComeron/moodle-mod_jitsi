@@ -385,6 +385,16 @@ class generate_ai_quiz extends \core\task\adhoc_task {
 
             course_add_cm_to_section($course, $cmid, 0);
 
+            // Create quiz_grade_items entry if table exists (Moodle 4.2+).
+            $quizgradeitemid = null;
+            if ($DB->get_manager()->table_exists('quiz_grade_items')) {
+                $gradeitem = new \stdClass();
+                $gradeitem->quizid = $quizid;
+                $gradeitem->sortorder = 1;
+                $gradeitem->name = null;
+                $quizgradeitemid = $DB->insert_record('quiz_grade_items', $gradeitem);
+            }
+
             // Add questions to quiz_slots (+ question_references for Moodle 5.x).
             $quizcontext = \context_module::instance($cmid);
             foreach ($qbeids as $slot => $qbeid) {
@@ -394,6 +404,9 @@ class generate_ai_quiz extends \core\task\adhoc_task {
                 $quizslot->slot = $slot + 1;
                 $quizslot->requireprevious = 0;
                 $quizslot->page = $slot + 1;
+                if ($quizgradeitemid !== null) {
+                    $quizslot->quizgradeitemid = $quizgradeitemid;
+                }
                 if ($slotshasqbeid) {
                     // Moodle 4.x: reference stored directly in slot.
                     $quizslot->questionbankentryid = $qbeid;
