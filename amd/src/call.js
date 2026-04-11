@@ -234,34 +234,39 @@ const initPush = async(swUrl, vapidKey) => {
                 const sub = await swReg.pushManager.getSubscription();
                 if (sub) {
                     // Unsubscribe.
+                    setStatus('...');
                     await sub.unsubscribe();
                     Ajax.call([{
                         methodname: 'mod_jitsi_unregister_push_subscription',
                         args: {endpoint: sub.endpoint},
                     }]);
                 } else {
-                    // Request permission explicitly so the dialog is visible.
+                    // Request permission — browser shows its own dialog.
+                    setStatus('Requesting permission...');
                     const perm = await window.Notification.requestPermission();
                     if (perm !== 'granted') {
+                        setStatus(perm === 'denied' ? 'Permission denied by browser.' : 'Permission not granted.');
                         await updateUI();
                         return;
                     }
 
+                    setStatus('Subscribing...');
                     const newSub = await swReg.pushManager.subscribe({
                         userVisibleOnly: true,
                         applicationServerKey: urlBase64ToUint8Array(vapidKey),
                     });
 
+                    setStatus('Saving subscription...');
                     const key = newSub.getKey('p256dh');
                     const auth = newSub.getKey('auth');
-                    Ajax.call([{
+                    await Ajax.call([{
                         methodname: 'mod_jitsi_register_push_subscription',
                         args: {
                             endpoint:  newSub.endpoint,
                             authkey:   btoa(String.fromCharCode(...new Uint8Array(auth))),
                             p256dhkey: btoa(String.fromCharCode(...new Uint8Array(key))),
                         },
-                    }]);
+                    }])[0];
                 }
             } catch (e) {
                 window.console.error('[Jitsi Push] Subscription error:', e);
