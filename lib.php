@@ -1359,6 +1359,23 @@ function createsessionpriv(
         }
     }
 
+    echo '<style>
+    .cuadrado-wrapper {
+        position: relative;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+    }
+    .jitsi-container {
+        width: calc(90vw);
+        height: calc(90vw * 9 / 16);
+        max-width: calc(90vh * 16 / 9);
+        max-height: calc(90vh);
+    }
+    </style>';
+    echo '<div class="cuadrado-wrapper"><div class="jitsi-container" id="jitsi-container"></div></div>';
+
     echo "<script src=\"//ajax.googleapis.com/ajax/libs/jquery/2.0.0/jquery.min.js\"></script>";
     echo "<script src=\"https://" . $domain . "/external_api.js\"></script>\n";
 
