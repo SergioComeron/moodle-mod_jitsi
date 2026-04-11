@@ -1407,11 +1407,15 @@ class mod_jitsi_external extends external_api {
         foreach ($records as $record) {
             $userpicture = new user_picture($record);
             $userpicture->size = 1;
+            $availability = jitsi_check_tutoring_availability($record->id, $USER->id);
             $users[] = [
                 'id'              => (int)$record->id,
                 'firstname'       => $record->firstname,
                 'lastname'        => $record->lastname,
                 'profileimageurl' => $userpicture->get_url($PAGE)->out(false),
+                'hasschedule'     => $availability['hasschedule'],
+                'available'       => $availability['available'],
+                'nextslot'        => $availability['nextslot'] ?? '',
             ];
         }
 
@@ -1430,6 +1434,304 @@ class mod_jitsi_external extends external_api {
                     'firstname'       => new external_value(PARAM_TEXT, 'First name'),
                     'lastname'        => new external_value(PARAM_TEXT, 'Last name'),
                     'profileimageurl' => new external_value(PARAM_URL, 'Profile image URL'),
+                    'hasschedule'     => new external_value(PARAM_BOOL, 'Has tutoring schedule'),
+                    'available'       => new external_value(PARAM_BOOL, 'Available now'),
+                    'nextslot'        => new external_value(PARAM_TEXT, 'Next available slot', VALUE_OPTIONAL),
+                ])
+            ),
+        ]);
+    }
+
+    /**
+     * Returns description of get_tutoring_schedule parameters
+     * @return external_function_parameters
+     */
+    public static function get_tutoring_schedule_parameters() {
+        return new external_function_parameters([]);
+    }
+
+    /**
+     * Get the current user's tutoring schedule grouped by course.
+     *
+     * @return array
+     */
+    public static function get_tutoring_schedule() {
+        global $DB, $USER;
+
+        $context = context_system::instance();
+        self::validate_context($context);
+
+        $slots = $DB->get_records(
+            'jitsi_tutoring_schedule',
+            ['userid' => $USER->id],
+            'courseid ASC, weekday ASC, timestart ASC'
+        );
+
+        $courses = [];
+        foreach ($slots as $slot) {
+            $courseid = (int)$slot->courseid;
+            if (!isset($courses[$courseid])) {
+                $course = $DB->get_record('course', ['id' => $courseid], 'id, fullname', IGNORE_MISSING);
+                $courses[$courseid] = [
+                    'courseid'   => $courseid,
+                    'coursename' => $course ? $course->fullname : '?',
+                    'slots'      => [],
+                ];
+            }
+            $h = intdiv((int)$slot->timestart, 3600);
+            $m = intdiv(((int)$slot->timestart % 3600), 60);
+            $hend = intdiv((int)$slot->timeend, 3600);
+            $mend = intdiv(((int)$slot->timeend % 3600), 60);
+            $courses[$courseid]['slots'][] = [
+                'id'        => (int)$slot->id,
+                'weekday'   => (int)$slot->weekday,
+                'timestart' => sprintf('%02d:%02d', $h, $m),
+                'timeend'   => sprintf('%02d:%02d', $hend, $mend),
+            ];
+        }
+
+        return ['courses' => array_values($courses)];
+    }
+
+    /**
+     * Returns description of get_tutoring_schedule return value
+     * @return external_description
+     */
+    public static function get_tutoring_schedule_returns() {
+        return new external_single_structure([
+            'courses' => new external_multiple_structure(
+                new external_single_structure([
+                    'courseid'   => new external_value(PARAM_INT, 'Course ID'),
+                    'coursename' => new external_value(PARAM_TEXT, 'Course name'),
+                    'slots'      => new external_multiple_structure(
+                        new external_single_structure([
+                            'id'        => new external_value(PARAM_INT, 'Slot ID'),
+                            'weekday'   => new external_value(PARAM_INT, 'Day of week (0=Sun)'),
+                            'timestart' => new external_value(PARAM_TEXT, 'Start time HH:MM'),
+                            'timeend'   => new external_value(PARAM_TEXT, 'End time HH:MM'),
+                        ])
+                    ),
+                ])
+            ),
+        ]);
+    }
+
+    /**
+     * Returns description of save_tutoring_slot parameters
+     * @return external_function_parameters
+     */
+    public static function save_tutoring_slot_parameters() {
+        return new external_function_parameters([
+            'courseid'  => new external_value(PARAM_INT, 'Course ID'),
+            'weekday'   => new external_value(PARAM_INT, 'Day of week 0=Sun, 6=Sat'),
+            'timestart' => new external_value(PARAM_TEXT, 'Start time HH:MM'),
+            'timeend'   => new external_value(PARAM_TEXT, 'End time HH:MM'),
+        ]);
+    }
+
+    /**
+     * Save a tutoring schedule slot for the current user.
+     *
+     * @param int $courseid
+     * @param int $weekday
+     * @param string $timestart HH:MM
+     * @param string $timeend HH:MM
+     * @return array
+     */
+    public static function save_tutoring_slot($courseid, $weekday, $timestart, $timeend) {
+        global $DB, $USER;
+
+        $params = self::validate_parameters(self::save_tutoring_slot_parameters(), [
+            'courseid'  => $courseid,
+            'weekday'   => $weekday,
+            'timestart' => $timestart,
+            'timeend'   => $timeend,
+        ]);
+
+        $context = context_system::instance();
+        self::validate_context($context);
+
+        // Validate course exists and user is enrolled as teacher.
+        $course = $DB->get_record('course', ['id' => $params['courseid']], 'id', MUST_EXIST);
+        $coursecontext = context_course::instance($course->id);
+        if (!has_capability('mod/jitsi:addinstance', $coursecontext)) {
+            throw new moodle_exception('nopermissions', 'error', '', 'save tutoring slot');
+        }
+
+        // Parse times.
+        [$sh, $sm] = array_map('intval', explode(':', $params['timestart']));
+        [$eh, $em] = array_map('intval', explode(':', $params['timeend']));
+        $startsecs = $sh * 3600 + $sm * 60;
+        $endsecs   = $eh * 3600 + $em * 60;
+
+        if ($endsecs <= $startsecs) {
+            throw new moodle_exception('error', 'mod_jitsi', '', 'End time must be after start time');
+        }
+
+        $now = time();
+        $record = (object)[
+            'userid'       => $USER->id,
+            'courseid'     => $params['courseid'],
+            'weekday'      => $params['weekday'],
+            'timestart'    => $startsecs,
+            'timeend'      => $endsecs,
+            'timecreated'  => $now,
+            'timemodified' => $now,
+        ];
+        $id = $DB->insert_record('jitsi_tutoring_schedule', $record);
+
+        return ['id' => (int)$id];
+    }
+
+    /**
+     * Returns description of save_tutoring_slot return value
+     * @return external_description
+     */
+    public static function save_tutoring_slot_returns() {
+        return new external_single_structure([
+            'id' => new external_value(PARAM_INT, 'New slot ID'),
+        ]);
+    }
+
+    /**
+     * Returns description of delete_tutoring_slot parameters
+     * @return external_function_parameters
+     */
+    public static function delete_tutoring_slot_parameters() {
+        return new external_function_parameters([
+            'slotid' => new external_value(PARAM_INT, 'Slot ID to delete'),
+        ]);
+    }
+
+    /**
+     * Delete a tutoring schedule slot (only the owner can delete).
+     *
+     * @param int $slotid
+     * @return array
+     */
+    public static function delete_tutoring_slot($slotid) {
+        global $DB, $USER;
+
+        $params = self::validate_parameters(self::delete_tutoring_slot_parameters(), ['slotid' => $slotid]);
+        $context = context_system::instance();
+        self::validate_context($context);
+
+        $slot = $DB->get_record('jitsi_tutoring_schedule', ['id' => $params['slotid']], 'id, userid', MUST_EXIST);
+        if ((int)$slot->userid !== (int)$USER->id) {
+            throw new moodle_exception('nopermissions', 'error', '', 'delete tutoring slot');
+        }
+
+        $DB->delete_records('jitsi_tutoring_schedule', ['id' => $params['slotid']]);
+
+        return ['success' => true];
+    }
+
+    /**
+     * Returns description of delete_tutoring_slot return value
+     * @return external_description
+     */
+    public static function delete_tutoring_slot_returns() {
+        return new external_single_structure([
+            'success' => new external_value(PARAM_BOOL, 'Whether deletion succeeded'),
+        ]);
+    }
+
+    /**
+     * Returns description of get_teacher_schedule parameters
+     * @return external_function_parameters
+     */
+    public static function get_teacher_schedule_parameters() {
+        return new external_function_parameters([
+            'teacherid' => new external_value(PARAM_INT, 'Teacher user ID'),
+        ]);
+    }
+
+    /**
+     * Get tutoring schedule for a teacher visible to the current user (shared courses only).
+     *
+     * @param int $teacherid
+     * @return array
+     */
+    public static function get_teacher_schedule($teacherid) {
+        global $DB, $USER;
+
+        $params = self::validate_parameters(self::get_teacher_schedule_parameters(), ['teacherid' => $teacherid]);
+        $context = context_system::instance();
+        self::validate_context($context);
+
+        $availability = jitsi_check_tutoring_availability($params['teacherid'], $USER->id);
+
+        $slots = [];
+        if ($availability['hasschedule']) {
+            // Return all slots for shared courses.
+            $teacherroles = array_keys(get_archetype_roles('teacher') + get_archetype_roles('editingteacher'));
+            $studentroles = array_keys(get_archetype_roles('student'));
+            [$trolesql, $troleparams] = $DB->get_in_or_equal($teacherroles, SQL_PARAMS_NAMED, 'trole');
+            [$srolesql, $sroleparams] = $DB->get_in_or_equal($studentroles, SQL_PARAMS_NAMED, 'srole');
+
+            $teachercourses = $DB->get_fieldset_sql(
+                "SELECT DISTINCT ctx.instanceid
+                   FROM {role_assignments} ra
+                   JOIN {context} ctx ON ctx.id = ra.contextid AND ctx.contextlevel = :ctxlevel
+                  WHERE ra.userid = :teacherid AND ra.roleid $trolesql",
+                array_merge(['ctxlevel' => CONTEXT_COURSE, 'teacherid' => $params['teacherid']], $troleparams)
+            );
+
+            if (!empty($teachercourses)) {
+                [$coursesql, $courseparams] = $DB->get_in_or_equal($teachercourses, SQL_PARAMS_NAMED, 'course');
+                $sharedcourses = $DB->get_fieldset_sql(
+                    "SELECT DISTINCT ctx.instanceid
+                       FROM {role_assignments} ra
+                       JOIN {context} ctx ON ctx.id = ra.contextid AND ctx.contextlevel = :ctxlevel
+                      WHERE ra.userid = :studentid AND ra.roleid $srolesql AND ctx.instanceid $coursesql",
+                    array_merge(['ctxlevel' => CONTEXT_COURSE, 'studentid' => $USER->id], $sroleparams, $courseparams)
+                );
+
+                if (!empty($sharedcourses)) {
+                    [$csql, $cparams] = $DB->get_in_or_equal($sharedcourses, SQL_PARAMS_NAMED, 'sc');
+                    $records = $DB->get_records_select(
+                        'jitsi_tutoring_schedule',
+                        "userid = :teacherid AND courseid $csql",
+                        array_merge(['teacherid' => $params['teacherid']], $cparams),
+                        'weekday ASC, timestart ASC'
+                    );
+                    foreach ($records as $slot) {
+                        $h = intdiv((int)$slot->timestart, 3600);
+                        $m = intdiv(((int)$slot->timestart % 3600), 60);
+                        $hend = intdiv((int)$slot->timeend, 3600);
+                        $mend = intdiv(((int)$slot->timeend % 3600), 60);
+                        $slots[] = [
+                            'weekday'   => (int)$slot->weekday,
+                            'timestart' => sprintf('%02d:%02d', $h, $m),
+                            'timeend'   => sprintf('%02d:%02d', $hend, $mend),
+                        ];
+                    }
+                }
+            }
+        }
+
+        return [
+            'hasschedule' => $availability['hasschedule'],
+            'available'   => $availability['available'],
+            'nextslot'    => $availability['nextslot'] ?? '',
+            'slots'       => $slots,
+        ];
+    }
+
+    /**
+     * Returns description of get_teacher_schedule return value
+     * @return external_description
+     */
+    public static function get_teacher_schedule_returns() {
+        return new external_single_structure([
+            'hasschedule' => new external_value(PARAM_BOOL, 'Has schedule'),
+            'available'   => new external_value(PARAM_BOOL, 'Available now'),
+            'nextslot'    => new external_value(PARAM_TEXT, 'Next slot label'),
+            'slots'       => new external_multiple_structure(
+                new external_single_structure([
+                    'weekday'   => new external_value(PARAM_INT, 'Day of week'),
+                    'timestart' => new external_value(PARAM_TEXT, 'Start HH:MM'),
+                    'timeend'   => new external_value(PARAM_TEXT, 'End HH:MM'),
                 ])
             ),
         ]);

@@ -65,25 +65,52 @@ export const init = (sessionPrivUrl) => {
                     });
                 }
 
-                response.users.forEach((user) => {
-                    const item = document.createElement('a');
-                    item.href = `${sessionPrivUrl}?peer=${user.id}`;
-                    item.className = 'list-group-item list-group-item-action d-flex align-items-center gap-2';
+                const badges = response.users
+                    .filter(u => u.hasschedule)
+                    .map(u => {
+                        if (u.available) {
+                            return getString('tutoringavailable', 'mod_jitsi').then(str => ({id: u.id, str, cls: 'badge-success'}));
+                        } else {
+                            const key = u.nextslot ? 'tutoringnextslot' : 'tutoringnotavailable';
+                            const param = u.nextslot || null;
+                            return getString(key, 'mod_jitsi', param).then(str => ({id: u.id, str, cls: 'badge-warning'}));
+                        }
+                    });
 
-                    const img = document.createElement('img');
-                    img.src = user.profileimageurl;
-                    img.alt = '';
-                    img.width = 32;
-                    img.height = 32;
-                    img.className = 'rounded-circle';
+                Promise.all(badges).then(badgeData => {
+                    const badgeMap = {};
+                    badgeData.forEach(b => { badgeMap[b.id] = b; });
 
-                    const name = document.createElement('span');
-                    name.textContent = `${user.firstname} ${user.lastname}`;
+                    response.users.forEach((user) => {
+                        const item = document.createElement('a');
+                        item.href = `${sessionPrivUrl}?peer=${user.id}`;
+                        item.className = 'list-group-item list-group-item-action d-flex align-items-center gap-2';
 
-                    item.appendChild(img);
-                    item.appendChild(name);
-                    results.appendChild(item);
+                        const img = document.createElement('img');
+                        img.src = user.profileimageurl;
+                        img.alt = '';
+                        img.width = 32;
+                        img.height = 32;
+                        img.className = 'rounded-circle';
+
+                        const name = document.createElement('span');
+                        name.className = 'flex-grow-1';
+                        name.textContent = `${user.firstname} ${user.lastname}`;
+
+                        item.appendChild(img);
+                        item.appendChild(name);
+
+                        if (badgeMap[user.id]) {
+                            const badge = document.createElement('span');
+                            badge.className = `badge ${badgeMap[user.id].cls} ml-2`;
+                            badge.textContent = badgeMap[user.id].str;
+                            item.appendChild(badge);
+                        }
+
+                        results.appendChild(item);
+                    });
                 });
+
                 return;
             }).catch(() => {
                 results.innerHTML = '';

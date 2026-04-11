@@ -115,5 +115,23 @@
         <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
       </KEYS>
     </TABLE>
+    <TABLE NAME="jitsi_tutoring_schedule" COMMENT="Tutoring availability schedule for private sessions">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Teacher user ID"/>
+        <FIELD NAME="courseid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Course ID"/>
+        <FIELD NAME="weekday" TYPE="int" LENGTH="1" NOTNULL="true" SEQUENCE="false" COMMENT="Day of week: 0=Sunday, 1=Monday ... 6=Saturday"/>
+        <FIELD NAME="timestart" TYPE="int" LENGTH="5" NOTNULL="true" SEQUENCE="false" COMMENT="Seconds from midnight in teacher timezone"/>
+        <FIELD NAME="timeend" TYPE="int" LENGTH="5" NOTNULL="true" SEQUENCE="false" COMMENT="Seconds from midnight in teacher timezone"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="userid_courseid" UNIQUE="false" FIELDS="userid, courseid"/>
+      </INDEXES>
+    </TABLE>
   </TABLES>
 </XMLDB>

@@ -38,6 +38,25 @@ $PAGE->set_heading(get_string('privatesession', 'jitsi', $peer->firstname));
 
 echo $OUTPUT->header();
 
+// Check tutoring schedule: if the peer is a teacher with a schedule, validate availability.
+$availability = jitsi_check_tutoring_availability($peerid, $USER->id);
+if ($availability['hasschedule'] && !$availability['available']) {
+    $nextmsg = $availability['nextslot']
+        ? get_string('tutoringnextavailable', 'jitsi', $availability['nextslot'])
+        : '';
+    echo $OUTPUT->notification(
+        get_string('tutoringoutsideschedule', 'jitsi', fullname($peer)) . ' ' . $nextmsg,
+        'warning'
+    );
+    echo html_writer::link(
+        new moodle_url('/mod/jitsi/call.php'),
+        get_string('back'),
+        ['class' => 'btn btn-secondary mt-2']
+    );
+    echo $OUTPUT->footer();
+    exit;
+}
+
 if (get_config('mod_jitsi', 'privatesessions') == 1) {
     // Symmetric room: always the same regardless of who initiates.
     $minid = min($USER->id, $peerid);

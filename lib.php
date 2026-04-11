@@ -2652,3 +2652,122 @@ function normalizesessionname($session) {
     $normalized = preg_replace('/[^a-zA-Z0-9\-_]/', '', $session);
     return $normalized;
 }
+
+/**
+ * Check if a teacher is available for private calls from a given student right now,
+ * based on their tutoring schedule for shared courses.
+ *
+ * Returns an array:
+ *   'hasschedule' => bool  — true if the teacher has any slots in shared courses where
+ *                            they are teacher and the student is student.
+ *   'available'   => bool  — true if current time falls within a slot (or no schedule).
+ *   'nextslot'    => string|null — human-readable next available slot (teacher timezone),
+ *                                  null if available now or no schedule.
+ *
+ * @param int $teacherid
+ * @param int $studentid
+ * @return array
+ */
+function jitsi_check_tutoring_availability($teacherid, $studentid) {
+    global $DB;
+
+    // Find courses where teacherid is teacher/editingteacher AND studentid is student.
+    $teacherroles = array_keys(get_archetype_roles('teacher') + get_archetype_roles('editingteacher'));
+    $studentroles = array_keys(get_archetype_roles('student'));
+
+    if (empty($teacherroles) || empty($studentroles)) {
+        return ['hasschedule' => false, 'available' => true, 'nextslot' => null];
+    }
+
+    [$trolesql, $troleparams] = $DB->get_in_or_equal($teacherroles, SQL_PARAMS_NAMED, 'trole');
+    [$srolesql, $sroleparams] = $DB->get_in_or_equal($studentroles, SQL_PARAMS_NAMED, 'srole');
+
+    // Courses where teacherid has a teacher role.
+    $teachercourses = $DB->get_fieldset_sql(
+        "SELECT DISTINCT ctx.instanceid
+           FROM {role_assignments} ra
+           JOIN {context} ctx ON ctx.id = ra.contextid AND ctx.contextlevel = :ctxlevel
+          WHERE ra.userid = :teacherid AND ra.roleid $trolesql",
+        array_merge(['ctxlevel' => CONTEXT_COURSE, 'teacherid' => $teacherid], $troleparams)
+    );
+
+    if (empty($teachercourses)) {
+        return ['hasschedule' => false, 'available' => true, 'nextslot' => null];
+    }
+
+    // From those, courses where studentid has a student role.
+    [$coursesql, $courseparams] = $DB->get_in_or_equal($teachercourses, SQL_PARAMS_NAMED, 'course');
+    $sharedcourses = $DB->get_fieldset_sql(
+        "SELECT DISTINCT ctx.instanceid
+           FROM {role_assignments} ra
+           JOIN {context} ctx ON ctx.id = ra.contextid AND ctx.contextlevel = :ctxlevel
+          WHERE ra.userid = :studentid AND ra.roleid $srolesql AND ctx.instanceid $coursesql",
+        array_merge(['ctxlevel' => CONTEXT_COURSE, 'studentid' => $studentid], $sroleparams, $courseparams)
+    );
+
+    if (empty($sharedcourses)) {
+        return ['hasschedule' => false, 'available' => true, 'nextslot' => null];
+    }
+
+    // Get tutoring schedule slots for those courses.
+    [$csql, $cparams] = $DB->get_in_or_equal($sharedcourses, SQL_PARAMS_NAMED, 'sc');
+    $slots = $DB->get_records_select(
+        'jitsi_tutoring_schedule',
+        "userid = :teacherid AND courseid $csql",
+        array_merge(['teacherid' => $teacherid], $cparams),
+        'weekday ASC, timestart ASC'
+    );
+
+    if (empty($slots)) {
+        return ['hasschedule' => false, 'available' => true, 'nextslot' => null];
+    }
+
+    // Get teacher's timezone and current time in that timezone.
+    $teacher = $DB->get_record('user', ['id' => $teacherid], 'timezone');
+    $teachertz = core_date::normalise_timezone($teacher->timezone);
+    $now = new DateTime('now', new DateTimeZone($teachertz));
+    $currentweekday = (int)$now->format('w'); // 0=Sunday ... 6=Saturday
+    $currentsecsofday = ((int)$now->format('H')) * 3600 + ((int)$now->format('i')) * 60 + (int)$now->format('s');
+
+    // Check if we are currently within any slot.
+    foreach ($slots as $slot) {
+        if ((int)$slot->weekday === $currentweekday
+                && $currentsecsofday >= (int)$slot->timestart
+                && $currentsecsofday < (int)$slot->timeend) {
+            return ['hasschedule' => true, 'available' => true, 'nextslot' => null];
+        }
+    }
+
+    // Not available now — find next slot within the next 7 days.
+    $nextslotstr = null;
+    $days = get_string_manager()->get_list_of_translations(); // Not needed, using lang strings differently.
+    $weekdays = [
+        0 => get_string('weekday0', 'mod_jitsi'),
+        1 => get_string('weekday1', 'mod_jitsi'),
+        2 => get_string('weekday2', 'mod_jitsi'),
+        3 => get_string('weekday3', 'mod_jitsi'),
+        4 => get_string('weekday4', 'mod_jitsi'),
+        5 => get_string('weekday5', 'mod_jitsi'),
+        6 => get_string('weekday6', 'mod_jitsi'),
+    ];
+
+    // Build candidate list: remaining slots today, then next 6 days.
+    for ($dayoffset = 0; $dayoffset <= 6; $dayoffset++) {
+        $checkday = ($currentweekday + $dayoffset) % 7;
+        foreach ($slots as $slot) {
+            if ((int)$slot->weekday !== $checkday) {
+                continue;
+            }
+            // If same day, only consider future slots.
+            if ($dayoffset === 0 && (int)$slot->timestart <= $currentsecsofday) {
+                continue;
+            }
+            $h = intdiv((int)$slot->timestart, 3600);
+            $m = intdiv(((int)$slot->timestart % 3600), 60);
+            $nextslotstr = $weekdays[$checkday] . ' ' . sprintf('%02d:%02d', $h, $m);
+            break 2;
+        }
+    }
+
+    return ['hasschedule' => true, 'available' => false, 'nextslot' => $nextslotstr];
+}

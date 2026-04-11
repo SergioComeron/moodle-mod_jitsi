@@ -1109,5 +1109,27 @@ function xmldb_jitsi_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026040705, 'jitsi');
     }
 
+    if ($oldversion < 2026041105) {
+        $table = new xmldb_table('jitsi_tutoring_schedule');
+
+        $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE);
+        $table->add_field('userid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null);
+        $table->add_field('courseid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null);
+        $table->add_field('weekday', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null);
+        $table->add_field('timestart', XMLDB_TYPE_INTEGER, '5', null, XMLDB_NOTNULL, null);
+        $table->add_field('timeend', XMLDB_TYPE_INTEGER, '5', null, XMLDB_NOTNULL, null);
+        $table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null);
+        $table->add_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null);
+
+        $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+        $table->add_index('userid_courseid', XMLDB_INDEX_NOTUNIQUE, ['userid', 'courseid']);
+
+        if (!$dbman->table_exists($table)) {
+            $dbman->create_table($table);
+        }
+
+        upgrade_mod_savepoint(true, 2026041105, 'jitsi');
+    }
+
     return true;
 }
