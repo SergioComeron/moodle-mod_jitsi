@@ -1,4 +1,72 @@
 # Changelog
+## v4.5.0
+# Added
+
+ * merge dev into master (AI summary and quiz for GCS recordings, phpseclib 3.0.51)
+ * AI summary and quiz generation for GCS recordings (#162)
+ * add AI true/false quiz generation for GCS recordings
+ * add AI summary generation for GCS recordings via Vertex AI Gemini
+ * embed GCS recordings inline with <video> tag
+ * add Google Storage service files to vendor
+ * GCS integration for Jibri recordings with per-server toggle
+ * delete physical Jibri recording file when removed from Moodle
+ * enable live streaming on GCP servers with Jibri
+ * enable live streaming for GCP servers when Jibri is ready
+ * show warning badge on Jibri recordings when server may be offline
+ * complete Jibri recording integration for GCP servers
+ * add optional Jibri recording support for GCP servers (#145)
+# Fixed
+
+ * check quiz cmid existence before building buttons so generate button reappears immediately
+ * reset ai_quiz_id if quiz cmid no longer exists so generate button reappears
+ * set page=1 on all quiz slots so all questions appear on one page
+ * hide AI buttons when content already generated; show error state for failed attempts
+ * add quiz_sections row required by Moodle to display quiz questions
+ * do not set name=null in quiz_grade_items insert (Moodle 5.x column is NOT NULL)
+ * create quiz_grade_items entry and set quizgradeitemid in slots (Moodle 4.2+/5.x)
+ * increase Vertex AI curl timeout to 300s for larger videos
+ * create course module before quiz_slots so context is available for question_references
+ * handle Moodle 5.x question_references and quiz_slots schema changes
+ * pass course object (not cm) to course_add_cm_to_section
+ * capture curl error details for better debugging
+ * detect question_bank_entry vs question_bank_entries table (Moodle 4.x vs 5.x)
+ * use gs:// URI for Vertex AI video access (handles large files correctly)
+ * revert to v1 endpoint without thinkingConfig (worked for id=18)
+ * move thinkingConfig inside generationConfig
+ * use v1beta1 endpoint and thinkingBudget=0 for gemini-2.5-flash
+ * use gemini-2.0-flash for video analysis (2.5-flash is thinking model with different constraints)
+ * pass user language when queuing AI summary task
+ * generate AI summary in site default language
+ * use HTTPS URL instead of gs:// URI for Vertex AI video access
+ * use gemini-2.5-flash model name for Vertex AI
+ * use gemini-1.5-flash-001 model for broader Vertex AI availability
+ * phpcs style fixes in generate_ai_summary task
+ * attach compute service account to Jibri VMs so gsutil uses ADC
+ * use Moodle file storage credentials for GCS object deletion
+ * hide edit button for Jibri and GCS recordings
+ * add Storage to apiclient-services and use namespaced class names
+ * preserve GCS enable/disable button when JS updates action cell
+ * catch invalid JSON token exception in deleterecordyoutube
+ * make Jibri recording warning badge more discrete
+ * make Jibri recording warning badge more discrete
+ * fix PHP heredoc indentation in PYJITSICFG block
+ * show Moodle-integrated streaming switch on GCP servers when Jibri ready
+ * use Python to apply Jitsi Meet config changes instead of sed
+ * add --disable-blink-features=AutomationControlled to suppress Chrome banner
+ * suppress Chrome automation banner in Jibri recordings
+ * read Jibri external IP dynamically from GCP metadata at recording time
+ * add hiddenDomain at top-level config to hide Jibri from participants
+ * hide Jibri recorder participant from Jitsi conference view
+ * phpcs style fixes in lib.php and servermanagement.php
+ * preserve Add Jibri button when JS updates action cell dynamically
+ * phpcs style fixes and remove duplicate lang string
+# Changed
+
+ * merge master (phpseclib 3.0.51 bump) into dev; resolve version conflict
+ * Merge feature/145-gcp-jibri-recording into dev
+
+---
+
 ## v4.4.5
 # Fixed
 
