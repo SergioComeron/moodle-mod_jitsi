@@ -1,4 +1,18 @@
 # Changelog
+## v4.4.5
+# Fixed
+
+ * extract release notes correctly from CHANGES.md [skip ci]
+# Changed
+
+ * Merge pull request #165 from SergioComeron/dependabot/composer/api/phpseclib/phpseclib-3.0.51
+ * bump phpseclib/phpseclib from 3.0.50 to 3.0.51 in /api
+ * reschedule google/apiclient update to 1:00 UTC (3:00 Madrid) [skip ci]
+ * remove notify-rebase-needed workflow [skip ci]
+ * add stale workflow to auto-close inactive issues [skip ci]
+
+---
+
 ## v4.4.4
 # Changed
 
