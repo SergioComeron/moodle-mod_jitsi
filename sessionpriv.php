@@ -59,6 +59,10 @@ if (get_config('mod_jitsi', 'privatesessions') == 1) {
     // Both participants are moderators in a private 1-on-1 session.
     $teacher = 1;
 
+    // Log the private session access.
+    $event = \mod_jitsi\event\jitsi_private_session_enter::event_with_peer($peerid);
+    $event->trigger();
+
     // Notify the peer when someone enters their session.
     if ($USER->id != $peerid) {
         sendnotificationprivatesession($USER, $peer);

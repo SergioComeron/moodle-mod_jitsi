@@ -126,6 +126,7 @@ $string['editrecordinglink'] = 'Edit recording link';
 $string['editrecordname'] = 'Edit record name';
 $string['editserver'] = 'Editar servidor';
 $string['entersession'] = 'Enter to session';
+$string['enterprivatesession'] = 'Enter to private session';
 $string['error'] = 'Error';
 $string['errordeleting'] = 'Error deleting';
 $string['exitsession'] = 'Exit session';
