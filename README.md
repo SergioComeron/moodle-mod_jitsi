@@ -17,6 +17,7 @@ Glad to see you here again. These are some of the Jitsi features inside Moodle y
 * Unlimited participants (limits are imposed mainly by bandwidth in your Jitsi servers)
 * Moodle profile pictures used as avatar in webconference
 * Guest URLs for users in other courses or out of Moodle
+* **Private 1-on-1 sessions** — call any coursemate directly from their Moodle profile, with call history and instant notification
 * HD Audio Video
 * Multiple participants can share their screen simultaneusly
 * Tile view
@@ -168,6 +169,31 @@ The `timeexpires` field in the database controls when a recording link is automa
 | Manual entry | Never (permanent) |
 
 Expired recordings are hidden from the tab but not deleted from the database. They can be deleted manually from the Recordings tab.
+
+## Private Sessions
+
+When **Private sessions** is enabled in the plugin settings, any user can start a private 1-on-1 video call with a coursemate — without needing a scheduled Jitsi activity.
+
+### How it works
+
+- **Own profile page**: a "Call someone" link appears that opens the private session hub (`call.php`), where you can search for coursemates and view your call history.
+- **Other user's profile page**: a "Start private session" link appears, but only if you share at least one course with that user. Clicking it launches a private session immediately.
+- **Call history**: the hub shows your most recent call per contact, ordered by time, with avatars and names. Clicking any entry re-opens the session with that person.
+- **Instant notification**: when you enter a private session, Moodle sends a popup notification to the other participant so they know to join.
+
+### Room naming
+
+Private rooms always use the same symmetric name regardless of who initiates: `{siteshortname}-priv-{minUserId}-{maxUserId}`. This means if user A calls user B and later user B calls user A, they both land in the same room.
+
+### Restrictions
+
+- Both participants are automatically moderators.
+- Recording and live streaming are **always disabled** in private sessions — there is no course activity associated with the call.
+- The search only returns users who share at least one course with you (no calling strangers).
+
+### Enabling private sessions
+
+Go to **Site administration > Plugins > Activity modules > Jitsi** and enable the **Private sessions** setting.
 
 ## Token based mode
 
