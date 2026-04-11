@@ -297,7 +297,6 @@ function jitsi_delete_instance($id) {
 function jitsi_myprofile_navigation(core_user\output\myprofile\tree $tree, $user, $iscurrentuser) {
     global $DB, $CFG, $USER;
     if (get_config('mod_jitsi', 'privatesessions') == 1) {
-        $url = new moodle_url('/mod/jitsi/sessionpriv.php', ['peer' => $user->id]);
         $category = new core_user\output\myprofile\category(
             'jitsi',
             get_string('jitsi', 'jitsi'),
@@ -305,23 +304,30 @@ function jitsi_myprofile_navigation(core_user\output\myprofile\tree $tree, $user
         );
         $tree->add_category($category);
         if ($iscurrentuser == 0) {
-            $node = new core_user\output\myprofile\node(
-                'jitsi',
-                'jitsi',
-                get_string('startprivatesession', 'jitsi', $user->firstname),
-                null,
-                $url,
-            );
+            // Only show the call link if both users share at least one course.
+            $sharedcourses = enrol_get_shared_courses($USER->id, $user->id, true);
+            if (!empty($sharedcourses)) {
+                $url = new moodle_url('/mod/jitsi/sessionpriv.php', ['peer' => $user->id]);
+                $node = new core_user\output\myprofile\node(
+                    'jitsi',
+                    'jitsi',
+                    get_string('startprivatesession', 'jitsi', $user->firstname),
+                    null,
+                    $url,
+                );
+                $tree->add_node($node);
+            }
         } else {
+            $url = new moodle_url('/mod/jitsi/call.php');
             $node = new core_user\output\myprofile\node(
                 'jitsi',
                 'jitsi',
-                get_string('myprivatesession', 'jitsi'),
+                get_string('callsomeone', 'jitsi'),
                 null,
                 $url,
             );
+            $tree->add_node($node);
         }
-        $tree->add_node($node);
     }
     return true;
 }

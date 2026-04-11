@@ -1348,4 +1348,90 @@ class mod_jitsi_external extends external_api {
             'message' => new external_value(PARAM_TEXT, 'Status message'),
         ]);
     }
+
+    /**
+     * Returns description of search_coursemates parameters
+     * @return external_function_parameters
+     */
+    public static function search_coursemates_parameters() {
+        return new external_function_parameters([
+            'query' => new external_value(PARAM_TEXT, 'Search string (firstname or lastname)'),
+        ]);
+    }
+
+    /**
+     * Search for users who share at least one course with the current user.
+     *
+     * @param string $query
+     * @return array
+     */
+    public static function search_coursemates($query) {
+        global $DB, $USER, $PAGE;
+
+        $params = self::validate_parameters(self::search_coursemates_parameters(), ['query' => $query]);
+        $context = context_system::instance();
+        self::validate_context($context);
+
+        $query = trim($params['query']);
+        if (core_text::strlen($query) < 2) {
+            return ['users' => []];
+        }
+
+        $searchparam = '%' . $DB->sql_like_escape($query) . '%';
+
+        $sql = "SELECT DISTINCT u.id, u.firstname, u.lastname, u.picture, u.imagealt, u.email
+                  FROM {user} u
+                  JOIN {user_enrolments} ue ON ue.userid = u.id
+                  JOIN {enrol} e ON e.id = ue.enrolid
+                 WHERE e.courseid IN (
+                           SELECT e2.courseid
+                             FROM {enrol} e2
+                             JOIN {user_enrolments} ue2 ON ue2.enrolid = e2.id
+                            WHERE ue2.userid = :currentuserid
+                       )
+                   AND u.id != :currentuserid2
+                   AND u.deleted = 0
+                   AND u.suspended = 0
+                   AND (" . $DB->sql_like('u.firstname', ':search1', false) . "
+                        OR " . $DB->sql_like('u.lastname', ':search2', false) . ")
+              ORDER BY u.firstname, u.lastname";
+
+        $records = $DB->get_records_sql($sql, [
+            'currentuserid'  => $USER->id,
+            'currentuserid2' => $USER->id,
+            'search1'        => $searchparam,
+            'search2'        => $searchparam,
+        ], 0, 20);
+
+        $users = [];
+        foreach ($records as $record) {
+            $userpicture = new user_picture($record);
+            $userpicture->size = 1;
+            $users[] = [
+                'id'              => (int)$record->id,
+                'firstname'       => $record->firstname,
+                'lastname'        => $record->lastname,
+                'profileimageurl' => $userpicture->get_url($PAGE)->out(false),
+            ];
+        }
+
+        return ['users' => $users];
+    }
+
+    /**
+     * Returns description of search_coursemates return value
+     * @return external_description
+     */
+    public static function search_coursemates_returns() {
+        return new external_single_structure([
+            'users' => new external_multiple_structure(
+                new external_single_structure([
+                    'id'              => new external_value(PARAM_INT, 'User ID'),
+                    'firstname'       => new external_value(PARAM_TEXT, 'First name'),
+                    'lastname'        => new external_value(PARAM_TEXT, 'Last name'),
+                    'profileimageurl' => new external_value(PARAM_URL, 'Profile image URL'),
+                ])
+            ),
+        ]);
+    }
 }

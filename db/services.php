@@ -253,4 +253,14 @@ $functions = [
                 'ajax' => true,
                 'loginrequired' => true,
         ],
+
+        'mod_jitsi_search_coursemates' => [
+                'classname' => 'mod_jitsi_external',
+                'methodname' => 'search_coursemates',
+                'classpath' => 'mod/jitsi/classes/external.php',
+                'description' => 'Search for users who share at least one course with the current user',
+                'type' => 'read',
+                'ajax' => true,
+                'loginrequired' => true,
+        ],
 ];
