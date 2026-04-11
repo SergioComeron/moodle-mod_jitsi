@@ -303,6 +303,7 @@ $string['callsomeone'] = 'Call someone';
 $string['callsomeonehelp'] = 'Search for a classmate to start a private video call.';
 $string['callsearchplaceholder'] = 'Type a name...';
 $string['callnoresults'] = 'No classmates found.';
+$string['callhistory'] = 'Recent calls';
 $string['privatesessions'] = 'Private sessions';
 $string['privatesessionsex'] = 'Add private sessions to user profiles';
 $string['raisehand'] = 'Raise hand button';

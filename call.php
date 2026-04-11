@@ -40,23 +40,85 @@ $PAGE->requires->js_call_amd('mod_jitsi/call', 'init', [
     $CFG->wwwroot . '/mod/jitsi/sessionpriv.php',
 ]);
 
+// Build call history: fetch private session enter events for this user,
+// keep only the most recent entry per peer, ordered by time descending.
+$eventname = '\mod_jitsi\event\jitsi_private_session_enter';
+$logs = $DB->get_records_select(
+    'logstore_standard_log',
+    'userid = :userid AND eventname = :eventname',
+    ['userid' => $USER->id, 'eventname' => $eventname],
+    'timecreated DESC',
+    'id, other, timecreated',
+    0,
+    200
+);
+
+// Decode peerid from each log entry, keep only the latest per peer.
+$history = [];
+foreach ($logs as $log) {
+    $other = json_decode($log->other, true);
+    $peerid = isset($other['peerid']) ? (int)$other['peerid'] : null;
+    if ($peerid && !isset($history[$peerid])) {
+        $history[$peerid] = $log->timecreated;
+    }
+}
+
+// Fetch peer user records.
+$peers = [];
+if (!empty($history)) {
+    [$insql, $inparams] = $DB->get_in_or_equal(array_keys($history));
+    $peers = $DB->get_records_select('user', "id $insql AND deleted = 0", $inparams);
+}
+
 echo $OUTPUT->header();
 
+// Search box.
 echo html_writer::tag('p', get_string('callsomeonehelp', 'jitsi'));
-
 echo html_writer::start_div('', ['id' => 'jitsi-call-wrapper', 'style' => 'max-width:480px']);
-
 echo html_writer::tag('input', '', [
-    'type'        => 'text',
-    'id'          => 'jitsi-call-search',
-    'class'       => 'form-control mb-2',
-    'placeholder' => get_string('callsearchplaceholder', 'jitsi'),
+    'type'         => 'text',
+    'id'           => 'jitsi-call-search',
+    'class'        => 'form-control mb-2',
+    'placeholder'  => get_string('callsearchplaceholder', 'jitsi'),
     'autocomplete' => 'off',
 ]);
-
-echo html_writer::start_div('list-group', ['id' => 'jitsi-call-results']);
+echo html_writer::start_div('list-group mb-4', ['id' => 'jitsi-call-results']);
+echo html_writer::end_div();
 echo html_writer::end_div();
 
-echo html_writer::end_div();
+// Call history.
+if (!empty($peers)) {
+    echo $OUTPUT->heading(get_string('callhistory', 'jitsi'), 4);
+    echo html_writer::start_div('list-group', ['style' => 'max-width:480px']);
+
+    // Sort by most recent call.
+    uasort($peers, function ($a, $b) use ($history) {
+        return $history[$b->id] <=> $history[$a->id];
+    });
+
+    foreach ($peers as $peer) {
+        $userpicture = new user_picture($peer);
+        $userpicture->size = 1;
+        $avatarurl = $userpicture->get_url($PAGE)->out(false);
+        $sessionurl = new moodle_url('/mod/jitsi/sessionpriv.php', ['peer' => $peer->id]);
+        $timeago = userdate($history[$peer->id], get_string('strftimedatetimeshort', 'langconfig'));
+
+        $avatar = html_writer::img($avatarurl, '', [
+            'width'  => 32,
+            'height' => 32,
+            'class'  => 'rounded-circle mr-2',
+        ]);
+        $name = html_writer::tag('span', fullname($peer), ['class' => 'flex-grow-1']);
+        $time = html_writer::tag('small', $timeago, ['class' => 'text-muted ml-2']);
+
+        echo html_writer::link(
+            $sessionurl,
+            $avatar . $name . $time,
+            ['class' => 'list-group-item list-group-item-action d-flex align-items-center']
+        );
+    }
+
+    echo html_writer::end_div();
+}
 
 echo $OUTPUT->footer();
