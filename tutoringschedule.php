@@ -67,10 +67,10 @@ for ($i = 0; $i <= 6; $i++) {
 
 echo $OUTPUT->header();
 
-echo html_writer::link(
+echo $OUTPUT->single_button(
     new moodle_url('/mod/jitsi/call.php'),
-    '← ' . get_string('back'),
-    ['class' => 'btn btn-secondary btn-sm mb-3']
+    get_string('back'),
+    'get'
 );
 
 echo html_writer::tag('p', get_string('tutoringschedulehelp', 'jitsi'));
