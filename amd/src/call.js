@@ -170,8 +170,24 @@ const initPush = async(swUrl, vapidKey) => {
         // No explicit scope — defaults to the directory of the script, which is always correct
         // regardless of whether Moodle is installed in a subdirectory.
         swReg = await navigator.serviceWorker.register(swUrl);
-        // Wait until the service worker is active.
-        await navigator.serviceWorker.ready;
+
+        // Wait for the SW to become active without blocking on navigator.serviceWorker.ready
+        // (which can hang indefinitely if the SW is stuck in "waiting" state).
+        await new Promise((resolve) => {
+            const sw = swReg.active || swReg.installing || swReg.waiting;
+            if (!sw || sw.state === 'activated') {
+                resolve();
+                return;
+            }
+            sw.addEventListener('statechange', function handler() {
+                if (sw.state === 'activated' || sw.state === 'redundant') {
+                    sw.removeEventListener('statechange', handler);
+                    resolve();
+                }
+            });
+            // Safety timeout: don't block the UI forever.
+            setTimeout(resolve, 3000);
+        });
     } catch (e) {
         window.console.error('[Jitsi Push] Service worker registration failed:', e);
         if (status) {
