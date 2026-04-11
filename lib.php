@@ -1379,16 +1379,10 @@ function createsessionpriv(
     echo "<script src=\"//ajax.googleapis.com/ajax/libs/jquery/2.0.0/jquery.min.js\"></script>";
     echo "<script src=\"https://" . $domain . "/external_api.js\"></script>\n";
 
+    // Recording and live streaming are disabled in private sessions — they have no
+    // associated jitsi activity, so recordings cannot be stored or displayed.
     $streamingoption = '';
-    $jibrienabled = ($servertype == 3 && !empty($server->jibri_enabled) && ($server->jibri_provisioningstatus ?? '') === 'ready');
-    if (
-        (get_config('mod_jitsi', 'livebutton') == 1) &&
-        (has_capability('mod/jitsi:record', $PAGE->context)) &&
-        (get_config('mod_jitsi', 'streamingoption') == 0) &&
-        ($servertype != 3 || $jibrienabled)
-    ) {
-        $streamingoption = 'livestreaming';
-    }
+    $record = '';
 
     $youtubeoption = '';
     if (get_config('mod_jitsi', 'shareyoutube') == 1) {
@@ -1401,16 +1395,6 @@ function createsessionpriv(
     $security = '';
     if (get_config('mod_jitsi', 'securitybutton') == 1) {
         $security = 'security';
-    }
-    $record = '';
-    // Enable the Jitsi recording toolbar button when the record setting is on.
-    // For GCP servers (type 3), only enable it when Jibri is provisioned and ready.
-    $jibrienabled = ($servertype == 3 && !empty($server->jibri_enabled) && ($server->jibri_provisioningstatus ?? '') === 'ready');
-    if (
-        get_config('mod_jitsi', 'record') == 1 && has_capability('mod/jitsi:record', $PAGE->context) &&
-            ($servertype != 3 || $jibrienabled)
-    ) {
-        $record = 'recording';
     }
     $invite = '';
     $muteeveryone = '';
@@ -1498,9 +1482,9 @@ function createsessionpriv(
         echo "enabled: false,\n";
     }
     echo "},\n";
-    if (get_config('mod_jitsi', 'record') == 1) {
-        echo "fileRecordingsEnabled: true,\n";
-    }
+    // Private sessions never allow recording or live streaming.
+    echo "fileRecordingsEnabled: false,\n";
+    echo "liveStreamingEnabled: false,\n";
     echo "remoteVideoMenu: {\n";
     echo "disableGrantModerator: true, \n";
     echo "},\n";
@@ -1555,12 +1539,6 @@ function createsessionpriv(
         echo "disablePolls: true,\n";
     } else if (get_config('mod_jitsi', 'polls') == 0) {
         echo "disablePolls: true,\n";
-    }
-
-    // Disable live streaming if global setting is off, or if GCP (type 3) without Jibri ready.
-    $jibrilivestream = ($servertype == 3 && !empty($server->jibri_enabled) && ($server->jibri_provisioningstatus ?? '') === 'ready');
-    if (get_config('mod_jitsi', 'livebutton') == 0 || ($servertype == 3 && !$jibrilivestream)) {
-        echo "liveStreamingEnabled: false,\n";
     }
 
     echo "toolbarButtons: " . $buttons . ",\n";
@@ -1619,8 +1597,8 @@ function createsessionpriv(
                     'id' => "",
                 ],
                 'features' => [
-                    'recording' => $teacher,
-                    'livestreaming' => $teacher,
+                    'recording' => false,
+                    'livestreaming' => false,
                     'transcription' => $teacher,
                     'outbound-call' => $teacher,
                 ],
