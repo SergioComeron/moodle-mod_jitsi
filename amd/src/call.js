@@ -168,9 +168,21 @@ const initPush = async(swUrl, vapidKey) => {
     let swReg;
     try {
         swReg = await navigator.serviceWorker.register(swUrl, {scope: '/mod/jitsi/'});
+        // Wait until the service worker is active.
+        await navigator.serviceWorker.ready;
     } catch (e) {
+        window.console.error('[Jitsi Push] Service worker registration failed:', e);
+        if (status) {
+            status.textContent = 'Service worker error: ' + e.message;
+        }
         return;
     }
+
+    const setStatus = (text) => {
+        if (status) {
+            status.textContent = text;
+        }
+    };
 
     const updateUI = async() => {
         const perm = window.Notification.permission;
@@ -178,39 +190,35 @@ const initPush = async(swUrl, vapidKey) => {
             if (btn) {
                 btn.disabled = true;
             }
-            if (status) {
-                getString('pushnotificationsblocked', 'mod_jitsi').then(str => {
-                    status.textContent = str;
-                    return;
-                }).catch(() => {});
-            }
+            getString('pushnotificationsblocked', 'mod_jitsi').then(str => {
+                setStatus(str);
+                return;
+            }).catch(() => {});
             return;
         }
 
         const sub = await swReg.pushManager.getSubscription();
         if (sub) {
             if (btn) {
+                btn.disabled = false;
                 getString('disablepushnotifications', 'mod_jitsi').then(str => {
                     btn.textContent = str;
                     return;
                 }).catch(() => {});
             }
-            if (status) {
-                getString('pushnotificationsenabled', 'mod_jitsi').then(str => {
-                    status.textContent = '✓ ' + str;
-                    return;
-                }).catch(() => {});
-            }
+            getString('pushnotificationsenabled', 'mod_jitsi').then(str => {
+                setStatus('✓ ' + str);
+                return;
+            }).catch(() => {});
         } else {
             if (btn) {
+                btn.disabled = false;
                 getString('enablepushnotifications', 'mod_jitsi').then(str => {
                     btn.textContent = str;
                     return;
                 }).catch(() => {});
             }
-            if (status) {
-                status.textContent = '';
-            }
+            setStatus('');
         }
     };
 
@@ -218,21 +226,30 @@ const initPush = async(swUrl, vapidKey) => {
 
     if (btn) {
         btn.addEventListener('click', async() => {
-            const sub = await swReg.pushManager.getSubscription();
-            if (sub) {
-                // Unsubscribe.
-                await sub.unsubscribe();
-                Ajax.call([{
-                    methodname: 'mod_jitsi_unregister_push_subscription',
-                    args: {endpoint: sub.endpoint},
-                }]);
-            } else {
-                // Subscribe.
-                try {
+            btn.disabled = true;
+
+            try {
+                const sub = await swReg.pushManager.getSubscription();
+                if (sub) {
+                    // Unsubscribe.
+                    await sub.unsubscribe();
+                    Ajax.call([{
+                        methodname: 'mod_jitsi_unregister_push_subscription',
+                        args: {endpoint: sub.endpoint},
+                    }]);
+                } else {
+                    // Request permission explicitly so the dialog is visible.
+                    const perm = await window.Notification.requestPermission();
+                    if (perm !== 'granted') {
+                        await updateUI();
+                        return;
+                    }
+
                     const newSub = await swReg.pushManager.subscribe({
                         userVisibleOnly: true,
                         applicationServerKey: urlBase64ToUint8Array(vapidKey),
                     });
+
                     const key = newSub.getKey('p256dh');
                     const auth = newSub.getKey('auth');
                     Ajax.call([{
@@ -243,10 +260,12 @@ const initPush = async(swUrl, vapidKey) => {
                             p256dhkey: btoa(String.fromCharCode(...new Uint8Array(key))),
                         },
                     }]);
-                } catch (e) {
-                    return;
                 }
+            } catch (e) {
+                window.console.error('[Jitsi Push] Subscription error:', e);
+                setStatus('Error: ' + e.message);
             }
+
             await updateUI();
         });
     }
