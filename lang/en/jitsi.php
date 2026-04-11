@@ -297,6 +297,7 @@ Download the private key file and copy the content here.
 </br><b>IMPORTANT</b>: remember to update the "Domain" setting to something like <b>8x8.vc</b>';
 $string['privatesession'] = '{$a} private session';
 $string['privatesessiondisabled'] = 'Private sessions are disabled';
+$string['startprivatesession'] = 'Start video call with {$a}';
 $string['privatesessions'] = 'Private sessions';
 $string['privatesessionsex'] = 'Add private sessions to user profiles';
 $string['raisehand'] = 'Raise hand button';

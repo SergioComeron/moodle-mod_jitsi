@@ -15,10 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Prints a particular instance of jitsi
- *
- * You can have a rather longer description of the file as well,
- * if you like, and it can span multiple lines.
+ * Private session between two users.
  *
  * @package    mod_jitsi
  * @copyright  2019 Sergio Comerón <sergiocomeron@icloud.com>
@@ -28,31 +25,48 @@
 require_once(dirname(dirname(dirname(__FILE__))) . '/config.php');
 require_once(dirname(dirname(dirname(__FILE__))) . '/lib/moodlelib.php');
 require_once(dirname(__FILE__) . '/lib.php');
-$PAGE->set_url($CFG->wwwroot . '/mod/jitsi/session.php');
+
+$peerid = required_param('peer', PARAM_INT);
+$peer = $DB->get_record('user', ['id' => $peerid], '*', MUST_EXIST);
+
+$PAGE->set_url('/mod/jitsi/sessionpriv.php', ['peer' => $peerid]);
 $PAGE->set_context(context_system::instance());
 require_login();
-$nombre = required_param('nom', PARAM_USERNAME);
-$userid = required_param('u', PARAM_INT);
-$session = required_param('ses', PARAM_TEXT);
-$user = $DB->get_record('user', ['id' => $userid]);
-$sessionnorm = str_replace([' ', ':', '"'], '', $user->username);
-$avatar = get_config('mod_jitsi', 'showavatars') == true ? required_param('avatar', PARAM_TEXT) : null;
 
-$PAGE->set_title(get_string('privatesession', 'jitsi', $user->firstname));
-$PAGE->set_heading(get_string('privatesession', 'jitsi', $user->firstname));
+$PAGE->set_title(get_string('privatesession', 'jitsi', $peer->firstname));
+$PAGE->set_heading(get_string('privatesession', 'jitsi', $peer->firstname));
+
 echo $OUTPUT->header();
+
 if (get_config('mod_jitsi', 'privatesessions') == 1) {
-    $teacher = 0;
-    if ($USER->id == $user->id) {
-        $teacher = 1;
+    // Symmetric room: always the same regardless of who initiates.
+    $minid = min($USER->id, $peerid);
+    $maxid = max($USER->id, $peerid);
+    $session = $SITE->shortname . '-priv-' . $minid . '-' . $maxid;
+
+    $nom = null;
+    switch (get_config('mod_jitsi', 'id')) {
+        case 'username':
+            $nom = $USER->username;
+            break;
+        case 'nameandsurname':
+            $nom = $USER->firstname . ' ' . $USER->lastname;
+            break;
     }
-    if ($USER->id != $user->id) {
-        sendnotificationprivatesession($USER, $user);
+
+    $avatar = get_config('mod_jitsi', 'showavatars') ? $CFG->wwwroot . '/user/pix.php/' . $USER->id . '/f1.jpg' : null;
+
+    // Both participants are moderators in a private 1-on-1 session.
+    $teacher = 1;
+
+    // Notify the peer when someone enters their session.
+    if ($USER->id != $peerid) {
+        sendnotificationprivatesession($USER, $peer);
     }
-    createsessionpriv($teacher, 0, $avatar, $nombre, $session, null, 0, false, $user->id);
+
+    createsessionpriv($teacher, 0, $avatar, $nom, $session, null, 0, false, $peerid);
 } else {
     echo get_string('privatesessiondisabled', 'jitsi');
 }
-
 
 echo $OUTPUT->footer();

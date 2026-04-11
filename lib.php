@@ -297,8 +297,7 @@ function jitsi_delete_instance($id) {
 function jitsi_myprofile_navigation(core_user\output\myprofile\tree $tree, $user, $iscurrentuser) {
     global $DB, $CFG, $USER;
     if (get_config('mod_jitsi', 'privatesessions') == 1) {
-        $urlparams = ['user' => $user->id];
-        $url = new moodle_url('/mod/jitsi/viewpriv.php', $urlparams);
+        $url = new moodle_url('/mod/jitsi/sessionpriv.php', ['peer' => $user->id]);
         $category = new core_user\output\myprofile\category(
             'jitsi',
             get_string('jitsi', 'jitsi'),
@@ -309,7 +308,7 @@ function jitsi_myprofile_navigation(core_user\output\myprofile\tree $tree, $user
             $node = new core_user\output\myprofile\node(
                 'jitsi',
                 'jitsi',
-                get_string('privatesession', 'jitsi', $user->firstname),
+                get_string('startprivatesession', 'jitsi', $user->firstname),
                 null,
                 $url,
             );
@@ -1096,7 +1095,7 @@ function createsession(
             $redirecturl = $CFG->wwwroot . "/mod/jitsi/formuniversal.php?t=" . $jitsi->token;
             echo "  setTimeout(function() { location.href=\"" . $redirecturl . "\"; }, 2000);\n";
         } else if ($user != null) {
-            $redirecturl = $CFG->wwwroot . "/mod/jitsi/viewpriv.php?user=" . $user;
+            $redirecturl = $CFG->wwwroot . "/user/profile.php?id=" . $user;
             echo "  setTimeout(function() { location.href=\"" . $redirecturl . "\"; }, 2000);\n";
         }
         echo "});\n";
@@ -1682,7 +1681,7 @@ function createsessionpriv(
         } else if ($universal == true && $user == null) {
             echo "    location.href=\"" . $CFG->wwwroot . "/mod/jitsi/formuniversal.php?t=" . $jitsi->token . "\";";
         } else if ($user != null) {
-            echo "    location.href=\"" . $CFG->wwwroot . "/mod/jitsi/viewpriv.php?user=" . $user . "\";";
+            echo "    location.href=\"" . $CFG->wwwroot . "/user/profile.php?id=" . $user . "\";";
         }
         echo  "});\n";
     }
@@ -1765,11 +1764,11 @@ function sendnotificationprivatesession($fromuser, $touser) {
     $message->fullmessagehtml = get_string('user') . ' <a href="' . $CFG->wwwroot . '/user/profile.php?id=' . $fromuser->id . '"> '
     . $fromuser->firstname . ' ' . $fromuser->lastname
     . '</a> ' . get_string('hasentered', 'jitsi') . '. ' . get_string('click', 'jitsi') . '<a href="'
-    . new moodle_url('/mod/jitsi/viewpriv.php', ['user' => $touser->id, 'fromuser' => $fromuser->id])
+    . new moodle_url('/mod/jitsi/sessionpriv.php', ['peer' => $fromuser->id])
     . '"> ' . get_string('here', 'jitsi') . '</a> ' . get_string('toenter', 'jitsi');
     $message->smallmessage = get_string('userenter', 'jitsi', $fromuser->firstname . ' ' . $fromuser->lastname);
     $message->notification = 1;
-    $message->contexturl = new moodle_url('/mod/jitsi/viewpriv.php', ['user' => $touser->id, 'fromuser' => $fromuser->id]);
+    $message->contexturl = new moodle_url('/mod/jitsi/sessionpriv.php', ['peer' => $fromuser->id]);
     $message->contexturlname = 'Private session';
     $content = ['*' => ['header' => '', 'footer' => '']];
     $message->set_additional_content('email', $content);
@@ -1794,11 +1793,11 @@ function sendcallprivatesession($fromuser, $touser) {
     $message->fullmessagehtml = get_string('user') . ' <a href="' . $CFG->wwwroot . '/user/profile.php?id=' . $fromuser->id . '"> '
     . $fromuser->firstname . ' ' . $fromuser->lastname
     . '</a> ' . get_string('iscalling', 'jitsi') . '. ' . get_string('click', 'jitsi') . '<a href="'
-    . new moodle_url('/mod/jitsi/viewpriv.php', ['user' => $fromuser->id])
+    . new moodle_url('/mod/jitsi/sessionpriv.php', ['peer' => $fromuser->id])
     . '"> ' . get_string('here', 'jitsi') . '</a> ' . get_string('toenter', 'jitsi');
     $message->smallmessage = get_string('usercall', 'jitsi', $fromuser->firstname . ' ' . $fromuser->lastname);
     $message->notification = 1;
-    $message->contexturl = new moodle_url('/mod/jitsi/viewpriv.php', ['user' => $fromuser->id]);
+    $message->contexturl = new moodle_url('/mod/jitsi/sessionpriv.php', ['peer' => $fromuser->id]);
     $message->contexturlname = 'Private session';
     $content = ['*' => ['header' => '', 'footer' => '']];
     $message->set_additional_content('email', $content);
