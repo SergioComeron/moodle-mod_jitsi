@@ -30,7 +30,6 @@ require_once($CFG->dirroot . '/mod/jitsi/lib.php');
  * @runTestsInSeparateProcesses
  */
 final class external_test extends \advanced_testcase {
-
     /**
      * Load the external API class (requires isolated process due to externallib.php).
      */
