@@ -289,12 +289,17 @@ const initPush = async(swUrl, vapidKey) => {
                     setStatus('Saving subscription...');
                     const key = newSub.getKey('p256dh');
                     const auth = newSub.getKey('auth');
+                    // Encode as base64url (minishlink/web-push requires this format).
+                    const toBase64Url = (buf) => {
+                        const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+                        return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/[=]/g, '');
+                    };
                     await Ajax.call([{
                         methodname: 'mod_jitsi_register_push_subscription',
                         args: {
                             endpoint:  newSub.endpoint,
-                            authkey:   btoa(String.fromCharCode(...new Uint8Array(auth))),
-                            p256dhkey: btoa(String.fromCharCode(...new Uint8Array(key))),
+                            authkey:   toBase64Url(auth),
+                            p256dhkey: toBase64Url(key),
                         },
                     }])[0];
                     window.console.log('[Jitsi Push] Subscription saved.');

@@ -2687,9 +2687,14 @@ function jitsi_send_push_notification($userid, $title, $body, $url) {
         $privatekey = $keys['privateKey'];
     }
 
+    // VAPID subject must be a mailto: URI or https:// URL.
+    // mailto: is more reliable across push services.
+    $admin = get_admin();
+    $vapidsubject = 'mailto:' . $admin->email;
+
     $auth = [
         'VAPID' => [
-            'subject'    => $CFG->wwwroot,
+            'subject'    => $vapidsubject,
             'publicKey'  => $publickey,
             'privateKey' => $privatekey,
         ],
@@ -2716,6 +2721,8 @@ function jitsi_send_push_notification($userid, $title, $body, $url) {
         }
 
         foreach ($webpush->flush() as $report) {
+            debugging('Web Push report for ' . $report->getEndpoint() . ': '
+                . ($report->isSuccess() ? 'OK' : $report->getReason()), DEBUG_DEVELOPER);
             if ($report->isSubscriptionExpired()) {
                 $DB->delete_records_select(
                     'jitsi_push_subscriptions',
