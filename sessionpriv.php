@@ -85,6 +85,12 @@ if (get_config('mod_jitsi', 'privatesessions') == 1) {
     // Notify the peer when someone enters their session.
     if ($USER->id != $peerid) {
         sendnotificationprivatesession($USER, $peer);
+        jitsi_send_push_notification(
+            $peer->id,
+            get_string('pushnotificationtitle', 'mod_jitsi'),
+            get_string('pushnotificationbody', 'mod_jitsi', fullname($USER)),
+            (new moodle_url('/mod/jitsi/sessionpriv.php', ['peer' => $USER->id]))->out(false)
+        );
     }
 
     createsessionpriv($teacher, 0, $avatar, $nom, $session, null, 0, false, $peerid);

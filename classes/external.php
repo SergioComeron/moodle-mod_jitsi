@@ -1445,6 +1445,197 @@ class mod_jitsi_external extends external_api {
     }
 
     /**
+     * Returns description of register_push_subscription parameters
+     * @return external_function_parameters
+     */
+    public static function register_push_subscription_parameters() {
+        return new external_function_parameters([
+            'endpoint'  => new external_value(PARAM_URL, 'Push endpoint URL'),
+            'authkey'   => new external_value(PARAM_TEXT, 'Auth key base64url'),
+            'p256dhkey' => new external_value(PARAM_TEXT, 'p256dh key base64url'),
+        ]);
+    }
+
+    /**
+     * Register a Web Push subscription for the current user.
+     *
+     * @param string $endpoint
+     * @param string $authkey
+     * @param string $p256dhkey
+     * @return array
+     */
+    public static function register_push_subscription($endpoint, $authkey, $p256dhkey) {
+        global $DB, $USER;
+
+        $params = self::validate_parameters(self::register_push_subscription_parameters(), [
+            'endpoint'  => $endpoint,
+            'authkey'   => $authkey,
+            'p256dhkey' => $p256dhkey,
+        ]);
+
+        $context = context_system::instance();
+        self::validate_context($context);
+
+        $now = time();
+        $existing = $DB->get_record_sql(
+            'SELECT id FROM {jitsi_push_subscriptions} WHERE userid = :userid AND ' . $DB->sql_compare_text('endpoint') . ' = ' . $DB->sql_compare_text(':endpoint'),
+            ['userid' => $USER->id, 'endpoint' => $params['endpoint']]
+        );
+
+        if ($existing) {
+            $DB->update_record('jitsi_push_subscriptions', (object)[
+                'id'           => $existing->id,
+                'authkey'      => $params['authkey'],
+                'p256dhkey'    => $params['p256dhkey'],
+                'timemodified' => $now,
+            ]);
+        } else {
+            $DB->insert_record('jitsi_push_subscriptions', (object)[
+                'userid'       => $USER->id,
+                'endpoint'     => $params['endpoint'],
+                'authkey'      => $params['authkey'],
+                'p256dhkey'    => $params['p256dhkey'],
+                'timecreated'  => $now,
+                'timemodified' => $now,
+            ]);
+        }
+
+        return ['success' => true];
+    }
+
+    /**
+     * Returns description of register_push_subscription return value
+     * @return external_description
+     */
+    public static function register_push_subscription_returns() {
+        return new external_single_structure([
+            'success' => new external_value(PARAM_BOOL, 'Whether registration succeeded'),
+        ]);
+    }
+
+    /**
+     * Returns description of unregister_push_subscription parameters
+     * @return external_function_parameters
+     */
+    public static function unregister_push_subscription_parameters() {
+        return new external_function_parameters([
+            'endpoint' => new external_value(PARAM_URL, 'Push endpoint URL'),
+        ]);
+    }
+
+    /**
+     * Unregister a Web Push subscription.
+     *
+     * @param string $endpoint
+     * @return array
+     */
+    public static function unregister_push_subscription($endpoint) {
+        global $DB, $USER;
+
+        $params = self::validate_parameters(self::unregister_push_subscription_parameters(), [
+            'endpoint' => $endpoint,
+        ]);
+
+        $context = context_system::instance();
+        self::validate_context($context);
+
+        $DB->delete_records_select(
+            'jitsi_push_subscriptions',
+            'userid = :userid AND ' . $DB->sql_compare_text('endpoint') . ' = ' . $DB->sql_compare_text(':endpoint'),
+            ['userid' => $USER->id, 'endpoint' => $params['endpoint']]
+        );
+
+        return ['success' => true];
+    }
+
+    /**
+     * Returns description of unregister_push_subscription return value
+     * @return external_description
+     */
+    public static function unregister_push_subscription_returns() {
+        return new external_single_structure([
+            'success' => new external_value(PARAM_BOOL, 'Whether unregistration succeeded'),
+        ]);
+    }
+
+    /**
+     * Returns description of check_incoming_call parameters
+     * @return external_function_parameters
+     */
+    public static function check_incoming_call_parameters() {
+        return new external_function_parameters([
+            'since' => new external_value(PARAM_INT, 'Unix timestamp to check from'),
+        ]);
+    }
+
+    /**
+     * Check if anyone has entered a private session room with the current user recently.
+     *
+     * @param int $since Unix timestamp
+     * @return array
+     */
+    public static function check_incoming_call($since) {
+        global $DB, $USER, $PAGE;
+
+        $params = self::validate_parameters(self::check_incoming_call_parameters(), ['since' => $since]);
+        $context = context_system::instance();
+        self::validate_context($context);
+
+        $eventname = '\mod_jitsi\event\jitsi_private_session_enter';
+        $logs = $DB->get_records_select(
+            'logstore_standard_log',
+            'eventname = :eventname AND timecreated >= :since AND userid != :userid',
+            ['eventname' => $eventname, 'since' => $params['since'], 'userid' => $USER->id],
+            'timecreated DESC'
+        );
+
+        foreach ($logs as $log) {
+            $other = json_decode($log->other, true);
+            if (isset($other['peerid']) && (int)$other['peerid'] === (int)$USER->id) {
+                $caller = $DB->get_record(
+                    'user',
+                    ['id' => $log->userid, 'deleted' => 0],
+                    'id, firstname, lastname, picture, imagealt, email',
+                    IGNORE_MISSING
+                );
+                if ($caller) {
+                    $userpicture = new user_picture($caller);
+                    $userpicture->size = 1;
+                    return [
+                        'incoming'     => true,
+                        'callerid'     => (int)$caller->id,
+                        'callername'   => fullname($caller),
+                        'calleravatar' => $userpicture->get_url($PAGE)->out(false),
+                        'timecreated'  => (int)$log->timecreated,
+                    ];
+                }
+            }
+        }
+
+        return [
+            'incoming'     => false,
+            'callerid'     => 0,
+            'callername'   => '',
+            'calleravatar' => '',
+            'timecreated'  => 0,
+        ];
+    }
+
+    /**
+     * Returns description of check_incoming_call return value
+     * @return external_description
+     */
+    public static function check_incoming_call_returns() {
+        return new external_single_structure([
+            'incoming'     => new external_value(PARAM_BOOL, 'Whether there is an incoming call'),
+            'callerid'     => new external_value(PARAM_INT, 'Caller user ID'),
+            'callername'   => new external_value(PARAM_TEXT, 'Caller full name'),
+            'calleravatar' => new external_value(PARAM_URL, 'Caller avatar URL'),
+            'timecreated'  => new external_value(PARAM_INT, 'Event timestamp'),
+        ]);
+    }
+
+    /**
      * Returns description of get_tutoring_schedule parameters
      * @return external_function_parameters
      */

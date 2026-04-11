@@ -2654,6 +2654,82 @@ function normalizesessionname($session) {
 }
 
 /**
+ * Send a Web Push notification to a user.
+ *
+ * @param int $userid Recipient user ID
+ * @param string $title Notification title
+ * @param string $body Notification body
+ * @param string $url URL to open when notification is clicked
+ */
+function jitsi_send_push_notification($userid, $title, $body, $url) {
+    global $DB, $CFG;
+
+    $autoloader = __DIR__ . '/api/vendor/autoload.php';
+    if (!file_exists($autoloader)) {
+        return;
+    }
+    require_once($autoloader);
+
+    $subscriptions = $DB->get_records('jitsi_push_subscriptions', ['userid' => $userid]);
+    if (empty($subscriptions)) {
+        return;
+    }
+
+    // Get or generate VAPID keys.
+    $publickey = get_config('mod_jitsi', 'vapid_public_key');
+    $privatekey = get_config('mod_jitsi', 'vapid_private_key');
+
+    if (!$publickey || !$privatekey) {
+        $keys = \Minishlink\WebPush\VAPID::createVapidKeys();
+        set_config('vapid_public_key', $keys['publicKey'], 'mod_jitsi');
+        set_config('vapid_private_key', $keys['privateKey'], 'mod_jitsi');
+        $publickey = $keys['publicKey'];
+        $privatekey = $keys['privateKey'];
+    }
+
+    $auth = [
+        'VAPID' => [
+            'subject'    => $CFG->wwwroot,
+            'publicKey'  => $publickey,
+            'privateKey' => $privatekey,
+        ],
+    ];
+
+    try {
+        $webpush = new \Minishlink\WebPush\WebPush($auth);
+        $payload = json_encode([
+            'title' => $title,
+            'body'  => $body,
+            'url'   => $url,
+            'icon'  => $CFG->wwwroot . '/mod/jitsi/pix/icon.png',
+        ]);
+
+        foreach ($subscriptions as $sub) {
+            $subscription = \Minishlink\WebPush\Subscription::create([
+                'endpoint' => $sub->endpoint,
+                'keys'     => [
+                    'auth'   => $sub->authkey,
+                    'p256dh' => $sub->p256dhkey,
+                ],
+            ]);
+            $webpush->queueNotification($subscription, $payload);
+        }
+
+        foreach ($webpush->flush() as $report) {
+            if ($report->isSubscriptionExpired()) {
+                $DB->delete_records_select(
+                    'jitsi_push_subscriptions',
+                    'userid = :userid AND ' . $DB->sql_compare_text('endpoint') . ' = ' . $DB->sql_compare_text(':endpoint'),
+                    ['userid' => $userid, 'endpoint' => $report->getEndpoint()]
+                );
+            }
+        }
+    } catch (\Exception $e) {
+        debugging('Web Push error: ' . $e->getMessage(), DEBUG_DEVELOPER);
+    }
+}
+
+/**
  * Check if a teacher is available for private calls from a given student right now,
  * based on their tutoring schedule for shared courses.
  *

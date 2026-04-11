@@ -14,7 +14,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * AMD module for the call.php coursemate search.
+ * AMD module for the call.php page: coursemate search, incoming call polling, and Web Push.
  *
  * @module     mod_jitsi/call
  * @copyright  2019 Sergio Comerón <sergiocomeron@icloud.com>
@@ -24,97 +24,333 @@
 import Ajax from 'core/ajax';
 import {get_string as getString} from 'core/str';
 
-/**
- * Initialise the call search UI.
- *
- * @param {string} sessionPrivUrl  Base URL of sessionpriv.php
- */
-export const init = (sessionPrivUrl) => {
-    const input = document.getElementById('jitsi-call-search');
-    const results = document.getElementById('jitsi-call-results');
+// ─── Ringtone via Web Audio API ───────────────────────────────────────────────
 
-    if (!input || !results) {
+/**
+ * Play a short ringtone using the Web Audio API.
+ */
+const playRingtone = () => {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const playBeep = (startTime, freq) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.value = freq;
+            osc.type = 'sine';
+            gain.gain.setValueAtTime(0.3, startTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.3);
+            osc.start(startTime);
+            osc.stop(startTime + 0.3);
+        };
+        playBeep(ctx.currentTime, 880);
+        playBeep(ctx.currentTime + 0.4, 1100);
+        playBeep(ctx.currentTime + 0.8, 880);
+    } catch (e) {
+        // Web Audio not available.
+    }
+};
+
+// ─── Incoming call polling ────────────────────────────────────────────────────
+
+let lastChecked = Math.floor(Date.now() / 1000) - 5;
+let shownCallerId = 0;
+
+/**
+ * Show the incoming call modal.
+ *
+ * @param {object} response Response from check_incoming_call
+ * @param {string} sessionPrivUrl Base URL of sessionpriv.php
+ */
+const showCallModal = (response, sessionPrivUrl) => {
+    const modal = document.getElementById('jitsi-incoming-modal');
+    if (!modal) {
+        return;
+    }
+    const avatar = document.getElementById('jitsi-caller-avatar');
+    const nameEl = document.getElementById('jitsi-caller-name');
+    const joinBtn = document.getElementById('jitsi-join-btn');
+
+    if (avatar) {
+        avatar.src = response.calleravatar;
+        avatar.alt = response.callername;
+    }
+    if (nameEl) {
+        getString('incomingcallfrom', 'mod_jitsi', response.callername).then(str => {
+            nameEl.textContent = str;
+            return;
+        }).catch(() => {
+            nameEl.textContent = response.callername;
+        });
+    }
+    if (joinBtn) {
+        joinBtn.href = `${sessionPrivUrl}?peer=${response.callerid}`;
+    }
+
+    playRingtone();
+
+    // Show modal using Bootstrap (available globally in Moodle themes).
+    // eslint-disable-next-line no-undef
+    if (typeof jQuery !== 'undefined' && jQuery.fn.modal) {
+        // eslint-disable-next-line no-undef
+        jQuery('#jitsi-incoming-modal').modal('show');
+    } else {
+        modal.style.display = 'block';
+        modal.classList.add('show');
+    }
+};
+
+/**
+ * Poll for incoming calls every 10 seconds.
+ *
+ * @param {string} sessionPrivUrl Base URL of sessionpriv.php
+ */
+const startPolling = (sessionPrivUrl) => {
+    const poll = () => {
+        const since = lastChecked;
+        lastChecked = Math.floor(Date.now() / 1000);
+
+        Ajax.call([{
+            methodname: 'mod_jitsi_check_incoming_call',
+            args: {since},
+        }])[0].then((response) => {
+            if (response.incoming && response.callerid !== shownCallerId) {
+                shownCallerId = response.callerid;
+                showCallModal(response, sessionPrivUrl);
+            }
+            return;
+        }).catch(() => {
+            // Silently ignore polling errors.
+        });
+    };
+
+    // First poll after 5 seconds, then every 10 seconds.
+    setTimeout(() => {
+        poll();
+        setInterval(poll, 10000);
+    }, 5000);
+};
+
+// ─── Web Push ────────────────────────────────────────────────────────────────
+
+/**
+ * Convert a base64url string to Uint8Array (needed for VAPID key).
+ *
+ * @param {string} base64String
+ * @returns {Uint8Array}
+ */
+const urlBase64ToUint8Array = (base64String) => {
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = atob(base64);
+    return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+};
+
+/**
+ * Initialise Web Push: register service worker and manage subscription.
+ *
+ * @param {string} swUrl  URL of push-sw.js
+ * @param {string} vapidKey VAPID public key (base64url)
+ */
+const initPush = async(swUrl, vapidKey) => {
+    const btn = document.getElementById('jitsi-push-btn');
+    const status = document.getElementById('jitsi-push-status');
+
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !vapidKey) {
         return;
     }
 
-    let debounceTimer = null;
+    if (btn) {
+        btn.style.display = '';
+    }
 
-    input.addEventListener('input', () => {
-        clearTimeout(debounceTimer);
-        const query = input.value.trim();
+    let swReg;
+    try {
+        swReg = await navigator.serviceWorker.register(swUrl, {scope: '/mod/jitsi/'});
+    } catch (e) {
+        return;
+    }
 
-        if (query.length < 2) {
-            results.innerHTML = '';
+    const updateUI = async() => {
+        const perm = window.Notification.permission;
+        if (perm === 'denied') {
+            if (btn) {
+                btn.disabled = true;
+            }
+            if (status) {
+                getString('pushnotificationsblocked', 'mod_jitsi').then(str => {
+                    status.textContent = str;
+                    return;
+                }).catch(() => {});
+            }
             return;
         }
 
-        debounceTimer = setTimeout(() => {
-            Ajax.call([{
-                methodname: 'mod_jitsi_search_coursemates',
-                args: {query},
-            }])[0].then((response) => {
-                results.innerHTML = '';
+        const sub = await swReg.pushManager.getSubscription();
+        if (sub) {
+            if (btn) {
+                getString('disablepushnotifications', 'mod_jitsi').then(str => {
+                    btn.textContent = str;
+                    return;
+                }).catch(() => {});
+            }
+            if (status) {
+                getString('pushnotificationsenabled', 'mod_jitsi').then(str => {
+                    status.textContent = '✓ ' + str;
+                    return;
+                }).catch(() => {});
+            }
+        } else {
+            if (btn) {
+                getString('enablepushnotifications', 'mod_jitsi').then(str => {
+                    btn.textContent = str;
+                    return;
+                }).catch(() => {});
+            }
+            if (status) {
+                status.textContent = '';
+            }
+        }
+    };
 
-                if (!response.users.length) {
-                    return getString('callnoresults', 'mod_jitsi').then((str) => {
-                        const item = document.createElement('div');
-                        item.className = 'list-group-item text-muted';
-                        item.textContent = str;
-                        results.appendChild(item);
-                        return;
+    await updateUI();
+
+    if (btn) {
+        btn.addEventListener('click', async() => {
+            const sub = await swReg.pushManager.getSubscription();
+            if (sub) {
+                // Unsubscribe.
+                await sub.unsubscribe();
+                Ajax.call([{
+                    methodname: 'mod_jitsi_unregister_push_subscription',
+                    args: {endpoint: sub.endpoint},
+                }]);
+            } else {
+                // Subscribe.
+                try {
+                    const newSub = await swReg.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: urlBase64ToUint8Array(vapidKey),
                     });
+                    const key = newSub.getKey('p256dh');
+                    const auth = newSub.getKey('auth');
+                    Ajax.call([{
+                        methodname: 'mod_jitsi_register_push_subscription',
+                        args: {
+                            endpoint:  newSub.endpoint,
+                            authkey:   btoa(String.fromCharCode(...new Uint8Array(auth))),
+                            p256dhkey: btoa(String.fromCharCode(...new Uint8Array(key))),
+                        },
+                    }]);
+                } catch (e) {
+                    return;
                 }
+            }
+            await updateUI();
+        });
+    }
+};
 
-                const badges = response.users
-                    .filter(u => u.hasschedule)
-                    .map(u => {
-                        if (u.available) {
-                            return getString('tutoringavailable', 'mod_jitsi').then(str => ({id: u.id, str, cls: 'badge-success'}));
-                        } else {
-                            const key = u.nextslot ? 'tutoringnextslot' : 'tutoringnotavailable';
-                            const param = u.nextslot || null;
-                            return getString(key, 'mod_jitsi', param).then(str => ({id: u.id, str, cls: 'badge-warning'}));
-                        }
-                    });
+// ─── Coursemate search ────────────────────────────────────────────────────────
 
-                Promise.all(badges).then(badgeData => {
-                    const badgeMap = {};
-                    badgeData.forEach(b => { badgeMap[b.id] = b; });
+/**
+ * Initialise the call search UI, incoming call polling, and Web Push.
+ *
+ * @param {string} sessionPrivUrl  Base URL of sessionpriv.php
+ * @param {string} swUrl           URL of push-sw.js
+ * @param {string} vapidKey        VAPID public key (base64url)
+ */
+export const init = (sessionPrivUrl, swUrl, vapidKey) => {
+    const input = document.getElementById('jitsi-call-search');
+    const results = document.getElementById('jitsi-call-results');
 
-                    response.users.forEach((user) => {
-                        const item = document.createElement('a');
-                        item.href = `${sessionPrivUrl}?peer=${user.id}`;
-                        item.className = 'list-group-item list-group-item-action d-flex align-items-center gap-2';
+    if (input && results) {
+        let debounceTimer = null;
 
-                        const img = document.createElement('img');
-                        img.src = user.profileimageurl;
-                        img.alt = '';
-                        img.width = 32;
-                        img.height = 32;
-                        img.className = 'rounded-circle';
+        input.addEventListener('input', () => {
+            clearTimeout(debounceTimer);
+            const query = input.value.trim();
 
-                        const name = document.createElement('span');
-                        name.className = 'flex-grow-1';
-                        name.textContent = `${user.firstname} ${user.lastname}`;
-
-                        item.appendChild(img);
-                        item.appendChild(name);
-
-                        if (badgeMap[user.id]) {
-                            const badge = document.createElement('span');
-                            badge.className = `badge ${badgeMap[user.id].cls} ml-2`;
-                            badge.textContent = badgeMap[user.id].str;
-                            item.appendChild(badge);
-                        }
-
-                        results.appendChild(item);
-                    });
-                });
-
-                return;
-            }).catch(() => {
+            if (query.length < 2) {
                 results.innerHTML = '';
-            });
-        }, 300);
-    });
+                return;
+            }
+
+            debounceTimer = setTimeout(() => {
+                Ajax.call([{
+                    methodname: 'mod_jitsi_search_coursemates',
+                    args: {query},
+                }])[0].then((response) => {
+                    results.innerHTML = '';
+
+                    if (!response.users.length) {
+                        return getString('callnoresults', 'mod_jitsi').then((str) => {
+                            const item = document.createElement('div');
+                            item.className = 'list-group-item text-muted';
+                            item.textContent = str;
+                            results.appendChild(item);
+                            return;
+                        });
+                    }
+
+                    const badgePromises = response.users
+                        .filter(u => u.hasschedule)
+                        .map(u => {
+                            if (u.available) {
+                                return getString('tutoringavailable', 'mod_jitsi')
+                                    .then(str => ({id: u.id, str, cls: 'badge-success'}));
+                            }
+                            const key = u.nextslot ? 'tutoringnextslot' : 'tutoringnotavailable';
+                            return getString(key, 'mod_jitsi', u.nextslot || null)
+                                .then(str => ({id: u.id, str, cls: 'badge-warning'}));
+                        });
+
+                    return Promise.all(badgePromises).then(badgeData => {
+                        const badgeMap = {};
+                        badgeData.forEach(b => { badgeMap[b.id] = b; });
+
+                        response.users.forEach((user) => {
+                            const item = document.createElement('a');
+                            item.href = `${sessionPrivUrl}?peer=${user.id}`;
+                            item.className = 'list-group-item list-group-item-action d-flex align-items-center gap-2';
+
+                            const img = document.createElement('img');
+                            img.src = user.profileimageurl;
+                            img.alt = '';
+                            img.width = 32;
+                            img.height = 32;
+                            img.className = 'rounded-circle';
+
+                            const name = document.createElement('span');
+                            name.className = 'flex-grow-1';
+                            name.textContent = `${user.firstname} ${user.lastname}`;
+
+                            item.appendChild(img);
+                            item.appendChild(name);
+
+                            if (badgeMap[user.id]) {
+                                const badge = document.createElement('span');
+                                badge.className = `badge ${badgeMap[user.id].cls} ml-2`;
+                                badge.textContent = badgeMap[user.id].str;
+                                item.appendChild(badge);
+                            }
+
+                            results.appendChild(item);
+                        });
+                    });
+                }).catch(() => {
+                    results.innerHTML = '';
+                });
+            }, 300);
+        });
+    }
+
+    // Start incoming call polling.
+    startPolling(sessionPrivUrl);
+
+    // Initialise Web Push.
+    if (swUrl && vapidKey) {
+        initPush(swUrl, vapidKey).catch(() => {});
+    }
 };

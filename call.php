@@ -36,8 +36,23 @@ if (!get_config('mod_jitsi', 'privatesessions')) {
 $PAGE->set_title(get_string('callsomeone', 'jitsi'));
 $PAGE->set_heading(get_string('callsomeone', 'jitsi'));
 
+// Generate VAPID keys if not yet created.
+$vapidpublickey = get_config('mod_jitsi', 'vapid_public_key');
+if (!$vapidpublickey) {
+    $autoloader = __DIR__ . '/api/vendor/autoload.php';
+    if (file_exists($autoloader)) {
+        require_once($autoloader);
+        $keys = \Minishlink\WebPush\VAPID::createVapidKeys();
+        set_config('vapid_public_key', $keys['publicKey'], 'mod_jitsi');
+        set_config('vapid_private_key', $keys['privateKey'], 'mod_jitsi');
+        $vapidpublickey = $keys['publicKey'];
+    }
+}
+
 $PAGE->requires->js_call_amd('mod_jitsi/call', 'init', [
     $CFG->wwwroot . '/mod/jitsi/sessionpriv.php',
+    $CFG->wwwroot . '/mod/jitsi/push-sw.js',
+    $vapidpublickey ?: '',
 ]);
 
 // Build call history: most recent entry per peer, ordered by time descending.
@@ -165,5 +180,49 @@ if (!empty($peers)) {
 echo html_writer::end_div();
 
 echo html_writer::end_div(); // .row
+
+// Push notification enable/disable button.
+echo html_writer::start_div('mt-3');
+echo html_writer::tag('button', get_string('enablepushnotifications', 'jitsi'), [
+    'id'    => 'jitsi-push-btn',
+    'class' => 'btn btn-secondary btn-sm',
+    'style' => 'display:none',
+]);
+echo html_writer::tag('small', '', [
+    'id'    => 'jitsi-push-status',
+    'class' => 'ml-2 text-muted',
+]);
+echo html_writer::end_div();
+
+// Incoming call modal.
+echo html_writer::start_div('modal fade', [
+    'id'          => 'jitsi-incoming-modal',
+    'tabindex'    => '-1',
+    'role'        => 'dialog',
+    'aria-hidden' => 'true',
+]);
+echo html_writer::start_div('modal-dialog modal-dialog-centered', ['role' => 'document']);
+echo html_writer::start_div('modal-content');
+echo html_writer::start_div('modal-header');
+echo html_writer::tag('h5', get_string('incomingcall', 'jitsi'), ['class' => 'modal-title']);
+echo html_writer::end_div();
+echo html_writer::start_div('modal-body text-center');
+echo html_writer::img('', '', ['id' => 'jitsi-caller-avatar', 'width' => 64, 'height' => 64, 'class' => 'rounded-circle mb-2']);
+echo html_writer::tag('p', '', ['id' => 'jitsi-caller-name', 'class' => 'font-weight-bold']);
+echo html_writer::end_div();
+echo html_writer::start_div('modal-footer justify-content-center');
+echo html_writer::tag('a', get_string('joincall', 'jitsi'), [
+    'id'    => 'jitsi-join-btn',
+    'href'  => '#',
+    'class' => 'btn btn-success btn-lg',
+]);
+echo html_writer::tag('button', get_string('dismisscall', 'jitsi'), [
+    'class'             => 'btn btn-secondary btn-lg',
+    'data-dismiss'      => 'modal',
+]);
+echo html_writer::end_div();
+echo html_writer::end_div();
+echo html_writer::end_div();
+echo html_writer::end_div();
 
 echo $OUTPUT->footer();
