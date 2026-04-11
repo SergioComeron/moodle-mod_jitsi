@@ -1027,5 +1027,87 @@ function xmldb_jitsi_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026040301, 'jitsi');
     }
 
+    if ($oldversion < 2026040700) {
+        // Add Jibri recording VM support fields to jitsi_servers.
+        $table = new xmldb_table('jitsi_servers');
+
+        $field = new xmldb_field('jibri_enabled', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '0', 'provisioningerror');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        $field = new xmldb_field('jibri_gcpinstancename', XMLDB_TYPE_CHAR, '255', null, null, null, '', 'jibri_enabled');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        $field = new xmldb_field('jibri_provisioningstatus', XMLDB_TYPE_CHAR, '50', null, null, null, '', 'jibri_gcpinstancename');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        $field = new xmldb_field('jibri_provisioningerror', XMLDB_TYPE_TEXT, null, null, null, null, null, 'jibri_provisioningstatus');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        upgrade_mod_savepoint(true, 2026040700, 'jitsi');
+    }
+
+    if ($oldversion < 2026040702) {
+        // Add Jibri XMPP credential fields to jitsi_servers.
+        $table = new xmldb_table('jitsi_servers');
+
+        $field = new xmldb_field('jibri_xmpp_pass', XMLDB_TYPE_CHAR, '64', null, null, null, '', 'jibri_provisioningerror');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        $field = new xmldb_field('jibri_recorder_pass', XMLDB_TYPE_CHAR, '64', null, null, null, '', 'jibri_xmpp_pass');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        upgrade_mod_savepoint(true, 2026040702, 'jitsi');
+    }
+
+    if ($oldversion < 2026040703) {
+        $table = new xmldb_table('jitsi_servers');
+
+        $field = new xmldb_field('gcs_enabled', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '0', 'jibri_recorder_pass');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        $field = new xmldb_field('gcs_bucket', XMLDB_TYPE_CHAR, '255', null, null, null, '', 'gcs_enabled');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        upgrade_mod_savepoint(true, 2026040703, 'jitsi');
+    }
+
+    if ($oldversion < 2026040704) {
+        $table = new xmldb_table('jitsi_source_record');
+
+        $field = new xmldb_field('ai_summary', XMLDB_TYPE_TEXT, null, null, null, null, null, 'timeexpires');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        upgrade_mod_savepoint(true, 2026040704, 'jitsi');
+    }
+
+    if ($oldversion < 2026040705) {
+        $table = new xmldb_table('jitsi_source_record');
+
+        $field = new xmldb_field('ai_quiz_id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0', 'ai_summary');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        upgrade_mod_savepoint(true, 2026040705, 'jitsi');
+    }
+
     return true;
 }

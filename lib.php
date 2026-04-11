@@ -441,10 +441,12 @@ function createsession(
     echo "<script src=\"https://" . $domain . "/external_api.js\"></script>\n";
 
     $streamingoption = '';
+    $jibrienabled = ($servertype == 3 && !empty($server->jibri_enabled) && ($server->jibri_provisioningstatus ?? '') === 'ready');
     if (
         (get_config('mod_jitsi', 'livebutton') == 1) &&
         (has_capability('mod/jitsi:record', $PAGE->context)) &&
-        (get_config('mod_jitsi', 'streamingoption') == 0)
+        (get_config('mod_jitsi', 'streamingoption') == 0) &&
+        ($servertype != 3 || $jibrienabled)
     ) {
         $streamingoption = 'livestreaming';
     }
@@ -462,8 +464,13 @@ function createsession(
         $security = 'security';
     }
     $record = '';
-    // Disable recording on GCP auto-managed servers (type 3) - not yet supported.
-    if (get_config('mod_jitsi', 'record') == 1 && has_capability('mod/jitsi:record', $PAGE->context) && $servertype != 3) {
+    // Enable the Jitsi recording toolbar button when the record setting is on.
+    // For GCP servers (type 3), only enable it when Jibri is provisioned and ready.
+    $jibrienabled = ($servertype == 3 && !empty($server->jibri_enabled) && ($server->jibri_provisioningstatus ?? '') === 'ready');
+    if (
+        get_config('mod_jitsi', 'record') == 1 && has_capability('mod/jitsi:record', $PAGE->context) &&
+            ($servertype != 3 || $jibrienabled)
+    ) {
         $record = 'recording';
     }
     $invite = '';
@@ -515,13 +522,13 @@ function createsession(
     }
 
     if ($user == null) {
-        // Don't show integrated recording switch for GCP servers (type 3) - not yet supported.
+        // Show integrated streaming switch for GCP servers (type 3) only when Jibri is ready.
         if (
             get_config('mod_jitsi', 'livebutton') == 1 &&
             has_capability('mod/jitsi:record', $PAGE->context) &&
             $account != null && $universal == false &&
             (get_config('mod_jitsi', 'streamingoption') == 1) && $jitsi->sessionwithtoken == 0 &&
-            $servertype != 3
+            ($servertype != 3 || $jibrienabled)
         ) {
             if ($CFG->branch >= 500) {
                 echo "<div class=\"text-end\">";
@@ -663,8 +670,9 @@ function createsession(
         echo "disablePolls: true,\n";
     }
 
-    // Disable live streaming if global setting is off OR if it's a GCP server (type 3 - not yet supported).
-    if (get_config('mod_jitsi', 'livebutton') == 0 || $servertype == 3) {
+    // Disable live streaming if global setting is off, or if GCP (type 3) without Jibri ready.
+    $jibrilivestream = ($servertype == 3 && !empty($server->jibri_enabled) && ($server->jibri_provisioningstatus ?? '') === 'ready');
+    if (get_config('mod_jitsi', 'livebutton') == 0 || ($servertype == 3 && !$jibrilivestream)) {
         echo "liveStreamingEnabled: false,\n";
     }
 
@@ -1350,10 +1358,12 @@ function createsessionpriv(
     echo "<script src=\"https://" . $domain . "/external_api.js\"></script>\n";
 
     $streamingoption = '';
+    $jibrienabled = ($servertype == 3 && !empty($server->jibri_enabled) && ($server->jibri_provisioningstatus ?? '') === 'ready');
     if (
         (get_config('mod_jitsi', 'livebutton') == 1) &&
         (has_capability('mod/jitsi:record', $PAGE->context)) &&
-        (get_config('mod_jitsi', 'streamingoption') == 0)
+        (get_config('mod_jitsi', 'streamingoption') == 0) &&
+        ($servertype != 3 || $jibrienabled)
     ) {
         $streamingoption = 'livestreaming';
     }
@@ -1371,8 +1381,13 @@ function createsessionpriv(
         $security = 'security';
     }
     $record = '';
-    // Disable recording on GCP auto-managed servers (type 3) - not yet supported.
-    if (get_config('mod_jitsi', 'record') == 1 && has_capability('mod/jitsi:record', $PAGE->context) && $servertype != 3) {
+    // Enable the Jitsi recording toolbar button when the record setting is on.
+    // For GCP servers (type 3), only enable it when Jibri is provisioned and ready.
+    $jibrienabled = ($servertype == 3 && !empty($server->jibri_enabled) && ($server->jibri_provisioningstatus ?? '') === 'ready');
+    if (
+        get_config('mod_jitsi', 'record') == 1 && has_capability('mod/jitsi:record', $PAGE->context) &&
+            ($servertype != 3 || $jibrienabled)
+    ) {
         $record = 'recording';
     }
     $invite = '';
@@ -1520,8 +1535,9 @@ function createsessionpriv(
         echo "disablePolls: true,\n";
     }
 
-    // Disable live streaming if global setting is off OR if it's a GCP server (type 3 - not yet supported).
-    if (get_config('mod_jitsi', 'livebutton') == 0 || $servertype == 3) {
+    // Disable live streaming if global setting is off, or if GCP (type 3) without Jibri ready.
+    $jibrilivestream = ($servertype == 3 && !empty($server->jibri_enabled) && ($server->jibri_provisioningstatus ?? '') === 'ready');
+    if (get_config('mod_jitsi', 'livebutton') == 0 || ($servertype == 3 && !$jibrilivestream)) {
         echo "liveStreamingEnabled: false,\n";
     }
 
@@ -1811,6 +1827,80 @@ function marktodelete($idrecord, $option) {
 }
 
 /**
+ * Delete physical recording file from Jibri VM or GCS bucket.
+ * Best-effort: returns false if URL is not recognised or VM/GCS is unreachable.
+ * @param string $link Recording URL (http://<ip>/recordings/<file> or https://storage.googleapis.com/<bucket>/<file>)
+ * @return bool True if deletion was accepted, false otherwise.
+ */
+function delete_jibri_file($link) {
+    global $DB;
+
+    // GCS URL: https://storage.googleapis.com/<bucket>/<filename>
+    if (preg_match('/^https:\/\/storage\.googleapis\.com\/([^\/]+)\/(.+)$/', $link, $m)) {
+        $bucketname = $m[1];
+        $objectname = $m[2];
+        $server = $DB->get_record('jitsi_servers', ['gcs_bucket' => $bucketname, 'gcs_enabled' => 1]);
+        if (!$server) {
+            return false;
+        }
+        try {
+            require_once(__DIR__ . '/api/vendor/autoload.php');
+            $client = new Google\Client();
+            $client->addScope(Google\Service\Storage::DEVSTORAGE_FULL_CONTROL);
+            // GCP servers store credentials in Moodle file storage, not in privatekey field.
+            $fs = get_file_storage();
+            $ctx = context_system::instance();
+            $files = $fs->get_area_files(
+                $ctx->id,
+                'mod_jitsi',
+                'gcpserviceaccountjson',
+                0,
+                'itemid, filepath, filename',
+                false
+            );
+            if (!empty($files)) {
+                $file = reset($files);
+                $key = json_decode($file->get_content(), true);
+                if (is_array($key)) {
+                    $client->setAuthConfig($key);
+                } else {
+                    $client->useApplicationDefaultCredentials();
+                }
+            } else {
+                $client->useApplicationDefaultCredentials();
+            }
+            $storage = new Google\Service\Storage($client);
+            $storage->objects->delete($bucketname, $objectname);
+            return true;
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    // VM URL: http://<ip>/recordings/<filename>
+    if (!preg_match('/^http:\/\/(\d+\.\d+\.\d+\.\d+)\/recordings\/(.+)$/', $link, $m)) {
+        return false;
+    }
+    $ip = $m[1];
+    $filename = basename($m[2]);
+    $servers = $DB->get_records('jitsi_servers', ['jibri_enabled' => 1]);
+    foreach ($servers as $server) {
+        if (empty($server->provisioningtoken)) {
+            continue;
+        }
+        $url = 'http://' . $ip . '/delete-recording'
+            . '?file=' . rawurlencode($filename)
+            . '&token=' . rawurlencode($server->provisioningtoken);
+        $ctx = stream_context_create(['http' => ['timeout' => 5, 'ignore_errors' => true]]);
+        $response = @file_get_contents($url, false, $ctx);
+        if ($response !== false) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
  * Delete Jitsi record
  * @param int $source - Jitsi source record to delete
  */
@@ -1858,7 +1948,15 @@ function deleterecordyoutube($idsource) {
             $tokensessionkey = 'token-' . "https://www.googleapis.com/auth/youtube";
 
             $_SESSION[$tokensessionkey] = $account->clientaccesstoken;
-            $client->setAccessToken($_SESSION[$tokensessionkey]);
+            try {
+                $client->setAccessToken($_SESSION[$tokensessionkey]);
+            } catch (\Exception $e) {
+                $account->clientaccesstoken = null;
+                $account->clientrefreshtoken = null;
+                $account->tokencreated = 0;
+                $DB->update_record('jitsi_record_account', $account);
+                return false;
+            }
             if ($client->isAccessTokenExpired()) {
                 // Validate refresh token exists before attempting to use it.
                 if (empty($account->clientrefreshtoken)) {

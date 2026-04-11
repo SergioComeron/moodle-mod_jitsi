@@ -10,7 +10,8 @@
     "extra": {
         "google/apiclient-services": [
             "YouTube",
-            "Compute"
+            "Compute",
+            "Storage"
         ]
     },
     "config": {

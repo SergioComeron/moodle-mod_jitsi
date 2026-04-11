@@ -692,4 +692,50 @@ if (has_capability('mod/jitsi:viewusersonsession', $PAGE->context)) {
 echo "</div>";
 
 echo "<hr>";
+
+// JS for AI buttons (summary + quiz).
+$PAGE->requires->strings_for_js(
+    ['aisummarygenerating', 'aisummaryqueued', 'aisummaryerror', 'aiquizgenerating', 'aiquizqueued', 'aiquizerror'],
+    'jitsi'
+);
+$PAGE->requires->js_amd_inline("
+require(['core/ajax', 'core/notification'], function(Ajax, Notification) {
+    function handleAiBtn(btn, methodname, statusClass, generatingStr, failStr) {
+        var sourcerecordid = parseInt(btn.dataset.sourcerecordid, 10);
+        var cmid = parseInt(btn.dataset.cmid, 10);
+        var status = btn.parentNode.querySelector('.' + statusClass);
+        btn.disabled = true;
+        if (status) { status.style.display = ''; status.textContent = M.util.get_string(generatingStr, 'mod_jitsi'); }
+        Ajax.call([{
+            methodname: methodname,
+            args: {sourcerecordid: sourcerecordid, cmid: cmid},
+            done: function(result) {
+                if (status) { status.textContent = result.message; }
+                if (!result.success) { btn.disabled = false; }
+            },
+            fail: function(ex) {
+                Notification.exception(ex);
+                btn.disabled = false;
+                if (status) { status.textContent = ''; }
+            }
+        }]);
+    }
+    document.addEventListener('click', function(e) {
+        var summaryBtn = e.target.closest('.jitsi-ai-summary-btn');
+        if (summaryBtn) {
+            e.preventDefault();
+            handleAiBtn(summaryBtn, 'mod_jitsi_queue_ai_summary',
+                'jitsi-ai-summary-status', 'aisummarygenerating', 'aisummaryerror');
+            return;
+        }
+        var quizBtn = e.target.closest('.jitsi-ai-quiz-btn');
+        if (quizBtn) {
+            e.preventDefault();
+            handleAiBtn(quizBtn, 'mod_jitsi_queue_ai_quiz',
+                'jitsi-ai-quiz-status', 'aiquizgenerating', 'aiquizerror');
+        }
+    });
+});
+");
+
 echo $OUTPUT->footer();
