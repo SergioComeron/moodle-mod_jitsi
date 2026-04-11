@@ -167,7 +167,9 @@ const initPush = async(swUrl, vapidKey) => {
 
     let swReg;
     try {
-        swReg = await navigator.serviceWorker.register(swUrl, {scope: '/mod/jitsi/'});
+        // No explicit scope — defaults to the directory of the script, which is always correct
+        // regardless of whether Moodle is installed in a subdirectory.
+        swReg = await navigator.serviceWorker.register(swUrl);
         // Wait until the service worker is active.
         await navigator.serviceWorker.ready;
     } catch (e) {
