@@ -466,6 +466,156 @@ final class lib_test extends \advanced_testcase {
     }
 
     /**
+     * Test that jitsi_check_tutoring_availability returns hasschedule=false
+     * when teacher has no slots in any shared visible course.
+     *
+     * @covers ::jitsi_check_tutoring_availability
+     */
+    public function test_check_tutoring_availability_no_schedule(): void {
+        $this->resetAfterTest(true);
+
+        $teacher = $this->getDataGenerator()->create_user();
+        $student = $this->getDataGenerator()->create_user();
+        $course = $this->getDataGenerator()->create_course(['visible' => 1]);
+
+        $this->getDataGenerator()->enrol_user($teacher->id, $course->id, 'editingteacher');
+        $this->getDataGenerator()->enrol_user($student->id, $course->id, 'student');
+
+        $result = jitsi_check_tutoring_availability($teacher->id, $student->id);
+
+        $this->assertFalse($result['hasschedule']);
+        $this->assertTrue($result['available']);
+        $this->assertNull($result['nextslot']);
+    }
+
+    /**
+     * Test that jitsi_check_tutoring_availability returns hasschedule=false
+     * when they share no visible course (course is hidden).
+     *
+     * @covers ::jitsi_check_tutoring_availability
+     */
+    public function test_check_tutoring_availability_hidden_course(): void {
+        global $DB;
+        $this->resetAfterTest(true);
+
+        $teacher = $this->getDataGenerator()->create_user();
+        $student = $this->getDataGenerator()->create_user();
+        $course = $this->getDataGenerator()->create_course(['visible' => 0]);
+
+        $this->getDataGenerator()->enrol_user($teacher->id, $course->id, 'editingteacher');
+        $this->getDataGenerator()->enrol_user($student->id, $course->id, 'student');
+
+        // Add a slot for the teacher in that hidden course.
+        $DB->insert_record('jitsi_tutoring_schedule', [
+            'userid'       => $teacher->id,
+            'courseid'     => $course->id,
+            'weekday'      => 1,
+            'timestart'    => 0,
+            'timeend'      => 86399,
+            'timecreated'  => time(),
+            'timemodified' => time(),
+        ]);
+
+        $result = jitsi_check_tutoring_availability($teacher->id, $student->id);
+
+        $this->assertFalse($result['hasschedule']);
+    }
+
+    /**
+     * Test that jitsi_check_tutoring_availability returns available=true
+     * when current time falls within a slot covering the whole day.
+     *
+     * @covers ::jitsi_check_tutoring_availability
+     */
+    public function test_check_tutoring_availability_within_slot(): void {
+        global $DB;
+        $this->resetAfterTest(true);
+
+        $teacher = $this->getDataGenerator()->create_user(['timezone' => 'UTC']);
+        $student = $this->getDataGenerator()->create_user();
+        $course = $this->getDataGenerator()->create_course(['visible' => 1]);
+
+        $this->getDataGenerator()->enrol_user($teacher->id, $course->id, 'editingteacher');
+        $this->getDataGenerator()->enrol_user($student->id, $course->id, 'student');
+
+        // Add a slot covering the entire day for every weekday.
+        $now = new \DateTime('now', new \DateTimeZone('UTC'));
+        $currentweekday = (int)$now->format('w');
+        $DB->insert_record('jitsi_tutoring_schedule', [
+            'userid'       => $teacher->id,
+            'courseid'     => $course->id,
+            'weekday'      => $currentweekday,
+            'timestart'    => 0,
+            'timeend'      => 86399,
+            'timecreated'  => time(),
+            'timemodified' => time(),
+        ]);
+
+        $result = jitsi_check_tutoring_availability($teacher->id, $student->id);
+
+        $this->assertTrue($result['hasschedule']);
+        $this->assertTrue($result['available']);
+    }
+
+    /**
+     * Test that jitsi_check_tutoring_availability returns available=false
+     * when slot is for a different weekday than today.
+     *
+     * @covers ::jitsi_check_tutoring_availability
+     */
+    public function test_check_tutoring_availability_outside_slot(): void {
+        global $DB;
+        $this->resetAfterTest(true);
+
+        $teacher = $this->getDataGenerator()->create_user(['timezone' => 'UTC']);
+        $student = $this->getDataGenerator()->create_user();
+        $course = $this->getDataGenerator()->create_course(['visible' => 1]);
+
+        $this->getDataGenerator()->enrol_user($teacher->id, $course->id, 'editingteacher');
+        $this->getDataGenerator()->enrol_user($student->id, $course->id, 'student');
+
+        // Create a slot for a different weekday.
+        $now = new \DateTime('now', new \DateTimeZone('UTC'));
+        $otherday = ((int)$now->format('w') + 1) % 7;
+        $DB->insert_record('jitsi_tutoring_schedule', [
+            'userid'       => $teacher->id,
+            'courseid'     => $course->id,
+            'weekday'      => $otherday,
+            'timestart'    => 0,
+            'timeend'      => 86399,
+            'timecreated'  => time(),
+            'timemodified' => time(),
+        ]);
+
+        $result = jitsi_check_tutoring_availability($teacher->id, $student->id);
+
+        $this->assertTrue($result['hasschedule']);
+        $this->assertFalse($result['available']);
+    }
+
+    /**
+     * Test that jitsi_check_tutoring_availability returns hasschedule=false
+     * when the user is not enrolled as teacher in any visible course.
+     *
+     * @covers ::jitsi_check_tutoring_availability
+     */
+    public function test_check_tutoring_availability_not_a_teacher(): void {
+        $this->resetAfterTest(true);
+
+        $user1 = $this->getDataGenerator()->create_user();
+        $user2 = $this->getDataGenerator()->create_user();
+        $course = $this->getDataGenerator()->create_course(['visible' => 1]);
+
+        // Both enrolled as students — neither is a teacher.
+        $this->getDataGenerator()->enrol_user($user1->id, $course->id, 'student');
+        $this->getDataGenerator()->enrol_user($user2->id, $course->id, 'student');
+
+        $result = jitsi_check_tutoring_availability($user1->id, $user2->id);
+
+        $this->assertFalse($result['hasschedule']);
+    }
+
+    /**
      * Regression test for issue #138.
      *
      * On a type-0 server (public/no JWT), createsession() must emit

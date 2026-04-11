@@ -1595,7 +1595,7 @@ class mod_jitsi_external extends external_api {
                 $caller = $DB->get_record(
                     'user',
                     ['id' => $log->userid, 'deleted' => 0],
-                    'id, firstname, lastname, picture, imagealt, email',
+                    'id, firstname, lastname, firstnamephonetic, lastnamephonetic, middlename, alternatename, picture, imagealt, email',
                     IGNORE_MISSING
                 );
                 if ($caller) {
