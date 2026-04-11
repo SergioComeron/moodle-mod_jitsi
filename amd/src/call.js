@@ -157,7 +157,11 @@ const initPush = async(swUrl, vapidKey) => {
     const btn = document.getElementById('jitsi-push-btn');
     const status = document.getElementById('jitsi-push-status');
 
+    window.console.log('[Jitsi Push] initPush called. vapidKey length:', vapidKey ? vapidKey.length : 0);
+    window.console.log('[Jitsi Push] SW support:', 'serviceWorker' in navigator, '| Push support:', 'PushManager' in window);
+
     if (!('serviceWorker' in navigator) || !('PushManager' in window) || !vapidKey) {
+        window.console.log('[Jitsi Push] Aborting: missing browser support or vapidKey.');
         return;
     }
 
@@ -169,7 +173,9 @@ const initPush = async(swUrl, vapidKey) => {
     try {
         // No explicit scope — defaults to the directory of the script, which is always correct
         // regardless of whether Moodle is installed in a subdirectory.
+        window.console.log('[Jitsi Push] Registering service worker...');
         swReg = await navigator.serviceWorker.register(swUrl);
+        window.console.log('[Jitsi Push] SW registered. State:', swReg.active ? swReg.active.state : 'no active');
 
         // Wait for the SW to become active without blocking on navigator.serviceWorker.ready
         // (which can hang indefinitely if the SW is stuck in "waiting" state).
@@ -188,6 +194,7 @@ const initPush = async(swUrl, vapidKey) => {
             // Safety timeout: don't block the UI forever.
             setTimeout(resolve, 3000);
         });
+        window.console.log('[Jitsi Push] SW ready. Attaching click handler...');
     } catch (e) {
         window.console.error('[Jitsi Push] Service worker registration failed:', e);
         if (status) {
@@ -244,6 +251,7 @@ const initPush = async(swUrl, vapidKey) => {
 
     if (btn) {
         btn.addEventListener('click', async() => {
+            window.console.log('[Jitsi Push] Button clicked.');
             btn.disabled = true;
 
             try {
