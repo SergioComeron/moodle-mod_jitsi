@@ -255,9 +255,11 @@ const initPush = async(swUrl, vapidKey) => {
             btn.disabled = true;
 
             try {
+                window.console.log('[Jitsi Push] getSubscription...');
                 const sub = await swReg.pushManager.getSubscription();
+                window.console.log('[Jitsi Push] getSubscription result:', sub);
+
                 if (sub) {
-                    // Unsubscribe.
                     setStatus('...');
                     await sub.unsubscribe();
                     Ajax.call([{
@@ -265,20 +267,24 @@ const initPush = async(swUrl, vapidKey) => {
                         args: {endpoint: sub.endpoint},
                     }]);
                 } else {
-                    // Request permission — browser shows its own dialog.
+                    window.console.log('[Jitsi Push] Requesting permission...');
                     setStatus('Requesting permission...');
                     const perm = await window.Notification.requestPermission();
+                    window.console.log('[Jitsi Push] Permission result:', perm);
+
                     if (perm !== 'granted') {
                         setStatus(perm === 'denied' ? 'Permission denied by browser.' : 'Permission not granted.');
                         await updateUI();
                         return;
                     }
 
+                    window.console.log('[Jitsi Push] Subscribing...');
                     setStatus('Subscribing...');
                     const newSub = await swReg.pushManager.subscribe({
                         userVisibleOnly: true,
                         applicationServerKey: urlBase64ToUint8Array(vapidKey),
                     });
+                    window.console.log('[Jitsi Push] Subscribed:', newSub.endpoint);
 
                     setStatus('Saving subscription...');
                     const key = newSub.getKey('p256dh');
@@ -291,9 +297,10 @@ const initPush = async(swUrl, vapidKey) => {
                             p256dhkey: btoa(String.fromCharCode(...new Uint8Array(key))),
                         },
                     }])[0];
+                    window.console.log('[Jitsi Push] Subscription saved.');
                 }
             } catch (e) {
-                window.console.error('[Jitsi Push] Subscription error:', e);
+                window.console.error('[Jitsi Push] Error:', e);
                 setStatus('Error: ' + e.message);
             }
 
