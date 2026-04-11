@@ -146,8 +146,7 @@ foreach ($teachercourses as $course) {
     echo html_writer::end_tag('form');
 }
 
-$jsweekdays = json_encode($weekdaynames);
-echo html_writer::tag('script', "
+$PAGE->requires->js_amd_inline("
 require(['core/ajax', 'core/notification'], function(Ajax, Notification) {
     document.querySelectorAll('.jitsi-add-slot-form').forEach(function(form) {
         form.addEventListener('submit', function(e) {
