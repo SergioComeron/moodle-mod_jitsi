@@ -87,7 +87,11 @@ foreach ($slots as $slot) {
 }
 
 foreach ($teachercourses as $course) {
-    echo $OUTPUT->heading($course->fullname, 4);
+    $courselink = html_writer::link(
+        new moodle_url('/course/view.php', ['id' => $course->id]),
+        $course->fullname
+    );
+    echo $OUTPUT->heading($courselink, 4);
 
     if (!empty($slotsbycourse[$course->id])) {
         echo html_writer::start_tag('ul', ['class' => 'list-group mb-3']);
