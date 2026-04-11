@@ -90,10 +90,10 @@ echo $OUTPUT->header();
 
 // Link to tutoring schedule management for teachers.
 if ($isteacher) {
-    echo html_writer::link(
+    echo $OUTPUT->single_button(
         new moodle_url('/mod/jitsi/tutoringschedule.php'),
         get_string('managetutoringschedule', 'jitsi'),
-        ['class' => 'btn btn-outline-secondary btn-sm mb-3']
+        'get'
     );
 }
 
