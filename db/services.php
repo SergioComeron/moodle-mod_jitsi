@@ -243,4 +243,14 @@ $functions = [
                 'ajax' => true,
                 'loginrequired' => true,
         ],
+
+        'mod_jitsi_queue_ai_quiz' => [
+                'classname' => 'mod_jitsi_external',
+                'methodname' => 'queue_ai_quiz',
+                'classpath' => 'mod/jitsi/classes/external.php',
+                'description' => 'Queue an AI true/false quiz generation task for a GCS recording',
+                'type' => 'write',
+                'ajax' => true,
+                'loginrequired' => true,
+        ],
 ];

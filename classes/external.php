@@ -1290,4 +1290,62 @@ class mod_jitsi_external extends external_api {
             'message' => new external_value(PARAM_TEXT, 'Status message'),
         ]);
     }
+
+    /**
+     * Returns description of queue_ai_quiz parameters
+     * @return external_function_parameters
+     */
+    public static function queue_ai_quiz_parameters() {
+        return new external_function_parameters([
+            'sourcerecordid' => new external_value(PARAM_INT, 'ID of the jitsi_source_record'),
+            'cmid' => new external_value(PARAM_INT, 'Course module ID for capability check'),
+        ]);
+    }
+
+    /**
+     * Queue an ad-hoc task to generate a true/false quiz from a GCS recording.
+     *
+     * @param int $sourcerecordid
+     * @param int $cmid
+     * @return array
+     */
+    public static function queue_ai_quiz($sourcerecordid, $cmid) {
+        global $DB;
+
+        $params = self::validate_parameters(self::queue_ai_quiz_parameters(), [
+            'sourcerecordid' => $sourcerecordid,
+            'cmid' => $cmid,
+        ]);
+
+        $context = context_module::instance($params['cmid']);
+        self::validate_context($context);
+        require_capability('mod/jitsi:generateaiquiz', $context);
+
+        $sourcerecord = $DB->get_record('jitsi_source_record', ['id' => $params['sourcerecordid']], '*', MUST_EXIST);
+
+        if (strpos($sourcerecord->link, 'storage.googleapis.com') === false) {
+            return ['success' => false, 'message' => get_string('aiquizerror', 'jitsi')];
+        }
+
+        $task = new \mod_jitsi\task\generate_ai_quiz();
+        $task->set_custom_data([
+            'sourcerecordid' => $params['sourcerecordid'],
+            'cmid' => $params['cmid'],
+            'lang' => current_language(),
+        ]);
+        \core\task\manager::queue_adhoc_task($task, true);
+
+        return ['success' => true, 'message' => get_string('aiquizqueued', 'jitsi')];
+    }
+
+    /**
+     * Returns description of queue_ai_quiz return value
+     * @return external_description
+     */
+    public static function queue_ai_quiz_returns() {
+        return new external_single_structure([
+            'success' => new external_value(PARAM_BOOL, 'Whether the task was queued successfully'),
+            'message' => new external_value(PARAM_TEXT, 'Status message'),
+        ]);
+    }
 }

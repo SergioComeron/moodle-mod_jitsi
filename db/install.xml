@@ -75,6 +75,7 @@
         <FIELD NAME="type" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" UNSIGNED="true" SEQUENCE="false" COMMENT="Source type: 0=YouTube, 1=external link from recordingLinkAvailable"/>
         <FIELD NAME="timeexpires" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Unix timestamp when the recording link expires (0 = never)"/>
         <FIELD NAME="ai_summary" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="AI-generated summary of the recording"/>
+        <FIELD NAME="ai_quiz_id" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Course module ID of the AI-generated quiz (0 = none)"/>
       </FIELDS>
       <KEYS>
         <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
