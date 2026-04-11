@@ -1383,10 +1383,12 @@ class mod_jitsi_external extends external_api {
                   FROM {user} u
                   JOIN {user_enrolments} ue ON ue.userid = u.id
                   JOIN {enrol} e ON e.id = ue.enrolid
+                  JOIN {course} c ON c.id = e.courseid AND c.visible = 1
                  WHERE e.courseid IN (
                            SELECT e2.courseid
                              FROM {enrol} e2
                              JOIN {user_enrolments} ue2 ON ue2.enrolid = e2.id
+                             JOIN {course} c2 ON c2.id = e2.courseid AND c2.visible = 1
                             WHERE ue2.userid = :currentuserid
                        )
                    AND u.id != :currentuserid2
@@ -1551,8 +1553,8 @@ class mod_jitsi_external extends external_api {
         $context = context_system::instance();
         self::validate_context($context);
 
-        // Validate course exists and user is enrolled as teacher.
-        $course = $DB->get_record('course', ['id' => $params['courseid']], 'id', MUST_EXIST);
+        // Validate course exists, is visible, and user is enrolled as teacher.
+        $course = $DB->get_record('course', ['id' => $params['courseid'], 'visible' => 1], 'id', MUST_EXIST);
         $coursecontext = context_course::instance($course->id);
         if (!has_capability('mod/jitsi:addinstance', $coursecontext)) {
             throw new moodle_exception('nopermissions', 'error', '', 'save tutoring slot');
@@ -1673,6 +1675,7 @@ class mod_jitsi_external extends external_api {
                 "SELECT DISTINCT ctx.instanceid
                    FROM {role_assignments} ra
                    JOIN {context} ctx ON ctx.id = ra.contextid AND ctx.contextlevel = :ctxlevel
+                   JOIN {course} c ON c.id = ctx.instanceid AND c.visible = 1
                   WHERE ra.userid = :teacherid AND ra.roleid $trolesql",
                 array_merge(['ctxlevel' => CONTEXT_COURSE, 'teacherid' => $params['teacherid']], $troleparams)
             );
@@ -1683,6 +1686,7 @@ class mod_jitsi_external extends external_api {
                     "SELECT DISTINCT ctx.instanceid
                        FROM {role_assignments} ra
                        JOIN {context} ctx ON ctx.id = ra.contextid AND ctx.contextlevel = :ctxlevel
+                       JOIN {course} c ON c.id = ctx.instanceid AND c.visible = 1
                       WHERE ra.userid = :studentid AND ra.roleid $srolesql AND ctx.instanceid $coursesql",
                     array_merge(['ctxlevel' => CONTEXT_COURSE, 'studentid' => $USER->id], $sroleparams, $courseparams)
                 );

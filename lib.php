@@ -2671,7 +2671,7 @@ function normalizesessionname($session) {
 function jitsi_check_tutoring_availability($teacherid, $studentid) {
     global $DB;
 
-    // Find courses where teacherid is teacher/editingteacher AND studentid is student.
+    // Find visible courses where teacherid is teacher/editingteacher AND studentid is student.
     $teacherroles = array_keys(get_archetype_roles('teacher') + get_archetype_roles('editingteacher'));
     $studentroles = array_keys(get_archetype_roles('student'));
 
@@ -2682,11 +2682,12 @@ function jitsi_check_tutoring_availability($teacherid, $studentid) {
     [$trolesql, $troleparams] = $DB->get_in_or_equal($teacherroles, SQL_PARAMS_NAMED, 'trole');
     [$srolesql, $sroleparams] = $DB->get_in_or_equal($studentroles, SQL_PARAMS_NAMED, 'srole');
 
-    // Courses where teacherid has a teacher role.
+    // Visible courses where teacherid has a teacher role.
     $teachercourses = $DB->get_fieldset_sql(
         "SELECT DISTINCT ctx.instanceid
            FROM {role_assignments} ra
            JOIN {context} ctx ON ctx.id = ra.contextid AND ctx.contextlevel = :ctxlevel
+           JOIN {course} c ON c.id = ctx.instanceid AND c.visible = 1
           WHERE ra.userid = :teacherid AND ra.roleid $trolesql",
         array_merge(['ctxlevel' => CONTEXT_COURSE, 'teacherid' => $teacherid], $troleparams)
     );
@@ -2695,12 +2696,13 @@ function jitsi_check_tutoring_availability($teacherid, $studentid) {
         return ['hasschedule' => false, 'available' => true, 'nextslot' => null];
     }
 
-    // From those, courses where studentid has a student role.
+    // From those, visible courses where studentid has a student role.
     [$coursesql, $courseparams] = $DB->get_in_or_equal($teachercourses, SQL_PARAMS_NAMED, 'course');
     $sharedcourses = $DB->get_fieldset_sql(
         "SELECT DISTINCT ctx.instanceid
            FROM {role_assignments} ra
            JOIN {context} ctx ON ctx.id = ra.contextid AND ctx.contextlevel = :ctxlevel
+           JOIN {course} c ON c.id = ctx.instanceid AND c.visible = 1
           WHERE ra.userid = :studentid AND ra.roleid $srolesql AND ctx.instanceid $coursesql",
         array_merge(['ctxlevel' => CONTEXT_COURSE, 'studentid' => $studentid], $sroleparams, $courseparams)
     );
