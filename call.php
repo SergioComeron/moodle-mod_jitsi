@@ -195,10 +195,9 @@ if ($isteacher) {
                     'class'         => 'btn btn-sm btn-danger jitsi-delete-slot',
                     'data-slotid'   => $slot->id,
                 ]);
-                echo html_writer::tag('li',
-                    html_writer::tag('span', $label, ['class' => 'flex-grow-1']) . $deletebtn,
-                    ['class' => 'list-group-item d-flex align-items-center justify-content-between']
-                );
+                $liattrs = ['class' => 'list-group-item d-flex align-items-center justify-content-between'];
+                $licontent = html_writer::tag('span', $label, ['class' => 'flex-grow-1']) . $deletebtn;
+                echo html_writer::tag('li', $licontent, $liattrs);
             }
             echo html_writer::end_tag('ul');
         }
