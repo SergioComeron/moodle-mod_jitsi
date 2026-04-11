@@ -299,6 +299,15 @@ if ($ADMIN->fulltree) {
         )
     );
 
+    $settings->add(
+        new admin_setting_configcheckbox(
+            'mod_jitsi/privatesessions',
+            get_string('privatesessions', 'jitsi'),
+            get_string('privatesessionsex', 'jitsi'),
+            0
+        )
+    );
+
     $is8x8server = false;
     $currentserverid = get_config('mod_jitsi', 'server');
     if (!empty($currentserverid) && $DB->get_manager()->table_exists('jitsi_servers')) {
@@ -572,15 +581,6 @@ if ($ADMIN->fulltree) {
             'jitsiexperimental',
             get_string('experimental', 'jitsi'),
             get_string('experimentalex', 'jitsi')
-        )
-    );
-
-    $settings->add(
-        new admin_setting_configcheckbox(
-            'mod_jitsi/privatesessions',
-            get_string('privatesessions', 'jitsi'),
-            get_string('privatesessionsex', 'jitsi'),
-            0
         )
     );
 
