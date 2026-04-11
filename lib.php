@@ -1101,7 +1101,7 @@ function createsession(
             $redirecturl = $CFG->wwwroot . "/mod/jitsi/formuniversal.php?t=" . $jitsi->token;
             echo "  setTimeout(function() { location.href=\"" . $redirecturl . "\"; }, 2000);\n";
         } else if ($user != null) {
-            $redirecturl = $CFG->wwwroot . "/user/profile.php?id=" . $user;
+            $redirecturl = $CFG->wwwroot . "/mod/jitsi/call.php";
             echo "  setTimeout(function() { location.href=\"" . $redirecturl . "\"; }, 2000);\n";
         }
         echo "});\n";
@@ -1704,7 +1704,7 @@ function createsessionpriv(
         } else if ($universal == true && $user == null) {
             echo "    location.href=\"" . $CFG->wwwroot . "/mod/jitsi/formuniversal.php?t=" . $jitsi->token . "\";";
         } else if ($user != null) {
-            echo "    location.href=\"" . $CFG->wwwroot . "/user/profile.php?id=" . $user . "\";";
+            echo "    location.href=\"" . $CFG->wwwroot . "/mod/jitsi/call.php\";";
         }
         echo  "});\n";
     }
