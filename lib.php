@@ -2731,9 +2731,10 @@ function jitsi_check_tutoring_availability($teacherid, $studentid) {
 
     // Check if we are currently within any slot.
     foreach ($slots as $slot) {
-        if ((int)$slot->weekday === $currentweekday
-                && $currentsecsofday >= (int)$slot->timestart
-                && $currentsecsofday < (int)$slot->timeend) {
+        $slotday = (int)$slot->weekday;
+        $slotstart = (int)$slot->timestart;
+        $slotend = (int)$slot->timeend;
+        if ($slotday === $currentweekday && $currentsecsofday >= $slotstart && $currentsecsofday < $slotend) {
             return ['hasschedule' => true, 'available' => true, 'nextslot' => null];
         }
     }
