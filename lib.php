@@ -1590,7 +1590,7 @@ function createsessionpriv(
             'sub' => $eightbyeightappid,
             'context' => [
                 'user' => [
-                    'moderator' => has_capability('mod/jitsi:moderation', $PAGE->context),
+                    'moderator' => $teacher || has_capability('mod/jitsi:moderation', $PAGE->context),
                     'email' => $mail,
                     'name' => $nombre,
                     'avatar' => $avatar,
@@ -1615,7 +1615,7 @@ function createsessionpriv(
             "alg" => "HS256",
         ], JSON_UNESCAPED_SLASHES);
         $base64urlheader = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($header));
-        $ismoderator = has_capability('mod/jitsi:moderation', $PAGE->context);
+        $ismoderator = $teacher || has_capability('mod/jitsi:moderation', $PAGE->context);
         $payload = json_encode([
             "context" => [
                 "user" => [
