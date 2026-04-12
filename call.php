@@ -218,7 +218,7 @@ echo html_writer::tag('a', get_string('joincall', 'jitsi'), [
 ]);
 echo html_writer::tag('button', get_string('dismisscall', 'jitsi'), [
     'class'             => 'btn btn-secondary btn-lg',
-    'data-dismiss'      => 'modal',
+    'data-bs-dismiss'   => 'modal',
 ]);
 echo html_writer::end_div();
 echo html_writer::end_div();
