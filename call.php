@@ -55,34 +55,92 @@ $PAGE->requires->js_call_amd('mod_jitsi/call', 'init', [
     $vapidpublickey ?: '',
 ]);
 
-// Build call history: most recent entry per peer, ordered by time descending.
+// Build call history: last 10 outgoing calls in chronological order (duplicates allowed).
 $eventname = '\mod_jitsi\event\jitsi_private_session_enter';
-$logs = $DB->get_records_select(
+$outlogs = $DB->get_records_select(
     'logstore_standard_log',
     'userid = :userid AND eventname = :eventname',
     ['userid' => $USER->id, 'eventname' => $eventname],
     'timecreated DESC',
     'id, other, timecreated',
     0,
-    200
+    50
 );
 
-$history = [];
-foreach ($logs as $log) {
+$calllist = []; // ['peerid' => int, 'time' => int]
+foreach ($outlogs as $log) {
     $other = json_decode($log->other, true);
     $peerid = isset($other['peerid']) ? (int)$other['peerid'] : null;
-    if ($peerid && !isset($history[$peerid])) {
-        $history[$peerid] = $log->timecreated;
+    if ($peerid) {
+        $calllist[] = ['peerid' => $peerid, 'time' => (int)$log->timecreated];
+    }
+    if (count($calllist) >= 10) {
+        break;
     }
 }
 
-$peers = [];
-if (!empty($history)) {
-    [$insql, $inparams] = $DB->get_in_or_equal(array_keys($history));
-    $peers = $DB->get_records_select('user', "id $insql AND deleted = 0", $inparams);
-    uasort($peers, function ($a, $b) use ($history) {
-        return $history[$b->id] <=> $history[$a->id];
-    });
+// Fetch user records for call list.
+$callpeers = [];
+if (!empty($calllist)) {
+    $peerids = array_unique(array_column($calllist, 'peerid'));
+    [$insql, $inparams] = $DB->get_in_or_equal($peerids);
+    $callpeers = $DB->get_records_select('user', "id $insql AND deleted = 0", $inparams);
+}
+
+// Build missed calls: incoming events in the last 7 days where we did not answer.
+$since7days = time() - 7 * 24 * 3600;
+$inlogs = $DB->get_records_select(
+    'logstore_standard_log',
+    'userid != :userid AND eventname = :eventname AND timecreated >= :since',
+    ['userid' => $USER->id, 'eventname' => $eventname, 'since' => $since7days],
+    'timecreated DESC',
+    'id, userid, other, timecreated',
+    0,
+    200
+);
+
+// Build a set of our outgoing call times per peer for cross-reference.
+$ourtimes = []; // peerid => [timecreated, ...]
+foreach ($outlogs as $log) {
+    $other = json_decode($log->other, true);
+    $pid = isset($other['peerid']) ? (int)$other['peerid'] : null;
+    if ($pid) {
+        $ourtimes[$pid][] = (int)$log->timecreated;
+    }
+}
+
+$missedlist = []; // ['callerid' => int, 'time' => int]
+foreach ($inlogs as $log) {
+    $other = json_decode($log->other, true);
+    if (!isset($other['peerid']) || (int)$other['peerid'] !== (int)$USER->id) {
+        continue;
+    }
+    $callerid = (int)$log->userid;
+    $calltime = (int)$log->timecreated;
+    // Missed if we have no outgoing event to this caller within 5 minutes after.
+    $answered = false;
+    if (isset($ourtimes[$callerid])) {
+        foreach ($ourtimes[$callerid] as $t) {
+            if ($t >= $calltime && $t <= $calltime + 300) {
+                $answered = true;
+                break;
+            }
+        }
+    }
+    if (!$answered) {
+        $missedlist[] = ['callerid' => $callerid, 'time' => $calltime];
+        if (count($missedlist) >= 10) {
+            break;
+        }
+    }
+}
+
+// Fetch user records for missed calls.
+$missedpeers = [];
+if (!empty($missedlist)) {
+    $missedids = array_unique(array_column($missedlist, 'callerid'));
+    [$insql2, $inparams2] = $DB->get_in_or_equal($missedids);
+    $missedpeers = $DB->get_records_select('user', "id $insql2 AND deleted = 0", $inparams2);
 }
 
 // Detect if the current user is a teacher in any visible course.
@@ -128,17 +186,59 @@ echo html_writer::start_div('list-group', ['id' => 'jitsi-call-results']);
 echo html_writer::end_div();
 echo html_writer::end_div();
 
-// Right column: call history.
+// Right column: call history + missed calls.
 echo html_writer::start_div('col-12 col-md-7 mt-4 mt-md-0');
-if (!empty($peers)) {
+
+// Missed calls section.
+if (!empty($missedlist)) {
+    echo $OUTPUT->heading(get_string('missedcalls', 'jitsi'), 4);
+    echo html_writer::start_div('list-group mb-3');
+    foreach ($missedlist as $entry) {
+        $caller = isset($missedpeers[$entry['callerid']]) ? $missedpeers[$entry['callerid']] : null;
+        if (!$caller) {
+            continue;
+        }
+        $userpicture = new user_picture($caller);
+        $userpicture->size = 1;
+        $avatarurl = $userpicture->get_url($PAGE)->out(false);
+        $sessionurl = new moodle_url('/mod/jitsi/sessionpriv.php', ['peer' => $caller->id]);
+        $timeago = userdate($entry['time'], get_string('strftimedatetimeshort', 'langconfig'));
+
+        $avatar = html_writer::img($avatarurl, '', [
+            'width'  => 32,
+            'height' => 32,
+            'class'  => 'rounded-circle mr-2',
+        ]);
+        $missedicon = html_writer::tag('span', '&#8601;', [
+            'class' => 'text-danger mr-1',
+            'title' => get_string('missedcall', 'jitsi'),
+        ]);
+        $name = html_writer::tag('span', fullname($caller), ['class' => 'flex-grow-1']);
+        $time = html_writer::tag('small', $timeago, ['class' => 'text-muted ml-2']);
+
+        echo html_writer::link(
+            $sessionurl,
+            $avatar . $missedicon . $name . $time,
+            ['class' => 'list-group-item list-group-item-action d-flex align-items-center list-group-item-danger']
+        );
+    }
+    echo html_writer::end_div();
+}
+
+// Recent calls section.
+if (!empty($calllist)) {
     echo $OUTPUT->heading(get_string('callhistory', 'jitsi'), 4);
     echo html_writer::start_div('list-group');
-    foreach ($peers as $peer) {
+    foreach ($calllist as $entry) {
+        $peer = isset($callpeers[$entry['peerid']]) ? $callpeers[$entry['peerid']] : null;
+        if (!$peer) {
+            continue;
+        }
         $userpicture = new user_picture($peer);
         $userpicture->size = 1;
         $avatarurl = $userpicture->get_url($PAGE)->out(false);
         $sessionurl = new moodle_url('/mod/jitsi/sessionpriv.php', ['peer' => $peer->id]);
-        $timeago = userdate($history[$peer->id], get_string('strftimedatetimeshort', 'langconfig'));
+        $timeago = userdate($entry['time'], get_string('strftimedatetimeshort', 'langconfig'));
 
         // Show availability badge for teachers with a schedule.
         $availability = jitsi_check_tutoring_availability($peer->id, $USER->id);
@@ -163,20 +263,22 @@ if (!empty($peers)) {
             'height' => 32,
             'class'  => 'rounded-circle mr-2',
         ]);
+        $outicon = html_writer::tag('span', '&#8599;', [
+            'class' => 'text-success mr-1',
+            'title' => get_string('outgoingcall', 'jitsi'),
+        ]);
         $name = html_writer::tag('span', fullname($peer), ['class' => 'flex-grow-1']);
         $time = html_writer::tag('small', $timeago, ['class' => 'text-muted ml-2']);
 
         echo html_writer::link(
             $sessionurl,
-            $avatar . $name . $time . $badge,
+            $avatar . $outicon . $name . $time . $badge,
             ['class' => 'list-group-item list-group-item-action d-flex align-items-center']
         );
     }
     echo html_writer::end_div();
-} else {
-    echo html_writer::start_div('col-12 col-md-7 mt-4 mt-md-0');
-    echo html_writer::end_div();
 }
+
 echo html_writer::end_div();
 
 echo html_writer::end_div(); // .row

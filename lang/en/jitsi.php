@@ -484,3 +484,6 @@ $string['aiquizqueued'] = 'AI quiz generation queued. Refresh the page in a few 
 $string['aiquizview'] = 'View quiz';
 $string['aiquizquestions'] = 'Number of questions for AI quiz';
 $string['aiquizquestionsex'] = 'Number of true/false questions to generate per recording (3-20).';
+$string['missedcalls'] = 'Missed calls';
+$string['missedcall'] = 'Missed call';
+$string['outgoingcall'] = 'Outgoing call';
