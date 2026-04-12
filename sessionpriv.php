@@ -93,7 +93,9 @@ if (get_config('mod_jitsi', 'privatesessions') == 1) {
         );
     }
 
-    createsessionpriv($teacher, 0, $avatar, $nom, $session, null, 0, false, $peerid);
+    $jitsiobj = new stdClass();
+    $jitsiobj->name = fullname($USER) . ' - ' . fullname($peer);
+    createsessionpriv($teacher, 0, $avatar, $nom, $session, null, $jitsiobj, false, $peerid);
 } else {
     echo get_string('privatesessiondisabled', 'jitsi');
 }
