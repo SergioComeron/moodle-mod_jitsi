@@ -1,4 +1,11 @@
 # Changelog
+## v4.5.1
+# Fixed
+
+ * only open PR when google/apiclient version actually changes
+
+---
+
 ## v4.5.0
 # Added
 
