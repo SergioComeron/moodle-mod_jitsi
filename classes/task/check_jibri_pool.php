@@ -109,7 +109,7 @@ class check_jibri_pool extends \core\task\scheduled_task {
             if ($entry->status === 'provisioning') {
                 // For image-based VMs the startup script calls jibriready quickly.
                 // Allow up to 10 min; after that, if GCP shows RUNNING, mark idle as fallback.
-                $provisioningfor = time() - (int)$entry->timemodified;
+                $provisioningfor = time() - (int)$entry->timecreated;
                 if ($provisioningfor < 600) {
                     continue;
                 }
