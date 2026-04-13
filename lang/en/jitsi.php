@@ -95,6 +95,7 @@ $string['copytoken'] = 'Copy token';
 $string['course'] = 'Course';
 $string['creategcpserver'] = 'Create server in Google Cloud';
 $string['creatingvm'] = 'Creating VM… ({$a})';
+$string['checkjibripool'] = 'Check Jibri pool health and auto-provision';
 $string['crontaskdelete'] = 'Delete recordings';
 $string['deeplink'] = 'Deep Link';
 $string['deeplinkex'] = 'When on moodle app allows to transfer Jitsi sessions to Jitsi app.';

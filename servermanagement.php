@@ -148,14 +148,16 @@ if ($rawaction === 'jibriready') {
 
     global $DB;
 
-    $serverid = filter_input(INPUT_GET, 'serverid', FILTER_VALIDATE_INT) ?:
-                filter_input(INPUT_POST, 'serverid', FILTER_VALIDATE_INT) ?: 0;
-    $token    = filter_input(INPUT_GET, 'token', FILTER_UNSAFE_RAW) ?:
-                filter_input(INPUT_POST, 'token', FILTER_UNSAFE_RAW) ?? '';
-    $phase    = filter_input(INPUT_GET, 'phase', FILTER_UNSAFE_RAW) ?:
-                filter_input(INPUT_POST, 'phase', FILTER_UNSAFE_RAW) ?? 'completed';
-    $error    = filter_input(INPUT_GET, 'error', FILTER_UNSAFE_RAW) ?:
-                filter_input(INPUT_POST, 'error', FILTER_UNSAFE_RAW) ?? '';
+    $serverid    = filter_input(INPUT_GET, 'serverid', FILTER_VALIDATE_INT) ?:
+                   filter_input(INPUT_POST, 'serverid', FILTER_VALIDATE_INT) ?: 0;
+    $poolentryid = filter_input(INPUT_GET, 'poolentryid', FILTER_VALIDATE_INT) ?:
+                   filter_input(INPUT_POST, 'poolentryid', FILTER_VALIDATE_INT) ?: 0;
+    $token       = filter_input(INPUT_GET, 'token', FILTER_UNSAFE_RAW) ?:
+                   filter_input(INPUT_POST, 'token', FILTER_UNSAFE_RAW) ?? '';
+    $phase       = filter_input(INPUT_GET, 'phase', FILTER_UNSAFE_RAW) ?:
+                   filter_input(INPUT_POST, 'phase', FILTER_UNSAFE_RAW) ?? 'completed';
+    $error       = filter_input(INPUT_GET, 'error', FILTER_UNSAFE_RAW) ?:
+                   filter_input(INPUT_POST, 'error', FILTER_UNSAFE_RAW) ?? '';
 
     try {
         $server = $DB->get_record('jitsi_servers', ['id' => (int)$serverid]);
@@ -173,29 +175,59 @@ if ($rawaction === 'jibriready') {
             exit;
         }
 
-        $server->timemodified = time();
+        // Update pool entry if provided.
+        $poolentry = $poolentryid ? $DB->get_record('jitsi_jibri_pool', ['id' => (int)$poolentryid]) : null;
+
+        $now = time();
 
         if ($phase === 'completed') {
-            $server->jibri_provisioningstatus = 'ready';
-            $server->jibri_provisioningerror  = '';
-            $DB->update_record('jitsi_servers', $server);
+            // Update pool entry status.
+            if ($poolentry) {
+                $poolentry->status            = 'idle';
+                $poolentry->provisioningerror = '';
+                $poolentry->timemodified      = $now;
+                $DB->update_record('jitsi_jibri_pool', $poolentry);
+            }
+            // Keep legacy field updated for the first VM in the pool.
+            $firstentry = $DB->get_record_sql(
+                'SELECT * FROM {jitsi_jibri_pool} WHERE serverid = ? ORDER BY id ASC LIMIT 1',
+                [$server->id]
+            );
+            if ($firstentry) {
+                $DB->set_field('jitsi_servers', 'jibri_gcpinstancename', $firstentry->gcpinstancename, ['id' => $server->id]);
+            }
+            $DB->set_field('jitsi_servers', 'jibri_provisioningstatus', 'ready', ['id' => $server->id]);
+            $DB->set_field('jitsi_servers', 'jibri_provisioningerror', '', ['id' => $server->id]);
+            $DB->set_field('jitsi_servers', 'timemodified', $now, ['id' => $server->id]);
 
             debugging("✅ Jibri VM ready for server ID {$server->id}", DEBUG_NORMAL);
 
             http_response_code(200);
             echo json_encode(['status' => 'ok', 'phase' => 'ready']);
         } else if ($phase === 'error' || !empty($error)) {
-            $server->jibri_provisioningstatus = 'error';
-            $server->jibri_provisioningerror  = $error ?: 'Unknown Jibri provisioning error';
-            $DB->update_record('jitsi_servers', $server);
+            if ($poolentry) {
+                $poolentry->status            = 'error';
+                $poolentry->provisioningerror = $error ?: 'Unknown Jibri provisioning error';
+                $poolentry->timemodified      = $now;
+                $DB->update_record('jitsi_jibri_pool', $poolentry);
+            }
+            $DB->set_field('jitsi_servers', 'jibri_provisioningstatus', 'error', ['id' => $server->id]);
+            $DB->set_field('jitsi_servers', 'jibri_provisioningerror',
+                $error ?: 'Unknown Jibri provisioning error', ['id' => $server->id]);
+            $DB->set_field('jitsi_servers', 'timemodified', $now, ['id' => $server->id]);
 
             debugging("❌ Jibri VM error for server ID {$server->id}: {$error}", DEBUG_NORMAL);
 
             http_response_code(200);
             echo json_encode(['status' => 'ok', 'phase' => 'error']);
         } else {
-            $server->jibri_provisioningstatus = $phase;
-            $DB->update_record('jitsi_servers', $server);
+            if ($poolentry) {
+                $poolentry->status       = $phase;
+                $poolentry->timemodified = $now;
+                $DB->update_record('jitsi_jibri_pool', $poolentry);
+            }
+            $DB->set_field('jitsi_servers', 'jibri_provisioningstatus', $phase, ['id' => $server->id]);
+            $DB->set_field('jitsi_servers', 'timemodified', $now, ['id' => $server->id]);
 
             http_response_code(200);
             echo json_encode(['status' => 'ok', 'phase' => $phase]);

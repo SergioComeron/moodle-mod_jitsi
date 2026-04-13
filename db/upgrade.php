@@ -1186,5 +1186,58 @@ function xmldb_jitsi_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026041302, 'jitsi');
     }
 
+    if ($oldversion < 2026041303) {
+        // Add jibri_image and jibri_pool_size fields to jitsi_servers.
+        $table = new xmldb_table('jitsi_servers');
+
+        $field = new xmldb_field('jibri_image', XMLDB_TYPE_CHAR, '255', null, false, null, '', 'jibri_recorder_pass');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        $field = new xmldb_field('jibri_pool_size', XMLDB_TYPE_INTEGER, '3', null, XMLDB_NOTNULL, null, '1', 'jibri_image');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        upgrade_mod_savepoint(true, 2026041303, 'jitsi');
+    }
+
+    if ($oldversion < 2026041304) {
+        // Create jitsi_jibri_pool table.
+        $table = new xmldb_table('jitsi_jibri_pool');
+        $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+        $table->add_field('serverid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('gcpinstancename', XMLDB_TYPE_CHAR, '255', null, false, null, '');
+        $table->add_field('status', XMLDB_TYPE_CHAR, '50', null, false, null, '');
+        $table->add_field('provisioningerror', XMLDB_TYPE_TEXT, null, null, false, null, null);
+        $table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+        $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+        $table->add_index('serverid', XMLDB_INDEX_NOTUNIQUE, ['serverid']);
+
+        if (!$dbman->table_exists($table)) {
+            $dbman->create_table($table);
+        }
+
+        // Migrate existing jibri_gcpinstancename to pool table.
+        $servers = $DB->get_records_select('jitsi_servers',
+            "jibri_enabled = 1 AND jibri_gcpinstancename IS NOT NULL AND jibri_gcpinstancename != ''");
+        foreach ($servers as $server) {
+            $status = ($server->jibri_provisioningstatus === 'ready') ? 'idle' : $server->jibri_provisioningstatus;
+            $poolentry = (object)[
+                'serverid'         => $server->id,
+                'gcpinstancename'  => $server->jibri_gcpinstancename,
+                'status'           => $status,
+                'provisioningerror' => $server->jibri_provisioningerror ?? '',
+                'timecreated'      => time(),
+                'timemodified'     => time(),
+            ];
+            $DB->insert_record('jitsi_jibri_pool', $poolentry);
+        }
+
+        upgrade_mod_savepoint(true, 2026041304, 'jitsi');
+    }
+
     return true;
 }

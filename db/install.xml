@@ -111,12 +111,31 @@
         <FIELD NAME="gcs_enabled" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Whether GCS upload is enabled for Jibri recordings"/>
         <FIELD NAME="gcs_bucket" TYPE="char" LENGTH="255" NOTNULL="false" DEFAULT="" SEQUENCE="false" COMMENT="GCS bucket name for Jibri recordings"/>
         <FIELD NAME="machine_type" TYPE="char" LENGTH="50" NOTNULL="true" DEFAULT="e2-standard-4" SEQUENCE="false" COMMENT="GCP machine type for the Jitsi VM"/>
+        <FIELD NAME="jibri_image" TYPE="char" LENGTH="255" NOTNULL="false" DEFAULT="" SEQUENCE="false" COMMENT="GCP image name for fast Jibri VM provisioning (auto-created from first Jibri VM)"/>
+        <FIELD NAME="jibri_pool_size" TYPE="int" LENGTH="3" NOTNULL="true" DEFAULT="1" SEQUENCE="false" COMMENT="Desired number of idle Jibri VMs to keep in the pool"/>
         <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
         <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
       </FIELDS>
       <KEYS>
         <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
       </KEYS>
+    </TABLE>
+    <TABLE NAME="jitsi_jibri_pool" COMMENT="Pool of Jibri recording VMs per Jitsi server">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="serverid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Jitsi server ID"/>
+        <FIELD NAME="gcpinstancename" TYPE="char" LENGTH="255" NOTNULL="false" DEFAULT="" SEQUENCE="false" COMMENT="GCP instance name of this Jibri VM"/>
+        <FIELD NAME="status" TYPE="char" LENGTH="50" NOTNULL="false" DEFAULT="" SEQUENCE="false" COMMENT="Status: provisioning, idle, recording, streaming, error"/>
+        <FIELD NAME="provisioningerror" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Error message if provisioning or health check failed"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="serverid" UNIQUE="false" FIELDS="serverid"/>
+      </INDEXES>
     </TABLE>
     <TABLE NAME="jitsi_push_subscriptions" COMMENT="Web Push subscriptions for private session notifications">
       <FIELDS>

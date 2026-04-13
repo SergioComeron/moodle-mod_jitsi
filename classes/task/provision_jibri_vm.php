@@ -26,10 +26,11 @@ namespace mod_jitsi\task;
 defined('MOODLE_INTERNAL') || die();
 
 /**
- * Ad-hoc task: provision a dedicated Jibri recording VM in Google Cloud.
+ * Ad-hoc task: provision a Jibri recording VM in Google Cloud and add it to the pool.
  *
  * Custom data expected:
  *   - serverid (int): ID of the jitsi_servers record
+ *   - poolentryid (int, optional): ID of the jitsi_jibri_pool row to update (if pre-created)
  *
  * @package mod_jitsi
  */
@@ -42,7 +43,7 @@ class provision_jibri_vm extends \core\task\adhoc_task {
     }
 
     /**
-     * Execute the task: create the Jibri VM in GCP and update the server record.
+     * Execute the task: create the Jibri VM in GCP and register it in the pool.
      */
     public function execute(): void {
         global $CFG, $DB;
@@ -61,11 +62,6 @@ class provision_jibri_vm extends \core\task\adhoc_task {
 
         if (empty($server->jibri_enabled)) {
             mtrace("provision_jibri_vm: server {$server->id} does not have Jibri enabled");
-            return;
-        }
-
-        if (!empty($server->jibri_gcpinstancename)) {
-            mtrace("provision_jibri_vm: Jibri VM already exists for server {$server->id}: {$server->jibri_gcpinstancename}");
             return;
         }
 
@@ -91,17 +87,45 @@ class provision_jibri_vm extends \core\task\adhoc_task {
 
         $project = $server->gcpproject;
         $zone    = $server->gcpzone;
-        $image   = trim((string)get_config('mod_jitsi', 'gcp_image')) ?: 'projects/debian-cloud/global/images/family/debian-12';
         $network = trim((string)get_config('mod_jitsi', 'gcp_network')) ?: 'global/networks/default';
         $mach    = !empty($data->jibrimachinetype) ? $data->jibrimachinetype : 'n2-standard-4';
 
-        $jibriinstancename = 'jibri-' . date('ymdHi');
+        // Use custom Jibri image if available (fast boot ~1-2 min), otherwise full Debian image.
+        $useimage = !empty($server->jibri_image) ? $server->jibri_image : null;
+        $baseimage = trim((string)get_config('mod_jitsi', 'gcp_image'))
+            ?: 'projects/debian-cloud/global/images/family/debian-12';
 
-        // Jibri callback URL for provisioning status.
+        $jibriinstancename = 'jibri-' . date('ymdHi') . '-' . substr(uniqid(), -4);
+
+        // Create or reuse pool entry.
+        $now = time();
+        if (!empty($data->poolentryid)) {
+            $poolentry = $DB->get_record('jitsi_jibri_pool', ['id' => (int)$data->poolentryid]);
+        } else {
+            $poolentry = null;
+        }
+        if (!$poolentry) {
+            $poolentry = (object)[
+                'serverid'          => $server->id,
+                'gcpinstancename'   => '',
+                'status'            => 'provisioning',
+                'provisioningerror' => '',
+                'timecreated'       => $now,
+                'timemodified'      => $now,
+            ];
+            $poolentry->id = $DB->insert_record('jitsi_jibri_pool', $poolentry);
+        } else {
+            $poolentry->status       = 'provisioning';
+            $poolentry->timemodified = $now;
+            $DB->update_record('jitsi_jibri_pool', $poolentry);
+        }
+
+        // Jibri callback URL: pass pool entry ID so jibriready updates the right row.
         $callbackurl = (new \moodle_url('/mod/jitsi/servermanagement.php', [
-            'action'   => 'jibriready',
-            'serverid' => $server->id,
-            'token'    => $server->provisioningtoken,
+            'action'      => 'jibriready',
+            'serverid'    => $server->id,
+            'poolentryid' => $poolentry->id,
+            'token'       => $server->provisioningtoken,
         ]))->out(false);
 
         // Moodle recording import URL (called by finalize script when recording is done).
@@ -109,14 +133,12 @@ class provision_jibri_vm extends \core\task\adhoc_task {
             'action' => 'jibrirecording',
         ]))->out(false);
 
-        // Jitsi server hostname passed to Jibri so it can connect via XMPP.
         $jitsihostname = $server->domain;
 
         try {
             $compute = mod_jitsi_gcp_client();
 
-            // Get the Jitsi VM's internal IP so Jibri can connect without going through
-            // the public DNS, which GCP does not NAT-loopback between VMs in the same VPC.
+            // Get the Jitsi VM's internal IP for XMPP connectivity.
             $jitsiinternalip = '';
             if (!empty($server->gcpinstancename)) {
                 try {
@@ -130,42 +152,65 @@ class provision_jibri_vm extends \core\task\adhoc_task {
                 }
             }
 
+            // If we have a custom Jibri image, boot from it (no startup script needed).
+            // The image already has everything installed; only pass metadata for configuration.
+            if ($useimage) {
+                $imagepath = strpos($useimage, '/') === false
+                    ? "projects/{$project}/global/images/{$useimage}"
+                    : $useimage;
+                $startupscript = '#!/bin/bash' . "\n" .
+                    '# Boot from pre-built Jibri image — no installation needed.' . "\n" .
+                    'exit 0';
+            } else {
+                $imagepath     = $baseimage;
+                $startupscript = mod_jitsi_jibri_startup_script();
+            }
+
             $opname = mod_jitsi_gcp_create_instance($compute, $project, $zone, [
                 'name'          => $jibriinstancename,
                 'machineType'   => $mach,
-                'image'         => $image,
+                'image'         => $imagepath,
                 'network'       => $network,
-                'startupScript' => mod_jitsi_jibri_startup_script(),
+                'startupScript' => $startupscript,
                 'callbackUrl'   => $callbackurl,
-                // Extra metadata items read by the Jibri startup script.
                 'extraMetadata' => array_merge([
-                    ['key' => 'JITSI_HOSTNAME', 'value' => $jitsihostname],
+                    ['key' => 'JITSI_HOSTNAME',    'value' => $jitsihostname],
                     ['key' => 'JITSI_INTERNAL_IP', 'value' => $jitsiinternalip],
-                    ['key' => 'JIBRI_XMPP_PASS', 'value' => $server->jibri_xmpp_pass],
+                    ['key' => 'JIBRI_XMPP_PASS',   'value' => $server->jibri_xmpp_pass],
                     ['key' => 'JIBRI_RECORDER_PASS', 'value' => $server->jibri_recorder_pass],
-                    ['key' => 'JIBRI_SERVER_ID', 'value' => (string)$server->id],
-                    ['key' => 'JIBRI_TOKEN', 'value' => $server->provisioningtoken],
-                    ['key' => 'JIBRI_MOODLE_URL', 'value' => $recordingingesturl],
+                    ['key' => 'JIBRI_SERVER_ID',    'value' => (string)$server->id],
+                    ['key' => 'JIBRI_TOKEN',        'value' => $server->provisioningtoken],
+                    ['key' => 'JIBRI_MOODLE_URL',   'value' => $recordingingesturl],
+                    ['key' => 'JIBRI_POOL_ENTRY_ID', 'value' => (string)$poolentry->id],
                 ], !empty($server->gcs_enabled) && !empty($server->gcs_bucket) ? [
                     ['key' => 'GCS_BUCKET', 'value' => $server->gcs_bucket],
                 ] : []),
-                'tags'                 => ['mod-jitsi-web', 'mod-jibri'],
-                // Attach default compute SA with cloud-platform scope so gsutil works via ADC.
-                'serviceAccount'       => 'default',
+                'tags'           => ['mod-jitsi-web', 'mod-jibri'],
+                'serviceAccount' => 'default',
             ]);
 
-            $server->jibri_gcpinstancename    = $jibriinstancename;
-            $server->jibri_provisioningstatus = 'provisioning';
-            $server->jibri_provisioningerror  = '';
-            $server->timemodified             = time();
-            $DB->update_record('jitsi_servers', $server);
+            // Update pool entry with the instance name.
+            $poolentry->gcpinstancename  = $jibriinstancename;
+            $poolentry->status           = 'provisioning';
+            $poolentry->provisioningerror = '';
+            $poolentry->timemodified     = time();
+            $DB->update_record('jitsi_jibri_pool', $poolentry);
 
-            mtrace("provision_jibri_vm: Jibri VM {$jibriinstancename} creation started (op: {$opname})");
+            // Keep jibri_gcpinstancename on the server pointing to the first pool entry
+            // for backwards compatibility with existing start/stop/delete code.
+            if (empty($server->jibri_gcpinstancename)) {
+                $DB->set_field('jitsi_servers', 'jibri_gcpinstancename', $jibriinstancename, ['id' => $server->id]);
+                $DB->set_field('jitsi_servers', 'jibri_provisioningstatus', 'provisioning', ['id' => $server->id]);
+            }
+
+            mtrace("provision_jibri_vm: Jibri VM {$jibriinstancename} creation started"
+                . ($useimage ? " (from image {$useimage})" : " (full install)")
+                . " (op: {$opname})");
         } catch (\Throwable $e) {
-            $server->jibri_provisioningstatus = 'error';
-            $server->jibri_provisioningerror  = $e->getMessage();
-            $server->timemodified             = time();
-            $DB->update_record('jitsi_servers', $server);
+            $poolentry->status            = 'error';
+            $poolentry->provisioningerror = $e->getMessage();
+            $poolentry->timemodified      = time();
+            $DB->update_record('jitsi_jibri_pool', $poolentry);
             mtrace("provision_jibri_vm: ERROR creating Jibri VM: " . $e->getMessage());
         }
     }
