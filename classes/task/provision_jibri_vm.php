@@ -159,11 +159,18 @@ class provision_jibri_vm extends \core\task\adhoc_task {
                     ? "projects/{$project}/global/images/{$useimage}"
                     : $useimage;
                 $startupscript = '#!/bin/bash' . "\n" .
-                    '# Boot from pre-built Jibri image — notify Moodle when ready.' . "\n" .
-                    'META="http://metadata.google.internal/computeMetadata/v1"' . "\n" .
-                    'CALLBACK_URL=$(curl -sf -H "Metadata-Flavor: Google" "$META/instance/attributes/CALLBACK_URL" || true)' . "\n" .
+                    '# Boot from pre-built Jibri image — update per-VM config from metadata.' . "\n" .
+                    'META="http://metadata.google.internal/computeMetadata/v1/instance/attributes"' . "\n" .
+                    'CALLBACK_URL=$(curl -sf -H "Metadata-Flavor: Google" "$META/CALLBACK_URL" || true)' . "\n" .
+                    'POOL_ENTRY_ID=$(curl -sf -H "Metadata-Flavor: Google" "$META/JIBRI_POOL_ENTRY_ID" || true)' . "\n" .
+                    '# Update monitor script with this VM\'s pool entry ID, then restart it.' . "\n" .
+                    'if [ -n "$POOL_ENTRY_ID" ] && [ -f /usr/local/bin/jibri-monitor.sh ]; then' . "\n" .
+                    '    sed -i "s/^POOL_ENTRY_ID=.*/POOL_ENTRY_ID=\"${POOL_ENTRY_ID}\"/" /usr/local/bin/jibri-monitor.sh' . "\n" .
+                    '    systemctl restart jibri-monitor 2>/dev/null || true' . "\n" .
+                    'fi' . "\n" .
+                    '# Wait for Jibri service to be fully up before notifying Moodle.' . "\n" .
+                    'sleep 15' . "\n" .
                     'if [ -n "$CALLBACK_URL" ]; then' . "\n" .
-                    '    sleep 15' . "\n" .
                     '    curl -X POST "${CALLBACK_URL}&phase=completed" --max-time 10 --retry 3 --retry-delay 5 || true' . "\n" .
                     'fi';
             } else {
