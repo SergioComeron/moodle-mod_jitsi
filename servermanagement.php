@@ -2616,6 +2616,67 @@ if ($action === 'delete' && $id > 0) {
     }
 }
 
+// Action: Add a new Jibri VM to an existing pool.
+if ($action === 'addtojibripool' && $id > 0) {
+    require_sesskey();
+    if (!$server = $DB->get_record('jitsi_servers', ['id' => $id])) {
+        throw new moodle_exception('invalidserverid', 'mod_jitsi');
+    }
+    if ($server->type != 3 || empty($server->jibri_enabled)) {
+        \core\notification::add('Jibri pool only available for GCP servers with Jibri enabled.',
+            \core\output\notification::NOTIFY_ERROR);
+        redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
+    }
+    $task = new \mod_jitsi\task\provision_jibri_vm();
+    $task->set_custom_data(['serverid' => $server->id]);
+    \core\task\manager::queue_adhoc_task($task, true);
+    \core\notification::add('New Jibri VM queued for provisioning.', \core\output\notification::NOTIFY_SUCCESS);
+    redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
+}
+
+// Action: Delete a single Jibri pool entry (and its GCP VM).
+if ($action === 'deletejibrientry' && $id > 0) {
+    require_sesskey();
+    $poolentryid = optional_param('poolentryid', 0, PARAM_INT);
+    if (!$server = $DB->get_record('jitsi_servers', ['id' => $id])) {
+        throw new moodle_exception('invalidserverid', 'mod_jitsi');
+    }
+    if ($poolentryid && $entry = $DB->get_record('jitsi_jibri_pool', ['id' => $poolentryid, 'serverid' => $id])) {
+        if (!empty($entry->gcpinstancename) && !empty($server->gcpproject) && !empty($server->gcpzone)) {
+            try {
+                $compute = mod_jitsi_gcp_client();
+                $compute->instances->delete($server->gcpproject, $server->gcpzone, $entry->gcpinstancename);
+            } catch (\Throwable $e) {
+                debugging('Could not delete Jibri VM: ' . $e->getMessage(), DEBUG_NORMAL);
+            }
+        }
+        $DB->delete_records('jitsi_jibri_pool', ['id' => $entry->id]);
+        // If no pool entries remain, reset legacy fields.
+        if (!$DB->record_exists('jitsi_jibri_pool', ['serverid' => $id])) {
+            $DB->set_field('jitsi_servers', 'jibri_gcpinstancename', '', ['id' => $id]);
+            $DB->set_field('jitsi_servers', 'jibri_provisioningstatus', '', ['id' => $id]);
+        }
+        \core\notification::add('Jibri VM removed.', \core\output\notification::NOTIFY_SUCCESS);
+    }
+    redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
+}
+
+// Action: Update desired pool size (AJAX).
+if ($action === 'updatepoolsize' && $id > 0) {
+    require_sesskey();
+    @header('Content-Type: application/json');
+    $poolsize = optional_param('poolsize', 1, PARAM_INT);
+    $poolsize = max(1, min(10, $poolsize));
+    if ($server = $DB->get_record('jitsi_servers', ['id' => $id])) {
+        $DB->set_field('jitsi_servers', 'jibri_pool_size', $poolsize, ['id' => $id]);
+        echo json_encode(['status' => 'ok', 'poolsize' => $poolsize]);
+    } else {
+        http_response_code(404);
+        echo json_encode(['status' => 'error']);
+    }
+    exit;
+}
+
 // Action: Add Jibri to an existing GCP server.
 if ($action === 'addjibri' && $id > 0) {
     if (!$server = $DB->get_record('jitsi_servers', ['id' => $id])) {
@@ -3609,21 +3670,81 @@ if ($showform) {
                 $typestring = get_string('unknowntype', 'mod_jitsi');
         }
 
-        // Obtener estado del servidor GCP y guardarlo para usar en botones.
+        // Build Jibri pool badge(s).
         $jibribadge = '';
         if (!empty($s->jibri_enabled)) {
-            switch ($s->jibri_provisioningstatus ?? '') {
-                case 'ready':
-                    $jibribadge = ' <span class="badge bg-success ms-1" title="' . s($s->jibri_gcpinstancename) . '">🎥 Jibri ready</span>';
-                    break;
-                case 'error':
-                    $jibribadge = ' <span class="badge bg-danger ms-1" title="' . s($s->jibri_provisioningerror) . '">🎥 Jibri error</span>';
-                    break;
-                case '':
-                    $jibribadge = ' <span class="badge bg-secondary ms-1">🎥 Jibri pending</span>';
-                    break;
-                default:
-                    $jibribadge = ' <span class="badge bg-info ms-1">🎥 Jibri: ' . s($s->jibri_provisioningstatus) . '</span>';
+            $poolentries = $DB->get_records('jitsi_jibri_pool', ['serverid' => $s->id], 'id ASC');
+            if (!empty($poolentries)) {
+                $poolsize = (int)($s->jibri_pool_size ?? 1);
+                $jibribadge .= '<div class="mt-1">';
+                $jibribadge .= '<small class="text-muted">🎥 Jibri pool (desired: '
+                    . '<input type="number" min="1" max="10" value="' . $poolsize . '"'
+                    . ' style="width:45px" class="form-control form-control-sm d-inline-block p-0 ps-1"'
+                    . ' onchange="updatePoolSize(' . $s->id . ', this.value)"'
+                    . '>):</small><br>';
+                foreach ($poolentries as $pe) {
+                    switch ($pe->status) {
+                        case 'idle':
+                            $pbadgeclass = 'bg-success';
+                            $pbadgetext  = '✅ idle';
+                            break;
+                        case 'recording':
+                            $pbadgeclass = 'bg-primary';
+                            $pbadgetext  = '🔴 recording';
+                            break;
+                        case 'streaming':
+                            $pbadgeclass = 'bg-primary';
+                            $pbadgetext  = '📡 streaming';
+                            break;
+                        case 'error':
+                            $pbadgeclass = 'bg-danger';
+                            $pbadgetext  = '❌ error';
+                            break;
+                        default:
+                            $pbadgeclass = 'bg-info';
+                            $pbadgetext  = '⏳ ' . s($pe->status);
+                    }
+                    $deletejibrientryurl = new moodle_url('/mod/jitsi/servermanagement.php', [
+                        'action'      => 'deletejibrientry',
+                        'id'          => $s->id,
+                        'poolentryid' => $pe->id,
+                        'sesskey'     => sesskey(),
+                    ]);
+                    $jibribadge .= '<span class="badge ' . $pbadgeclass . ' me-1" title="' . s($pe->gcpinstancename) . '">'
+                        . $pbadgetext . '</span>';
+                    $jibribadge .= html_writer::link(
+                        $deletejibrientryurl, '✕',
+                        ['class' => 'text-danger small me-1', 'title' => 'Remove this Jibri VM']
+                    );
+                }
+                $addtopoolurl = new moodle_url('/mod/jitsi/servermanagement.php', [
+                    'action'  => 'addtojibripool',
+                    'id'      => $s->id,
+                    'sesskey' => sesskey(),
+                ]);
+                $jibribadge .= '<br>' . html_writer::link(
+                    $addtopoolurl, '+ Add Jibri',
+                    ['class' => 'btn btn-xs btn-outline-secondary mt-1', 'style' => 'font-size:0.75rem;padding:1px 6px']
+                );
+                $jibribadge .= '</div>';
+            } else {
+                // No pool entries yet — show legacy provisioning status.
+                switch ($s->jibri_provisioningstatus ?? '') {
+                    case 'ready':
+                        $jibribadge = ' <span class="badge bg-success ms-1" title="'
+                            . s($s->jibri_gcpinstancename) . '">🎥 Jibri ready</span>';
+                        break;
+                    case 'error':
+                        $jibribadge = ' <span class="badge bg-danger ms-1" title="'
+                            . s($s->jibri_provisioningerror) . '">🎥 Jibri error</span>';
+                        break;
+                    case '':
+                        $jibribadge = ' <span class="badge bg-secondary ms-1">🎥 Jibri pending</span>';
+                        break;
+                    default:
+                        $jibribadge = ' <span class="badge bg-info ms-1">🎥 Jibri: '
+                            . s($s->jibri_provisioningstatus) . '</span>';
+                }
             }
         }
         $statushtml = '<span class="badge bg-secondary" id="gcp-status-' . $s->id . '">N/A</span>';
@@ -3806,6 +3927,16 @@ if ($showform) {
         $gcpidsjs = json_encode($gcpserverids);
         $sesskeyjs = sesskey();
         $wwwroot = $CFG->wwwroot;
+        $updatepoolsizeurl = (new moodle_url('/mod/jitsi/servermanagement.php',
+            ['action' => 'updatepoolsize', 'sesskey' => sesskey()]))->out(false);
+        // phpcs:disable
+        $PAGE->requires->js_init_code(
+            "window.updatePoolSize = function(serverid, val) {\n".
+            "  fetch('" . $updatepoolsizeurl . "&id=' + serverid + '&poolsize=' + val, {method:'POST'})\n".
+            "    .then(function(r){return r.json();})\n".
+            "    .then(function(d){if(d.status!=='ok') alert('Could not update pool size.');});\n".
+            "};\n"
+        );
         // phpcs:disable
         $PAGE->requires->js_init_code(
             "(function(){\n".
