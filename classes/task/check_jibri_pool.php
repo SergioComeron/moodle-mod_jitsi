@@ -106,8 +106,33 @@ class check_jibri_pool extends \core\task\scheduled_task {
 
         // 1. Update health status for each VM.
         foreach ($entries as $entry) {
-            if (in_array($entry->status, ['provisioning'])) {
-                // Still being provisioned — jibriready callback will update it.
+            if ($entry->status === 'provisioning') {
+                // For image-based VMs the startup script calls jibriready quickly.
+                // Allow up to 10 min; after that, if GCP shows RUNNING, mark idle as fallback.
+                $provisioningfor = time() - (int)$entry->timemodified;
+                if ($provisioningfor < 600) {
+                    continue;
+                }
+                // Fallback: check GCP status — if RUNNING after 10 min, treat as idle.
+                $gcpstatus = '';
+                try {
+                    $compute  = mod_jitsi_gcp_client();
+                    $instance = $compute->instances->get(
+                        $server->gcpproject,
+                        $server->gcpzone,
+                        $entry->gcpinstancename
+                    );
+                    $gcpstatus = $instance->getStatus();
+                } catch (\Throwable $e) {
+                    continue;
+                }
+                if ($gcpstatus === 'RUNNING') {
+                    mtrace("check_jibri_pool: server {$server->id} VM {$entry->gcpinstancename}"
+                        . " stuck provisioning {$provisioningfor}s, GCP=RUNNING → marking idle");
+                    $entry->status       = 'idle';
+                    $entry->timemodified = time();
+                    $DB->update_record('jitsi_jibri_pool', $entry);
+                }
                 continue;
             }
             $newstatus = $this->check_health($server, $entry);

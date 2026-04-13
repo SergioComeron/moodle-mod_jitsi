@@ -159,8 +159,13 @@ class provision_jibri_vm extends \core\task\adhoc_task {
                     ? "projects/{$project}/global/images/{$useimage}"
                     : $useimage;
                 $startupscript = '#!/bin/bash' . "\n" .
-                    '# Boot from pre-built Jibri image — no installation needed.' . "\n" .
-                    'exit 0';
+                    '# Boot from pre-built Jibri image — notify Moodle when ready.' . "\n" .
+                    'META="http://metadata.google.internal/computeMetadata/v1"' . "\n" .
+                    'CALLBACK_URL=$(curl -sf -H "Metadata-Flavor: Google" "$META/instance/attributes/CALLBACK_URL" || true)' . "\n" .
+                    'if [ -n "$CALLBACK_URL" ]; then' . "\n" .
+                    '    sleep 15' . "\n" .
+                    '    curl -X POST "${CALLBACK_URL}&phase=completed" --max-time 10 --retry 3 --retry-delay 5 || true' . "\n" .
+                    'fi';
             } else {
                 $imagepath     = $baseimage;
                 $startupscript = mod_jitsi_jibri_startup_script();
