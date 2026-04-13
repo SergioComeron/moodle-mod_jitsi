@@ -248,16 +248,18 @@ if ($rawaction === 'jibrirecording') {
 
     global $DB;
 
-    $serverid = filter_input(INPUT_GET, 'serverid', FILTER_VALIDATE_INT) ?:
-                filter_input(INPUT_POST, 'serverid', FILTER_VALIDATE_INT) ?: 0;
-    $token    = filter_input(INPUT_GET, 'token', FILTER_UNSAFE_RAW) ?:
-                filter_input(INPUT_POST, 'token', FILTER_UNSAFE_RAW) ?? '';
-    $roomname = filter_input(INPUT_GET, 'room', FILTER_UNSAFE_RAW) ?:
-                filter_input(INPUT_POST, 'room', FILTER_UNSAFE_RAW) ?? '';
-    $filename = filter_input(INPUT_GET, 'filename', FILTER_UNSAFE_RAW) ?:
-                filter_input(INPUT_POST, 'filename', FILTER_UNSAFE_RAW) ?? '';
-    $recurl   = filter_input(INPUT_GET, 'url', FILTER_VALIDATE_URL) ?:
-                filter_input(INPUT_POST, 'url', FILTER_VALIDATE_URL) ?: '';
+    $serverid    = filter_input(INPUT_GET, 'serverid', FILTER_VALIDATE_INT) ?:
+                   filter_input(INPUT_POST, 'serverid', FILTER_VALIDATE_INT) ?: 0;
+    $token       = filter_input(INPUT_GET, 'token', FILTER_UNSAFE_RAW) ?:
+                   filter_input(INPUT_POST, 'token', FILTER_UNSAFE_RAW) ?? '';
+    $roomname    = filter_input(INPUT_GET, 'room', FILTER_UNSAFE_RAW) ?:
+                   filter_input(INPUT_POST, 'room', FILTER_UNSAFE_RAW) ?? '';
+    $filename    = filter_input(INPUT_GET, 'filename', FILTER_UNSAFE_RAW) ?:
+                   filter_input(INPUT_POST, 'filename', FILTER_UNSAFE_RAW) ?? '';
+    $recurl      = filter_input(INPUT_GET, 'url', FILTER_VALIDATE_URL) ?:
+                   filter_input(INPUT_POST, 'url', FILTER_VALIDATE_URL) ?: '';
+    $poolentryid = filter_input(INPUT_GET, 'poolentryid', FILTER_VALIDATE_INT) ?:
+                   filter_input(INPUT_POST, 'poolentryid', FILTER_VALIDATE_INT) ?: 0;
 
     try {
         $server = $DB->get_record('jitsi_servers', ['id' => (int)$serverid]);
@@ -336,6 +338,16 @@ if ($rawaction === 'jibrirecording') {
             $record->visible = 1;
             $record->name    = $sourcerecord->name;
             $DB->insert_record('jitsi_record', $record);
+        }
+
+        // Mark the pool entry as idle — recording is done.
+        if (!empty($poolentryid)) {
+            $poolentry = $DB->get_record('jitsi_jibri_pool', ['id' => (int)$poolentryid]);
+            if ($poolentry && $poolentry->status === 'recording') {
+                $poolentry->status       = 'idle';
+                $poolentry->timemodified = time();
+                $DB->update_record('jitsi_jibri_pool', $poolentry);
+            }
         }
 
         debugging("🎥 Jibri recording imported for server {$server->id}: {$recurl}", DEBUG_NORMAL);
@@ -1457,6 +1469,9 @@ if (!function_exists('mod_jitsi_jibri_startup_script')) {
         SERVERID="${FIN_SERVER_ID}"
         TOKEN="${FIN_TOKEN}"
 
+        # Read pool entry ID from monitor script (set per-VM at boot time)
+        POOL_ENTRY_ID=\$(grep "^POOL_ENTRY_ID=" /usr/local/bin/jibri-monitor.sh 2>/dev/null | cut -d'"' -f2 || echo "")
+
         # Upload to GCS if enabled, otherwise serve from VM disk
         GCS_BUCKET=\$(curl -sf -H "Metadata-Flavor: Google" \
             "http://metadata.google.internal/computeMetadata/v1/instance/attributes/GCS_BUCKET" || echo "")
@@ -1477,6 +1492,7 @@ if (!function_exists('mod_jitsi_jibri_startup_script')) {
                 --data-urlencode "room=\${ROOM}" \
                 --data-urlencode "filename=\${FILENAME}" \
                 --data-urlencode "url=\${REC_URL}" \
+                --data-urlencode "poolentryid=\${POOL_ENTRY_ID}" \
                 --max-time 30 --retry 3 --retry-delay 5 \
                 || echo "Warning: Could not notify Moodle"
         fi
