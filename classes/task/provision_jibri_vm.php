@@ -174,13 +174,13 @@ class provision_jibri_vm extends \core\task\adhoc_task {
                 'startupScript' => $startupscript,
                 'callbackUrl'   => $callbackurl,
                 'extraMetadata' => array_merge([
-                    ['key' => 'JITSI_HOSTNAME',    'value' => $jitsihostname],
+                    ['key' => 'JITSI_HOSTNAME', 'value' => $jitsihostname],
                     ['key' => 'JITSI_INTERNAL_IP', 'value' => $jitsiinternalip],
-                    ['key' => 'JIBRI_XMPP_PASS',   'value' => $server->jibri_xmpp_pass],
+                    ['key' => 'JIBRI_XMPP_PASS', 'value' => $server->jibri_xmpp_pass],
                     ['key' => 'JIBRI_RECORDER_PASS', 'value' => $server->jibri_recorder_pass],
-                    ['key' => 'JIBRI_SERVER_ID',    'value' => (string)$server->id],
-                    ['key' => 'JIBRI_TOKEN',        'value' => $server->provisioningtoken],
-                    ['key' => 'JIBRI_MOODLE_URL',   'value' => $recordingingesturl],
+                    ['key' => 'JIBRI_SERVER_ID', 'value' => (string)$server->id],
+                    ['key' => 'JIBRI_TOKEN', 'value' => $server->provisioningtoken],
+                    ['key' => 'JIBRI_MOODLE_URL', 'value' => $recordingingesturl],
                     ['key' => 'JIBRI_POOL_ENTRY_ID', 'value' => (string)$poolentry->id],
                 ], !empty($server->gcs_enabled) && !empty($server->gcs_bucket) ? [
                     ['key' => 'GCS_BUCKET', 'value' => $server->gcs_bucket],

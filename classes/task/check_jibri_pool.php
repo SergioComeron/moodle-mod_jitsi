@@ -36,7 +36,6 @@ defined('MOODLE_INTERNAL') || die();
  * @package mod_jitsi
  */
 class check_jibri_pool extends \core\task\scheduled_task {
-
     /** Grace period (seconds) before an excess idle Jibri is deleted. */
     const IDLE_GRACE_SECONDS = 600;
 
@@ -66,8 +65,10 @@ class check_jibri_pool extends \core\task\scheduled_task {
     public function execute(): void {
         global $CFG, $DB;
 
-        $servers = $DB->get_records_select('jitsi_servers',
-            "type = 3 AND jibri_enabled = 1 AND provisioningstatus = 'ready'");
+        $servers = $DB->get_records_select(
+            'jitsi_servers',
+            "type = 3 AND jibri_enabled = 1 AND provisioningstatus = 'ready'"
+        );
 
         if (empty($servers)) {
             return;

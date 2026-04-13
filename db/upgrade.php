@@ -1221,8 +1221,10 @@ function xmldb_jitsi_upgrade($oldversion) {
         }
 
         // Migrate existing jibri_gcpinstancename to pool table.
-        $servers = $DB->get_records_select('jitsi_servers',
-            "jibri_enabled = 1 AND jibri_gcpinstancename IS NOT NULL AND jibri_gcpinstancename != ''");
+        $servers = $DB->get_records_select(
+            'jitsi_servers',
+            "jibri_enabled = 1 AND jibri_gcpinstancename IS NOT NULL AND jibri_gcpinstancename != ''"
+        );
         foreach ($servers as $server) {
             $status = ($server->jibri_provisioningstatus === 'ready') ? 'idle' : $server->jibri_provisioningstatus;
             $poolentry = (object)[
