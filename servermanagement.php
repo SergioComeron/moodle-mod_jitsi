@@ -1604,7 +1604,7 @@ if (!function_exists('mod_jitsi_jibri_startup_script')) {
         LAST_STATUS=""
 
         while true; do
-            HEALTH=\$(curl -sf http://localhost:2222/v1/health 2>/dev/null)
+            HEALTH=\$(curl -sf http://localhost:2222/jibri/api/v1.0/health 2>/dev/null)
             if [ -n "\$HEALTH" ]; then
                 BUSY=\$(echo "\$HEALTH" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status',{}).get('busyStatus','IDLE'))" 2>/dev/null || echo "IDLE")
                 if [ "\$BUSY" != "\$LAST_STATUS" ]; then
@@ -2746,10 +2746,10 @@ if ($action === 'deletejibrientry' && $id > 0) {
             }
         }
         $DB->delete_records('jitsi_jibri_pool', ['id' => $entry->id]);
-        // If no pool entries remain, reset legacy fields.
+        // If no pool entries remain, clear only the legacy gcpinstancename pointer.
+        // jibri_provisioningstatus must stay 'ready' so the pool UI and cron keep working.
         if (!$DB->record_exists('jitsi_jibri_pool', ['serverid' => $id])) {
             $DB->set_field('jitsi_servers', 'jibri_gcpinstancename', '', ['id' => $id]);
-            $DB->set_field('jitsi_servers', 'jibri_provisioningstatus', '', ['id' => $id]);
         }
         \core\notification::add('Jibri VM removed.', \core\output\notification::NOTIFY_SUCCESS);
     }
