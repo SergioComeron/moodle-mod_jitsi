@@ -1444,6 +1444,7 @@ if (!function_exists('mod_jitsi_jibri_startup_script')) {
         chmod +x /usr/local/bin/jibri-finalize.sh
 
         # Create delete-recording HTTP service (for physical file removal when Moodle deletes a recording)
+        mkdir -p /etc/jibri
         echo "${FIN_TOKEN}" > /etc/jibri/delete-token
         chmod 600 /etc/jibri/delete-token
 
