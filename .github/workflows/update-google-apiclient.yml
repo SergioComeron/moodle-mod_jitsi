@@ -38,7 +38,9 @@ jobs:
       - name: Check for changes
         id: changes
         run: |
-          if git diff --quiet api/composer.lock api/vendor/; then
+          if [ "${{ steps.before.outputs.version }}" = "${{ steps.after.outputs.version }}" ]; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          elif git diff --quiet api/composer.lock api/vendor/; then
             echo "changed=false" >> $GITHUB_OUTPUT
           else
             echo "changed=true" >> $GITHUB_OUTPUT
