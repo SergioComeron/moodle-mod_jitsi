@@ -733,6 +733,26 @@ require(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             e.preventDefault();
             handleAiBtn(quizBtn, 'mod_jitsi_queue_ai_quiz',
                 'jitsi-ai-quiz-status', 'aiquizgenerating', 'aiquizerror');
+            return;
+        }
+        var transcriptionBtn = e.target.closest('.jitsi-ai-transcription-btn');
+        if (transcriptionBtn) {
+            e.preventDefault();
+            handleAiBtn(transcriptionBtn, 'mod_jitsi_queue_ai_transcription',
+                'jitsi-ai-transcription-status', 'aitranscriptiongenerating', 'aitranscriptionerror');
+            return;
+        }
+        var tsLink = e.target.closest('.jitsi-transcript-ts');
+        if (tsLink) {
+            e.preventDefault();
+            var videoId = tsLink.dataset.video;
+            var seconds = parseFloat(tsLink.dataset.seconds);
+            var video = document.getElementById(videoId);
+            if (video) {
+                video.currentTime = seconds;
+                video.play();
+                video.scrollIntoView({behavior: 'smooth', block: 'center'});
+            }
         }
     });
 });

@@ -254,6 +254,16 @@ $functions = [
                 'loginrequired' => true,
         ],
 
+        'mod_jitsi_queue_ai_transcription' => [
+                'classname' => 'mod_jitsi_external',
+                'methodname' => 'queue_ai_transcription',
+                'classpath' => 'mod/jitsi/classes/external.php',
+                'description' => 'Queue an AI transcription generation task for a GCS recording',
+                'type' => 'write',
+                'ajax' => true,
+                'loginrequired' => true,
+        ],
+
         'mod_jitsi_search_coursemates' => [
                 'classname' => 'mod_jitsi_external',
                 'methodname' => 'search_coursemates',

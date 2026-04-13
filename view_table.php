@@ -156,6 +156,8 @@ class mod_view_table extends table_sql {
                     $quizid = 0;
                 }
 
+                $videoid = 'jitsi-video-' . (int)$sourcerecord->id;
+
                 $aibuttonshtml = '';
                 // Show summary button only if no valid summary exists yet (or previous attempt failed).
                 if ($isgcs && has_capability('mod/jitsi:generateaisummary', $context) && !$summaryexists) {
@@ -179,6 +181,27 @@ class mod_view_table extends table_sql {
                         . '</button>'
                         . $quizbtnextra
                         . '<span class="jitsi-ai-quiz-status ms-2 text-muted small" style="display:none"></span>';
+                }
+                // Show transcription button if not yet generated or failed.
+                $transcriptionstatus = $sourcerecord->ai_transcription_status ?? '';
+                $transcriptiondone = ($transcriptionstatus === 'done') && !empty($sourcerecord->ai_transcription);
+                if ($isgcs && has_capability('mod/jitsi:generateaitranscription', $context) && !$transcriptiondone) {
+                    $transcriptionbtnextra = '';
+                    if ($transcriptionstatus === 'error') {
+                        $transcriptionbtnextra = ' <small class="text-danger">(' . get_string('aitranscriptionerror', 'jitsi')
+                            . ')</small>';
+                    } else if ($transcriptionstatus === 'pending') {
+                        $transcriptionbtnextra = ' <small class="text-muted">(' . get_string('aitranscriptionqueued', 'jitsi')
+                            . ')</small>';
+                    }
+                    $aibuttonshtml .= ' <button type="button" class="btn btn-sm btn-outline-info jitsi-ai-transcription-btn"'
+                        . ' data-sourcerecordid="' . (int)$sourcerecord->id . '"'
+                        . ' data-cmid="' . (int)$cm->id . '"'
+                        . ($transcriptionstatus === 'pending' ? ' disabled' : '') . '>'
+                        . '&#127908; ' . get_string('generateaitranscription', 'jitsi')
+                        . '</button>'
+                        . $transcriptionbtnextra
+                        . '<span class="jitsi-ai-transcription-status ms-2 text-muted small" style="display:none"></span>';
                 }
                 if ($aibuttonshtml) {
                     $aibuttonshtml = '<div class="mt-2">' . $aibuttonshtml . '</div>';
@@ -210,10 +233,48 @@ class mod_view_table extends table_sql {
                         . '</div>';
                 }
 
+                // Display transcription with clickable timestamps if available.
+                $aitranscriptionhtml = '';
+                if ($isgcs && $transcriptiondone) {
+                    $lines = explode("\n", $sourcerecord->ai_transcription);
+                    $transcriptionlines = '';
+                    foreach ($lines as $line) {
+                        $line = trim($line);
+                        if ($line === '') {
+                            continue;
+                        }
+                        // Match [HH:MM:SS] or [MM:SS] at start of line.
+                        if (preg_match('/^\[(\d+):(\d{2})(?::(\d{2}))?\]\s*(.*)$/u', $line, $tm)) {
+                            if (isset($tm[3]) && $tm[3] !== '') {
+                                $seconds = (int)$tm[1] * 3600 + (int)$tm[2] * 60 + (int)$tm[3];
+                                $tslabel = s($tm[1] . ':' . $tm[2] . ':' . $tm[3]);
+                            } else {
+                                $seconds = (int)$tm[1] * 60 + (int)$tm[2];
+                                $tslabel = s($tm[1] . ':' . $tm[2]);
+                            }
+                            $text = s($tm[4]);
+                            $transcriptionlines .= '<div class="jitsi-transcript-line mb-1">'
+                                . '<a href="#" class="jitsi-transcript-ts badge bg-secondary me-2 text-decoration-none"'
+                                . ' data-video="' . s($videoid) . '" data-seconds="' . $seconds . '">'
+                                . $tslabel . '</a>'
+                                . '<span>' . $text . '</span>'
+                                . '</div>';
+                        } else {
+                            $transcriptionlines .= '<div class="jitsi-transcript-line mb-1">'
+                                . '<span>' . s($line) . '</span></div>';
+                        }
+                    }
+                    $aitranscriptionhtml = '<div class="jitsi-ai-transcription mt-3 p-3 bg-light rounded">'
+                        . '<strong>&#127908; ' . get_string('aitranscription', 'jitsi') . '</strong>'
+                        . '<div class="mt-2" style="max-height:300px;overflow-y:auto;font-size:0.9em">'
+                        . $transcriptionlines
+                        . '</div></div>';
+                }
+
                 $content = "<h5>" . $OUTPUT->render($tmpl) . "</h5>"
                     . "<h6 class=\"card-subtitle mb-2 text-muted\">" . userdate($values->timecreated) . "</h6>"
                     . "<span class=\"align-middle " . $alignmentclass . "\"><p>" . $actions . "</p></span>"
-                    . "<video controls style=\"width:100%;max-width:100%\">"
+                    . "<video id=\"" . s($videoid) . "\" controls style=\"width:100%;max-width:100%\">"
                     . "<source src=\"" . s($embedurl) . "\" type=\"video/mp4\">"
                     . "</video>"
                     . "<p><a href=\"" . s($sourcerecord->link) . "\" target=\"_blank\""
@@ -222,6 +283,7 @@ class mod_view_table extends table_sql {
                     . $aibuttonshtml
                     . $aisummarytext
                     . $aiquizlink
+                    . $aitranscriptionhtml
                     . "<br>";
             } else {
                 $is8x8 = strpos($sourcerecord->link, '8x8.vc') !== false;

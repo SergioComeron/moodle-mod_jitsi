@@ -76,6 +76,8 @@
         <FIELD NAME="timeexpires" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Unix timestamp when the recording link expires (0 = never)"/>
         <FIELD NAME="ai_summary" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="AI-generated summary of the recording"/>
         <FIELD NAME="ai_quiz_id" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Course module ID of the AI-generated quiz (0 = none)"/>
+        <FIELD NAME="ai_transcription" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="AI-generated timestamped transcription of the recording"/>
+        <FIELD NAME="ai_transcription_status" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="" SEQUENCE="false" COMMENT="Transcription status: empty=none, pending, done, error"/>
       </FIELDS>
       <KEYS>
         <KEY NAME="primary" TYPE="primary" FIELDS="id"/>

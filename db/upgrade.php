@@ -1152,5 +1152,30 @@ function xmldb_jitsi_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026041106, 'jitsi');
     }
 
+    if ($oldversion < 2026041301) {
+        $table = new xmldb_table('jitsi_source_record');
+
+        $field = new xmldb_field('ai_transcription', XMLDB_TYPE_TEXT, null, null, null, null, null, 'ai_quiz_id');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        $field2 = new xmldb_field(
+            'ai_transcription_status',
+            XMLDB_TYPE_CHAR,
+            '20',
+            null,
+            XMLDB_NOTNULL,
+            null,
+            '',
+            'ai_transcription'
+        );
+        if (!$dbman->field_exists($table, $field2)) {
+            $dbman->add_field($table, $field2);
+        }
+
+        upgrade_mod_savepoint(true, 2026041301, 'jitsi');
+    }
+
     return true;
 }
