@@ -171,76 +171,63 @@ class check_jibri_pool extends \core\task\scheduled_task {
     }
 
     /**
-     * Query the Jibri health API and return the new status string.
+     * Check the health of a Jibri VM using the GCP instance status.
+     *
+     * The Jibri health API (port 2222) is not reachable from Moodle because it is on
+     * a different network and the port is not open in the GCP firewall. Instead, we use
+     * the GCP Compute API to determine VM liveness:
+     *   - RUNNING → idle (Jibri is up; active recordings update status via jibrirecording callback)
+     *   - STOPPED / TERMINATED / not found → error
+     *   - Any transitional state (PROVISIONING, STAGING, STOPPING…) → keep current status
      *
      * @param \stdClass $server
      * @param \stdClass $entry  jitsi_jibri_pool record
-     * @return string  'idle' | 'recording' | 'streaming' | 'error'
+     * @return string  'idle' | 'recording' | 'streaming' | 'error' | same as current
      */
     private function check_health(\stdClass $server, \stdClass $entry): string {
         if (empty($entry->gcpinstancename)) {
             return 'error';
         }
 
-        // Resolve VM external IP via GCP API.
-        $ip = $this->get_vm_external_ip($server, $entry->gcpinstancename);
-        if (empty($ip)) {
-            return 'error';
-        }
-
-        $url = "http://{$ip}:2222/jibri/api/v1.0/health";
-        $ch  = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => self::HEALTH_TIMEOUT_SECONDS,
-            CURLOPT_CONNECTTIMEOUT => 10,
-        ]);
-        $resp = curl_exec($ch);
-        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if ($resp === false || $code !== 200) {
-            return 'error';
-        }
-
-        $data = json_decode($resp, true);
-        $busy = strtolower($data['status']['busyStatus'] ?? 'idle');
-
-        if ($busy === 'idle') {
-            return 'idle';
-        }
-        if ($busy === 'recording') {
-            return 'recording';
-        }
-        if ($busy === 'streaming') {
-            return 'streaming';
-        }
-        return 'recording'; // Any other busy state treated as recording.
-    }
-
-    /**
-     * Get the external IP of a GCP instance.
-     *
-     * @param \stdClass $server
-     * @param string $instancename
-     * @return string|null
-     */
-    private function get_vm_external_ip(\stdClass $server, string $instancename): ?string {
         try {
             $compute  = mod_jitsi_gcp_client();
-            $instance = $compute->instances->get($server->gcpproject, $server->gcpzone, $instancename);
-            $ifaces   = $instance->getNetworkInterfaces();
-            if (!empty($ifaces[0])) {
-                $acs = $ifaces[0]->getAccessConfigs();
-                if (!empty($acs[0])) {
-                    return $acs[0]->getNatIP();
-                }
-            }
+            $instance = $compute->instances->get(
+                $server->gcpproject,
+                $server->gcpzone,
+                $entry->gcpinstancename
+            );
+            $gcpstatus = $instance->getStatus();
         } catch (\Throwable $e) {
-            mtrace("check_jibri_pool: could not get IP for {$instancename}: " . $e->getMessage());
+            // notFound = VM was deleted outside Moodle.
+            if (
+                strpos($e->getMessage(), 'notFound') !== false
+                || strpos($e->getMessage(), '404') !== false
+            ) {
+                return 'error';
+            }
+            // Any other GCP error: keep current status, don't mark as error.
+            mtrace("check_jibri_pool: could not get GCP status for {$entry->gcpinstancename}: "
+                . $e->getMessage());
+            return $entry->status;
         }
-        return null;
+
+        switch ($gcpstatus) {
+            case 'RUNNING':
+                // Keep 'recording'/'streaming' if already set — those are updated by jibrirecording callback.
+                if (in_array($entry->status, ['recording', 'streaming'])) {
+                    return $entry->status;
+                }
+                return 'idle';
+            case 'STOPPED':
+            case 'TERMINATED':
+                return 'error';
+            default:
+                // PROVISIONING, STAGING, STOPPING, SUSPENDING, REPAIRING — keep current status.
+                return $entry->status;
+        }
     }
+
+
 
     /**
      * Create a GCP image from a Jibri VM and store the name in jitsi_servers.jibri_image.
