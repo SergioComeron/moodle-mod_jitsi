@@ -188,7 +188,7 @@ class mod_view_table extends table_sql {
                     }
                     $aitabs[] = [
                         'id' => $aiid . '-summary',
-                        'label' => '✨ ' . get_string('aisummary', 'jitsi'),
+                        'label' => get_string('aisummary', 'jitsi'),
                         'content' => $tabcontent,
                         'done' => $summaryexists,
                     ];
@@ -218,7 +218,7 @@ class mod_view_table extends table_sql {
                     }
                     $aitabs[] = [
                         'id' => $aiid . '-quiz',
-                        'label' => '&#128221; ' . get_string('aiquiz', 'jitsi'),
+                        'label' => get_string('aiquiz', 'jitsi'),
                         'content' => $tabcontent,
                         'done' => $quizid > 0,
                     ];
@@ -273,7 +273,7 @@ class mod_view_table extends table_sql {
                     }
                     $aitabs[] = [
                         'id' => $aiid . '-transcription',
-                        'label' => '&#127908; ' . get_string('aitranscription', 'jitsi'),
+                        'label' => get_string('aitranscription', 'jitsi'),
                         'content' => $tabcontent,
                         'done' => $transcriptiondone,
                     ];
@@ -324,7 +324,7 @@ class mod_view_table extends table_sql {
                         . ' style="font-size:0.9em;padding:0.5rem 1rem;background:none"'
                         . ' type="button" data-bs-toggle="collapse"'
                         . ' data-bs-target="#' . s($aiid) . '-body">'
-                        . '&#129302; ' . get_string('aitools', 'jitsi')
+                        . '&#10024; ' . get_string('aitools', 'jitsi')
                         . '</button></h2>'
                         . '<div id="' . s($aiid) . '-body"'
                         . ' class="accordion-collapse collapse ' . $accordionshow . '">'
