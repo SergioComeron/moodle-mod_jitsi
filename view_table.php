@@ -283,7 +283,7 @@ class mod_view_table extends table_sql {
                 $aiaccordion = '';
                 if (!empty($aitabs)) {
                     // Open the accordion if any tab has content already generated.
-                    $anyaidone = !empty(array_filter($aitabs, function($t) {
+                    $anyaidone = !empty(array_filter($aitabs, function ($t) {
                         return $t['done'];
                     }));
                     $accordionshow = $anyaidone ? 'show' : '';

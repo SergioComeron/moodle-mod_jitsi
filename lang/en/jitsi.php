@@ -488,7 +488,6 @@ $string['missedcalls'] = 'Missed calls';
 $string['missedcall'] = 'Missed call';
 $string['outgoingcall'] = 'Outgoing call';
 $string['aitools'] = 'AI Tools';
-$string['aiquiz'] = 'Quiz';
 $string['generateaitranscription'] = 'Generate AI transcription';
 $string['aitranscription'] = 'AI Transcription';
 $string['aitranscriptionqueued'] = 'AI transcription queued. Refresh the page in a few minutes.';
