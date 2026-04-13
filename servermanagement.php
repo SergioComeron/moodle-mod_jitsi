@@ -2623,8 +2623,10 @@ if ($action === 'addtojibripool' && $id > 0) {
         throw new moodle_exception('invalidserverid', 'mod_jitsi');
     }
     if ($server->type != 3 || empty($server->jibri_enabled)) {
-        \core\notification::add('Jibri pool only available for GCP servers with Jibri enabled.',
-            \core\output\notification::NOTIFY_ERROR);
+        \core\notification::add(
+            'Jibri pool only available for GCP servers with Jibri enabled.',
+            \core\output\notification::NOTIFY_ERROR
+        );
         redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
     }
     $task = new \mod_jitsi\task\provision_jibri_vm();
@@ -3713,7 +3715,8 @@ if ($showform) {
                     $jibribadge .= '<span class="badge ' . $pbadgeclass . ' me-1" title="' . s($pe->gcpinstancename) . '">'
                         . $pbadgetext . '</span>';
                     $jibribadge .= html_writer::link(
-                        $deletejibrientryurl, '✕',
+                        $deletejibrientryurl,
+                        '✕',
                         ['class' => 'text-danger small me-1', 'title' => 'Remove this Jibri VM']
                     );
                 }
@@ -3723,7 +3726,8 @@ if ($showform) {
                     'sesskey' => sesskey(),
                 ]);
                 $jibribadge .= '<br>' . html_writer::link(
-                    $addtopoolurl, '+ Add Jibri',
+                    $addtopoolurl,
+                    '+ Add Jibri',
                     ['class' => 'btn btn-xs btn-outline-secondary mt-1', 'style' => 'font-size:0.75rem;padding:1px 6px']
                 );
                 $jibribadge .= '</div>';
@@ -3927,8 +3931,10 @@ if ($showform) {
         $gcpidsjs = json_encode($gcpserverids);
         $sesskeyjs = sesskey();
         $wwwroot = $CFG->wwwroot;
-        $updatepoolsizeurl = (new moodle_url('/mod/jitsi/servermanagement.php',
-            ['action' => 'updatepoolsize', 'sesskey' => sesskey()]))->out(false);
+        $updatepoolsizeurl = (new moodle_url(
+            '/mod/jitsi/servermanagement.php',
+            ['action' => 'updatepoolsize', 'sesskey' => sesskey()]
+        ))->out(false);
         // phpcs:disable
         $PAGE->requires->js_init_code(
             "window.updatePoolSize = function(serverid, val) {\n".
