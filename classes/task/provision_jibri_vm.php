@@ -161,14 +161,21 @@ class provision_jibri_vm extends \core\task\adhoc_task {
                 $startupscript = '#!/bin/bash' . "\n" .
                     '# Boot from pre-built Jibri image — update per-VM config from metadata.' . "\n" .
                     'META="http://metadata.google.internal/computeMetadata/v1/instance/attributes"' . "\n" .
+                    'INSTANCE_NAME=$(curl -sf -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/name" || hostname)' . "\n" .
                     'CALLBACK_URL=$(curl -sf -H "Metadata-Flavor: Google" "$META/CALLBACK_URL" || true)' . "\n" .
                     'POOL_ENTRY_ID=$(curl -sf -H "Metadata-Flavor: Google" "$META/JIBRI_POOL_ENTRY_ID" || true)' . "\n" .
+                    '# Update MUC nickname in jibri.conf with this VM\'s unique instance name.' . "\n" .
+                    'if [ -f /etc/jitsi/jibri/jibri.conf ]; then' . "\n" .
+                    '    sed -i "s/nickname = \"jibri-[^\"]*\"/nickname = \"jibri-${INSTANCE_NAME}\"/" /etc/jitsi/jibri/jibri.conf' . "\n" .
+                    '    systemctl restart jibri' . "\n" .
+                    '    sleep 10' . "\n" .
+                    'fi' . "\n" .
                     '# Update monitor script with this VM\'s pool entry ID, then restart it.' . "\n" .
                     'if [ -n "$POOL_ENTRY_ID" ] && [ -f /usr/local/bin/jibri-monitor.sh ]; then' . "\n" .
                     '    sed -i "s/^POOL_ENTRY_ID=.*/POOL_ENTRY_ID=\"${POOL_ENTRY_ID}\"/" /usr/local/bin/jibri-monitor.sh' . "\n" .
                     '    systemctl restart jibri-monitor 2>/dev/null || true' . "\n" .
                     'fi' . "\n" .
-                    '# Wait for Jibri service to be fully up before notifying Moodle.' . "\n" .
+                    '# Wait for Jibri to be fully up before notifying Moodle.' . "\n" .
                     'sleep 15' . "\n" .
                     'if [ -n "$CALLBACK_URL" ]; then' . "\n" .
                     '    curl -X POST "${CALLBACK_URL}&phase=completed" --max-time 10 --retry 3 --retry-delay 5 || true' . "\n" .
