@@ -261,13 +261,9 @@ class check_jibri_pool extends \core\task\scheduled_task {
         try {
             $compute = mod_jitsi_gcp_client();
 
-            // Stop the VM first for a clean image (non-blocking — we continue after request).
-            try {
-                $compute->instances->stop($server->gcpproject, $server->gcpzone, $entry->gcpinstancename);
-            } catch (\Throwable $e) {
-                mtrace("check_jibri_pool: could not stop VM before imaging: " . $e->getMessage());
-            }
-
+            // Create image from the running VM — no stop needed.
+            // Jibri is stateless (config in files, no DB), so a live image boots correctly.
+            // GCP marks the image as "READY" once it finishes; the VM keeps running uninterrupted.
             $image = new \Google\Service\Compute\Image([
                 'name'       => $imagename,
                 'sourceDisk' => "projects/{$server->gcpproject}/zones/{$server->gcpzone}"
