@@ -258,7 +258,7 @@ class check_jibri_pool extends \core\task\scheduled_task {
                 'labels'     => ['mod-jitsi' => 'jibri-base'],
             ]);
 
-            $compute->images->insert($server->gcpproject, $image);
+            $compute->images->insert($server->gcpproject, $image, ['forceCreate' => true]);
 
             $DB->set_field('jitsi_servers', 'jibri_image', $imagename, ['id' => $server->id]);
             $DB->set_field('jitsi_servers', 'timemodified', time(), ['id' => $server->id]);

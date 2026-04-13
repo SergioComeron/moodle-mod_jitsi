@@ -27,7 +27,8 @@ $rawaction = filter_input(INPUT_GET, 'action', FILTER_UNSAFE_RAW) ??
              filter_input(INPUT_POST, 'action', FILTER_UNSAFE_RAW) ?? '';
 
 // Callbacks from VMs don't need a Moodle session — define NO_MOODLE_COOKIES before config.php.
-if ($rawaction === 'jitsiready' || $rawaction === 'jibriready' || $rawaction === 'jibrirecording') {
+if ($rawaction === 'jitsiready' || $rawaction === 'jibriready'
+        || $rawaction === 'jibrirecording' || $rawaction === 'jibristatus') {
     define('NO_MOODLE_COOKIES', true);
     require_once(__DIR__ . '/../../config.php');
 }
@@ -345,6 +346,48 @@ if ($rawaction === 'jibrirecording') {
         http_response_code(500);
         echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
     }
+    exit;
+}
+// phpcs:enable
+
+// phpcs:disable
+if ($rawaction === 'jibristatus') {
+    // Callback from the Jibri VM status monitor service.
+    // Called when Jibri changes between IDLE and BUSY (recording/streaming).
+    @header('Content-Type: application/json');
+
+    global $DB;
+
+    $poolentryid = filter_input(INPUT_GET, 'poolentryid', FILTER_VALIDATE_INT) ?:
+                   filter_input(INPUT_POST, 'poolentryid', FILTER_VALIDATE_INT) ?: 0;
+    $token       = filter_input(INPUT_GET, 'token', FILTER_UNSAFE_RAW) ?:
+                   filter_input(INPUT_POST, 'token', FILTER_UNSAFE_RAW) ?? '';
+    $busyness    = filter_input(INPUT_GET, 'busyness', FILTER_UNSAFE_RAW) ?:
+                   filter_input(INPUT_POST, 'busyness', FILTER_UNSAFE_RAW) ?? '';
+
+    $entry = $DB->get_record('jitsi_jibri_pool', ['id' => (int)$poolentryid]);
+    if (!$entry) {
+        http_response_code(404);
+        echo json_encode(['status' => 'error', 'message' => 'Pool entry not found']);
+        exit;
+    }
+
+    $server = $DB->get_record('jitsi_servers', ['id' => $entry->serverid]);
+    if (!$server || empty($server->provisioningtoken) || $server->provisioningtoken !== $token) {
+        http_response_code(401);
+        echo json_encode(['status' => 'error', 'message' => 'Invalid token']);
+        exit;
+    }
+
+    $newstatus = (strtoupper($busyness) === 'BUSY') ? 'recording' : 'idle';
+    if (!in_array($entry->status, ['provisioning', 'error']) && $entry->status !== $newstatus) {
+        $entry->status       = $newstatus;
+        $entry->timemodified = time();
+        $DB->update_record('jitsi_jibri_pool', $entry);
+    }
+
+    http_response_code(200);
+    echo json_encode(['status' => 'ok', 'newstatus' => $newstatus]);
     exit;
 }
 // phpcs:enable
@@ -1543,6 +1586,55 @@ if (!function_exists('mod_jitsi_jibri_startup_script')) {
         systemctl daemon-reload
         systemctl enable jibri
         systemctl start jibri
+
+        # Install Jibri status monitor — polls local health API and reports recording state to Moodle
+        META_MON="http://metadata.google.internal/computeMetadata/v1/instance/attributes"
+        MON_SERVER_ID=$(curl -sf -H "Metadata-Flavor: Google" "$META_MON/JIBRI_SERVER_ID" || echo "")
+        MON_TOKEN=$(curl -sf -H "Metadata-Flavor: Google" "$META_MON/JIBRI_TOKEN" || echo "")
+        MON_POOL_ENTRY=$(curl -sf -H "Metadata-Flavor: Google" "$META_MON/JIBRI_POOL_ENTRY_ID" || echo "")
+        MON_MOODLE_URL=$(curl -sf -H "Metadata-Flavor: Google" "$META_MON/JIBRI_MOODLE_URL" || echo "")
+        MON_BASE_URL=$(echo "$MON_MOODLE_URL" | grep -oP 'https?://[^/]+')
+
+        cat > /usr/local/bin/jibri-monitor.sh << EOFMON
+#!/bin/bash
+BASE_URL="${MON_BASE_URL}"
+SERVER_ID="${MON_SERVER_ID}"
+TOKEN="${MON_TOKEN}"
+POOL_ENTRY_ID="${MON_POOL_ENTRY}"
+LAST_STATUS=""
+
+while true; do
+    HEALTH=\$(curl -sf http://localhost:2222/v1/health 2>/dev/null)
+    if [ -n "\$HEALTH" ]; then
+        BUSY=\$(echo "\$HEALTH" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status',{}).get('busyStatus','IDLE'))" 2>/dev/null || echo "IDLE")
+        if [ "\$BUSY" != "\$LAST_STATUS" ]; then
+            LAST_STATUS="\$BUSY"
+            curl -sf "\${BASE_URL}/mod/jitsi/servermanagement.php?action=jibristatus&poolentryid=\${POOL_ENTRY_ID}&token=\${TOKEN}&busyness=\${BUSY}" > /dev/null 2>&1 || true
+        fi
+    fi
+    sleep 10
+done
+EOFMON
+        chmod +x /usr/local/bin/jibri-monitor.sh
+
+        cat > /etc/systemd/system/jibri-monitor.service << 'EOFMONITORSVC'
+[Unit]
+Description=Jibri Status Monitor - reports recording state to Moodle
+After=jibri.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/jibri-monitor.sh
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
+EOFMONITORSVC
+
+        systemctl daemon-reload
+        systemctl enable jibri-monitor
+        systemctl start jibri-monitor
 
         # Mark provisioning complete
         mkdir -p /var/local
