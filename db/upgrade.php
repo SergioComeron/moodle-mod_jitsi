@@ -1177,5 +1177,14 @@ function xmldb_jitsi_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026041301, 'jitsi');
     }
 
+    if ($oldversion < 2026041302) {
+        $table = new xmldb_table('jitsi_servers');
+        $field = new xmldb_field('machine_type', XMLDB_TYPE_CHAR, '50', null, XMLDB_NOTNULL, null, 'e2-standard-4', 'gcs_bucket');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        upgrade_mod_savepoint(true, 2026041302, 'jitsi');
+    }
+
     return true;
 }

@@ -1929,7 +1929,10 @@ if ($action === 'creategcpvm') {
     // Read minimal + optional config.
     $project   = trim((string) get_config('mod_jitsi', 'gcp_project'));
     $zone      = trim((string) get_config('mod_jitsi', 'gcp_zone'));
-    $mach      = trim((string) get_config('mod_jitsi', 'gcp_machine_type')) ?: 'e2-standard-2';
+    $mach      = trim((string) optional_param('jitsimachinetype', '', PARAM_TEXT));
+    if (empty($mach)) {
+        $mach = trim((string) get_config('mod_jitsi', 'gcp_machine_type')) ?: 'e2-standard-4';
+    }
     $image     = trim((string) get_config('mod_jitsi', 'gcp_image')) ?: 'projects/debian-cloud/global/images/family/debian-12';
     $network   = trim((string) get_config('mod_jitsi', 'gcp_network')) ?: 'global/networks/default';
     $hostname  = trim((string) get_config('mod_jitsi', 'gcp_hostname'));
@@ -2077,6 +2080,7 @@ if ($action === 'creategcpvm') {
         $server->jibri_recorder_pass = $jibrirecorderpass;
         $server->gcs_enabled = 0;
         $server->gcs_bucket  = '';
+        $server->machine_type = $mach;
 
         $server->timecreated = time();
         $server->timemodified = time();
@@ -3352,7 +3356,7 @@ if ($showform) {
         "      if (modalBody) modalBody.textContent = 'Error: ' + e.message;\n".
         "    }\n".
         "  }\n".
-        "  async function startVMCreation(enableJibri, jibriMachineType, enableGcs) {\n".
+        "  async function startVMCreation(enableJibri, jibriMachineType, enableGcs, jitsiMachineType) {\n".
         "    dnsWarningShown = false;\n".
         "    if (modalBody) {\n".
         "      modalBody.innerHTML = (\n".
@@ -3364,8 +3368,8 @@ if ($showform) {
         "      );\n".
         "    }\n".
         "    try {\n".
-        "      console.log('[Button Click] Requesting VM creation... jibri:', enableJibri, 'gcs:', enableGcs);\n".
-        "      var postData = {sesskey: cfg.sesskey};\n".
+        "      console.log('[Button Click] Requesting VM creation... jibri:', enableJibri, 'gcs:', enableGcs, 'jitsiMachine:', jitsiMachineType);\n".
+        "      var postData = {sesskey: cfg.sesskey, jitsimachinetype: jitsiMachineType || 'e2-standard-4'};\n".
         "      if (enableJibri) {\n".
         "        postData.enablejibri = '1';\n".
         "        postData.jibrimachinetype = jibriMachineType || 'n2-standard-4';\n".
@@ -3418,6 +3422,18 @@ if ($showform) {
         "      modalBody.innerHTML =\n".
         "        '<h5 class=\"mb-3\">Create VM in Google Cloud</h5>' +\n".
         "        '<div class=\"mb-3 text-start\">' +\n".
+        "          '<label class=\"form-label fw-semibold\" for=\"jitsi-machine-type\">Jitsi server machine type</label>' +\n".
+        "          '<select class=\"form-select\" id=\"jitsi-machine-type\">' +\n".
+        "            '<option value=\"e2-medium\">e2-medium — 2 vCPU (shared), 4 GB RAM — ~10 concurrent users</option>' +\n".
+        "            '<option value=\"e2-standard-2\">e2-standard-2 — 2 vCPU, 8 GB RAM — ~20 concurrent users</option>' +\n".
+        "            '<option value=\"e2-standard-4\" selected>e2-standard-4 — 4 vCPU, 16 GB RAM — ~50 concurrent users (recommended)</option>' +\n".
+        "            '<option value=\"e2-standard-8\">e2-standard-8 — 8 vCPU, 32 GB RAM — ~100 concurrent users</option>' +\n".
+        "            '<option value=\"n2-standard-4\">n2-standard-4 — 4 vCPU, 16 GB RAM — ~60 concurrent users (higher performance)</option>' +\n".
+        "            '<option value=\"n2-standard-8\">n2-standard-8 — 8 vCPU, 32 GB RAM — ~120 concurrent users</option>' +\n".
+        "          '</select>' +\n".
+        "          '<small class=\"text-muted d-block mt-1\">The machine type determines how many simultaneous participants the server can handle.</small>' +\n".
+        "        '</div>' +\n".
+        "        '<div class=\"mb-3 text-start\">' +\n".
         "          '<div class=\"form-check\">' +\n".
         "            '<input class=\"form-check-input\" type=\"checkbox\" id=\"jibri-enable-check\">' +\n".
         "            '<label class=\"form-check-label fw-semibold\" for=\"jibri-enable-check\">' +\n".
@@ -3463,9 +3479,11 @@ if ($showform) {
         "          var enableJibri = check && check.checked;\n".
         "          var machineTypeEl = document.getElementById('jibri-machine-type');\n".
         "          var jibriMachine = (machineTypeEl && machineTypeEl.value.trim()) || 'n2-standard-4';\n".
+        "          var jitsiMachineEl = document.getElementById('jitsi-machine-type');\n".
+        "          var jitsiMachine = (jitsiMachineEl && jitsiMachineEl.value.trim()) || 'e2-standard-4';\n".
         "          var gcsCheck = document.getElementById('gcs-enable-check');\n".
         "          var enableGcs = enableJibri && gcsCheck && gcsCheck.checked;\n".
-        "          startVMCreation(enableJibri, jibriMachine, enableGcs);\n".
+        "          startVMCreation(enableJibri, jibriMachine, enableGcs, jitsiMachine);\n".
         "        });\n".
         "      }\n".
         "    }\n".
