@@ -1209,6 +1209,22 @@ if (!function_exists('mod_jitsi_jibri_startup_script')) {
         apt-get install -y /tmp/google-chrome.deb
         rm -f /tmp/google-chrome.deb
 
+        # Wrap the real Chrome binary to strip --enable-automation (added by ChromeDriver).
+        # ChromeDriver calls /opt/google/chrome/chrome directly (not the /usr/bin symlink),
+        # so we must wrap that binary. Without this, a "Chrome is being controlled by
+        # automated test software" infobar appears at the top of every Jibri recording.
+        mv /opt/google/chrome/chrome /opt/google/chrome/chrome-real
+        cat > /opt/google/chrome/chrome << 'EOFCHROMEWRAP'
+        #!/bin/bash
+        ARGS=()
+        for arg in "$@"; do
+            [[ "$arg" == "--enable-automation" ]] && continue
+            ARGS+=("$arg")
+        done
+        exec /opt/google/chrome/chrome-real "${ARGS[@]}"
+        EOFCHROMEWRAP
+        chmod +x /opt/google/chrome/chrome
+
         # Install matching ChromeDriver (Jibri uses Selenium to drive Chrome).
         CHROME_VER=$(google-chrome --version | grep -oP '\d+\.\d+\.\d+\.\d+')
         wget -q -O /tmp/chromedriver.zip \
@@ -1289,8 +1305,6 @@ if (!function_exists('mod_jitsi_jibri_startup_script')) {
               "--start-maximized",
               "--kiosk",
               "--enabled",
-              "--disable-infobars",
-              "--exclude-switches=enable-automation",
               "--disable-blink-features=AutomationControlled",
               "--autoplay-policy=no-user-gesture-required",
               "--ignore-certificate-errors"
