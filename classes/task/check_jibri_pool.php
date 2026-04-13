@@ -101,6 +101,22 @@ class check_jibri_pool extends \core\task\scheduled_task {
      * @param \moodle_database $DB
      */
     private function process_server(\stdClass $server, \moodle_database $DB): void {
+        // Skip pool management if the Jitsi VM itself is not running (e.g. stopped by admin).
+        if (!empty($server->gcpinstancename)) {
+            try {
+                $compute   = mod_jitsi_gcp_client();
+                $instance  = $compute->instances->get($server->gcpproject, $server->gcpzone, $server->gcpinstancename);
+                $gcpstatus = $instance->getStatus();
+                if ($gcpstatus !== 'RUNNING') {
+                    mtrace("check_jibri_pool: server {$server->id} Jitsi VM is {$gcpstatus} — skipping pool management");
+                    return;
+                }
+            } catch (\Throwable $e) {
+                mtrace("check_jibri_pool: server {$server->id} could not get Jitsi VM status — skipping: " . $e->getMessage());
+                return;
+            }
+        }
+
         $poolsize = (int)($server->jibri_pool_size ?? 1);
         $entries  = $DB->get_records('jitsi_jibri_pool', ['serverid' => $server->id]);
 
