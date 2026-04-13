@@ -255,6 +255,7 @@ $string['nojitsis'] = 'No Jitsi activities found';
 $string['norecording'] = 'There is no recording. The video will appear automatically';
 $string['norecords'] = 'No recordings available';
 $string['nostart'] = 'The session has not started. You can access {$a}';
+$string['notdeletable'] = 'Not deletable';
 $string['notloggedin'] = 'Account credentials required';
 $string['noviewpermission'] = 'You do not have permission for view this Jitsi session';
 $string['number_of_recordings'] = 'Number of Recordings';
