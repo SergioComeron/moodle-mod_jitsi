@@ -3030,19 +3030,28 @@ if ($action === 'gcpstart' && $id > 0) {
             \core\output\notification::NOTIFY_SUCCESS
         );
 
-        // Also start the Jibri VM if present.
-        if (!empty($server->jibri_enabled) && !empty($server->jibri_gcpinstancename)) {
-            try {
-                $compute->instances->start($server->gcpproject, $server->gcpzone, $server->jibri_gcpinstancename);
-                \core\notification::add(
-                    "Starting Jibri GCP instance: {$server->jibri_gcpinstancename}",
-                    \core\output\notification::NOTIFY_SUCCESS
-                );
-            } catch (Exception $ejibri) {
-                \core\notification::add(
-                    "Failed to start Jibri instance: " . $ejibri->getMessage(),
-                    \core\output\notification::NOTIFY_WARNING
-                );
+        // Also start all Jibri pool VMs.
+        if (!empty($server->jibri_enabled)) {
+            $poolentries = $DB->get_records('jitsi_jibri_pool', ['serverid' => $server->id]);
+            foreach ($poolentries as $poolentry) {
+                if (empty($poolentry->gcpinstancename)) {
+                    continue;
+                }
+                try {
+                    $compute->instances->start($server->gcpproject, $server->gcpzone, $poolentry->gcpinstancename);
+                    $poolentry->status       = 'provisioning';
+                    $poolentry->timemodified = time();
+                    $DB->update_record('jitsi_jibri_pool', $poolentry);
+                    \core\notification::add(
+                        "Starting Jibri GCP instance: {$poolentry->gcpinstancename}",
+                        \core\output\notification::NOTIFY_SUCCESS
+                    );
+                } catch (Exception $ejibri) {
+                    \core\notification::add(
+                        "Failed to start Jibri instance {$poolentry->gcpinstancename}: " . $ejibri->getMessage(),
+                        \core\output\notification::NOTIFY_WARNING
+                    );
+                }
             }
         }
     } catch (Exception $e) {
@@ -3077,19 +3086,28 @@ if ($action === 'gcpstop' && $id > 0) {
             \core\output\notification::NOTIFY_SUCCESS
         );
 
-        // Also stop the Jibri VM if present.
-        if (!empty($server->jibri_enabled) && !empty($server->jibri_gcpinstancename)) {
-            try {
-                $compute->instances->stop($server->gcpproject, $server->gcpzone, $server->jibri_gcpinstancename);
-                \core\notification::add(
-                    "Stopping Jibri GCP instance: {$server->jibri_gcpinstancename}",
-                    \core\output\notification::NOTIFY_SUCCESS
-                );
-            } catch (Exception $ejibri) {
-                \core\notification::add(
-                    "Failed to stop Jibri instance: " . $ejibri->getMessage(),
-                    \core\output\notification::NOTIFY_WARNING
-                );
+        // Also stop all Jibri pool VMs.
+        if (!empty($server->jibri_enabled)) {
+            $poolentries = $DB->get_records('jitsi_jibri_pool', ['serverid' => $server->id]);
+            foreach ($poolentries as $poolentry) {
+                if (empty($poolentry->gcpinstancename)) {
+                    continue;
+                }
+                try {
+                    $compute->instances->stop($server->gcpproject, $server->gcpzone, $poolentry->gcpinstancename);
+                    $poolentry->status       = 'error';
+                    $poolentry->timemodified = time();
+                    $DB->update_record('jitsi_jibri_pool', $poolentry);
+                    \core\notification::add(
+                        "Stopping Jibri GCP instance: {$poolentry->gcpinstancename}",
+                        \core\output\notification::NOTIFY_SUCCESS
+                    );
+                } catch (Exception $ejibri) {
+                    \core\notification::add(
+                        "Failed to stop Jibri instance {$poolentry->gcpinstancename}: " . $ejibri->getMessage(),
+                        \core\output\notification::NOTIFY_WARNING
+                    );
+                }
             }
         }
     } catch (Exception $e) {
