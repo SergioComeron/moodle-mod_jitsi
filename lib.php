@@ -1906,6 +1906,14 @@ function delete_jibri_file($link) {
  */
 function delete_jitsi_record($source) {
     global $DB;
+    // Delete the AI-generated quiz course module if one was created.
+    $sourcerecord = $DB->get_record('jitsi_source_record', ['id' => $source]);
+    if ($sourcerecord && !empty($sourcerecord->ai_quiz_id) && (int)$sourcerecord->ai_quiz_id > 0) {
+        $cmid = (int)$sourcerecord->ai_quiz_id;
+        if ($DB->record_exists('course_modules', ['id' => $cmid])) {
+            course_delete_module($cmid);
+        }
+    }
     $DB->delete_records('jitsi_record', ['source' => $source]);
     $DB->delete_records('jitsi_source_record', ['id' => $source]);
 }

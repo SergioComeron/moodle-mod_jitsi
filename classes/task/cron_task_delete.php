@@ -60,6 +60,14 @@ class cron_task_delete extends \core\task\scheduled_task {
         foreach ($recordstodelete as $recordtodelete) {
             $source = $DB->get_record('jitsi_source_record', ['id' => $recordtodelete->source]);
             if (($source->timecreated < time() - get_config('mod_jitsi', 'videosexpiry'))) {
+                // Delete AI-generated quiz if present.
+                if (!empty($source->ai_quiz_id) && (int)$source->ai_quiz_id > 0) {
+                    $cmid = (int)$source->ai_quiz_id;
+                    if ($DB->record_exists('course_modules', ['id' => $cmid])) {
+                        course_delete_module($cmid);
+                        mtrace("Deleted AI quiz course module: " . $cmid);
+                    }
+                }
                 if (!empty($source->type) && $source->type == 1) {
                     // External/Jibri recording — try to delete physical file from VM (best-effort).
                     if (preg_match('/^http:\/\/\d+\.\d+\.\d+\.\d+\//', $source->link)) {
