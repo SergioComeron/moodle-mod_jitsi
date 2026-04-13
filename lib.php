@@ -446,7 +446,7 @@ function createsession(
     echo "<script src=\"https://" . $domain . "/external_api.js\"></script>\n";
 
     $streamingoption = '';
-    $jibrienabled = ($servertype == 3 && !empty($server->jibri_enabled) && ($server->jibri_provisioningstatus ?? '') === 'ready');
+    $jibrienabled = ($servertype == 3 && jitsi_is_jibri_ready($server));
     if (
         (get_config('mod_jitsi', 'livebutton') == 1) &&
         (has_capability('mod/jitsi:record', $PAGE->context)) &&
@@ -470,8 +470,8 @@ function createsession(
     }
     $record = '';
     // Enable the Jitsi recording toolbar button when the record setting is on.
-    // For GCP servers (type 3), only enable it when Jibri is provisioned and ready.
-    $jibrienabled = ($servertype == 3 && !empty($server->jibri_enabled) && ($server->jibri_provisioningstatus ?? '') === 'ready');
+    // For GCP servers (type 3), only enable it when at least one Jibri is ready in the pool.
+    $jibrienabled = ($servertype == 3 && jitsi_is_jibri_ready($server));
     if (
         get_config('mod_jitsi', 'record') == 1 && has_capability('mod/jitsi:record', $PAGE->context) &&
             ($servertype != 3 || $jibrienabled)
@@ -676,7 +676,7 @@ function createsession(
     }
 
     // Disable live streaming if global setting is off, or if GCP (type 3) without Jibri ready.
-    $jibrilivestream = ($servertype == 3 && !empty($server->jibri_enabled) && ($server->jibri_provisioningstatus ?? '') === 'ready');
+    $jibrilivestream = ($servertype == 3 && jitsi_is_jibri_ready($server));
     if (get_config('mod_jitsi', 'livebutton') == 0 || ($servertype == 3 && !$jibrilivestream)) {
         echo "liveStreamingEnabled: false,\n";
     }
@@ -2864,4 +2864,28 @@ function jitsi_check_tutoring_availability($teacherid, $studentid) {
     }
 
     return ['hasschedule' => true, 'available' => false, 'nextslot' => $nextslotstr];
+}
+
+/**
+ * Returns true if the given GCP server has at least one Jibri VM ready in the pool,
+ * or falls back to the legacy jibri_provisioningstatus field for servers not yet migrated.
+ *
+ * @param \stdClass $server jitsi_servers record
+ * @return bool
+ */
+function jitsi_is_jibri_ready(\stdClass $server): bool {
+    global $DB;
+    if (empty($server->jibri_enabled)) {
+        return false;
+    }
+    // Check pool table first.
+    if ($DB->record_exists_select(
+        'jitsi_jibri_pool',
+        "serverid = ? AND status IN ('idle', 'recording', 'streaming')",
+        [$server->id]
+    )) {
+        return true;
+    }
+    // Fallback: legacy field (servers not yet migrated to pool).
+    return ($server->jibri_provisioningstatus ?? '') === 'ready';
 }
