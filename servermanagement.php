@@ -1612,7 +1612,7 @@ if (!function_exists('mod_jitsi_jibri_startup_script')) {
                     curl -sf "\${BASE_URL}/mod/jitsi/servermanagement.php?action=jibristatus&poolentryid=\${POOL_ENTRY_ID}&token=\${TOKEN}&busyness=\${BUSY}" > /dev/null 2>&1 || true
                 fi
             fi
-            sleep 10
+            sleep 2
         done
         EOFMON
         chmod +x /usr/local/bin/jibri-monitor.sh
