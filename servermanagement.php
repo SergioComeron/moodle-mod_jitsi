@@ -1596,41 +1596,41 @@ if (!function_exists('mod_jitsi_jibri_startup_script')) {
         MON_BASE_URL=$(echo "$MON_MOODLE_URL" | grep -oP 'https?://[^/]+')
 
         cat > /usr/local/bin/jibri-monitor.sh << EOFMON
-#!/bin/bash
-BASE_URL="${MON_BASE_URL}"
-SERVER_ID="${MON_SERVER_ID}"
-TOKEN="${MON_TOKEN}"
-POOL_ENTRY_ID="${MON_POOL_ENTRY}"
-LAST_STATUS=""
+        #!/bin/bash
+        BASE_URL="${MON_BASE_URL}"
+        SERVER_ID="${MON_SERVER_ID}"
+        TOKEN="${MON_TOKEN}"
+        POOL_ENTRY_ID="${MON_POOL_ENTRY}"
+        LAST_STATUS=""
 
-while true; do
-    HEALTH=\$(curl -sf http://localhost:2222/v1/health 2>/dev/null)
-    if [ -n "\$HEALTH" ]; then
-        BUSY=\$(echo "\$HEALTH" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status',{}).get('busyStatus','IDLE'))" 2>/dev/null || echo "IDLE")
-        if [ "\$BUSY" != "\$LAST_STATUS" ]; then
-            LAST_STATUS="\$BUSY"
-            curl -sf "\${BASE_URL}/mod/jitsi/servermanagement.php?action=jibristatus&poolentryid=\${POOL_ENTRY_ID}&token=\${TOKEN}&busyness=\${BUSY}" > /dev/null 2>&1 || true
-        fi
-    fi
-    sleep 10
-done
-EOFMON
+        while true; do
+            HEALTH=\$(curl -sf http://localhost:2222/v1/health 2>/dev/null)
+            if [ -n "\$HEALTH" ]; then
+                BUSY=\$(echo "\$HEALTH" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status',{}).get('busyStatus','IDLE'))" 2>/dev/null || echo "IDLE")
+                if [ "\$BUSY" != "\$LAST_STATUS" ]; then
+                    LAST_STATUS="\$BUSY"
+                    curl -sf "\${BASE_URL}/mod/jitsi/servermanagement.php?action=jibristatus&poolentryid=\${POOL_ENTRY_ID}&token=\${TOKEN}&busyness=\${BUSY}" > /dev/null 2>&1 || true
+                fi
+            fi
+            sleep 10
+        done
+        EOFMON
         chmod +x /usr/local/bin/jibri-monitor.sh
 
         cat > /etc/systemd/system/jibri-monitor.service << 'EOFMONITORSVC'
-[Unit]
-Description=Jibri Status Monitor - reports recording state to Moodle
-After=jibri.service
+        [Unit]
+        Description=Jibri Status Monitor - reports recording state to Moodle
+        After=jibri.service
 
-[Service]
-Type=simple
-ExecStart=/usr/local/bin/jibri-monitor.sh
-Restart=always
-RestartSec=30
+        [Service]
+        Type=simple
+        ExecStart=/usr/local/bin/jibri-monitor.sh
+        Restart=always
+        RestartSec=30
 
-[Install]
-WantedBy=multi-user.target
-EOFMONITORSVC
+        [Install]
+        WantedBy=multi-user.target
+        EOFMONITORSVC
 
         systemctl daemon-reload
         systemctl enable jibri-monitor
