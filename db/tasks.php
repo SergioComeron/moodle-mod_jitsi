@@ -37,7 +37,7 @@ $tasks = [
     [
         'classname' => 'mod_jitsi\task\check_jibri_pool',
         'blocking' => 0,
-        'minute' => '*/5',
+        'minute' => '*',
         'hour' => '*',
         'day' => '*',
         'month' => '*',
