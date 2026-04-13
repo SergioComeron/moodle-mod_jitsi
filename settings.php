@@ -520,15 +520,6 @@ if ($ADMIN->fulltree) {
 
     $settings->add(
         new admin_setting_configtext(
-            'mod_jitsi/gcp_machine_type',
-            get_string('gcpmachinetype', 'jitsi'),
-            get_string('gcpmachinetypeex', 'jitsi'),
-            'e2-standard-4'
-        )
-    );
-
-    $settings->add(
-        new admin_setting_configtext(
             'mod_jitsi/gcp_image',
             get_string('gcpimage', 'jitsi'),
             get_string('gcpimageex', 'jitsi'),
