@@ -2879,11 +2879,13 @@ function jitsi_is_jibri_ready(\stdClass $server): bool {
         return false;
     }
     // Check pool table first.
-    if ($DB->record_exists_select(
-        'jitsi_jibri_pool',
-        "serverid = ? AND status IN ('idle', 'recording', 'streaming')",
-        [$server->id]
-    )) {
+    if (
+        $DB->record_exists_select(
+            'jitsi_jibri_pool',
+            "serverid = ? AND status IN ('idle', 'recording', 'streaming')",
+            [$server->id]
+        )
+    ) {
         return true;
     }
     // Fallback: legacy field (servers not yet migrated to pool).
