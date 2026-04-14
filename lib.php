@@ -2888,6 +2888,10 @@ function jitsi_is_jibri_ready(\stdClass $server): bool {
     ) {
         return true;
     }
+    // If the server already has pool entries (even provisioning), don't fall back to legacy field.
+    if ($DB->record_exists('jitsi_jibri_pool', ['serverid' => $server->id])) {
+        return false;
+    }
     // Fallback: legacy field (servers not yet migrated to pool).
     return ($server->jibri_provisioningstatus ?? '') === 'ready';
 }
