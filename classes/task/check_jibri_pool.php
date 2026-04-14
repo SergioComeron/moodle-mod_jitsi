@@ -187,7 +187,7 @@ class check_jibri_pool extends \core\task\scheduled_task {
                 . " ({$currentidlecount} idle/provisioning < {$poolsize} desired)");
             $task = new \mod_jitsi\task\provision_jibri_vm();
             $task->set_custom_data(['serverid' => $server->id]);
-            \core\task\manager::queue_adhoc_task($task, true);
+            \core\task\manager::queue_adhoc_task($task, false);
             $currentidlecount++;
         }
 
