@@ -396,6 +396,21 @@ if ($rawaction === 'jibristatus') {
         $entry->status       = $newstatus;
         $entry->timemodified = time();
         $DB->update_record('jitsi_jibri_pool', $entry);
+
+        // When a Jibri goes BUSY, immediately top up the pool without waiting for the next cron run.
+        if ($newstatus === 'recording') {
+            $poolsize    = (int)($server->jibri_pool_size ?? 1);
+            $idlecount   = $DB->count_records_select(
+                'jitsi_jibri_pool',
+                "serverid = ? AND status IN ('idle', 'provisioning')",
+                [$server->id]
+            );
+            if ($idlecount < $poolsize) {
+                $task = new \mod_jitsi\task\provision_jibri_vm();
+                $task->set_custom_data(['serverid' => $server->id]);
+                \core\task\manager::queue_adhoc_task($task, false);
+            }
+        }
     }
 
     http_response_code(200);
