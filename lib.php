@@ -679,6 +679,7 @@ function createsession(
     $jibrilivestream = ($servertype == 3 && jitsi_is_jibri_ready($server));
     if (get_config('mod_jitsi', 'livebutton') == 0 || ($servertype == 3 && !$jibrilivestream)) {
         echo "liveStreamingEnabled: false,\n";
+        echo "liveStreaming: {enabled: false},\n";
     }
 
     echo "toolbarButtons: " . $buttons . ",\n";
