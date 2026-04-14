@@ -101,6 +101,11 @@ class check_jibri_pool extends \core\task\scheduled_task {
      * @param \moodle_database $DB
      */
     private function process_server(\stdClass $server, \moodle_database $DB): void {
+        // Defensive guard: only process GCP servers with Jibri enabled.
+        if ((int)$server->type !== 3 || empty($server->jibri_enabled)) {
+            return;
+        }
+
         // If the Jitsi VM is not running (e.g. stopped by admin), delete all pool VMs and bail out.
         if (!empty($server->gcpinstancename)) {
             try {
