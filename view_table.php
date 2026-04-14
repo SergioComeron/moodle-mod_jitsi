@@ -166,8 +166,12 @@ class mod_view_table extends table_sql {
                 // Build per-tab content and determine which tabs to show.
                 $aitabs = [];
 
+                $cangensum = $isgcs && has_capability('mod/jitsi:generateaisummary', $context);
+                $cangenquiz = $isgcs && has_capability('mod/jitsi:generateaiquiz', $context);
+                $cangentrans = $isgcs && has_capability('mod/jitsi:generateaitranscription', $context);
+
                 // --- Summary tab ---
-                if ($isgcs && has_capability('mod/jitsi:generateaisummary', $context)) {
+                if ($cangensum || ($isgcs && $summaryexists)) {
                     if ($summaryexists) {
                         $tabcontent = '<div class="p-2" style="font-size:0.95em">'
                             . nl2br(s($sourcerecord->ai_summary))
@@ -195,7 +199,7 @@ class mod_view_table extends table_sql {
                 }
 
                 // --- Quiz tab ---
-                if ($isgcs && has_capability('mod/jitsi:generateaiquiz', $context)) {
+                if ($cangenquiz || ($isgcs && $quizid > 0)) {
                     if ($quizid > 0) {
                         $quizurl = new moodle_url('/mod/quiz/view.php', ['id' => $quizid]);
                         $tabcontent = html_writer::link(
@@ -225,7 +229,7 @@ class mod_view_table extends table_sql {
                 }
 
                 // --- Transcription tab ---
-                if ($isgcs && has_capability('mod/jitsi:generateaitranscription', $context)) {
+                if ($cangentrans || ($isgcs && $transcriptiondone)) {
                     if ($transcriptiondone) {
                         $lines = explode("\n", $sourcerecord->ai_transcription);
                         $transcriptionlines = '';
@@ -254,7 +258,7 @@ class mod_view_table extends table_sql {
                         }
                         $tabcontent = '<div style="max-height:300px;overflow-y:auto;font-size:0.9em">'
                             . $transcriptionlines . '</div>';
-                    } else {
+                    } else if ($cangentrans) {
                         $tabcontent = '<button type="button"'
                             . ' class="btn btn-sm btn-outline-info jitsi-ai-transcription-btn"'
                             . ' data-sourcerecordid="' . (int)$sourcerecord->id . '"'
@@ -270,13 +274,18 @@ class mod_view_table extends table_sql {
                         }
                         $tabcontent .= '<span class="jitsi-ai-transcription-status ms-2 text-muted small"'
                             . ' style="display:none"></span>';
+                    } else {
+                        // Transcription not yet done and user cannot generate — skip tab.
+                        $tabcontent = null;
                     }
-                    $aitabs[] = [
-                        'id' => $aiid . '-transcription',
-                        'label' => get_string('aitranscription', 'jitsi'),
-                        'content' => $tabcontent,
-                        'done' => $transcriptiondone,
-                    ];
+                    if ($tabcontent !== null) {
+                        $aitabs[] = [
+                            'id' => $aiid . '-transcription',
+                            'label' => get_string('aitranscription', 'jitsi'),
+                            'content' => $tabcontent,
+                            'done' => $transcriptiondone,
+                        ];
+                    }
                 }
 
                 // Build accordion with tabs (only if there are AI features to show).
