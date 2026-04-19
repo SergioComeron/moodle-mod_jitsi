@@ -778,4 +778,23 @@ final class lib_test extends \advanced_testcase {
         $room = jitsi_build_room_name('prueba', 4, 'Prueba dev to master 4.6.0', '0,1,2', 3);
         $this->assertEquals('prueba4prueba-dev-to-master-460', strtolower($room));
     }
+
+    /**
+     * Test that dot separator is stripped for Jibri filename matching.
+     *
+     * Jibri strips dots from room names in MP4 filenames. When separator='0' (dot),
+     * 'prueba.4.session' in the URL becomes 'prueba4session' in the filename.
+     * The jibrirecording callback must match both forms.
+     *
+     * @covers ::jitsi_build_room_name
+     */
+    public function test_build_room_name_dot_separator_stripped_matches_jibri_filename(): void {
+        $builtname = jitsi_build_room_name('prueba', 4, 'Prueba dev to master 4.6.0', '0,1,2', 0);
+        $this->assertEquals('prueba.4.prueba-dev-to-master-460', strtolower($builtname));
+
+        // Simulate what the jibrirecording callback does to match Jibri filenames.
+        $jibrifilename = 'prueba4prueba-dev-to-master-460';
+        $strippeddot   = strtolower(str_replace('.', '', $builtname));
+        $this->assertEquals($jibrifilename, $strippeddot);
+    }
 }
