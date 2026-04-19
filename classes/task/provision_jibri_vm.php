@@ -164,17 +164,48 @@ class provision_jibri_vm extends \core\task\adhoc_task {
                     'INSTANCE_NAME=$(curl -sf -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/name" || hostname)' . "\n" .
                     'CALLBACK_URL=$(curl -sf -H "Metadata-Flavor: Google" "$META/CALLBACK_URL" || true)' . "\n" .
                     'POOL_ENTRY_ID=$(curl -sf -H "Metadata-Flavor: Google" "$META/JIBRI_POOL_ENTRY_ID" || true)' . "\n" .
+                    'MON_TOKEN=$(curl -sf -H "Metadata-Flavor: Google" "$META/JIBRI_TOKEN" || true)' . "\n" .
+                    'MON_MOODLE_URL=$(curl -sf -H "Metadata-Flavor: Google" "$META/JIBRI_MOODLE_URL" || true)' . "\n" .
+                    'MON_BASE_URL=$(echo "$MON_MOODLE_URL" | grep -oP \'https?://[^/]+\')' . "\n" .
                     '# Update MUC nickname in jibri.conf with this VM\'s unique instance name.' . "\n" .
                     'if [ -f /etc/jitsi/jibri/jibri.conf ]; then' . "\n" .
                     '    sed -i "s/nickname = \"jibri-[^\"]*\"/nickname = \"jibri-${INSTANCE_NAME}\"/" /etc/jitsi/jibri/jibri.conf' . "\n" .
                     '    systemctl restart jibri' . "\n" .
                     '    sleep 10' . "\n" .
                     'fi' . "\n" .
-                    '# Update monitor script with this VM\'s pool entry ID, then restart it.' . "\n" .
-                    'if [ -n "$POOL_ENTRY_ID" ] && [ -f /usr/local/bin/jibri-monitor.sh ]; then' . "\n" .
-                    '    sed -i "s/^POOL_ENTRY_ID=.*/POOL_ENTRY_ID=\"${POOL_ENTRY_ID}\"/" /usr/local/bin/jibri-monitor.sh' . "\n" .
-                    '    systemctl restart jibri-monitor 2>/dev/null || true' . "\n" .
+                    '# Write jibri-monitor.sh from scratch (installs it even if absent from the image).' . "\n" .
+                    'cat > /usr/local/bin/jibri-monitor.sh << EOFMON' . "\n" .
+                    '#!/bin/bash' . "\n" .
+                    'BASE_URL="${MON_BASE_URL}"' . "\n" .
+                    'TOKEN="${MON_TOKEN}"' . "\n" .
+                    'POOL_ENTRY_ID="${POOL_ENTRY_ID}"' . "\n" .
+                    'LAST_STATUS=""' . "\n" .
+                    'while true; do' . "\n" .
+                    '    HEALTH=\$(curl -sf http://localhost:2222/jibri/api/v1.0/health 2>/dev/null)' . "\n" .
+                    '    if [ -n "\$HEALTH" ]; then' . "\n" .
+                    '        PY="import sys,json; d=json.load(sys.stdin)"' . "\n" .
+                    '        BUSY=\$(echo "\$HEALTH" | python3 -c "\$PY; print(d.get(\'status\',{}).get(\'busyStatus\',\'IDLE\'))" 2>/dev/null || echo "IDLE")' . "\n" .
+                    '        if [ "\$BUSY" != "\$LAST_STATUS" ]; then' . "\n" .
+                    '            LAST_STATUS="\$BUSY"' . "\n" .
+                    '            URL="\${BASE_URL}/mod/jitsi/servermanagement.php"' . "\n" .
+                    '            PARAMS="action=jibristatus&poolentryid=\${POOL_ENTRY_ID}&token=\${TOKEN}&busyness=\${BUSY}"' . "\n" .
+                    '            curl -sf "\${URL}?\${PARAMS}" > /dev/null 2>&1 || true' . "\n" .
+                    '        fi' . "\n" .
+                    '    fi' . "\n" .
+                    '    sleep 2' . "\n" .
+                    'done' . "\n" .
+                    'EOFMON' . "\n" .
+                    'chmod +x /usr/local/bin/jibri-monitor.sh' . "\n" .
+                    '# Install jibri-monitor service if not present.' . "\n" .
+                    'if [ ! -f /etc/systemd/system/jibri-monitor.service ]; then' . "\n" .
+                    "    cat > /etc/systemd/system/jibri-monitor.service << 'EOFMONITORSVC'\n" .
+                    "[Unit]\nDescription=Jibri Status Monitor\nAfter=jibri.service\n\n" .
+                    "[Service]\nType=simple\nExecStart=/usr/local/bin/jibri-monitor.sh\nRestart=always\nRestartSec=30\n\n" .
+                    "[Install]\nWantedBy=multi-user.target\nEOFMONITORSVC\n" .
+                    '    systemctl daemon-reload' . "\n" .
+                    '    systemctl enable jibri-monitor' . "\n" .
                     'fi' . "\n" .
+                    'systemctl restart jibri-monitor 2>/dev/null || systemctl start jibri-monitor 2>/dev/null || true' . "\n" .
                     '# Wait for Jibri to be fully up before notifying Moodle.' . "\n" .
                     'sleep 15' . "\n" .
                     'if [ -n "$CALLBACK_URL" ]; then' . "\n" .
