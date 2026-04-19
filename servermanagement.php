@@ -289,7 +289,11 @@ if ($rawaction === 'jibrirecording') {
         if (!empty($roomname)) {
             $separatormap   = ['.', '-', '_', ''];
             $fieldssesname  = (string)get_config('mod_jitsi', 'sesionname');
-            $separatorindex = (int)get_config('mod_jitsi', 'separator');
+            if ($fieldssesname === '' || $fieldssesname === false) {
+                $fieldssesname = '0,1,2';
+            }
+            $separatorindex = get_config('mod_jitsi', 'separator');
+            $separatorindex = ($separatorindex === false || $separatorindex === '') ? 0 : (int)$separatorindex;
             $sep = $separatormap[$separatorindex] ?? '';
 
             $alljitsis = $DB->get_records_sql(
@@ -302,11 +306,11 @@ if ($rawaction === 'jibrirecording') {
                 for ($i = 0; $i < $max; $i++) {
                     $part = '';
                     if ($allowed[$i] == 0) {
-                        $part = preg_replace('/[^a-zA-Z0-9]/', '', $candidate->courseshortname);
+                        $part = string_sanitize($candidate->courseshortname);
                     } else if ($allowed[$i] == 1) {
                         $part = (string)$candidate->id;
                     } else if ($allowed[$i] == 2) {
-                        $part = preg_replace('/[^a-zA-Z0-9]/', '', $candidate->name);
+                        $part = string_sanitize($candidate->name);
                     }
                     $sesparam .= $part;
                     if ($i < $max - 1) {
