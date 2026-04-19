@@ -31,6 +31,7 @@ if ($rawaction === 'jitsiready' || $rawaction === 'jibriready'
         || $rawaction === 'jibrirecording' || $rawaction === 'jibristatus') {
     define('NO_MOODLE_COOKIES', true);
     require_once(__DIR__ . '/../../config.php');
+    require_once($CFG->dirroot . '/mod/jitsi/lib.php');
 }
 
 if ($rawaction === 'jitsiready') {
