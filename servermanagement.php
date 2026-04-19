@@ -293,6 +293,9 @@ if ($rawaction === 'jibrirecording') {
             $alljitsis  = $DB->get_records_sql(
                 'SELECT j.*, c.shortname AS courseshortname FROM {jitsi} j JOIN {course} c ON c.id = j.course'
             );
+            $separatormap = ['.', '-', '_', ''];
+            $sepchar = $separatormap[(int)$separator] ?? '';
+            $roomnamelc = strtolower($roomname);
             foreach ($alljitsis as $candidate) {
                 $sesparam = jitsi_build_room_name(
                     $candidate->courseshortname,
@@ -301,7 +304,12 @@ if ($rawaction === 'jibrirecording') {
                     $sesionname,
                     $separator
                 );
-                if (strtolower($sesparam) === strtolower($roomname)) {
+                if (strtolower($sesparam) === $roomnamelc) {
+                    $jitsi = $candidate;
+                    break;
+                }
+                // Fallback: Jibri strips certain separators (e.g. dots) from filenames.
+                if ($sepchar !== '' && strtolower(str_replace($sepchar, '', $sesparam)) === $roomnamelc) {
                     $jitsi = $candidate;
                     break;
                 }
