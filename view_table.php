@@ -238,7 +238,10 @@ class mod_view_table extends table_sql {
                             if ($line === '') {
                                 continue;
                             }
-                            if (preg_match('/^\[(\d+):(\d{2})(?::(\d{2}))?\]\s*(.*)$/u', $line, $tm)) {
+                            if (preg_match('/^###\s+(.+)$/u', $line, $cm)) {
+                                $transcriptionlines .= '<div class="jitsi-transcript-chapter mt-3 mb-1">'
+                                    . '<strong>' . s($cm[1]) . '</strong></div>';
+                            } else if (preg_match('/^\[(\d+):(\d{2})(?::(\d{2}))?\]\s*(.*)$/u', $line, $tm)) {
                                 if (isset($tm[3]) && $tm[3] !== '') {
                                     $seconds = (int)$tm[1] * 3600 + (int)$tm[2] * 60 + (int)$tm[3];
                                     $tslabel = s($tm[1] . ':' . $tm[2] . ':' . $tm[3]);

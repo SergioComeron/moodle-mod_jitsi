@@ -137,11 +137,18 @@ class generate_ai_transcription extends \core\task\adhoc_task {
 
             $lang = !empty($data->lang) ? $data->lang : 'en';
             $prompt = "Please transcribe this video recording in full. "
-                . "Format the transcription as a list of lines, each starting with a timestamp in [MM:SS] format "
-                . "(or [HH:MM:SS] for recordings longer than one hour), followed by the spoken text. "
-                . "Example:\n[00:00] Welcome to today's class.\n[00:15] Today we will cover...\n"
-                . "Include all spoken content. Do not add summaries or headings. "
-                . "Write the transcription in the following language: {$lang}.";
+                . "Format the transcription as follows:\n"
+                . "- When the topic changes significantly, insert a chapter heading on its own line using the format: ### Chapter Title\n"
+                . "- Each spoken line must start with a timestamp in [MM:SS] format "
+                . "(or [HH:MM:SS] for recordings longer than one hour), followed by the spoken text.\n"
+                . "Example:\n"
+                . "### Introduction\n"
+                . "[00:00] Welcome to today's class.\n"
+                . "[00:15] Today we will cover...\n"
+                . "### Exercise 1\n"
+                . "[05:30] Let's start with the first exercise.\n"
+                . "Include all spoken content. Use chapter headings only at natural topic boundaries. "
+                . "Write everything (including chapter titles) in the following language: {$lang}.";
 
             $body = json_encode([
                 'contents' => [
