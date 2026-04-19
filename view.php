@@ -228,12 +228,6 @@ switch (get_config('mod_jitsi', 'id')) {
     case 'alias':
         break;
 }
-$sessionoptionsparam = ['$course->shortname', '$jitsi->id', '$jitsi->name'];
-$fieldssessionname = get_config('mod_jitsi', 'sesionname');
-
-$allowed = explode(',', $fieldssessionname);
-$max = count($allowed);
-
 $sesparam = '';
 
 $errorborrado = false;
@@ -255,26 +249,13 @@ if ($jitsi->sessionwithtoken == 0) {
 }
 
 if ($errorborrado == false) {
-    $optionsseparator = ['.', '-', '_', ''];
-    for ($i = 0; $i < $max; $i++) {
-        if ($i != $max - 1) {
-            if ($allowed[$i] == 0) {
-                $sesparam .= string_sanitize($courseshortname) . $optionsseparator[get_config('mod_jitsi', 'separator')];
-            } else if ($allowed[$i] == 1) {
-                $sesparam .= $jitsiid . $optionsseparator[get_config('mod_jitsi', 'separator')];
-            } else if ($allowed[$i] == 2) {
-                $sesparam .= string_sanitize($jitsiname) . $optionsseparator[get_config('mod_jitsi', 'separator')];
-            }
-        } else {
-            if ($allowed[$i] == 0) {
-                $sesparam .= string_sanitize($courseshortname);
-            } else if ($allowed[$i] == 1) {
-                $sesparam .= $jitsiid;
-            } else if ($allowed[$i] == 2) {
-                $sesparam .= string_sanitize($jitsiname);
-            }
-        }
-    }
+    $sesparam = jitsi_build_room_name(
+        $courseshortname,
+        $jitsiid,
+        $jitsiname,
+        get_config('mod_jitsi', 'sesionname'),
+        get_config('mod_jitsi', 'separator')
+    );
     $avatar = $CFG->wwwroot . '/user/pix.php/' . $USER->id . '/f1.jpg';
     $urlparams = [
         'avatar' => $avatar,

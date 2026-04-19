@@ -717,4 +717,65 @@ final class lib_test extends \advanced_testcase {
             'Type-0 servers must not generate a JWT token'
         );
     }
+
+    /**
+     * jitsi_build_room_name combines parts with no separator by default.
+     *
+     * @covers ::jitsi_build_room_name
+     */
+    public function test_build_room_name_default_settings(): void {
+        // Default sesionname=0,1,2 and separator=0 ('.') — but last part has no trailing sep.
+        // shortname=prueba, id=4, name=Prueba dev to master 4.6.0
+        // string_sanitize converts spaces to hyphens and strips dots.
+        $result = jitsi_build_room_name('prueba', 4, 'Prueba dev to master 4.6.0', '0,1,2', 3);
+        $this->assertEquals('prueba4prueba-dev-to-master-460', $result);
+    }
+
+    /**
+     * jitsi_build_room_name uses dot separator between all but last part.
+     *
+     * @covers ::jitsi_build_room_name
+     */
+    public function test_build_room_name_dot_separator(): void {
+        $result = jitsi_build_room_name('mycourse', 7, 'My Session', '0,1,2', 0);
+        $this->assertEquals('mycourse.7.my-session', $result);
+    }
+
+    /**
+     * jitsi_build_room_name defaults to '0,1,2' when sesionname is empty.
+     *
+     * @covers ::jitsi_build_room_name
+     */
+    public function test_build_room_name_empty_sesionname_defaults(): void {
+        $a = jitsi_build_room_name('course', 1, 'Test', '', 3);
+        $b = jitsi_build_room_name('course', 1, 'Test', '0,1,2', 3);
+        $this->assertEquals($b, $a);
+    }
+
+    /**
+     * jitsi_build_room_name defaults to '0,1,2' when sesionname is false (config not set).
+     *
+     * @covers ::jitsi_build_room_name
+     */
+    public function test_build_room_name_false_sesionname_defaults(): void {
+        $a = jitsi_build_room_name('course', 2, 'Demo', false, 3);
+        $b = jitsi_build_room_name('course', 2, 'Demo', '0,1,2', 3);
+        $this->assertEquals($b, $a);
+    }
+
+    /**
+     * jitsi_build_room_name result matches room name extracted from Jibri filename.
+     *
+     * Regression test for the bug where preg_replace('/[^a-zA-Z0-9]/','') was used
+     * instead of string_sanitize(), causing spaces to be stripped rather than
+     * converted to hyphens, so the callback could never match an activity.
+     *
+     * @covers ::jitsi_build_room_name
+     */
+    public function test_build_room_name_matches_jibri_filename_room(): void {
+        // Filename: prueba4prueba-dev-to-master-460_2026-04-19-08-27-30.mp4
+        // Room extracted by finalize script: prueba4prueba-dev-to-master-460
+        $room = jitsi_build_room_name('prueba', 4, 'Prueba dev to master 4.6.0', '0,1,2', 3);
+        $this->assertEquals('prueba4prueba-dev-to-master-460', strtolower($room));
+    }
 }

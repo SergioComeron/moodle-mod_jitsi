@@ -287,36 +287,19 @@ if ($rawaction === 'jibrirecording') {
         // using the admin settings 'sesionname' and 'separator' — same logic as view.php.
         $jitsi = null;
         if (!empty($roomname)) {
-            $separatormap   = ['.', '-', '_', ''];
-            $fieldssesname  = (string)get_config('mod_jitsi', 'sesionname');
-            if ($fieldssesname === '' || $fieldssesname === false) {
-                $fieldssesname = '0,1,2';
-            }
-            $separatorindex = get_config('mod_jitsi', 'separator');
-            $separatorindex = ($separatorindex === false || $separatorindex === '') ? 0 : (int)$separatorindex;
-            $sep = $separatormap[$separatorindex] ?? '';
-
-            $alljitsis = $DB->get_records_sql(
+            $sesionname = get_config('mod_jitsi', 'sesionname');
+            $separator  = get_config('mod_jitsi', 'separator');
+            $alljitsis  = $DB->get_records_sql(
                 'SELECT j.*, c.shortname AS courseshortname FROM {jitsi} j JOIN {course} c ON c.id = j.course'
             );
             foreach ($alljitsis as $candidate) {
-                $allowed = explode(',', $fieldssesname);
-                $max = count($allowed);
-                $sesparam = '';
-                for ($i = 0; $i < $max; $i++) {
-                    $part = '';
-                    if ($allowed[$i] == 0) {
-                        $part = string_sanitize($candidate->courseshortname);
-                    } else if ($allowed[$i] == 1) {
-                        $part = (string)$candidate->id;
-                    } else if ($allowed[$i] == 2) {
-                        $part = string_sanitize($candidate->name);
-                    }
-                    $sesparam .= $part;
-                    if ($i < $max - 1) {
-                        $sesparam .= preg_replace('/[^a-zA-Z0-9\-_]/', '', $sep);
-                    }
-                }
+                $sesparam = jitsi_build_room_name(
+                    $candidate->courseshortname,
+                    $candidate->id,
+                    $candidate->name,
+                    $sesionname,
+                    $separator
+                );
                 if (strtolower($sesparam) === strtolower($roomname)) {
                     $jitsi = $candidate;
                     break;

@@ -371,6 +371,47 @@ function string_sanitize($string, $forcelowercase = true, $anal = false) {
 }
 
 /**
+ * Build the Jitsi room name for a given activity using the same algorithm as view.php.
+ *
+ * Extracted here so that servermanagement.php callbacks and view.php always use
+ * identical logic and cannot diverge.
+ *
+ * @param string $shortname Course shortname
+ * @param int $jitsiid Jitsi activity ID
+ * @param string $jitsiname Jitsi activity name
+ * @param string|false $sesionname Comma-separated field indices (0=shortname,1=id,2=name).
+ *                                 Defaults to '0,1,2' when empty/false.
+ * @param int|string|false $separator Index into ['.', '-', '_', '']. Defaults to 0 ('.').
+ * @return string The room name
+ */
+function jitsi_build_room_name($shortname, $jitsiid, $jitsiname, $sesionname = false, $separator = false) {
+    $separatormap = ['.', '-', '_', ''];
+    if ($sesionname === false || $sesionname === '' || $sesionname === null) {
+        $sesionname = '0,1,2';
+    }
+    $separatorindex = ($separator === false || $separator === '' || $separator === null) ? 0 : (int)$separator;
+    $sep = $separatormap[$separatorindex] ?? '';
+    $allowed = explode(',', $sesionname);
+    $max = count($allowed);
+    $sesparam = '';
+    for ($i = 0; $i < $max; $i++) {
+        $part = '';
+        if ($allowed[$i] == 0) {
+            $part = string_sanitize($shortname);
+        } else if ($allowed[$i] == 1) {
+            $part = (string)$jitsiid;
+        } else if ($allowed[$i] == 2) {
+            $part = string_sanitize($jitsiname);
+        }
+        $sesparam .= $part;
+        if ($i < $max - 1) {
+            $sesparam .= $sep;
+        }
+    }
+    return $sesparam;
+}
+
+/**
  * Create session
  * @param int $teacher - Moderation
  * @param int $cmid - Course module
