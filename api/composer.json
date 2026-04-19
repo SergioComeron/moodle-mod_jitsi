@@ -2,7 +2,8 @@
     "require": {
         "google/apiclient": "^2.19.0",
         "php": "^8.0",
-        "google/apiclient-services": "^0.416.0"
+        "google/apiclient-services": "^0.416.0",
+        "minishlink/web-push": "^9.0"
     },
     "scripts": {
         "pre-autoload-dump": "Google\\Task\\Composer::cleanup"

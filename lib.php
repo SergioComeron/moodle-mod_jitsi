@@ -297,8 +297,6 @@ function jitsi_delete_instance($id) {
 function jitsi_myprofile_navigation(core_user\output\myprofile\tree $tree, $user, $iscurrentuser) {
     global $DB, $CFG, $USER;
     if (get_config('mod_jitsi', 'privatesessions') == 1) {
-        $urlparams = ['user' => $user->id];
-        $url = new moodle_url('/mod/jitsi/viewpriv.php', $urlparams);
         $category = new core_user\output\myprofile\category(
             'jitsi',
             get_string('jitsi', 'jitsi'),
@@ -306,23 +304,30 @@ function jitsi_myprofile_navigation(core_user\output\myprofile\tree $tree, $user
         );
         $tree->add_category($category);
         if ($iscurrentuser == 0) {
-            $node = new core_user\output\myprofile\node(
-                'jitsi',
-                'jitsi',
-                get_string('privatesession', 'jitsi', $user->firstname),
-                null,
-                $url,
-            );
+            // Only show the call link if both users share at least one course.
+            $sharedcourses = enrol_get_shared_courses($USER->id, $user->id, true);
+            if (!empty($sharedcourses)) {
+                $url = new moodle_url('/mod/jitsi/sessionpriv.php', ['peer' => $user->id]);
+                $node = new core_user\output\myprofile\node(
+                    'jitsi',
+                    'jitsi',
+                    get_string('startprivatesession', 'jitsi', $user->firstname),
+                    null,
+                    $url,
+                );
+                $tree->add_node($node);
+            }
         } else {
+            $url = new moodle_url('/mod/jitsi/call.php');
             $node = new core_user\output\myprofile\node(
                 'jitsi',
                 'jitsi',
-                get_string('myprivatesession', 'jitsi'),
+                get_string('callsomeone', 'jitsi'),
                 null,
                 $url,
             );
+            $tree->add_node($node);
         }
-        $tree->add_node($node);
     }
     return true;
 }
@@ -363,6 +368,47 @@ function string_sanitize($string, $forcelowercase = true, $anal = false) {
             mb_strtolower($clean, 'UTF-8') :
             strtolower($clean) :
         $clean;
+}
+
+/**
+ * Build the Jitsi room name for a given activity using the same algorithm as view.php.
+ *
+ * Extracted here so that servermanagement.php callbacks and view.php always use
+ * identical logic and cannot diverge.
+ *
+ * @param string $shortname Course shortname
+ * @param int $jitsiid Jitsi activity ID
+ * @param string $jitsiname Jitsi activity name
+ * @param string|false $sesionname Comma-separated field indices (0=shortname,1=id,2=name).
+ *                                 Defaults to '0,1,2' when empty/false.
+ * @param int|string|false $separator Index into ['.', '-', '_', '']. Defaults to 0 ('.').
+ * @return string The room name
+ */
+function jitsi_build_room_name($shortname, $jitsiid, $jitsiname, $sesionname = false, $separator = false) {
+    $separatormap = ['.', '-', '_', ''];
+    if ($sesionname === false || $sesionname === '' || $sesionname === null) {
+        $sesionname = '0,1,2';
+    }
+    $separatorindex = ($separator === false || $separator === '' || $separator === null) ? 0 : (int)$separator;
+    $sep = $separatormap[$separatorindex] ?? '';
+    $allowed = explode(',', $sesionname);
+    $max = count($allowed);
+    $sesparam = '';
+    for ($i = 0; $i < $max; $i++) {
+        $part = '';
+        if ($allowed[$i] == 0) {
+            $part = string_sanitize($shortname);
+        } else if ($allowed[$i] == 1) {
+            $part = (string)$jitsiid;
+        } else if ($allowed[$i] == 2) {
+            $part = string_sanitize($jitsiname);
+        }
+        $sesparam .= $part;
+        if ($i < $max - 1) {
+            $sesparam .= $sep;
+        }
+    }
+    return $sesparam;
 }
 
 /**
@@ -441,7 +487,7 @@ function createsession(
     echo "<script src=\"https://" . $domain . "/external_api.js\"></script>\n";
 
     $streamingoption = '';
-    $jibrienabled = ($servertype == 3 && !empty($server->jibri_enabled) && ($server->jibri_provisioningstatus ?? '') === 'ready');
+    $jibrienabled = ($servertype == 3 && jitsi_is_jibri_ready($server));
     if (
         (get_config('mod_jitsi', 'livebutton') == 1) &&
         (has_capability('mod/jitsi:record', $PAGE->context)) &&
@@ -465,8 +511,8 @@ function createsession(
     }
     $record = '';
     // Enable the Jitsi recording toolbar button when the record setting is on.
-    // For GCP servers (type 3), only enable it when Jibri is provisioned and ready.
-    $jibrienabled = ($servertype == 3 && !empty($server->jibri_enabled) && ($server->jibri_provisioningstatus ?? '') === 'ready');
+    // For GCP servers (type 3), only enable it when at least one Jibri is ready in the pool.
+    $jibrienabled = ($servertype == 3 && jitsi_is_jibri_ready($server));
     if (
         get_config('mod_jitsi', 'record') == 1 && has_capability('mod/jitsi:record', $PAGE->context) &&
             ($servertype != 3 || $jibrienabled)
@@ -671,9 +717,10 @@ function createsession(
     }
 
     // Disable live streaming if global setting is off, or if GCP (type 3) without Jibri ready.
-    $jibrilivestream = ($servertype == 3 && !empty($server->jibri_enabled) && ($server->jibri_provisioningstatus ?? '') === 'ready');
+    $jibrilivestream = ($servertype == 3 && jitsi_is_jibri_ready($server));
     if (get_config('mod_jitsi', 'livebutton') == 0 || ($servertype == 3 && !$jibrilivestream)) {
         echo "liveStreamingEnabled: false,\n";
+        echo "liveStreaming: {enabled: false},\n";
     }
 
     echo "toolbarButtons: " . $buttons . ",\n";
@@ -1096,7 +1143,7 @@ function createsession(
             $redirecturl = $CFG->wwwroot . "/mod/jitsi/formuniversal.php?t=" . $jitsi->token;
             echo "  setTimeout(function() { location.href=\"" . $redirecturl . "\"; }, 2000);\n";
         } else if ($user != null) {
-            $redirecturl = $CFG->wwwroot . "/mod/jitsi/viewpriv.php?user=" . $user;
+            $redirecturl = $CFG->wwwroot . "/mod/jitsi/call.php";
             echo "  setTimeout(function() { location.href=\"" . $redirecturl . "\"; }, 2000);\n";
         }
         echo "});\n";
@@ -1354,19 +1401,30 @@ function createsessionpriv(
         }
     }
 
+    echo '<style>
+    .cuadrado-wrapper {
+        position: relative;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+    }
+    .jitsi-container {
+        width: calc(90vw);
+        height: calc(90vw * 9 / 16);
+        max-width: calc(90vh * 16 / 9);
+        max-height: calc(90vh);
+    }
+    </style>';
+    echo '<div class="cuadrado-wrapper"><div class="jitsi-container" id="jitsi-container"></div></div>';
+
     echo "<script src=\"//ajax.googleapis.com/ajax/libs/jquery/2.0.0/jquery.min.js\"></script>";
     echo "<script src=\"https://" . $domain . "/external_api.js\"></script>\n";
 
+    // Recording and live streaming are disabled in private sessions — they have no
+    // associated jitsi activity, so recordings cannot be stored or displayed.
     $streamingoption = '';
-    $jibrienabled = ($servertype == 3 && !empty($server->jibri_enabled) && ($server->jibri_provisioningstatus ?? '') === 'ready');
-    if (
-        (get_config('mod_jitsi', 'livebutton') == 1) &&
-        (has_capability('mod/jitsi:record', $PAGE->context)) &&
-        (get_config('mod_jitsi', 'streamingoption') == 0) &&
-        ($servertype != 3 || $jibrienabled)
-    ) {
-        $streamingoption = 'livestreaming';
-    }
+    $record = '';
 
     $youtubeoption = '';
     if (get_config('mod_jitsi', 'shareyoutube') == 1) {
@@ -1379,16 +1437,6 @@ function createsessionpriv(
     $security = '';
     if (get_config('mod_jitsi', 'securitybutton') == 1) {
         $security = 'security';
-    }
-    $record = '';
-    // Enable the Jitsi recording toolbar button when the record setting is on.
-    // For GCP servers (type 3), only enable it when Jibri is provisioned and ready.
-    $jibrienabled = ($servertype == 3 && !empty($server->jibri_enabled) && ($server->jibri_provisioningstatus ?? '') === 'ready');
-    if (
-        get_config('mod_jitsi', 'record') == 1 && has_capability('mod/jitsi:record', $PAGE->context) &&
-            ($servertype != 3 || $jibrienabled)
-    ) {
-        $record = 'recording';
     }
     $invite = '';
     $muteeveryone = '';
@@ -1476,9 +1524,9 @@ function createsessionpriv(
         echo "enabled: false,\n";
     }
     echo "},\n";
-    if (get_config('mod_jitsi', 'record') == 1) {
-        echo "fileRecordingsEnabled: true,\n";
-    }
+    // Private sessions never allow recording or live streaming.
+    echo "fileRecordingsEnabled: false,\n";
+    echo "liveStreamingEnabled: false,\n";
     echo "remoteVideoMenu: {\n";
     echo "disableGrantModerator: true, \n";
     echo "},\n";
@@ -1535,12 +1583,6 @@ function createsessionpriv(
         echo "disablePolls: true,\n";
     }
 
-    // Disable live streaming if global setting is off, or if GCP (type 3) without Jibri ready.
-    $jibrilivestream = ($servertype == 3 && !empty($server->jibri_enabled) && ($server->jibri_provisioningstatus ?? '') === 'ready');
-    if (get_config('mod_jitsi', 'livebutton') == 0 || ($servertype == 3 && !$jibrilivestream)) {
-        echo "liveStreamingEnabled: false,\n";
-    }
-
     echo "toolbarButtons: " . $buttons . ",\n";
     echo "disableProfile: true,\n";
     echo "prejoinPageEnabled: false,\n";
@@ -1590,15 +1632,15 @@ function createsessionpriv(
             'sub' => $eightbyeightappid,
             'context' => [
                 'user' => [
-                    'moderator' => has_capability('mod/jitsi:moderation', $PAGE->context),
+                    'moderator' => $teacher || has_capability('mod/jitsi:moderation', $PAGE->context),
                     'email' => $mail,
                     'name' => $nombre,
                     'avatar' => $avatar,
                     'id' => "",
                 ],
                 'features' => [
-                    'recording' => $teacher,
-                    'livestreaming' => $teacher,
+                    'recording' => false,
+                    'livestreaming' => false,
                     'transcription' => $teacher,
                     'outbound-call' => $teacher,
                 ],
@@ -1615,7 +1657,7 @@ function createsessionpriv(
             "alg" => "HS256",
         ], JSON_UNESCAPED_SLASHES);
         $base64urlheader = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($header));
-        $ismoderator = has_capability('mod/jitsi:moderation', $PAGE->context);
+        $ismoderator = $teacher || has_capability('mod/jitsi:moderation', $PAGE->context);
         $payload = json_encode([
             "context" => [
                 "user" => [
@@ -1682,7 +1724,7 @@ function createsessionpriv(
         } else if ($universal == true && $user == null) {
             echo "    location.href=\"" . $CFG->wwwroot . "/mod/jitsi/formuniversal.php?t=" . $jitsi->token . "\";";
         } else if ($user != null) {
-            echo "    location.href=\"" . $CFG->wwwroot . "/mod/jitsi/viewpriv.php?user=" . $user . "\";";
+            echo "    location.href=\"" . $CFG->wwwroot . "/mod/jitsi/call.php\";";
         }
         echo  "});\n";
     }
@@ -1765,11 +1807,11 @@ function sendnotificationprivatesession($fromuser, $touser) {
     $message->fullmessagehtml = get_string('user') . ' <a href="' . $CFG->wwwroot . '/user/profile.php?id=' . $fromuser->id . '"> '
     . $fromuser->firstname . ' ' . $fromuser->lastname
     . '</a> ' . get_string('hasentered', 'jitsi') . '. ' . get_string('click', 'jitsi') . '<a href="'
-    . new moodle_url('/mod/jitsi/viewpriv.php', ['user' => $touser->id, 'fromuser' => $fromuser->id])
+    . new moodle_url('/mod/jitsi/sessionpriv.php', ['peer' => $fromuser->id])
     . '"> ' . get_string('here', 'jitsi') . '</a> ' . get_string('toenter', 'jitsi');
     $message->smallmessage = get_string('userenter', 'jitsi', $fromuser->firstname . ' ' . $fromuser->lastname);
     $message->notification = 1;
-    $message->contexturl = new moodle_url('/mod/jitsi/viewpriv.php', ['user' => $touser->id, 'fromuser' => $fromuser->id]);
+    $message->contexturl = new moodle_url('/mod/jitsi/sessionpriv.php', ['peer' => $fromuser->id]);
     $message->contexturlname = 'Private session';
     $content = ['*' => ['header' => '', 'footer' => '']];
     $message->set_additional_content('email', $content);
@@ -1794,11 +1836,11 @@ function sendcallprivatesession($fromuser, $touser) {
     $message->fullmessagehtml = get_string('user') . ' <a href="' . $CFG->wwwroot . '/user/profile.php?id=' . $fromuser->id . '"> '
     . $fromuser->firstname . ' ' . $fromuser->lastname
     . '</a> ' . get_string('iscalling', 'jitsi') . '. ' . get_string('click', 'jitsi') . '<a href="'
-    . new moodle_url('/mod/jitsi/viewpriv.php', ['user' => $fromuser->id])
+    . new moodle_url('/mod/jitsi/sessionpriv.php', ['peer' => $fromuser->id])
     . '"> ' . get_string('here', 'jitsi') . '</a> ' . get_string('toenter', 'jitsi');
     $message->smallmessage = get_string('usercall', 'jitsi', $fromuser->firstname . ' ' . $fromuser->lastname);
     $message->notification = 1;
-    $message->contexturl = new moodle_url('/mod/jitsi/viewpriv.php', ['user' => $fromuser->id]);
+    $message->contexturl = new moodle_url('/mod/jitsi/sessionpriv.php', ['peer' => $fromuser->id]);
     $message->contexturlname = 'Private session';
     $content = ['*' => ['header' => '', 'footer' => '']];
     $message->set_additional_content('email', $content);
@@ -1906,6 +1948,14 @@ function delete_jibri_file($link) {
  */
 function delete_jitsi_record($source) {
     global $DB;
+    // Delete the AI-generated quiz course module if one was created.
+    $sourcerecord = $DB->get_record('jitsi_source_record', ['id' => $source]);
+    if ($sourcerecord && !empty($sourcerecord->ai_quiz_id) && (int)$sourcerecord->ai_quiz_id > 0) {
+        $cmid = (int)$sourcerecord->ai_quiz_id;
+        if ($DB->record_exists('course_modules', ['id' => $cmid])) {
+            course_delete_module($cmid);
+        }
+    }
     $DB->delete_records('jitsi_record', ['source' => $source]);
     $DB->delete_records('jitsi_source_record', ['id' => $source]);
 }
@@ -2651,4 +2701,239 @@ function senderror($jitsi, $user, $error, $source) {
 function normalizesessionname($session) {
     $normalized = preg_replace('/[^a-zA-Z0-9\-_]/', '', $session);
     return $normalized;
+}
+
+/**
+ * Send a Web Push notification to a user.
+ *
+ * @param int $userid Recipient user ID
+ * @param string $title Notification title
+ * @param string $body Notification body
+ * @param string $url URL to open when notification is clicked
+ */
+function jitsi_send_push_notification($userid, $title, $body, $url) {
+    global $DB, $CFG;
+
+    $autoloader = __DIR__ . '/api/vendor/autoload.php';
+    if (!file_exists($autoloader)) {
+        return;
+    }
+    require_once($autoloader);
+
+    $subscriptions = $DB->get_records('jitsi_push_subscriptions', ['userid' => $userid]);
+    if (empty($subscriptions)) {
+        return;
+    }
+
+    // Get or generate VAPID keys.
+    $publickey = get_config('mod_jitsi', 'vapid_public_key');
+    $privatekey = get_config('mod_jitsi', 'vapid_private_key');
+
+    if (!$publickey || !$privatekey) {
+        $keys = \Minishlink\WebPush\VAPID::createVapidKeys();
+        set_config('vapid_public_key', $keys['publicKey'], 'mod_jitsi');
+        set_config('vapid_private_key', $keys['privateKey'], 'mod_jitsi');
+        $publickey = $keys['publicKey'];
+        $privatekey = $keys['privateKey'];
+    }
+
+    // VAPID subject must be a mailto: URI or https:// URL.
+    // mailto: is more reliable across push services.
+    $admin = get_admin();
+    $vapidsubject = 'mailto:' . $admin->email;
+
+    $auth = [
+        'VAPID' => [
+            'subject'    => $vapidsubject,
+            'publicKey'  => $publickey,
+            'privateKey' => $privatekey,
+        ],
+    ];
+
+    try {
+        $webpush = new \Minishlink\WebPush\WebPush($auth);
+        $payload = json_encode([
+            'title' => $title,
+            'body'  => $body,
+            'url'   => $url,
+            'icon'  => $CFG->wwwroot . '/mod/jitsi/pix/icon.png',
+        ]);
+
+        foreach ($subscriptions as $sub) {
+            $subscription = \Minishlink\WebPush\Subscription::create([
+                'endpoint' => $sub->endpoint,
+                'keys'     => [
+                    'auth'   => $sub->authkey,
+                    'p256dh' => $sub->p256dhkey,
+                ],
+            ]);
+            $webpush->queueNotification($subscription, $payload);
+        }
+
+        foreach ($webpush->flush() as $report) {
+            debugging('Web Push report for ' . $report->getEndpoint() . ': '
+                . ($report->isSuccess() ? 'OK' : $report->getReason()), DEBUG_DEVELOPER);
+            if ($report->isSubscriptionExpired()) {
+                $DB->delete_records_select(
+                    'jitsi_push_subscriptions',
+                    'userid = :userid AND ' . $DB->sql_compare_text('endpoint') . ' = ' . $DB->sql_compare_text(':endpoint'),
+                    ['userid' => $userid, 'endpoint' => $report->getEndpoint()]
+                );
+            }
+        }
+    } catch (\Exception $e) {
+        debugging('Web Push error: ' . $e->getMessage(), DEBUG_DEVELOPER);
+    }
+}
+
+/**
+ * Check if a teacher is available for private calls from a given student right now,
+ * based on their tutoring schedule for shared courses.
+ *
+ * Returns an array:
+ *   'hasschedule' => bool  — true if the teacher has any slots in shared courses where
+ *                            they are teacher and the student is student.
+ *   'available'   => bool  — true if current time falls within a slot (or no schedule).
+ *   'nextslot'    => string|null — human-readable next available slot (teacher timezone),
+ *                                  null if available now or no schedule.
+ *
+ * @param int $teacherid
+ * @param int $studentid
+ * @return array
+ */
+function jitsi_check_tutoring_availability($teacherid, $studentid) {
+    global $DB;
+
+    // Find visible courses where teacherid is teacher/editingteacher AND studentid is student.
+    $teacherroles = array_keys(get_archetype_roles('teacher') + get_archetype_roles('editingteacher'));
+    $studentroles = array_keys(get_archetype_roles('student'));
+
+    if (empty($teacherroles) || empty($studentroles)) {
+        return ['hasschedule' => false, 'available' => true, 'nextslot' => null];
+    }
+
+    [$trolesql, $troleparams] = $DB->get_in_or_equal($teacherroles, SQL_PARAMS_NAMED, 'trole');
+    [$srolesql, $sroleparams] = $DB->get_in_or_equal($studentroles, SQL_PARAMS_NAMED, 'srole');
+
+    // Visible courses where teacherid has a teacher role.
+    $teachercourses = $DB->get_fieldset_sql(
+        "SELECT DISTINCT ctx.instanceid
+           FROM {role_assignments} ra
+           JOIN {context} ctx ON ctx.id = ra.contextid AND ctx.contextlevel = :ctxlevel
+           JOIN {course} c ON c.id = ctx.instanceid AND c.visible = 1
+          WHERE ra.userid = :teacherid AND ra.roleid $trolesql",
+        array_merge(['ctxlevel' => CONTEXT_COURSE, 'teacherid' => $teacherid], $troleparams)
+    );
+
+    if (empty($teachercourses)) {
+        return ['hasschedule' => false, 'available' => true, 'nextslot' => null];
+    }
+
+    // From those, visible courses where studentid has a student role.
+    [$coursesql, $courseparams] = $DB->get_in_or_equal($teachercourses, SQL_PARAMS_NAMED, 'course');
+    $sharedcourses = $DB->get_fieldset_sql(
+        "SELECT DISTINCT ctx.instanceid
+           FROM {role_assignments} ra
+           JOIN {context} ctx ON ctx.id = ra.contextid AND ctx.contextlevel = :ctxlevel
+           JOIN {course} c ON c.id = ctx.instanceid AND c.visible = 1
+          WHERE ra.userid = :studentid AND ra.roleid $srolesql AND ctx.instanceid $coursesql",
+        array_merge(['ctxlevel' => CONTEXT_COURSE, 'studentid' => $studentid], $sroleparams, $courseparams)
+    );
+
+    if (empty($sharedcourses)) {
+        return ['hasschedule' => false, 'available' => true, 'nextslot' => null];
+    }
+
+    // Get tutoring schedule slots for those courses.
+    [$csql, $cparams] = $DB->get_in_or_equal($sharedcourses, SQL_PARAMS_NAMED, 'sc');
+    $slots = $DB->get_records_select(
+        'jitsi_tutoring_schedule',
+        "userid = :teacherid AND courseid $csql",
+        array_merge(['teacherid' => $teacherid], $cparams),
+        'weekday ASC, timestart ASC'
+    );
+
+    if (empty($slots)) {
+        return ['hasschedule' => false, 'available' => true, 'nextslot' => null];
+    }
+
+    // Get teacher's timezone and current time in that timezone.
+    $teacher = $DB->get_record('user', ['id' => $teacherid], 'timezone');
+    $teachertz = core_date::normalise_timezone($teacher->timezone);
+    $now = new DateTime('now', new DateTimeZone($teachertz));
+    $currentweekday = (int)$now->format('w'); // 0=Sunday ... 6=Saturday
+    $currentsecsofday = ((int)$now->format('H')) * 3600 + ((int)$now->format('i')) * 60 + (int)$now->format('s');
+
+    // Check if we are currently within any slot.
+    foreach ($slots as $slot) {
+        $slotday = (int)$slot->weekday;
+        $slotstart = (int)$slot->timestart;
+        $slotend = (int)$slot->timeend;
+        if ($slotday === $currentweekday && $currentsecsofday >= $slotstart && $currentsecsofday < $slotend) {
+            return ['hasschedule' => true, 'available' => true, 'nextslot' => null];
+        }
+    }
+
+    // Not available now — find next slot within the next 7 days.
+    $nextslotstr = null;
+    $days = get_string_manager()->get_list_of_translations(); // Not needed, using lang strings differently.
+    $weekdays = [
+        0 => get_string('weekday0', 'mod_jitsi'),
+        1 => get_string('weekday1', 'mod_jitsi'),
+        2 => get_string('weekday2', 'mod_jitsi'),
+        3 => get_string('weekday3', 'mod_jitsi'),
+        4 => get_string('weekday4', 'mod_jitsi'),
+        5 => get_string('weekday5', 'mod_jitsi'),
+        6 => get_string('weekday6', 'mod_jitsi'),
+    ];
+
+    // Build candidate list: remaining slots today, then next 6 days.
+    for ($dayoffset = 0; $dayoffset <= 6; $dayoffset++) {
+        $checkday = ($currentweekday + $dayoffset) % 7;
+        foreach ($slots as $slot) {
+            if ((int)$slot->weekday !== $checkday) {
+                continue;
+            }
+            // If same day, only consider future slots.
+            if ($dayoffset === 0 && (int)$slot->timestart <= $currentsecsofday) {
+                continue;
+            }
+            $h = intdiv((int)$slot->timestart, 3600);
+            $m = intdiv(((int)$slot->timestart % 3600), 60);
+            $nextslotstr = $weekdays[$checkday] . ' ' . sprintf('%02d:%02d', $h, $m);
+            break 2;
+        }
+    }
+
+    return ['hasschedule' => true, 'available' => false, 'nextslot' => $nextslotstr];
+}
+
+/**
+ * Returns true if the given GCP server has at least one Jibri VM ready in the pool,
+ * or falls back to the legacy jibri_provisioningstatus field for servers not yet migrated.
+ *
+ * @param \stdClass $server jitsi_servers record
+ * @return bool
+ */
+function jitsi_is_jibri_ready(\stdClass $server): bool {
+    global $DB;
+    if (empty($server->jibri_enabled)) {
+        return false;
+    }
+    // Check pool table first.
+    if (
+        $DB->record_exists_select(
+            'jitsi_jibri_pool',
+            "serverid = ? AND status IN ('idle', 'recording', 'streaming')",
+            [$server->id]
+        )
+    ) {
+        return true;
+    }
+    // If the server already has pool entries (even provisioning), don't fall back to legacy field.
+    if ($DB->record_exists('jitsi_jibri_pool', ['serverid' => $server->id])) {
+        return false;
+    }
+    // Fallback: legacy field (servers not yet migrated to pool).
+    return ($server->jibri_provisioningstatus ?? '') === 'ready';
 }

@@ -46,7 +46,14 @@ $PAGE->set_url('/mod/jitsi/adminrecord.php');
 require_login();
 
 if ($deletejitsisourceid && confirm_sesskey($sesskey)) {
-    if (deleterecordyoutube($deletejitsisourceid) == true) {
+    $source = $DB->get_record('jitsi_source_record', ['id' => $deletejitsisourceid]);
+    if ($source && (int)$source->type === 1) {
+        // Jibri/GCS recording — delete file directly then remove DB records.
+        delete_jibri_file($source->link);
+        $DB->delete_records('jitsi_record', ['source' => $source->id]);
+        $DB->delete_records('jitsi_source_record', ['id' => $source->id]);
+        redirect($PAGE->url, get_string('deleted'));
+    } else if (deleterecordyoutube($deletejitsisourceid) == true) {
         redirect($PAGE->url, get_string('deleted'));
     } else {
         redirect($PAGE->url, get_string('errordeleting', 'jitsi'));
@@ -70,6 +77,7 @@ if (is_siteadmin()) {
     $table = new mod_adminrecords_table('records_to_delete');
     $fields = '{jitsi_source_record}.id,
                 {jitsi_source_record}.link,
+                {jitsi_source_record}.type,
                 {jitsi_source_record}.account,
                 {jitsi_source_record}.userid,
                 {jitsi_source_record}.timecreated';

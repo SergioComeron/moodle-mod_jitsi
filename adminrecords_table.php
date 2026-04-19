@@ -83,8 +83,11 @@ class mod_adminrecords_table extends table_sql {
      */
     protected function col_account($values) {
         global $DB;
+        if (empty($values->account)) {
+            return '-';
+        }
         $acount = $DB->get_record('jitsi_record_account', ['id' => $values->account]);
-        return $acount->name;
+        return $acount ? $acount->name : '-';
     }
 
     /**
@@ -96,7 +99,11 @@ class mod_adminrecords_table extends table_sql {
      *     when downloading.
      */
     protected function col_link($values) {
-        return '<a href="https://youtu.be/' . $values->link . '" target="_blank">' . $values->link . '</a>';
+        if ((int)$values->type === 1) {
+            // Jibri/GCS recording — link is a full URL.
+            return '<a href="' . s($values->link) . '" target="_blank">' . s($values->link) . '</a>';
+        }
+        return '<a href="https://youtu.be/' . s($values->link) . '" target="_blank">' . s($values->link) . '</a>';
     }
 
     /**
@@ -110,21 +117,39 @@ class mod_adminrecords_table extends table_sql {
     protected function col_delete($values) {
         global $DB, $OUTPUT;
 
-        $acount = $DB->get_record('jitsi_record_account', ['id' => $values->account]);
-        if (isDeletable($values->id)) {
-            if ($acount->clientaccesstoken != null) {
-                $deleteurl = new moodle_url('/mod/jitsi/adminrecord.php?&deletejitsisourceid=' .
-                    $values->id . '&sesskey=' . sesskey());
-                $deleteicon = new pix_icon('t/delete', get_string('delete'));
-                $deleteaction = $OUTPUT->action_icon(
-                    $deleteurl,
-                    $deleteicon,
-                    new confirm_action(get_string('deletesourceq', 'jitsi'))
-                );
-                return $deleteaction;
-            } else {
-                return 'not deletable';
-            }
+        if (!isDeletable($values->id)) {
+            return '';
         }
+
+        // Jibri/GCS recordings (type=1) don't need a YouTube token — deletable directly.
+        if ((int)$values->type === 1) {
+            $deleteurl = new moodle_url('/mod/jitsi/adminrecord.php', [
+                'deletejitsisourceid' => $values->id,
+                'sesskey'             => sesskey(),
+            ]);
+            $deleteicon = new pix_icon('t/delete', get_string('delete'));
+            return $OUTPUT->action_icon(
+                $deleteurl,
+                $deleteicon,
+                new confirm_action(get_string('deletesourceq', 'jitsi'))
+            );
+        }
+
+        // YouTube recordings need a valid access token.
+        $acount = $DB->get_record('jitsi_record_account', ['id' => $values->account]);
+        if ($acount && $acount->clientaccesstoken != null) {
+            $deleteurl = new moodle_url('/mod/jitsi/adminrecord.php', [
+                'deletejitsisourceid' => $values->id,
+                'sesskey'             => sesskey(),
+            ]);
+            $deleteicon = new pix_icon('t/delete', get_string('delete'));
+            return $OUTPUT->action_icon(
+                $deleteurl,
+                $deleteicon,
+                new confirm_action(get_string('deletesourceq', 'jitsi'))
+            );
+        }
+
+        return get_string('notdeletable', 'jitsi');
     }
 }

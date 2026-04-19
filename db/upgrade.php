@@ -1109,5 +1109,137 @@ function xmldb_jitsi_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026040705, 'jitsi');
     }
 
+    if ($oldversion < 2026041105) {
+        $table = new xmldb_table('jitsi_tutoring_schedule');
+
+        $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE);
+        $table->add_field('userid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null);
+        $table->add_field('courseid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null);
+        $table->add_field('weekday', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null);
+        $table->add_field('timestart', XMLDB_TYPE_INTEGER, '5', null, XMLDB_NOTNULL, null);
+        $table->add_field('timeend', XMLDB_TYPE_INTEGER, '5', null, XMLDB_NOTNULL, null);
+        $table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null);
+        $table->add_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null);
+
+        $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+        $table->add_index('userid_courseid', XMLDB_INDEX_NOTUNIQUE, ['userid', 'courseid']);
+
+        if (!$dbman->table_exists($table)) {
+            $dbman->create_table($table);
+        }
+
+        upgrade_mod_savepoint(true, 2026041105, 'jitsi');
+    }
+
+    if ($oldversion < 2026041106) {
+        $table = new xmldb_table('jitsi_push_subscriptions');
+
+        $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE);
+        $table->add_field('userid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null);
+        $table->add_field('endpoint', XMLDB_TYPE_TEXT, null, null, XMLDB_NOTNULL, null);
+        $table->add_field('authkey', XMLDB_TYPE_CHAR, '255', null, XMLDB_NOTNULL, null, '');
+        $table->add_field('p256dhkey', XMLDB_TYPE_CHAR, '255', null, XMLDB_NOTNULL, null, '');
+        $table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null);
+        $table->add_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null);
+
+        $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+        $table->add_index('userid', XMLDB_INDEX_NOTUNIQUE, ['userid']);
+
+        if (!$dbman->table_exists($table)) {
+            $dbman->create_table($table);
+        }
+
+        upgrade_mod_savepoint(true, 2026041106, 'jitsi');
+    }
+
+    if ($oldversion < 2026041301) {
+        $table = new xmldb_table('jitsi_source_record');
+
+        $field = new xmldb_field('ai_transcription', XMLDB_TYPE_TEXT, null, null, null, null, null, 'ai_quiz_id');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        $field2 = new xmldb_field(
+            'ai_transcription_status',
+            XMLDB_TYPE_CHAR,
+            '20',
+            null,
+            XMLDB_NOTNULL,
+            null,
+            '',
+            'ai_transcription'
+        );
+        if (!$dbman->field_exists($table, $field2)) {
+            $dbman->add_field($table, $field2);
+        }
+
+        upgrade_mod_savepoint(true, 2026041301, 'jitsi');
+    }
+
+    if ($oldversion < 2026041302) {
+        $table = new xmldb_table('jitsi_servers');
+        $field = new xmldb_field('machine_type', XMLDB_TYPE_CHAR, '50', null, XMLDB_NOTNULL, null, 'e2-standard-4', 'gcs_bucket');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        upgrade_mod_savepoint(true, 2026041302, 'jitsi');
+    }
+
+    if ($oldversion < 2026041303) {
+        // Add jibri_image and jibri_pool_size fields to jitsi_servers.
+        $table = new xmldb_table('jitsi_servers');
+
+        $field = new xmldb_field('jibri_image', XMLDB_TYPE_CHAR, '255', null, false, null, '', 'jibri_recorder_pass');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        $field = new xmldb_field('jibri_pool_size', XMLDB_TYPE_INTEGER, '3', null, XMLDB_NOTNULL, null, '1', 'jibri_image');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        upgrade_mod_savepoint(true, 2026041303, 'jitsi');
+    }
+
+    if ($oldversion < 2026041304) {
+        // Create jitsi_jibri_pool table.
+        $table = new xmldb_table('jitsi_jibri_pool');
+        $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+        $table->add_field('serverid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('gcpinstancename', XMLDB_TYPE_CHAR, '255', null, false, null, '');
+        $table->add_field('status', XMLDB_TYPE_CHAR, '50', null, false, null, '');
+        $table->add_field('provisioningerror', XMLDB_TYPE_TEXT, null, null, false, null, null);
+        $table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+        $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+        $table->add_index('serverid', XMLDB_INDEX_NOTUNIQUE, ['serverid']);
+
+        if (!$dbman->table_exists($table)) {
+            $dbman->create_table($table);
+        }
+
+        // Migrate existing jibri_gcpinstancename to pool table.
+        $servers = $DB->get_records_select(
+            'jitsi_servers',
+            "jibri_enabled = 1 AND jibri_gcpinstancename IS NOT NULL AND jibri_gcpinstancename != ''"
+        );
+        foreach ($servers as $server) {
+            $status = ($server->jibri_provisioningstatus === 'ready') ? 'idle' : $server->jibri_provisioningstatus;
+            $poolentry = (object)[
+                'serverid'         => $server->id,
+                'gcpinstancename'  => $server->jibri_gcpinstancename,
+                'status'           => $status,
+                'provisioningerror' => $server->jibri_provisioningerror ?? '',
+                'timecreated'      => time(),
+                'timemodified'     => time(),
+            ];
+            $DB->insert_record('jitsi_jibri_pool', $poolentry);
+        }
+
+        upgrade_mod_savepoint(true, 2026041304, 'jitsi');
+    }
+
     return true;
 }

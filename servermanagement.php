@@ -27,9 +27,11 @@ $rawaction = filter_input(INPUT_GET, 'action', FILTER_UNSAFE_RAW) ??
              filter_input(INPUT_POST, 'action', FILTER_UNSAFE_RAW) ?? '';
 
 // Callbacks from VMs don't need a Moodle session — define NO_MOODLE_COOKIES before config.php.
-if ($rawaction === 'jitsiready' || $rawaction === 'jibriready' || $rawaction === 'jibrirecording') {
+if ($rawaction === 'jitsiready' || $rawaction === 'jibriready'
+        || $rawaction === 'jibrirecording' || $rawaction === 'jibristatus') {
     define('NO_MOODLE_COOKIES', true);
     require_once(__DIR__ . '/../../config.php');
+    require_once($CFG->dirroot . '/mod/jitsi/lib.php');
 }
 
 if ($rawaction === 'jitsiready') {
@@ -148,14 +150,16 @@ if ($rawaction === 'jibriready') {
 
     global $DB;
 
-    $serverid = filter_input(INPUT_GET, 'serverid', FILTER_VALIDATE_INT) ?:
-                filter_input(INPUT_POST, 'serverid', FILTER_VALIDATE_INT) ?: 0;
-    $token    = filter_input(INPUT_GET, 'token', FILTER_UNSAFE_RAW) ?:
-                filter_input(INPUT_POST, 'token', FILTER_UNSAFE_RAW) ?? '';
-    $phase    = filter_input(INPUT_GET, 'phase', FILTER_UNSAFE_RAW) ?:
-                filter_input(INPUT_POST, 'phase', FILTER_UNSAFE_RAW) ?? 'completed';
-    $error    = filter_input(INPUT_GET, 'error', FILTER_UNSAFE_RAW) ?:
-                filter_input(INPUT_POST, 'error', FILTER_UNSAFE_RAW) ?? '';
+    $serverid    = filter_input(INPUT_GET, 'serverid', FILTER_VALIDATE_INT) ?:
+                   filter_input(INPUT_POST, 'serverid', FILTER_VALIDATE_INT) ?: 0;
+    $poolentryid = filter_input(INPUT_GET, 'poolentryid', FILTER_VALIDATE_INT) ?:
+                   filter_input(INPUT_POST, 'poolentryid', FILTER_VALIDATE_INT) ?: 0;
+    $token       = filter_input(INPUT_GET, 'token', FILTER_UNSAFE_RAW) ?:
+                   filter_input(INPUT_POST, 'token', FILTER_UNSAFE_RAW) ?? '';
+    $phase       = filter_input(INPUT_GET, 'phase', FILTER_UNSAFE_RAW) ?:
+                   filter_input(INPUT_POST, 'phase', FILTER_UNSAFE_RAW) ?? 'completed';
+    $error       = filter_input(INPUT_GET, 'error', FILTER_UNSAFE_RAW) ?:
+                   filter_input(INPUT_POST, 'error', FILTER_UNSAFE_RAW) ?? '';
 
     try {
         $server = $DB->get_record('jitsi_servers', ['id' => (int)$serverid]);
@@ -173,29 +177,59 @@ if ($rawaction === 'jibriready') {
             exit;
         }
 
-        $server->timemodified = time();
+        // Update pool entry if provided.
+        $poolentry = $poolentryid ? $DB->get_record('jitsi_jibri_pool', ['id' => (int)$poolentryid]) : null;
+
+        $now = time();
 
         if ($phase === 'completed') {
-            $server->jibri_provisioningstatus = 'ready';
-            $server->jibri_provisioningerror  = '';
-            $DB->update_record('jitsi_servers', $server);
+            // Update pool entry status.
+            if ($poolentry) {
+                $poolentry->status            = 'idle';
+                $poolentry->provisioningerror = '';
+                $poolentry->timemodified      = $now;
+                $DB->update_record('jitsi_jibri_pool', $poolentry);
+            }
+            // Keep legacy field updated for the first VM in the pool.
+            $firstentry = $DB->get_record_sql(
+                'SELECT * FROM {jitsi_jibri_pool} WHERE serverid = ? ORDER BY id ASC LIMIT 1',
+                [$server->id]
+            );
+            if ($firstentry) {
+                $DB->set_field('jitsi_servers', 'jibri_gcpinstancename', $firstentry->gcpinstancename, ['id' => $server->id]);
+            }
+            $DB->set_field('jitsi_servers', 'jibri_provisioningstatus', 'ready', ['id' => $server->id]);
+            $DB->set_field('jitsi_servers', 'jibri_provisioningerror', '', ['id' => $server->id]);
+            $DB->set_field('jitsi_servers', 'timemodified', $now, ['id' => $server->id]);
 
             debugging("✅ Jibri VM ready for server ID {$server->id}", DEBUG_NORMAL);
 
             http_response_code(200);
             echo json_encode(['status' => 'ok', 'phase' => 'ready']);
         } else if ($phase === 'error' || !empty($error)) {
-            $server->jibri_provisioningstatus = 'error';
-            $server->jibri_provisioningerror  = $error ?: 'Unknown Jibri provisioning error';
-            $DB->update_record('jitsi_servers', $server);
+            if ($poolentry) {
+                $poolentry->status            = 'error';
+                $poolentry->provisioningerror = $error ?: 'Unknown Jibri provisioning error';
+                $poolentry->timemodified      = $now;
+                $DB->update_record('jitsi_jibri_pool', $poolentry);
+            }
+            $DB->set_field('jitsi_servers', 'jibri_provisioningstatus', 'error', ['id' => $server->id]);
+            $DB->set_field('jitsi_servers', 'jibri_provisioningerror',
+                $error ?: 'Unknown Jibri provisioning error', ['id' => $server->id]);
+            $DB->set_field('jitsi_servers', 'timemodified', $now, ['id' => $server->id]);
 
             debugging("❌ Jibri VM error for server ID {$server->id}: {$error}", DEBUG_NORMAL);
 
             http_response_code(200);
             echo json_encode(['status' => 'ok', 'phase' => 'error']);
         } else {
-            $server->jibri_provisioningstatus = $phase;
-            $DB->update_record('jitsi_servers', $server);
+            if ($poolentry) {
+                $poolentry->status       = $phase;
+                $poolentry->timemodified = $now;
+                $DB->update_record('jitsi_jibri_pool', $poolentry);
+            }
+            $DB->set_field('jitsi_servers', 'jibri_provisioningstatus', $phase, ['id' => $server->id]);
+            $DB->set_field('jitsi_servers', 'timemodified', $now, ['id' => $server->id]);
 
             http_response_code(200);
             echo json_encode(['status' => 'ok', 'phase' => $phase]);
@@ -215,16 +249,18 @@ if ($rawaction === 'jibrirecording') {
 
     global $DB;
 
-    $serverid = filter_input(INPUT_GET, 'serverid', FILTER_VALIDATE_INT) ?:
-                filter_input(INPUT_POST, 'serverid', FILTER_VALIDATE_INT) ?: 0;
-    $token    = filter_input(INPUT_GET, 'token', FILTER_UNSAFE_RAW) ?:
-                filter_input(INPUT_POST, 'token', FILTER_UNSAFE_RAW) ?? '';
-    $roomname = filter_input(INPUT_GET, 'room', FILTER_UNSAFE_RAW) ?:
-                filter_input(INPUT_POST, 'room', FILTER_UNSAFE_RAW) ?? '';
-    $filename = filter_input(INPUT_GET, 'filename', FILTER_UNSAFE_RAW) ?:
-                filter_input(INPUT_POST, 'filename', FILTER_UNSAFE_RAW) ?? '';
-    $recurl   = filter_input(INPUT_GET, 'url', FILTER_VALIDATE_URL) ?:
-                filter_input(INPUT_POST, 'url', FILTER_VALIDATE_URL) ?: '';
+    $serverid    = filter_input(INPUT_GET, 'serverid', FILTER_VALIDATE_INT) ?:
+                   filter_input(INPUT_POST, 'serverid', FILTER_VALIDATE_INT) ?: 0;
+    $token       = filter_input(INPUT_GET, 'token', FILTER_UNSAFE_RAW) ?:
+                   filter_input(INPUT_POST, 'token', FILTER_UNSAFE_RAW) ?? '';
+    $roomname    = filter_input(INPUT_GET, 'room', FILTER_UNSAFE_RAW) ?:
+                   filter_input(INPUT_POST, 'room', FILTER_UNSAFE_RAW) ?? '';
+    $filename    = filter_input(INPUT_GET, 'filename', FILTER_UNSAFE_RAW) ?:
+                   filter_input(INPUT_POST, 'filename', FILTER_UNSAFE_RAW) ?? '';
+    $recurl      = filter_input(INPUT_GET, 'url', FILTER_VALIDATE_URL) ?:
+                   filter_input(INPUT_POST, 'url', FILTER_VALIDATE_URL) ?: '';
+    $poolentryid = filter_input(INPUT_GET, 'poolentryid', FILTER_VALIDATE_INT) ?:
+                   filter_input(INPUT_POST, 'poolentryid', FILTER_VALIDATE_INT) ?: 0;
 
     try {
         $server = $DB->get_record('jitsi_servers', ['id' => (int)$serverid]);
@@ -252,33 +288,28 @@ if ($rawaction === 'jibrirecording') {
         // using the admin settings 'sesionname' and 'separator' — same logic as view.php.
         $jitsi = null;
         if (!empty($roomname)) {
-            $separatormap   = ['.', '-', '_', ''];
-            $fieldssesname  = (string)get_config('mod_jitsi', 'sesionname');
-            $separatorindex = (int)get_config('mod_jitsi', 'separator');
-            $sep = $separatormap[$separatorindex] ?? '';
-
-            $alljitsis = $DB->get_records_sql(
+            $sesionname = get_config('mod_jitsi', 'sesionname');
+            $separator  = get_config('mod_jitsi', 'separator');
+            $alljitsis  = $DB->get_records_sql(
                 'SELECT j.*, c.shortname AS courseshortname FROM {jitsi} j JOIN {course} c ON c.id = j.course'
             );
+            $separatormap = ['.', '-', '_', ''];
+            $sepchar = $separatormap[(int)$separator] ?? '';
+            $roomnamelc = strtolower($roomname);
             foreach ($alljitsis as $candidate) {
-                $allowed = explode(',', $fieldssesname);
-                $max = count($allowed);
-                $sesparam = '';
-                for ($i = 0; $i < $max; $i++) {
-                    $part = '';
-                    if ($allowed[$i] == 0) {
-                        $part = preg_replace('/[^a-zA-Z0-9]/', '', $candidate->courseshortname);
-                    } else if ($allowed[$i] == 1) {
-                        $part = (string)$candidate->id;
-                    } else if ($allowed[$i] == 2) {
-                        $part = preg_replace('/[^a-zA-Z0-9]/', '', $candidate->name);
-                    }
-                    $sesparam .= $part;
-                    if ($i < $max - 1) {
-                        $sesparam .= preg_replace('/[^a-zA-Z0-9\-_]/', '', $sep);
-                    }
+                $sesparam = jitsi_build_room_name(
+                    $candidate->courseshortname,
+                    $candidate->id,
+                    $candidate->name,
+                    $sesionname,
+                    $separator
+                );
+                if (strtolower($sesparam) === $roomnamelc) {
+                    $jitsi = $candidate;
+                    break;
                 }
-                if (strtolower($sesparam) === strtolower($roomname)) {
+                // Fallback: Jibri strips certain separators (e.g. dots) from filenames.
+                if ($sepchar !== '' && strtolower(str_replace($sepchar, '', $sesparam)) === $roomnamelc) {
                     $jitsi = $candidate;
                     break;
                 }
@@ -305,6 +336,16 @@ if ($rawaction === 'jibrirecording') {
             $DB->insert_record('jitsi_record', $record);
         }
 
+        // Mark the pool entry as idle — recording is done.
+        if (!empty($poolentryid)) {
+            $poolentry = $DB->get_record('jitsi_jibri_pool', ['id' => (int)$poolentryid]);
+            if ($poolentry && $poolentry->status === 'recording') {
+                $poolentry->status       = 'idle';
+                $poolentry->timemodified = time();
+                $DB->update_record('jitsi_jibri_pool', $poolentry);
+            }
+        }
+
         debugging("🎥 Jibri recording imported for server {$server->id}: {$recurl}", DEBUG_NORMAL);
 
         http_response_code(200);
@@ -313,6 +354,63 @@ if ($rawaction === 'jibrirecording') {
         http_response_code(500);
         echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
     }
+    exit;
+}
+// phpcs:enable
+
+// phpcs:disable
+if ($rawaction === 'jibristatus') {
+    // Callback from the Jibri VM status monitor service.
+    // Called when Jibri changes between IDLE and BUSY (recording/streaming).
+    @header('Content-Type: application/json');
+
+    global $DB;
+
+    $poolentryid = filter_input(INPUT_GET, 'poolentryid', FILTER_VALIDATE_INT) ?:
+                   filter_input(INPUT_POST, 'poolentryid', FILTER_VALIDATE_INT) ?: 0;
+    $token       = filter_input(INPUT_GET, 'token', FILTER_UNSAFE_RAW) ?:
+                   filter_input(INPUT_POST, 'token', FILTER_UNSAFE_RAW) ?? '';
+    $busyness    = filter_input(INPUT_GET, 'busyness', FILTER_UNSAFE_RAW) ?:
+                   filter_input(INPUT_POST, 'busyness', FILTER_UNSAFE_RAW) ?? '';
+
+    $entry = $DB->get_record('jitsi_jibri_pool', ['id' => (int)$poolentryid]);
+    if (!$entry) {
+        http_response_code(404);
+        echo json_encode(['status' => 'error', 'message' => 'Pool entry not found']);
+        exit;
+    }
+
+    $server = $DB->get_record('jitsi_servers', ['id' => $entry->serverid]);
+    if (!$server || empty($server->provisioningtoken) || $server->provisioningtoken !== $token) {
+        http_response_code(401);
+        echo json_encode(['status' => 'error', 'message' => 'Invalid token']);
+        exit;
+    }
+
+    $newstatus = (strtoupper($busyness) === 'BUSY') ? 'recording' : 'idle';
+    if (!in_array($entry->status, ['provisioning', 'error']) && $entry->status !== $newstatus) {
+        $entry->status       = $newstatus;
+        $entry->timemodified = time();
+        $DB->update_record('jitsi_jibri_pool', $entry);
+
+        // When a Jibri goes BUSY, immediately top up the pool without waiting for the next cron run.
+        if ($newstatus === 'recording') {
+            $poolsize    = (int)($server->jibri_pool_size ?? 1);
+            $idlecount   = $DB->count_records_select(
+                'jitsi_jibri_pool',
+                "serverid = ? AND status IN ('idle', 'provisioning')",
+                [$server->id]
+            );
+            if ($idlecount < $poolsize) {
+                $task = new \mod_jitsi\task\provision_jibri_vm();
+                $task->set_custom_data(['serverid' => $server->id]);
+                \core\task\manager::queue_adhoc_task($task, false);
+            }
+        }
+    }
+
+    http_response_code(200);
+    echo json_encode(['status' => 'ok', 'newstatus' => $newstatus]);
     exit;
 }
 // phpcs:enable
@@ -1209,6 +1307,22 @@ if (!function_exists('mod_jitsi_jibri_startup_script')) {
         apt-get install -y /tmp/google-chrome.deb
         rm -f /tmp/google-chrome.deb
 
+        # Wrap the real Chrome binary to strip --enable-automation (added by ChromeDriver).
+        # ChromeDriver calls /opt/google/chrome/chrome directly (not the /usr/bin symlink),
+        # so we must wrap that binary. Without this, a "Chrome is being controlled by
+        # automated test software" infobar appears at the top of every Jibri recording.
+        mv /opt/google/chrome/chrome /opt/google/chrome/chrome-real
+        cat > /opt/google/chrome/chrome << 'EOFCHROMEWRAP'
+        #!/bin/bash
+        ARGS=()
+        for arg in "$@"; do
+            [[ "$arg" == "--enable-automation" ]] && continue
+            ARGS+=("$arg")
+        done
+        exec /opt/google/chrome/chrome-real "${ARGS[@]}"
+        EOFCHROMEWRAP
+        chmod +x /opt/google/chrome/chrome
+
         # Install matching ChromeDriver (Jibri uses Selenium to drive Chrome).
         CHROME_VER=$(google-chrome --version | grep -oP '\d+\.\d+\.\d+\.\d+')
         wget -q -O /tmp/chromedriver.zip \
@@ -1289,8 +1403,6 @@ if (!function_exists('mod_jitsi_jibri_startup_script')) {
               "--start-maximized",
               "--kiosk",
               "--enabled",
-              "--disable-infobars",
-              "--exclude-switches=enable-automation",
               "--disable-blink-features=AutomationControlled",
               "--autoplay-policy=no-user-gesture-required",
               "--ignore-certificate-errors"
@@ -1368,6 +1480,9 @@ if (!function_exists('mod_jitsi_jibri_startup_script')) {
         SERVERID="${FIN_SERVER_ID}"
         TOKEN="${FIN_TOKEN}"
 
+        # Read pool entry ID from monitor script (set per-VM at boot time)
+        POOL_ENTRY_ID=\$(grep "^POOL_ENTRY_ID=" /usr/local/bin/jibri-monitor.sh 2>/dev/null | cut -d'"' -f2 || echo "")
+
         # Upload to GCS if enabled, otherwise serve from VM disk
         GCS_BUCKET=\$(curl -sf -H "Metadata-Flavor: Google" \
             "http://metadata.google.internal/computeMetadata/v1/instance/attributes/GCS_BUCKET" || echo "")
@@ -1388,6 +1503,7 @@ if (!function_exists('mod_jitsi_jibri_startup_script')) {
                 --data-urlencode "room=\${ROOM}" \
                 --data-urlencode "filename=\${FILENAME}" \
                 --data-urlencode "url=\${REC_URL}" \
+                --data-urlencode "poolentryid=\${POOL_ENTRY_ID}" \
                 --max-time 30 --retry 3 --retry-delay 5 \
                 || echo "Warning: Could not notify Moodle"
         fi
@@ -1398,6 +1514,7 @@ if (!function_exists('mod_jitsi_jibri_startup_script')) {
         chmod +x /usr/local/bin/jibri-finalize.sh
 
         # Create delete-recording HTTP service (for physical file removal when Moodle deletes a recording)
+        mkdir -p /etc/jibri
         echo "${FIN_TOKEN}" > /etc/jibri/delete-token
         chmod 600 /etc/jibri/delete-token
 
@@ -1496,6 +1613,55 @@ if (!function_exists('mod_jitsi_jibri_startup_script')) {
         systemctl daemon-reload
         systemctl enable jibri
         systemctl start jibri
+
+        # Install Jibri status monitor — polls local health API and reports recording state to Moodle
+        META_MON="http://metadata.google.internal/computeMetadata/v1/instance/attributes"
+        MON_SERVER_ID=$(curl -sf -H "Metadata-Flavor: Google" "$META_MON/JIBRI_SERVER_ID" || echo "")
+        MON_TOKEN=$(curl -sf -H "Metadata-Flavor: Google" "$META_MON/JIBRI_TOKEN" || echo "")
+        MON_POOL_ENTRY=$(curl -sf -H "Metadata-Flavor: Google" "$META_MON/JIBRI_POOL_ENTRY_ID" || echo "")
+        MON_MOODLE_URL=$(curl -sf -H "Metadata-Flavor: Google" "$META_MON/JIBRI_MOODLE_URL" || echo "")
+        MON_BASE_URL=$(echo "$MON_MOODLE_URL" | grep -oP 'https?://[^/]+')
+
+        cat > /usr/local/bin/jibri-monitor.sh << EOFMON
+        #!/bin/bash
+        BASE_URL="${MON_BASE_URL}"
+        SERVER_ID="${MON_SERVER_ID}"
+        TOKEN="${MON_TOKEN}"
+        POOL_ENTRY_ID="${MON_POOL_ENTRY}"
+        LAST_STATUS=""
+
+        while true; do
+            HEALTH=\$(curl -sf http://localhost:2222/jibri/api/v1.0/health 2>/dev/null)
+            if [ -n "\$HEALTH" ]; then
+                BUSY=\$(echo "\$HEALTH" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status',{}).get('busyStatus','IDLE'))" 2>/dev/null || echo "IDLE")
+                if [ "\$BUSY" != "\$LAST_STATUS" ]; then
+                    LAST_STATUS="\$BUSY"
+                    curl -sf "\${BASE_URL}/mod/jitsi/servermanagement.php?action=jibristatus&poolentryid=\${POOL_ENTRY_ID}&token=\${TOKEN}&busyness=\${BUSY}" > /dev/null 2>&1 || true
+                fi
+            fi
+            sleep 2
+        done
+        EOFMON
+        chmod +x /usr/local/bin/jibri-monitor.sh
+
+        cat > /etc/systemd/system/jibri-monitor.service << 'EOFMONITORSVC'
+        [Unit]
+        Description=Jibri Status Monitor - reports recording state to Moodle
+        After=jibri.service
+
+        [Service]
+        Type=simple
+        ExecStart=/usr/local/bin/jibri-monitor.sh
+        Restart=always
+        RestartSec=30
+
+        [Install]
+        WantedBy=multi-user.target
+        EOFMONITORSVC
+
+        systemctl daemon-reload
+        systemctl enable jibri-monitor
+        systemctl start jibri-monitor
 
         # Mark provisioning complete
         mkdir -p /var/local
@@ -1929,7 +2095,10 @@ if ($action === 'creategcpvm') {
     // Read minimal + optional config.
     $project   = trim((string) get_config('mod_jitsi', 'gcp_project'));
     $zone      = trim((string) get_config('mod_jitsi', 'gcp_zone'));
-    $mach      = trim((string) get_config('mod_jitsi', 'gcp_machine_type')) ?: 'e2-standard-2';
+    $mach      = trim((string) optional_param('jitsimachinetype', '', PARAM_TEXT));
+    if (empty($mach)) {
+        $mach = trim((string) get_config('mod_jitsi', 'gcp_machine_type')) ?: 'e2-standard-4';
+    }
     $image     = trim((string) get_config('mod_jitsi', 'gcp_image')) ?: 'projects/debian-cloud/global/images/family/debian-12';
     $network   = trim((string) get_config('mod_jitsi', 'gcp_network')) ?: 'global/networks/default';
     $hostname  = trim((string) get_config('mod_jitsi', 'gcp_hostname'));
@@ -2077,6 +2246,7 @@ if ($action === 'creategcpvm') {
         $server->jibri_recorder_pass = $jibrirecorderpass;
         $server->gcs_enabled = 0;
         $server->gcs_bucket  = '';
+        $server->machine_type = $mach;
 
         $server->timecreated = time();
         $server->timemodified = time();
@@ -2566,6 +2736,69 @@ if ($action === 'delete' && $id > 0) {
     }
 }
 
+// Action: Add a new Jibri VM to an existing pool.
+if ($action === 'addtojibripool' && $id > 0) {
+    require_sesskey();
+    if (!$server = $DB->get_record('jitsi_servers', ['id' => $id])) {
+        throw new moodle_exception('invalidserverid', 'mod_jitsi');
+    }
+    if ($server->type != 3 || empty($server->jibri_enabled)) {
+        \core\notification::add(
+            'Jibri pool only available for GCP servers with Jibri enabled.',
+            \core\output\notification::NOTIFY_ERROR
+        );
+        redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
+    }
+    $task = new \mod_jitsi\task\provision_jibri_vm();
+    $task->set_custom_data(['serverid' => $server->id]);
+    \core\task\manager::queue_adhoc_task($task, true);
+    \core\notification::add('New Jibri VM queued for provisioning.', \core\output\notification::NOTIFY_SUCCESS);
+    redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
+}
+
+// Action: Delete a single Jibri pool entry (and its GCP VM).
+if ($action === 'deletejibrientry' && $id > 0) {
+    require_sesskey();
+    $poolentryid = optional_param('poolentryid', 0, PARAM_INT);
+    if (!$server = $DB->get_record('jitsi_servers', ['id' => $id])) {
+        throw new moodle_exception('invalidserverid', 'mod_jitsi');
+    }
+    if ($poolentryid && $entry = $DB->get_record('jitsi_jibri_pool', ['id' => $poolentryid, 'serverid' => $id])) {
+        if (!empty($entry->gcpinstancename) && !empty($server->gcpproject) && !empty($server->gcpzone)) {
+            try {
+                $compute = mod_jitsi_gcp_client();
+                $compute->instances->delete($server->gcpproject, $server->gcpzone, $entry->gcpinstancename);
+            } catch (\Throwable $e) {
+                debugging('Could not delete Jibri VM: ' . $e->getMessage(), DEBUG_NORMAL);
+            }
+        }
+        $DB->delete_records('jitsi_jibri_pool', ['id' => $entry->id]);
+        // If no pool entries remain, clear only the legacy gcpinstancename pointer.
+        // jibri_provisioningstatus must stay 'ready' so the pool UI and cron keep working.
+        if (!$DB->record_exists('jitsi_jibri_pool', ['serverid' => $id])) {
+            $DB->set_field('jitsi_servers', 'jibri_gcpinstancename', '', ['id' => $id]);
+        }
+        \core\notification::add('Jibri VM removed.', \core\output\notification::NOTIFY_SUCCESS);
+    }
+    redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
+}
+
+// Action: Update desired pool size (AJAX).
+if ($action === 'updatepoolsize' && $id > 0) {
+    require_sesskey();
+    @header('Content-Type: application/json');
+    $poolsize = optional_param('poolsize', 1, PARAM_INT);
+    $poolsize = max(1, min(10, $poolsize));
+    if ($server = $DB->get_record('jitsi_servers', ['id' => $id])) {
+        $DB->set_field('jitsi_servers', 'jibri_pool_size', $poolsize, ['id' => $id]);
+        echo json_encode(['status' => 'ok', 'poolsize' => $poolsize]);
+    } else {
+        http_response_code(404);
+        echo json_encode(['status' => 'error']);
+    }
+    exit;
+}
+
 // Action: Add Jibri to an existing GCP server.
 if ($action === 'addjibri' && $id > 0) {
     if (!$server = $DB->get_record('jitsi_servers', ['id' => $id])) {
@@ -2808,19 +3041,28 @@ if ($action === 'gcpstart' && $id > 0) {
             \core\output\notification::NOTIFY_SUCCESS
         );
 
-        // Also start the Jibri VM if present.
-        if (!empty($server->jibri_enabled) && !empty($server->jibri_gcpinstancename)) {
-            try {
-                $compute->instances->start($server->gcpproject, $server->gcpzone, $server->jibri_gcpinstancename);
-                \core\notification::add(
-                    "Starting Jibri GCP instance: {$server->jibri_gcpinstancename}",
-                    \core\output\notification::NOTIFY_SUCCESS
-                );
-            } catch (Exception $ejibri) {
-                \core\notification::add(
-                    "Failed to start Jibri instance: " . $ejibri->getMessage(),
-                    \core\output\notification::NOTIFY_WARNING
-                );
+        // Also start all Jibri pool VMs.
+        if (!empty($server->jibri_enabled)) {
+            $poolentries = $DB->get_records('jitsi_jibri_pool', ['serverid' => $server->id]);
+            foreach ($poolentries as $poolentry) {
+                if (empty($poolentry->gcpinstancename)) {
+                    continue;
+                }
+                try {
+                    $compute->instances->start($server->gcpproject, $server->gcpzone, $poolentry->gcpinstancename);
+                    $poolentry->status       = 'provisioning';
+                    $poolentry->timemodified = time();
+                    $DB->update_record('jitsi_jibri_pool', $poolentry);
+                    \core\notification::add(
+                        "Starting Jibri GCP instance: {$poolentry->gcpinstancename}",
+                        \core\output\notification::NOTIFY_SUCCESS
+                    );
+                } catch (Exception $ejibri) {
+                    \core\notification::add(
+                        "Failed to start Jibri instance {$poolentry->gcpinstancename}: " . $ejibri->getMessage(),
+                        \core\output\notification::NOTIFY_WARNING
+                    );
+                }
             }
         }
     } catch (Exception $e) {
@@ -2855,19 +3097,28 @@ if ($action === 'gcpstop' && $id > 0) {
             \core\output\notification::NOTIFY_SUCCESS
         );
 
-        // Also stop the Jibri VM if present.
-        if (!empty($server->jibri_enabled) && !empty($server->jibri_gcpinstancename)) {
-            try {
-                $compute->instances->stop($server->gcpproject, $server->gcpzone, $server->jibri_gcpinstancename);
-                \core\notification::add(
-                    "Stopping Jibri GCP instance: {$server->jibri_gcpinstancename}",
-                    \core\output\notification::NOTIFY_SUCCESS
-                );
-            } catch (Exception $ejibri) {
-                \core\notification::add(
-                    "Failed to stop Jibri instance: " . $ejibri->getMessage(),
-                    \core\output\notification::NOTIFY_WARNING
-                );
+        // Also stop all Jibri pool VMs.
+        if (!empty($server->jibri_enabled)) {
+            $poolentries = $DB->get_records('jitsi_jibri_pool', ['serverid' => $server->id]);
+            foreach ($poolentries as $poolentry) {
+                if (empty($poolentry->gcpinstancename)) {
+                    continue;
+                }
+                try {
+                    $compute->instances->stop($server->gcpproject, $server->gcpzone, $poolentry->gcpinstancename);
+                    $poolentry->status       = 'error';
+                    $poolentry->timemodified = time();
+                    $DB->update_record('jitsi_jibri_pool', $poolentry);
+                    \core\notification::add(
+                        "Stopping Jibri GCP instance: {$poolentry->gcpinstancename}",
+                        \core\output\notification::NOTIFY_SUCCESS
+                    );
+                } catch (Exception $ejibri) {
+                    \core\notification::add(
+                        "Failed to stop Jibri instance {$poolentry->gcpinstancename}: " . $ejibri->getMessage(),
+                        \core\output\notification::NOTIFY_WARNING
+                    );
+                }
             }
         }
     } catch (Exception $e) {
@@ -3352,7 +3603,7 @@ if ($showform) {
         "      if (modalBody) modalBody.textContent = 'Error: ' + e.message;\n".
         "    }\n".
         "  }\n".
-        "  async function startVMCreation(enableJibri, jibriMachineType, enableGcs) {\n".
+        "  async function startVMCreation(enableJibri, jibriMachineType, enableGcs, jitsiMachineType) {\n".
         "    dnsWarningShown = false;\n".
         "    if (modalBody) {\n".
         "      modalBody.innerHTML = (\n".
@@ -3364,8 +3615,8 @@ if ($showform) {
         "      );\n".
         "    }\n".
         "    try {\n".
-        "      console.log('[Button Click] Requesting VM creation... jibri:', enableJibri, 'gcs:', enableGcs);\n".
-        "      var postData = {sesskey: cfg.sesskey};\n".
+        "      console.log('[Button Click] Requesting VM creation... jibri:', enableJibri, 'gcs:', enableGcs, 'jitsiMachine:', jitsiMachineType);\n".
+        "      var postData = {sesskey: cfg.sesskey, jitsimachinetype: jitsiMachineType || 'e2-standard-4'};\n".
         "      if (enableJibri) {\n".
         "        postData.enablejibri = '1';\n".
         "        postData.jibrimachinetype = jibriMachineType || 'n2-standard-4';\n".
@@ -3418,6 +3669,18 @@ if ($showform) {
         "      modalBody.innerHTML =\n".
         "        '<h5 class=\"mb-3\">Create VM in Google Cloud</h5>' +\n".
         "        '<div class=\"mb-3 text-start\">' +\n".
+        "          '<label class=\"form-label fw-semibold\" for=\"jitsi-machine-type\">Jitsi server machine type</label>' +\n".
+        "          '<select class=\"form-select\" id=\"jitsi-machine-type\">' +\n".
+        "            '<option value=\"e2-medium\">e2-medium — 2 vCPU (shared), 4 GB RAM — ~10 concurrent users</option>' +\n".
+        "            '<option value=\"e2-standard-2\">e2-standard-2 — 2 vCPU, 8 GB RAM — ~20 concurrent users</option>' +\n".
+        "            '<option value=\"e2-standard-4\" selected>e2-standard-4 — 4 vCPU, 16 GB RAM — ~50 concurrent users (recommended)</option>' +\n".
+        "            '<option value=\"e2-standard-8\">e2-standard-8 — 8 vCPU, 32 GB RAM — ~100 concurrent users</option>' +\n".
+        "            '<option value=\"n2-standard-4\">n2-standard-4 — 4 vCPU, 16 GB RAM — ~60 concurrent users (higher performance)</option>' +\n".
+        "            '<option value=\"n2-standard-8\">n2-standard-8 — 8 vCPU, 32 GB RAM — ~120 concurrent users</option>' +\n".
+        "          '</select>' +\n".
+        "          '<small class=\"text-muted d-block mt-1\">The machine type determines how many simultaneous participants the server can handle.</small>' +\n".
+        "        '</div>' +\n".
+        "        '<div class=\"mb-3 text-start\">' +\n".
         "          '<div class=\"form-check\">' +\n".
         "            '<input class=\"form-check-input\" type=\"checkbox\" id=\"jibri-enable-check\">' +\n".
         "            '<label class=\"form-check-label fw-semibold\" for=\"jibri-enable-check\">' +\n".
@@ -3463,9 +3726,11 @@ if ($showform) {
         "          var enableJibri = check && check.checked;\n".
         "          var machineTypeEl = document.getElementById('jibri-machine-type');\n".
         "          var jibriMachine = (machineTypeEl && machineTypeEl.value.trim()) || 'n2-standard-4';\n".
+        "          var jitsiMachineEl = document.getElementById('jitsi-machine-type');\n".
+        "          var jitsiMachine = (jitsiMachineEl && jitsiMachineEl.value.trim()) || 'e2-standard-4';\n".
         "          var gcsCheck = document.getElementById('gcs-enable-check');\n".
         "          var enableGcs = enableJibri && gcsCheck && gcsCheck.checked;\n".
-        "          startVMCreation(enableJibri, jibriMachine, enableGcs);\n".
+        "          startVMCreation(enableJibri, jibriMachine, enableGcs, jitsiMachine);\n".
         "        });\n".
         "      }\n".
         "    }\n".
@@ -3545,21 +3810,83 @@ if ($showform) {
                 $typestring = get_string('unknowntype', 'mod_jitsi');
         }
 
-        // Obtener estado del servidor GCP y guardarlo para usar en botones.
+        // Build Jibri pool badge(s).
         $jibribadge = '';
         if (!empty($s->jibri_enabled)) {
-            switch ($s->jibri_provisioningstatus ?? '') {
-                case 'ready':
-                    $jibribadge = ' <span class="badge bg-success ms-1" title="' . s($s->jibri_gcpinstancename) . '">🎥 Jibri ready</span>';
-                    break;
-                case 'error':
-                    $jibribadge = ' <span class="badge bg-danger ms-1" title="' . s($s->jibri_provisioningerror) . '">🎥 Jibri error</span>';
-                    break;
-                case '':
-                    $jibribadge = ' <span class="badge bg-secondary ms-1">🎥 Jibri pending</span>';
-                    break;
-                default:
-                    $jibribadge = ' <span class="badge bg-info ms-1">🎥 Jibri: ' . s($s->jibri_provisioningstatus) . '</span>';
+            $poolentries = $DB->get_records('jitsi_jibri_pool', ['serverid' => $s->id], 'id ASC');
+            if (!empty($poolentries)) {
+                $poolsize = (int)($s->jibri_pool_size ?? 1);
+                $jibribadge .= '<div class="mt-1">';
+                $jibribadge .= '<small class="text-muted">🎥 Jibri pool (desired: '
+                    . '<input type="number" min="1" max="10" value="' . $poolsize . '"'
+                    . ' style="width:45px" class="form-control form-control-sm d-inline-block p-0 ps-1"'
+                    . ' onchange="updatePoolSize(' . $s->id . ', this.value)"'
+                    . '>):</small><br>';
+                foreach ($poolentries as $pe) {
+                    switch ($pe->status) {
+                        case 'idle':
+                            $pbadgeclass = 'bg-success';
+                            $pbadgetext  = '✅ idle';
+                            break;
+                        case 'recording':
+                            $pbadgeclass = 'bg-primary';
+                            $pbadgetext  = '🔴 recording';
+                            break;
+                        case 'streaming':
+                            $pbadgeclass = 'bg-primary';
+                            $pbadgetext  = '📡 streaming';
+                            break;
+                        case 'error':
+                            $pbadgeclass = 'bg-danger';
+                            $pbadgetext  = '❌ error';
+                            break;
+                        default:
+                            $pbadgeclass = 'bg-info';
+                            $pbadgetext  = '⏳ ' . s($pe->status);
+                    }
+                    $deletejibrientryurl = new moodle_url('/mod/jitsi/servermanagement.php', [
+                        'action'      => 'deletejibrientry',
+                        'id'          => $s->id,
+                        'poolentryid' => $pe->id,
+                        'sesskey'     => sesskey(),
+                    ]);
+                    $jibribadge .= '<span class="badge ' . $pbadgeclass . ' me-1" title="' . s($pe->gcpinstancename) . '">'
+                        . $pbadgetext . '</span>';
+                    $jibribadge .= html_writer::link(
+                        $deletejibrientryurl,
+                        '✕',
+                        ['class' => 'text-danger small me-1', 'title' => 'Remove this Jibri VM']
+                    );
+                }
+                $addtopoolurl = new moodle_url('/mod/jitsi/servermanagement.php', [
+                    'action'  => 'addtojibripool',
+                    'id'      => $s->id,
+                    'sesskey' => sesskey(),
+                ]);
+                $jibribadge .= '<br>' . html_writer::link(
+                    $addtopoolurl,
+                    '+ Add Jibri',
+                    ['class' => 'btn btn-xs btn-outline-secondary mt-1', 'style' => 'font-size:0.75rem;padding:1px 6px']
+                );
+                $jibribadge .= '</div>';
+            } else {
+                // No pool entries yet — show legacy provisioning status.
+                switch ($s->jibri_provisioningstatus ?? '') {
+                    case 'ready':
+                        $jibribadge = ' <span class="badge bg-success ms-1" title="'
+                            . s($s->jibri_gcpinstancename) . '">🎥 Jibri ready</span>';
+                        break;
+                    case 'error':
+                        $jibribadge = ' <span class="badge bg-danger ms-1" title="'
+                            . s($s->jibri_provisioningerror) . '">🎥 Jibri error</span>';
+                        break;
+                    case '':
+                        $jibribadge = ' <span class="badge bg-secondary ms-1">🎥 Jibri pending</span>';
+                        break;
+                    default:
+                        $jibribadge = ' <span class="badge bg-info ms-1">🎥 Jibri: '
+                            . s($s->jibri_provisioningstatus) . '</span>';
+                }
             }
         }
         $statushtml = '<span class="badge bg-secondary" id="gcp-status-' . $s->id . '">N/A</span>';
@@ -3742,6 +4069,18 @@ if ($showform) {
         $gcpidsjs = json_encode($gcpserverids);
         $sesskeyjs = sesskey();
         $wwwroot = $CFG->wwwroot;
+        $updatepoolsizeurl = (new moodle_url(
+            '/mod/jitsi/servermanagement.php',
+            ['action' => 'updatepoolsize', 'sesskey' => sesskey()]
+        ))->out(false);
+        // phpcs:disable
+        $PAGE->requires->js_init_code(
+            "window.updatePoolSize = function(serverid, val) {\n".
+            "  fetch('" . $updatepoolsizeurl . "&id=' + serverid + '&poolsize=' + val, {method:'POST'})\n".
+            "    .then(function(r){return r.json();})\n".
+            "    .then(function(d){if(d.status!=='ok') alert('Could not update pool size.');});\n".
+            "};\n"
+        );
         // phpcs:disable
         $PAGE->requires->js_init_code(
             "(function(){\n".

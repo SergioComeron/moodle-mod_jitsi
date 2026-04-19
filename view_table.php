@@ -156,72 +156,208 @@ class mod_view_table extends table_sql {
                     $quizid = 0;
                 }
 
-                $aibuttonshtml = '';
-                // Show summary button only if no valid summary exists yet (or previous attempt failed).
-                if ($isgcs && has_capability('mod/jitsi:generateaisummary', $context) && !$summaryexists) {
-                    $aibuttonshtml .= '<button type="button" class="btn btn-sm btn-outline-primary jitsi-ai-summary-btn"'
-                        . ' data-sourcerecordid="' . (int)$sourcerecord->id . '"'
-                        . ' data-cmid="' . (int)$cm->id . '">'
-                        . '✨ ' . get_string('generateaisummary', 'jitsi')
-                        . '</button>'
-                        . '<span class="jitsi-ai-summary-status ms-2 text-muted small" style="display:none"></span>';
-                }
-                // Show quiz button only if quiz not yet generated (0 = never, -1 = failed).
-                if ($isgcs && has_capability('mod/jitsi:generateaiquiz', $context) && $quizid <= 0) {
-                    $quizbtnextra = '';
-                    if ($quizid === -1) {
-                        $quizbtnextra = ' <small class="text-danger">(' . get_string('aiquizerror', 'jitsi') . ')</small>';
+                $videoid = 'jitsi-video-' . (int)$sourcerecord->id;
+                $aiid = 'jitsi-ai-' . (int)$sourcerecord->id;
+
+                // Transcription status.
+                $transcriptionstatus = $sourcerecord->ai_transcription_status ?? '';
+                $transcriptiondone = ($transcriptionstatus === 'done') && !empty($sourcerecord->ai_transcription);
+
+                // Build per-tab content and determine which tabs to show.
+                $aitabs = [];
+
+                $cangensum = $isgcs && has_capability('mod/jitsi:generateaisummary', $context);
+                $cangenquiz = $isgcs && has_capability('mod/jitsi:generateaiquiz', $context);
+                $cangentrans = $isgcs && has_capability('mod/jitsi:generateaitranscription', $context);
+
+                // --- Summary tab ---
+                if ($cangensum || ($isgcs && $summaryexists)) {
+                    if ($summaryexists) {
+                        $tabcontent = '<div class="p-2" style="font-size:0.95em">'
+                            . nl2br(s($sourcerecord->ai_summary))
+                            . '</div>';
+                    } else {
+                        $btnlabel = '✨ ' . get_string('generateaisummary', 'jitsi');
+                        $tabcontent = '<button type="button"'
+                            . ' class="btn btn-sm btn-outline-primary jitsi-ai-summary-btn"'
+                            . ' data-sourcerecordid="' . (int)$sourcerecord->id . '"'
+                            . ' data-cmid="' . (int)$cm->id . '">'
+                            . $btnlabel . '</button>';
+                        if ($summaryisfailed) {
+                            $tabcontent .= ' <small class="text-danger">'
+                                . s($sourcerecord->ai_summary) . '</small>';
+                        }
+                        $tabcontent .= '<span class="jitsi-ai-summary-status ms-2 text-muted small"'
+                            . ' style="display:none"></span>';
                     }
-                    $aibuttonshtml .= ' <button type="button" class="btn btn-sm btn-outline-success jitsi-ai-quiz-btn"'
-                        . ' data-sourcerecordid="' . (int)$sourcerecord->id . '"'
-                        . ' data-cmid="' . (int)$cm->id . '">'
-                        . '&#128221; ' . get_string('aiquizgenerate', 'jitsi')
-                        . '</button>'
-                        . $quizbtnextra
-                        . '<span class="jitsi-ai-quiz-status ms-2 text-muted small" style="display:none"></span>';
-                }
-                if ($aibuttonshtml) {
-                    $aibuttonshtml = '<div class="mt-2">' . $aibuttonshtml . '</div>';
+                    $aitabs[] = [
+                        'id' => $aiid . '-summary',
+                        'label' => get_string('aisummary', 'jitsi'),
+                        'content' => $tabcontent,
+                        'done' => $summaryexists,
+                    ];
                 }
 
-                // Display existing AI summary if available (not shown if it's an error message).
-                $aisummarytext = '';
-                if ($isgcs && $summaryexists) {
-                    $aisummarytext = '<div class="jitsi-ai-summary-text mt-3 p-3 bg-light rounded">'
-                        . '<strong>✨ ' . get_string('aisummary', 'jitsi') . '</strong><br>'
-                        . nl2br(s($sourcerecord->ai_summary))
-                        . '</div>';
-                } else if ($isgcs && $summaryisfailed) {
-                    $aisummarytext = '<div class="mt-2 text-danger small">'
-                        . s($sourcerecord->ai_summary)
-                        . '</div>';
-                }
-
-                // Display link to AI quiz if available (cmid validity already checked above).
-                $aiquizlink = '';
-                if ($isgcs && $quizid > 0) {
-                    $quizurl = new moodle_url('/mod/quiz/view.php', ['id' => $quizid]);
-                    $aiquizlink = '<div class="mt-2">'
-                        . html_writer::link(
+                // --- Quiz tab ---
+                if ($cangenquiz || ($isgcs && $quizid > 0)) {
+                    if ($quizid > 0) {
+                        $quizurl = new moodle_url('/mod/quiz/view.php', ['id' => $quizid]);
+                        $tabcontent = html_writer::link(
                             $quizurl,
                             '&#128221; ' . get_string('aiquizview', 'jitsi'),
                             ['class' => 'btn btn-sm btn-success', 'target' => '_blank']
-                        )
-                        . '</div>';
+                        );
+                    } else {
+                        $tabcontent = '<button type="button"'
+                            . ' class="btn btn-sm btn-outline-success jitsi-ai-quiz-btn"'
+                            . ' data-sourcerecordid="' . (int)$sourcerecord->id . '"'
+                            . ' data-cmid="' . (int)$cm->id . '">'
+                            . '&#128221; ' . get_string('aiquizgenerate', 'jitsi') . '</button>';
+                        if ($quizid === -1) {
+                            $tabcontent .= ' <small class="text-danger">'
+                                . get_string('aiquizerror', 'jitsi') . '</small>';
+                        }
+                        $tabcontent .= '<span class="jitsi-ai-quiz-status ms-2 text-muted small"'
+                            . ' style="display:none"></span>';
+                    }
+                    $aitabs[] = [
+                        'id' => $aiid . '-quiz',
+                        'label' => get_string('aiquiz', 'jitsi'),
+                        'content' => $tabcontent,
+                        'done' => $quizid > 0,
+                    ];
+                }
+
+                // --- Transcription tab ---
+                if ($cangentrans || ($isgcs && $transcriptiondone)) {
+                    if ($transcriptiondone) {
+                        $lines = explode("\n", $sourcerecord->ai_transcription);
+                        $transcriptionlines = '';
+                        foreach ($lines as $line) {
+                            $line = trim($line);
+                            if ($line === '') {
+                                continue;
+                            }
+                            if (preg_match('/^###\s+(.+)$/u', $line, $cm)) {
+                                $transcriptionlines .= '<div class="jitsi-transcript-chapter mt-3 mb-1">'
+                                    . '<strong>' . s($cm[1]) . '</strong></div>';
+                            } else if (preg_match('/^\[(\d+):(\d{2})(?::(\d{2}))?\]\s*(.*)$/u', $line, $tm)) {
+                                if (isset($tm[3]) && $tm[3] !== '') {
+                                    $seconds = (int)$tm[1] * 3600 + (int)$tm[2] * 60 + (int)$tm[3];
+                                    $tslabel = s($tm[1] . ':' . $tm[2] . ':' . $tm[3]);
+                                } else {
+                                    $seconds = (int)$tm[1] * 60 + (int)$tm[2];
+                                    $tslabel = s($tm[1] . ':' . $tm[2]);
+                                }
+                                $transcriptionlines .= '<div class="jitsi-transcript-line mb-1">'
+                                    . '<a href="#" class="jitsi-transcript-ts badge bg-secondary me-2 text-decoration-none"'
+                                    . ' data-video="' . s($videoid) . '" data-seconds="' . $seconds . '">'
+                                    . $tslabel . '</a>'
+                                    . '<span>' . s($tm[4]) . '</span></div>';
+                            } else {
+                                $transcriptionlines .= '<div class="jitsi-transcript-line mb-1">'
+                                    . '<span>' . s($line) . '</span></div>';
+                            }
+                        }
+                        $tabcontent = '<div style="max-height:300px;overflow-y:auto;font-size:0.9em">'
+                            . $transcriptionlines . '</div>';
+                    } else if ($cangentrans) {
+                        $tabcontent = '<button type="button"'
+                            . ' class="btn btn-sm btn-outline-info jitsi-ai-transcription-btn"'
+                            . ' data-sourcerecordid="' . (int)$sourcerecord->id . '"'
+                            . ' data-cmid="' . (int)$cm->id . '"'
+                            . ($transcriptionstatus === 'pending' ? ' disabled' : '') . '>'
+                            . '&#127908; ' . get_string('generateaitranscription', 'jitsi') . '</button>';
+                        if ($transcriptionstatus === 'error') {
+                            $tabcontent .= ' <small class="text-danger">'
+                                . get_string('aitranscriptionerror', 'jitsi') . '</small>';
+                        } else if ($transcriptionstatus === 'pending') {
+                            $tabcontent .= ' <small class="text-muted">'
+                                . get_string('aitranscriptionqueued', 'jitsi') . '</small>';
+                        }
+                        $tabcontent .= '<span class="jitsi-ai-transcription-status ms-2 text-muted small"'
+                            . ' style="display:none"></span>';
+                    } else {
+                        // Transcription not yet done and user cannot generate — skip tab.
+                        $tabcontent = null;
+                    }
+                    if ($tabcontent !== null) {
+                        $aitabs[] = [
+                            'id' => $aiid . '-transcription',
+                            'label' => get_string('aitranscription', 'jitsi'),
+                            'content' => $tabcontent,
+                            'done' => $transcriptiondone,
+                        ];
+                    }
+                }
+
+                // Build accordion with tabs (only if there are AI features to show).
+                $aiaccordion = '';
+                if (!empty($aitabs)) {
+                    // Open the accordion if any tab has content already generated.
+                    $anyaidone = !empty(array_filter($aitabs, function ($t) {
+                        return $t['done'];
+                    }));
+                    $accordionshow = $anyaidone ? 'show' : '';
+
+                    // First tab with content active, otherwise first tab.
+                    $activeidx = 0;
+                    foreach ($aitabs as $idx => $tab) {
+                        if ($tab['done']) {
+                            $activeidx = $idx;
+                            break;
+                        }
+                    }
+
+                    // Nav tabs.
+                    $navtabs = '';
+                    foreach ($aitabs as $idx => $tab) {
+                        $active = ($idx === $activeidx) ? 'active' : '';
+                        $navtabs .= '<li class="nav-item" role="presentation">'
+                            . '<button class="nav-link ' . $active . ' py-1 px-2" style="font-size:0.85em"'
+                            . ' data-bs-toggle="tab" data-bs-target="#' . s($tab['id']) . '"'
+                            . ' type="button" role="tab">'
+                            . $tab['label'] . '</button></li>';
+                    }
+
+                    // Tab panes.
+                    $tabpanes = '';
+                    foreach ($aitabs as $idx => $tab) {
+                        $active = ($idx === $activeidx) ? 'show active' : '';
+                        $tabpanes .= '<div class="tab-pane fade ' . $active . ' pt-2"'
+                            . ' id="' . s($tab['id']) . '" role="tabpanel">'
+                            . $tab['content'] . '</div>';
+                    }
+
+                    $aiaccordion = '<div class="accordion mt-2 border rounded" id="' . s($aiid) . '">'
+                        . '<div class="accordion-item border-0">'
+                        . '<h2 class="accordion-header">'
+                        . '<button class="accordion-button ' . ($accordionshow ? '' : 'collapsed') . '"'
+                        . ' style="font-size:0.9em;padding:0.5rem 1rem;background:none"'
+                        . ' type="button" data-bs-toggle="collapse"'
+                        . ' data-bs-target="#' . s($aiid) . '-body">'
+                        . '&#10024; ' . get_string('aitools', 'jitsi')
+                        . '</button></h2>'
+                        . '<div id="' . s($aiid) . '-body"'
+                        . ' class="accordion-collapse collapse ' . $accordionshow . '">'
+                        . '<div class="accordion-body pt-1 pb-2">'
+                        . '<ul class="nav nav-tabs nav-sm mb-0" role="tablist">' . $navtabs . '</ul>'
+                        . '<div class="tab-content p-2 border border-top-0 rounded-bottom bg-light">'
+                        . $tabpanes
+                        . '</div>'
+                        . '</div></div></div></div>';
                 }
 
                 $content = "<h5>" . $OUTPUT->render($tmpl) . "</h5>"
                     . "<h6 class=\"card-subtitle mb-2 text-muted\">" . userdate($values->timecreated) . "</h6>"
                     . "<span class=\"align-middle " . $alignmentclass . "\"><p>" . $actions . "</p></span>"
-                    . "<video controls style=\"width:100%;max-width:100%\">"
+                    . "<video id=\"" . s($videoid) . "\" controls style=\"width:100%;max-width:100%\">"
                     . "<source src=\"" . s($embedurl) . "\" type=\"video/mp4\">"
                     . "</video>"
                     . "<p><a href=\"" . s($sourcerecord->link) . "\" target=\"_blank\""
                     . " class=\"btn btn-sm btn-outline-secondary mt-1\">"
                     . get_string('openrecording', 'jitsi') . "</a></p>"
-                    . $aibuttonshtml
-                    . $aisummarytext
-                    . $aiquizlink
+                    . $aiaccordion
                     . "<br>";
             } else {
                 $is8x8 = strpos($sourcerecord->link, '8x8.vc') !== false;

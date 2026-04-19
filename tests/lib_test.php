@@ -466,6 +466,156 @@ final class lib_test extends \advanced_testcase {
     }
 
     /**
+     * Test that jitsi_check_tutoring_availability returns hasschedule=false
+     * when teacher has no slots in any shared visible course.
+     *
+     * @covers ::jitsi_check_tutoring_availability
+     */
+    public function test_check_tutoring_availability_no_schedule(): void {
+        $this->resetAfterTest(true);
+
+        $teacher = $this->getDataGenerator()->create_user();
+        $student = $this->getDataGenerator()->create_user();
+        $course = $this->getDataGenerator()->create_course(['visible' => 1]);
+
+        $this->getDataGenerator()->enrol_user($teacher->id, $course->id, 'editingteacher');
+        $this->getDataGenerator()->enrol_user($student->id, $course->id, 'student');
+
+        $result = jitsi_check_tutoring_availability($teacher->id, $student->id);
+
+        $this->assertFalse($result['hasschedule']);
+        $this->assertTrue($result['available']);
+        $this->assertNull($result['nextslot']);
+    }
+
+    /**
+     * Test that jitsi_check_tutoring_availability returns hasschedule=false
+     * when they share no visible course (course is hidden).
+     *
+     * @covers ::jitsi_check_tutoring_availability
+     */
+    public function test_check_tutoring_availability_hidden_course(): void {
+        global $DB;
+        $this->resetAfterTest(true);
+
+        $teacher = $this->getDataGenerator()->create_user();
+        $student = $this->getDataGenerator()->create_user();
+        $course = $this->getDataGenerator()->create_course(['visible' => 0]);
+
+        $this->getDataGenerator()->enrol_user($teacher->id, $course->id, 'editingteacher');
+        $this->getDataGenerator()->enrol_user($student->id, $course->id, 'student');
+
+        // Add a slot for the teacher in that hidden course.
+        $DB->insert_record('jitsi_tutoring_schedule', [
+            'userid'       => $teacher->id,
+            'courseid'     => $course->id,
+            'weekday'      => 1,
+            'timestart'    => 0,
+            'timeend'      => 86399,
+            'timecreated'  => time(),
+            'timemodified' => time(),
+        ]);
+
+        $result = jitsi_check_tutoring_availability($teacher->id, $student->id);
+
+        $this->assertFalse($result['hasschedule']);
+    }
+
+    /**
+     * Test that jitsi_check_tutoring_availability returns available=true
+     * when current time falls within a slot covering the whole day.
+     *
+     * @covers ::jitsi_check_tutoring_availability
+     */
+    public function test_check_tutoring_availability_within_slot(): void {
+        global $DB;
+        $this->resetAfterTest(true);
+
+        $teacher = $this->getDataGenerator()->create_user(['timezone' => 'UTC']);
+        $student = $this->getDataGenerator()->create_user();
+        $course = $this->getDataGenerator()->create_course(['visible' => 1]);
+
+        $this->getDataGenerator()->enrol_user($teacher->id, $course->id, 'editingteacher');
+        $this->getDataGenerator()->enrol_user($student->id, $course->id, 'student');
+
+        // Add a slot covering the entire day for every weekday.
+        $now = new \DateTime('now', new \DateTimeZone('UTC'));
+        $currentweekday = (int)$now->format('w');
+        $DB->insert_record('jitsi_tutoring_schedule', [
+            'userid'       => $teacher->id,
+            'courseid'     => $course->id,
+            'weekday'      => $currentweekday,
+            'timestart'    => 0,
+            'timeend'      => 86399,
+            'timecreated'  => time(),
+            'timemodified' => time(),
+        ]);
+
+        $result = jitsi_check_tutoring_availability($teacher->id, $student->id);
+
+        $this->assertTrue($result['hasschedule']);
+        $this->assertTrue($result['available']);
+    }
+
+    /**
+     * Test that jitsi_check_tutoring_availability returns available=false
+     * when slot is for a different weekday than today.
+     *
+     * @covers ::jitsi_check_tutoring_availability
+     */
+    public function test_check_tutoring_availability_outside_slot(): void {
+        global $DB;
+        $this->resetAfterTest(true);
+
+        $teacher = $this->getDataGenerator()->create_user(['timezone' => 'UTC']);
+        $student = $this->getDataGenerator()->create_user();
+        $course = $this->getDataGenerator()->create_course(['visible' => 1]);
+
+        $this->getDataGenerator()->enrol_user($teacher->id, $course->id, 'editingteacher');
+        $this->getDataGenerator()->enrol_user($student->id, $course->id, 'student');
+
+        // Create a slot for a different weekday.
+        $now = new \DateTime('now', new \DateTimeZone('UTC'));
+        $otherday = ((int)$now->format('w') + 1) % 7;
+        $DB->insert_record('jitsi_tutoring_schedule', [
+            'userid'       => $teacher->id,
+            'courseid'     => $course->id,
+            'weekday'      => $otherday,
+            'timestart'    => 0,
+            'timeend'      => 86399,
+            'timecreated'  => time(),
+            'timemodified' => time(),
+        ]);
+
+        $result = jitsi_check_tutoring_availability($teacher->id, $student->id);
+
+        $this->assertTrue($result['hasschedule']);
+        $this->assertFalse($result['available']);
+    }
+
+    /**
+     * Test that jitsi_check_tutoring_availability returns hasschedule=false
+     * when the user is not enrolled as teacher in any visible course.
+     *
+     * @covers ::jitsi_check_tutoring_availability
+     */
+    public function test_check_tutoring_availability_not_a_teacher(): void {
+        $this->resetAfterTest(true);
+
+        $user1 = $this->getDataGenerator()->create_user();
+        $user2 = $this->getDataGenerator()->create_user();
+        $course = $this->getDataGenerator()->create_course(['visible' => 1]);
+
+        // Both enrolled as students — neither is a teacher.
+        $this->getDataGenerator()->enrol_user($user1->id, $course->id, 'student');
+        $this->getDataGenerator()->enrol_user($user2->id, $course->id, 'student');
+
+        $result = jitsi_check_tutoring_availability($user1->id, $user2->id);
+
+        $this->assertFalse($result['hasschedule']);
+    }
+
+    /**
      * Regression test for issue #138.
      *
      * On a type-0 server (public/no JWT), createsession() must emit
@@ -566,5 +716,85 @@ final class lib_test extends \advanced_testcase {
             $output,
             'Type-0 servers must not generate a JWT token'
         );
+    }
+
+    /**
+     * jitsi_build_room_name combines parts with no separator by default.
+     *
+     * @covers ::jitsi_build_room_name
+     */
+    public function test_build_room_name_default_settings(): void {
+        // Default sesionname=0,1,2 and separator=0 ('.') — but last part has no trailing sep.
+        // shortname=prueba, id=4, name=Prueba dev to master 4.6.0
+        // string_sanitize converts spaces to hyphens and strips dots.
+        $result = jitsi_build_room_name('prueba', 4, 'Prueba dev to master 4.6.0', '0,1,2', 3);
+        $this->assertEquals('prueba4prueba-dev-to-master-460', $result);
+    }
+
+    /**
+     * jitsi_build_room_name uses dot separator between all but last part.
+     *
+     * @covers ::jitsi_build_room_name
+     */
+    public function test_build_room_name_dot_separator(): void {
+        $result = jitsi_build_room_name('mycourse', 7, 'My Session', '0,1,2', 0);
+        $this->assertEquals('mycourse.7.my-session', $result);
+    }
+
+    /**
+     * jitsi_build_room_name defaults to '0,1,2' when sesionname is empty.
+     *
+     * @covers ::jitsi_build_room_name
+     */
+    public function test_build_room_name_empty_sesionname_defaults(): void {
+        $a = jitsi_build_room_name('course', 1, 'Test', '', 3);
+        $b = jitsi_build_room_name('course', 1, 'Test', '0,1,2', 3);
+        $this->assertEquals($b, $a);
+    }
+
+    /**
+     * jitsi_build_room_name defaults to '0,1,2' when sesionname is false (config not set).
+     *
+     * @covers ::jitsi_build_room_name
+     */
+    public function test_build_room_name_false_sesionname_defaults(): void {
+        $a = jitsi_build_room_name('course', 2, 'Demo', false, 3);
+        $b = jitsi_build_room_name('course', 2, 'Demo', '0,1,2', 3);
+        $this->assertEquals($b, $a);
+    }
+
+    /**
+     * jitsi_build_room_name result matches room name extracted from Jibri filename.
+     *
+     * Regression test for the bug where preg_replace('/[^a-zA-Z0-9]/','') was used
+     * instead of string_sanitize(), causing spaces to be stripped rather than
+     * converted to hyphens, so the callback could never match an activity.
+     *
+     * @covers ::jitsi_build_room_name
+     */
+    public function test_build_room_name_matches_jibri_filename_room(): void {
+        // Filename: prueba4prueba-dev-to-master-460_2026-04-19-08-27-30.mp4
+        // Room extracted by finalize script: prueba4prueba-dev-to-master-460
+        $room = jitsi_build_room_name('prueba', 4, 'Prueba dev to master 4.6.0', '0,1,2', 3);
+        $this->assertEquals('prueba4prueba-dev-to-master-460', strtolower($room));
+    }
+
+    /**
+     * Test that dot separator is stripped for Jibri filename matching.
+     *
+     * Jibri strips dots from room names in MP4 filenames. When separator='0' (dot),
+     * 'prueba.4.session' in the URL becomes 'prueba4session' in the filename.
+     * The jibrirecording callback must match both forms.
+     *
+     * @covers ::jitsi_build_room_name
+     */
+    public function test_build_room_name_dot_separator_stripped_matches_jibri_filename(): void {
+        $builtname = jitsi_build_room_name('prueba', 4, 'Prueba dev to master 4.6.0', '0,1,2', 0);
+        $this->assertEquals('prueba.4.prueba-dev-to-master-460', strtolower($builtname));
+
+        // Simulate what the jibrirecording callback does to match Jibri filenames.
+        $jibrifilename = 'prueba4prueba-dev-to-master-460';
+        $strippeddot   = strtolower(str_replace('.', '', $builtname));
+        $this->assertEquals($jibrifilename, $strippeddot);
     }
 }

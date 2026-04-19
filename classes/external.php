@@ -1292,6 +1292,62 @@ class mod_jitsi_external extends external_api {
     }
 
     /**
+     * Returns description of queue_ai_transcription parameters
+     * @return external_function_parameters
+     */
+    public static function queue_ai_transcription_parameters() {
+        return new external_function_parameters([
+            'sourcerecordid' => new external_value(PARAM_INT, 'ID of the jitsi_source_record'),
+            'cmid' => new external_value(PARAM_INT, 'Course module ID for capability check'),
+        ]);
+    }
+
+    /**
+     * Queue an ad-hoc task to generate an AI transcription for a GCS recording.
+     *
+     * @param int $sourcerecordid
+     * @param int $cmid
+     * @return array
+     */
+    public static function queue_ai_transcription($sourcerecordid, $cmid) {
+        global $DB;
+
+        $params = self::validate_parameters(self::queue_ai_transcription_parameters(), [
+            'sourcerecordid' => $sourcerecordid,
+            'cmid' => $cmid,
+        ]);
+
+        $context = context_module::instance($params['cmid']);
+        self::validate_context($context);
+        require_capability('mod/jitsi:generateaitranscription', $context);
+
+        $sourcerecord = $DB->get_record('jitsi_source_record', ['id' => $params['sourcerecordid']], '*', MUST_EXIST);
+
+        if (strpos($sourcerecord->link, 'storage.googleapis.com') === false) {
+            return ['success' => false, 'message' => get_string('aitranscriptionnotavailable', 'jitsi')];
+        }
+
+        $DB->set_field('jitsi_source_record', 'ai_transcription_status', 'pending', ['id' => $params['sourcerecordid']]);
+
+        $task = new \mod_jitsi\task\generate_ai_transcription();
+        $task->set_custom_data(['sourcerecordid' => $params['sourcerecordid'], 'lang' => current_language()]);
+        \core\task\manager::queue_adhoc_task($task, true);
+
+        return ['success' => true, 'message' => get_string('aitranscriptionqueued', 'jitsi')];
+    }
+
+    /**
+     * Returns description of queue_ai_transcription return value
+     * @return external_description
+     */
+    public static function queue_ai_transcription_returns() {
+        return new external_single_structure([
+            'success' => new external_value(PARAM_BOOL, 'Whether the task was queued successfully'),
+            'message' => new external_value(PARAM_TEXT, 'Status message'),
+        ]);
+    }
+
+    /**
      * Returns description of queue_ai_quiz parameters
      * @return external_function_parameters
      */
@@ -1346,6 +1402,589 @@ class mod_jitsi_external extends external_api {
         return new external_single_structure([
             'success' => new external_value(PARAM_BOOL, 'Whether the task was queued successfully'),
             'message' => new external_value(PARAM_TEXT, 'Status message'),
+        ]);
+    }
+
+    /**
+     * Returns description of search_coursemates parameters
+     * @return external_function_parameters
+     */
+    public static function search_coursemates_parameters() {
+        return new external_function_parameters([
+            'query' => new external_value(PARAM_TEXT, 'Search string (firstname or lastname)'),
+        ]);
+    }
+
+    /**
+     * Search for users who share at least one course with the current user.
+     *
+     * @param string $query
+     * @return array
+     */
+    public static function search_coursemates($query) {
+        global $DB, $USER, $PAGE;
+
+        $params = self::validate_parameters(self::search_coursemates_parameters(), ['query' => $query]);
+        $context = context_system::instance();
+        self::validate_context($context);
+
+        $query = trim($params['query']);
+        if (core_text::strlen($query) < 2) {
+            return ['users' => []];
+        }
+
+        $searchparam = '%' . $DB->sql_like_escape($query) . '%';
+
+        $sql = "SELECT DISTINCT u.id, u.firstname, u.lastname, u.picture, u.imagealt, u.email
+                  FROM {user} u
+                  JOIN {user_enrolments} ue ON ue.userid = u.id
+                  JOIN {enrol} e ON e.id = ue.enrolid
+                  JOIN {course} c ON c.id = e.courseid AND c.visible = 1
+                 WHERE e.courseid IN (
+                           SELECT e2.courseid
+                             FROM {enrol} e2
+                             JOIN {user_enrolments} ue2 ON ue2.enrolid = e2.id
+                             JOIN {course} c2 ON c2.id = e2.courseid AND c2.visible = 1
+                            WHERE ue2.userid = :currentuserid
+                       )
+                   AND u.id != :currentuserid2
+                   AND u.deleted = 0
+                   AND u.suspended = 0
+                   AND (" . $DB->sql_like('u.firstname', ':search1', false) . "
+                        OR " . $DB->sql_like('u.lastname', ':search2', false) . ")
+              ORDER BY u.firstname, u.lastname";
+
+        $records = $DB->get_records_sql($sql, [
+            'currentuserid'  => $USER->id,
+            'currentuserid2' => $USER->id,
+            'search1'        => $searchparam,
+            'search2'        => $searchparam,
+        ], 0, 20);
+
+        $users = [];
+        foreach ($records as $record) {
+            $userpicture = new user_picture($record);
+            $userpicture->size = 1;
+            $availability = jitsi_check_tutoring_availability($record->id, $USER->id);
+            $users[] = [
+                'id'              => (int)$record->id,
+                'firstname'       => $record->firstname,
+                'lastname'        => $record->lastname,
+                'profileimageurl' => $userpicture->get_url($PAGE)->out(false),
+                'hasschedule'     => $availability['hasschedule'],
+                'available'       => $availability['available'],
+                'nextslot'        => $availability['nextslot'] ?? '',
+            ];
+        }
+
+        return ['users' => $users];
+    }
+
+    /**
+     * Returns description of search_coursemates return value
+     * @return external_description
+     */
+    public static function search_coursemates_returns() {
+        return new external_single_structure([
+            'users' => new external_multiple_structure(
+                new external_single_structure([
+                    'id'              => new external_value(PARAM_INT, 'User ID'),
+                    'firstname'       => new external_value(PARAM_TEXT, 'First name'),
+                    'lastname'        => new external_value(PARAM_TEXT, 'Last name'),
+                    'profileimageurl' => new external_value(PARAM_URL, 'Profile image URL'),
+                    'hasschedule'     => new external_value(PARAM_BOOL, 'Has tutoring schedule'),
+                    'available'       => new external_value(PARAM_BOOL, 'Available now'),
+                    'nextslot'        => new external_value(PARAM_TEXT, 'Next available slot', VALUE_OPTIONAL),
+                ])
+            ),
+        ]);
+    }
+
+    /**
+     * Returns description of register_push_subscription parameters
+     * @return external_function_parameters
+     */
+    public static function register_push_subscription_parameters() {
+        return new external_function_parameters([
+            'endpoint'  => new external_value(PARAM_URL, 'Push endpoint URL'),
+            'authkey'   => new external_value(PARAM_TEXT, 'Auth key base64url'),
+            'p256dhkey' => new external_value(PARAM_TEXT, 'p256dh key base64url'),
+        ]);
+    }
+
+    /**
+     * Register a Web Push subscription for the current user.
+     *
+     * @param string $endpoint
+     * @param string $authkey
+     * @param string $p256dhkey
+     * @return array
+     */
+    public static function register_push_subscription($endpoint, $authkey, $p256dhkey) {
+        global $DB, $USER;
+
+        $params = self::validate_parameters(self::register_push_subscription_parameters(), [
+            'endpoint'  => $endpoint,
+            'authkey'   => $authkey,
+            'p256dhkey' => $p256dhkey,
+        ]);
+
+        $context = context_system::instance();
+        self::validate_context($context);
+
+        $now = time();
+        $existing = $DB->get_record_sql(
+            'SELECT id FROM {jitsi_push_subscriptions} WHERE userid = :userid AND ' . $DB->sql_compare_text('endpoint') . ' = ' . $DB->sql_compare_text(':endpoint'),
+            ['userid' => $USER->id, 'endpoint' => $params['endpoint']]
+        );
+
+        if ($existing) {
+            $DB->update_record('jitsi_push_subscriptions', (object)[
+                'id'           => $existing->id,
+                'authkey'      => $params['authkey'],
+                'p256dhkey'    => $params['p256dhkey'],
+                'timemodified' => $now,
+            ]);
+        } else {
+            $DB->insert_record('jitsi_push_subscriptions', (object)[
+                'userid'       => $USER->id,
+                'endpoint'     => $params['endpoint'],
+                'authkey'      => $params['authkey'],
+                'p256dhkey'    => $params['p256dhkey'],
+                'timecreated'  => $now,
+                'timemodified' => $now,
+            ]);
+        }
+
+        return ['success' => true];
+    }
+
+    /**
+     * Returns description of register_push_subscription return value
+     * @return external_description
+     */
+    public static function register_push_subscription_returns() {
+        return new external_single_structure([
+            'success' => new external_value(PARAM_BOOL, 'Whether registration succeeded'),
+        ]);
+    }
+
+    /**
+     * Returns description of unregister_push_subscription parameters
+     * @return external_function_parameters
+     */
+    public static function unregister_push_subscription_parameters() {
+        return new external_function_parameters([
+            'endpoint' => new external_value(PARAM_URL, 'Push endpoint URL'),
+        ]);
+    }
+
+    /**
+     * Unregister a Web Push subscription.
+     *
+     * @param string $endpoint
+     * @return array
+     */
+    public static function unregister_push_subscription($endpoint) {
+        global $DB, $USER;
+
+        $params = self::validate_parameters(self::unregister_push_subscription_parameters(), [
+            'endpoint' => $endpoint,
+        ]);
+
+        $context = context_system::instance();
+        self::validate_context($context);
+
+        $DB->delete_records_select(
+            'jitsi_push_subscriptions',
+            'userid = :userid AND ' . $DB->sql_compare_text('endpoint') . ' = ' . $DB->sql_compare_text(':endpoint'),
+            ['userid' => $USER->id, 'endpoint' => $params['endpoint']]
+        );
+
+        return ['success' => true];
+    }
+
+    /**
+     * Returns description of unregister_push_subscription return value
+     * @return external_description
+     */
+    public static function unregister_push_subscription_returns() {
+        return new external_single_structure([
+            'success' => new external_value(PARAM_BOOL, 'Whether unregistration succeeded'),
+        ]);
+    }
+
+    /**
+     * Returns description of check_incoming_call parameters
+     * @return external_function_parameters
+     */
+    public static function check_incoming_call_parameters() {
+        return new external_function_parameters([
+            'since' => new external_value(PARAM_INT, 'Unix timestamp to check from'),
+        ]);
+    }
+
+    /**
+     * Check if anyone has entered a private session room with the current user recently.
+     *
+     * @param int $since Unix timestamp
+     * @return array
+     */
+    public static function check_incoming_call($since) {
+        global $DB, $USER, $PAGE;
+
+        $params = self::validate_parameters(self::check_incoming_call_parameters(), ['since' => $since]);
+        $context = context_system::instance();
+        self::validate_context($context);
+
+        $eventname = '\mod_jitsi\event\jitsi_private_session_enter';
+        $logs = $DB->get_records_select(
+            'logstore_standard_log',
+            'eventname = :eventname AND timecreated >= :since AND userid != :userid',
+            ['eventname' => $eventname, 'since' => $params['since'], 'userid' => $USER->id],
+            'timecreated DESC'
+        );
+
+        foreach ($logs as $log) {
+            $other = json_decode($log->other, true);
+            if (isset($other['peerid']) && (int)$other['peerid'] === (int)$USER->id) {
+                $caller = $DB->get_record(
+                    'user',
+                    ['id' => $log->userid, 'deleted' => 0],
+                    'id, firstname, lastname, firstnamephonetic, lastnamephonetic, middlename, alternatename, picture, imagealt, email',
+                    IGNORE_MISSING
+                );
+                if ($caller) {
+                    $userpicture = new user_picture($caller);
+                    $userpicture->size = 1;
+                    return [
+                        'incoming'     => true,
+                        'callerid'     => (int)$caller->id,
+                        'callername'   => fullname($caller),
+                        'calleravatar' => $userpicture->get_url($PAGE)->out(false),
+                        'timecreated'  => (int)$log->timecreated,
+                    ];
+                }
+            }
+        }
+
+        return [
+            'incoming'     => false,
+            'callerid'     => 0,
+            'callername'   => '',
+            'calleravatar' => '',
+            'timecreated'  => 0,
+        ];
+    }
+
+    /**
+     * Returns description of check_incoming_call return value
+     * @return external_description
+     */
+    public static function check_incoming_call_returns() {
+        return new external_single_structure([
+            'incoming'     => new external_value(PARAM_BOOL, 'Whether there is an incoming call'),
+            'callerid'     => new external_value(PARAM_INT, 'Caller user ID'),
+            'callername'   => new external_value(PARAM_TEXT, 'Caller full name'),
+            'calleravatar' => new external_value(PARAM_URL, 'Caller avatar URL'),
+            'timecreated'  => new external_value(PARAM_INT, 'Event timestamp'),
+        ]);
+    }
+
+    /**
+     * Returns description of get_tutoring_schedule parameters
+     * @return external_function_parameters
+     */
+    public static function get_tutoring_schedule_parameters() {
+        return new external_function_parameters([]);
+    }
+
+    /**
+     * Get the current user's tutoring schedule grouped by course.
+     *
+     * @return array
+     */
+    public static function get_tutoring_schedule() {
+        global $DB, $USER;
+
+        $context = context_system::instance();
+        self::validate_context($context);
+
+        $slots = $DB->get_records(
+            'jitsi_tutoring_schedule',
+            ['userid' => $USER->id],
+            'courseid ASC, weekday ASC, timestart ASC'
+        );
+
+        $courses = [];
+        foreach ($slots as $slot) {
+            $courseid = (int)$slot->courseid;
+            if (!isset($courses[$courseid])) {
+                $course = $DB->get_record('course', ['id' => $courseid], 'id, fullname', IGNORE_MISSING);
+                $courses[$courseid] = [
+                    'courseid'   => $courseid,
+                    'coursename' => $course ? $course->fullname : '?',
+                    'slots'      => [],
+                ];
+            }
+            $h = intdiv((int)$slot->timestart, 3600);
+            $m = intdiv(((int)$slot->timestart % 3600), 60);
+            $hend = intdiv((int)$slot->timeend, 3600);
+            $mend = intdiv(((int)$slot->timeend % 3600), 60);
+            $courses[$courseid]['slots'][] = [
+                'id'        => (int)$slot->id,
+                'weekday'   => (int)$slot->weekday,
+                'timestart' => sprintf('%02d:%02d', $h, $m),
+                'timeend'   => sprintf('%02d:%02d', $hend, $mend),
+            ];
+        }
+
+        return ['courses' => array_values($courses)];
+    }
+
+    /**
+     * Returns description of get_tutoring_schedule return value
+     * @return external_description
+     */
+    public static function get_tutoring_schedule_returns() {
+        return new external_single_structure([
+            'courses' => new external_multiple_structure(
+                new external_single_structure([
+                    'courseid'   => new external_value(PARAM_INT, 'Course ID'),
+                    'coursename' => new external_value(PARAM_TEXT, 'Course name'),
+                    'slots'      => new external_multiple_structure(
+                        new external_single_structure([
+                            'id'        => new external_value(PARAM_INT, 'Slot ID'),
+                            'weekday'   => new external_value(PARAM_INT, 'Day of week (0=Sun)'),
+                            'timestart' => new external_value(PARAM_TEXT, 'Start time HH:MM'),
+                            'timeend'   => new external_value(PARAM_TEXT, 'End time HH:MM'),
+                        ])
+                    ),
+                ])
+            ),
+        ]);
+    }
+
+    /**
+     * Returns description of save_tutoring_slot parameters
+     * @return external_function_parameters
+     */
+    public static function save_tutoring_slot_parameters() {
+        return new external_function_parameters([
+            'courseid'  => new external_value(PARAM_INT, 'Course ID'),
+            'weekday'   => new external_value(PARAM_INT, 'Day of week 0=Sun, 6=Sat'),
+            'timestart' => new external_value(PARAM_TEXT, 'Start time HH:MM'),
+            'timeend'   => new external_value(PARAM_TEXT, 'End time HH:MM'),
+        ]);
+    }
+
+    /**
+     * Save a tutoring schedule slot for the current user.
+     *
+     * @param int $courseid
+     * @param int $weekday
+     * @param string $timestart HH:MM
+     * @param string $timeend HH:MM
+     * @return array
+     */
+    public static function save_tutoring_slot($courseid, $weekday, $timestart, $timeend) {
+        global $DB, $USER;
+
+        $params = self::validate_parameters(self::save_tutoring_slot_parameters(), [
+            'courseid'  => $courseid,
+            'weekday'   => $weekday,
+            'timestart' => $timestart,
+            'timeend'   => $timeend,
+        ]);
+
+        $context = context_system::instance();
+        self::validate_context($context);
+
+        // Validate course exists, is visible, and user is enrolled as teacher.
+        $course = $DB->get_record('course', ['id' => $params['courseid'], 'visible' => 1], 'id', MUST_EXIST);
+        $coursecontext = context_course::instance($course->id);
+        if (!has_capability('mod/jitsi:addinstance', $coursecontext)) {
+            throw new moodle_exception('nopermissions', 'error', '', 'save tutoring slot');
+        }
+
+        // Parse times.
+        [$sh, $sm] = array_map('intval', explode(':', $params['timestart']));
+        [$eh, $em] = array_map('intval', explode(':', $params['timeend']));
+        $startsecs = $sh * 3600 + $sm * 60;
+        $endsecs   = $eh * 3600 + $em * 60;
+
+        if ($endsecs <= $startsecs) {
+            throw new moodle_exception('error', 'mod_jitsi', '', 'End time must be after start time');
+        }
+
+        $now = time();
+        $record = (object)[
+            'userid'       => $USER->id,
+            'courseid'     => $params['courseid'],
+            'weekday'      => $params['weekday'],
+            'timestart'    => $startsecs,
+            'timeend'      => $endsecs,
+            'timecreated'  => $now,
+            'timemodified' => $now,
+        ];
+        $id = $DB->insert_record('jitsi_tutoring_schedule', $record);
+
+        return ['id' => (int)$id];
+    }
+
+    /**
+     * Returns description of save_tutoring_slot return value
+     * @return external_description
+     */
+    public static function save_tutoring_slot_returns() {
+        return new external_single_structure([
+            'id' => new external_value(PARAM_INT, 'New slot ID'),
+        ]);
+    }
+
+    /**
+     * Returns description of delete_tutoring_slot parameters
+     * @return external_function_parameters
+     */
+    public static function delete_tutoring_slot_parameters() {
+        return new external_function_parameters([
+            'slotid' => new external_value(PARAM_INT, 'Slot ID to delete'),
+        ]);
+    }
+
+    /**
+     * Delete a tutoring schedule slot (only the owner can delete).
+     *
+     * @param int $slotid
+     * @return array
+     */
+    public static function delete_tutoring_slot($slotid) {
+        global $DB, $USER;
+
+        $params = self::validate_parameters(self::delete_tutoring_slot_parameters(), ['slotid' => $slotid]);
+        $context = context_system::instance();
+        self::validate_context($context);
+
+        $slot = $DB->get_record('jitsi_tutoring_schedule', ['id' => $params['slotid']], 'id, userid', MUST_EXIST);
+        if ((int)$slot->userid !== (int)$USER->id) {
+            throw new moodle_exception('nopermissions', 'error', '', 'delete tutoring slot');
+        }
+
+        $DB->delete_records('jitsi_tutoring_schedule', ['id' => $params['slotid']]);
+
+        return ['success' => true];
+    }
+
+    /**
+     * Returns description of delete_tutoring_slot return value
+     * @return external_description
+     */
+    public static function delete_tutoring_slot_returns() {
+        return new external_single_structure([
+            'success' => new external_value(PARAM_BOOL, 'Whether deletion succeeded'),
+        ]);
+    }
+
+    /**
+     * Returns description of get_teacher_schedule parameters
+     * @return external_function_parameters
+     */
+    public static function get_teacher_schedule_parameters() {
+        return new external_function_parameters([
+            'teacherid' => new external_value(PARAM_INT, 'Teacher user ID'),
+        ]);
+    }
+
+    /**
+     * Get tutoring schedule for a teacher visible to the current user (shared courses only).
+     *
+     * @param int $teacherid
+     * @return array
+     */
+    public static function get_teacher_schedule($teacherid) {
+        global $DB, $USER;
+
+        $params = self::validate_parameters(self::get_teacher_schedule_parameters(), ['teacherid' => $teacherid]);
+        $context = context_system::instance();
+        self::validate_context($context);
+
+        $availability = jitsi_check_tutoring_availability($params['teacherid'], $USER->id);
+
+        $slots = [];
+        if ($availability['hasschedule']) {
+            // Return all slots for shared courses.
+            $teacherroles = array_keys(get_archetype_roles('teacher') + get_archetype_roles('editingteacher'));
+            $studentroles = array_keys(get_archetype_roles('student'));
+            [$trolesql, $troleparams] = $DB->get_in_or_equal($teacherroles, SQL_PARAMS_NAMED, 'trole');
+            [$srolesql, $sroleparams] = $DB->get_in_or_equal($studentroles, SQL_PARAMS_NAMED, 'srole');
+
+            $teachercourses = $DB->get_fieldset_sql(
+                "SELECT DISTINCT ctx.instanceid
+                   FROM {role_assignments} ra
+                   JOIN {context} ctx ON ctx.id = ra.contextid AND ctx.contextlevel = :ctxlevel
+                   JOIN {course} c ON c.id = ctx.instanceid AND c.visible = 1
+                  WHERE ra.userid = :teacherid AND ra.roleid $trolesql",
+                array_merge(['ctxlevel' => CONTEXT_COURSE, 'teacherid' => $params['teacherid']], $troleparams)
+            );
+
+            if (!empty($teachercourses)) {
+                [$coursesql, $courseparams] = $DB->get_in_or_equal($teachercourses, SQL_PARAMS_NAMED, 'course');
+                $sharedcourses = $DB->get_fieldset_sql(
+                    "SELECT DISTINCT ctx.instanceid
+                       FROM {role_assignments} ra
+                       JOIN {context} ctx ON ctx.id = ra.contextid AND ctx.contextlevel = :ctxlevel
+                       JOIN {course} c ON c.id = ctx.instanceid AND c.visible = 1
+                      WHERE ra.userid = :studentid AND ra.roleid $srolesql AND ctx.instanceid $coursesql",
+                    array_merge(['ctxlevel' => CONTEXT_COURSE, 'studentid' => $USER->id], $sroleparams, $courseparams)
+                );
+
+                if (!empty($sharedcourses)) {
+                    [$csql, $cparams] = $DB->get_in_or_equal($sharedcourses, SQL_PARAMS_NAMED, 'sc');
+                    $records = $DB->get_records_select(
+                        'jitsi_tutoring_schedule',
+                        "userid = :teacherid AND courseid $csql",
+                        array_merge(['teacherid' => $params['teacherid']], $cparams),
+                        'weekday ASC, timestart ASC'
+                    );
+                    foreach ($records as $slot) {
+                        $h = intdiv((int)$slot->timestart, 3600);
+                        $m = intdiv(((int)$slot->timestart % 3600), 60);
+                        $hend = intdiv((int)$slot->timeend, 3600);
+                        $mend = intdiv(((int)$slot->timeend % 3600), 60);
+                        $slots[] = [
+                            'weekday'   => (int)$slot->weekday,
+                            'timestart' => sprintf('%02d:%02d', $h, $m),
+                            'timeend'   => sprintf('%02d:%02d', $hend, $mend),
+                        ];
+                    }
+                }
+            }
+        }
+
+        return [
+            'hasschedule' => $availability['hasschedule'],
+            'available'   => $availability['available'],
+            'nextslot'    => $availability['nextslot'] ?? '',
+            'slots'       => $slots,
+        ];
+    }
+
+    /**
+     * Returns description of get_teacher_schedule return value
+     * @return external_description
+     */
+    public static function get_teacher_schedule_returns() {
+        return new external_single_structure([
+            'hasschedule' => new external_value(PARAM_BOOL, 'Has schedule'),
+            'available'   => new external_value(PARAM_BOOL, 'Available now'),
+            'nextslot'    => new external_value(PARAM_TEXT, 'Next slot label'),
+            'slots'       => new external_multiple_structure(
+                new external_single_structure([
+                    'weekday'   => new external_value(PARAM_INT, 'Day of week'),
+                    'timestart' => new external_value(PARAM_TEXT, 'Start HH:MM'),
+                    'timeend'   => new external_value(PARAM_TEXT, 'End HH:MM'),
+                ])
+            ),
         ]);
     }
 }
