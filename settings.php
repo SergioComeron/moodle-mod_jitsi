@@ -510,11 +510,42 @@ if ($ADMIN->fulltree) {
     );
 
     $settings->add(
-        new admin_setting_configtext(
+        new admin_setting_configselect(
             'mod_jitsi/gcp_zone',
             get_string('gcpzone', 'jitsi'),
             get_string('gcpzoneex', 'jitsi'),
-            ''
+            '',
+            [
+                ''                      => get_string('selectzone', 'jitsi'),
+                'us-central1-a'         => 'us-central1-a — Iowa, USA',
+                'us-central1-b'         => 'us-central1-b — Iowa, USA',
+                'us-central1-c'         => 'us-central1-c — Iowa, USA',
+                'us-east1-b'            => 'us-east1-b — South Carolina, USA',
+                'us-east1-c'            => 'us-east1-c — South Carolina, USA',
+                'us-east4-a'            => 'us-east4-a — Virginia, USA',
+                'us-east4-b'            => 'us-east4-b — Virginia, USA',
+                'us-west1-a'            => 'us-west1-a — Oregon, USA',
+                'us-west1-b'            => 'us-west1-b — Oregon, USA',
+                'europe-west1-b'        => 'europe-west1-b — Belgium (EU)',
+                'europe-west1-c'        => 'europe-west1-c — Belgium (EU)',
+                'europe-west1-d'        => 'europe-west1-d — Belgium (EU)',
+                'europe-west4-a'        => 'europe-west4-a — Netherlands (EU)',
+                'europe-west4-b'        => 'europe-west4-b — Netherlands (EU)',
+                'europe-west4-c'        => 'europe-west4-c — Netherlands (EU)',
+                'europe-west9-a'        => 'europe-west9-a — Paris, France (EU)',
+                'europe-west9-b'        => 'europe-west9-b — Paris, France (EU)',
+                'europe-southwest1-a'   => 'europe-southwest1-a — Madrid, Spain (EU)',
+                'europe-southwest1-b'   => 'europe-southwest1-b — Madrid, Spain (EU)',
+                'europe-southwest1-c'   => 'europe-southwest1-c — Madrid, Spain (EU)',
+                'southamerica-east1-a'  => 'southamerica-east1-a — São Paulo, Brazil',
+                'southamerica-east1-b'  => 'southamerica-east1-b — São Paulo, Brazil',
+                'asia-northeast1-a'     => 'asia-northeast1-a — Tokyo, Japan',
+                'asia-northeast1-b'     => 'asia-northeast1-b — Tokyo, Japan',
+                'asia-southeast1-a'     => 'asia-southeast1-a — Singapore',
+                'asia-southeast1-b'     => 'asia-southeast1-b — Singapore',
+                'australia-southeast1-a' => 'australia-southeast1-a — Sydney, Australia',
+                'australia-southeast1-b' => 'australia-southeast1-b — Sydney, Australia',
+            ]
         )
     );
 
