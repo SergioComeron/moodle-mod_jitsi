@@ -593,4 +593,22 @@ if ($ADMIN->fulltree) {
             PARAM_INT
         )
     );
+
+    $settings->add(
+        new admin_setting_configselect(
+            'mod_jitsi/vertexairegion',
+            get_string('vertexairegion', 'jitsi'),
+            get_string('vertexairegionex', 'jitsi'),
+            'us-central1',
+            [
+                'us-central1'    => 'us-central1 — Iowa, USA',
+                'us-east4'       => 'us-east4 — Virginia, USA',
+                'europe-west1'   => 'europe-west1 — Belgium (EU)',
+                'europe-west4'   => 'europe-west4 — Netherlands (EU)',
+                'europe-west9'   => 'europe-west9 — Paris, France (EU)',
+                'asia-northeast1' => 'asia-northeast1 — Tokyo, Japan',
+                'asia-southeast1' => 'asia-southeast1 — Singapore',
+            ]
+        )
+    );
 }
