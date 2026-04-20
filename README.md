@@ -483,6 +483,45 @@ Running Jitsi servers in GCP incurs costs:
    - Self-signed certificates will show browser warnings to users
    - Certificates auto-renew via certbot
 
+## AI Features for GCS Recordings
+
+When GCS (Google Cloud Storage) upload is enabled for a Jibri recording server, recordings stored at `https://storage.googleapis.com/…` can be processed by **Google Vertex AI (Gemini 2.5 Flash)** to generate:
+
+- **AI Summary** — a 3-5 paragraph educational summary of the recording
+- **AI Quiz** — a set of true/false questions auto-created as a Moodle quiz
+- **AI Transcription** — a timestamped transcript with chapter headings
+
+### Enabling AI features
+
+Navigate to **Site administration > Plugins > Activity modules > Jitsi > AI Features** and:
+
+1. Check **Enable AI features** (`aienabled`). This is **disabled by default**.
+2. Select the **Vertex AI region** where recordings will be processed (default: `europe-west1`).
+
+Teachers and editing teachers with the corresponding capabilities (`generateaisummary`, `generateaiquiz`, `generateaitranscription`) will see generation buttons in the Recordings tab for GCS recordings.
+
+### GDPR / Data Protection considerations
+
+> ⚠️ **Important**: enabling AI features sends video recordings to Google Vertex AI for processing. Video recordings contain personal data (image and voice of participants).
+
+Before enabling AI features, your institution **must**:
+
+1. **Sign a Data Processing Agreement (DPA)** with Google Cloud.  
+   Google offers a standard DPA as part of the [Google Cloud Terms of Service](https://cloud.google.com/terms/data-processing-addendum). Accepting it in the Cloud Console satisfies GDPR Art. 28 requirements for a processor agreement.
+
+2. **Configure the processing region** to match your data residency requirements.  
+   Use `europe-west1` (Belgium) or another EU region to keep data within the European Economic Area. Avoid `us-central1` or other non-EU regions if your institution is subject to GDPR.
+
+3. **Inform participants** that recordings may be processed by an AI service for summarisation and transcription. Update your privacy notice accordingly.
+
+4. **Review retention**: AI-generated content (summaries, transcriptions, quiz questions) is stored in the Moodle database. Apply your standard data retention policy.
+
+The plugin's `privacy/provider.php` declares:
+- The external data location `vertexai` (Google Vertex AI) and the nature of data sent (video recordings).
+- The `jitsi_source_record` database table storing AI-generated outputs.
+
+For a full list of data exported and deleted per user, see the Moodle Privacy API integration in `classes/privacy/provider.php`.
+
 ## Disclaimer
 
 This plugin is not related to or partnered with 8x8 Inc. nor with "Jitsi as a Service" (JaaS).

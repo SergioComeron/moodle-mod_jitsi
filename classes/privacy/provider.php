@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Privacy Subsystem implementation for block_common_courses.
+ * Privacy Subsystem implementation for mod_jitsi.
  *
  * @package    mod_jitsi
  * @copyright  2019 Sergio Comerón Sánchez-Paniagua <sergiocomeron@icloud.com>
@@ -27,7 +27,7 @@ namespace mod_jitsi\privacy;
 use core_privacy\local\metadata\collection;
 
 /**
- * Privacy Subsystem implementation for block_common_courses.
+ * Privacy Subsystem implementation for mod_jitsi.
  *
  * @package    mod_jitsi
  * @copyright  2019 Sergio Comerón Sánchez-Paniagua <sergiocomeron@icloud.com>
@@ -43,11 +43,26 @@ class provider implements
      * @return  collection     A listing of user data stored through this system.
      */
     public static function get_metadata(collection $collection): collection {
+        // Data sent to the Jitsi Meet server (identity inside the conference).
         $collection->add_external_location_link('jitsi', [
             'username' => 'privacy:metadata:jitsi:username',
-            'avatar' => 'privacy:metadata:jitsi:avatar',
-            'email' => 'privacy:metadata:jitsi:email',
-            ], 'privacy:metadata:jitsi');
+            'avatar'   => 'privacy:metadata:jitsi:avatar',
+            'email'    => 'privacy:metadata:jitsi:email',
+        ], 'privacy:metadata:jitsi');
+
+        // Recording content sent to Google Vertex AI for AI feature generation.
+        // This only happens when a teacher explicitly triggers summary, quiz or
+        // transcription generation for a GCS recording.
+        $collection->add_external_location_link('vertexai', [
+            'recording' => 'privacy:metadata:vertexai:recording',
+        ], 'privacy:metadata:vertexai');
+
+        // AI-generated content stored in jitsi_source_record.
+        $collection->add_database_table('jitsi_source_record', [
+            'ai_summary'       => 'privacy:metadata:jitsi_source_record:ai_summary',
+            'ai_transcription' => 'privacy:metadata:jitsi_source_record:ai_transcription',
+            'ai_quiz_id'       => 'privacy:metadata:jitsi_source_record:ai_quiz_id',
+        ], 'privacy:metadata:jitsi_source_record');
 
         return $collection;
     }

@@ -1265,6 +1265,10 @@ class mod_jitsi_external extends external_api {
         self::validate_context($context);
         require_capability('mod/jitsi:generateaisummary', $context);
 
+        if (!get_config('mod_jitsi', 'aienabled')) {
+            return ['success' => false, 'message' => get_string('aidisabled', 'jitsi')];
+        }
+
         $sourcerecord = $DB->get_record('jitsi_source_record', ['id' => $params['sourcerecordid']], '*', MUST_EXIST);
 
         // Only GCS recordings are supported.
@@ -1321,6 +1325,10 @@ class mod_jitsi_external extends external_api {
         self::validate_context($context);
         require_capability('mod/jitsi:generateaitranscription', $context);
 
+        if (!get_config('mod_jitsi', 'aienabled')) {
+            return ['success' => false, 'message' => get_string('aidisabled', 'jitsi')];
+        }
+
         $sourcerecord = $DB->get_record('jitsi_source_record', ['id' => $params['sourcerecordid']], '*', MUST_EXIST);
 
         if (strpos($sourcerecord->link, 'storage.googleapis.com') === false) {
@@ -1376,6 +1384,10 @@ class mod_jitsi_external extends external_api {
         $context = context_module::instance($params['cmid']);
         self::validate_context($context);
         require_capability('mod/jitsi:generateaiquiz', $context);
+
+        if (!get_config('mod_jitsi', 'aienabled')) {
+            return ['success' => false, 'message' => get_string('aidisabled', 'jitsi')];
+        }
 
         $sourcerecord = $DB->get_record('jitsi_source_record', ['id' => $params['sourcerecordid']], '*', MUST_EXIST);
 
