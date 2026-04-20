@@ -1,4 +1,51 @@
 # Changelog
+## v4.6.1
+### Added
+
+ * AI enable toggle (`aienabled`) — disabled by default for GDPR safety (#174)
+ * GDPR data notice tab in recordings view for users with AI generation capabilities (#174)
+ * GCP zone selector — dropdown with ~30 zones replacing free-text input (#174)
+ * Configurable Vertex AI processing region (`vertexairegion`) with EU default (#174)
+ * Privacy metadata declarations for Vertex AI external location and AI-generated fields (#174)
+ * Dedicated "AI Features" settings section, separate from Experimental (#174)
+ * README documentation for AI features, DPA/GDPR requirements and data retention (#174)
+
+### Fixed
+
+ * Default Vertex AI region and GCP zone changed to `europe-west1` / `europe-west1-b` (#174)
+ * GDPR notice tab now appears last and is not auto-activated (#174)
+ * AI generation endpoints return error when `aienabled` is off (#174)
+
+---
+
+## v4.6.0
+### Added
+
+ * **Jibri pool** — simultaneous GCS recordings via a pool of Jibri VMs with status badges, add/remove VM and pool size control (#163)
+ * Per-server GCP machine type selection with specs
+ * Jibri status monitor (`jibri-monitor.sh`) for automatic pool management and immediate top-up when a unit goes busy
+ * **AI transcription** of GCS recordings with clickable timestamps and chapter headings (#166, #167)
+ * Students can view AI-generated content (summary, quiz, transcription) when available
+ * **Private sessions** — symmetric 1-on-1 rooms between coursemates, direct access from user profiles (#170)
+ * `call.php` — coursemate search, call history and incoming call modal (#170)
+ * **Web Push notifications** for incoming private session calls (#171)
+ * **Tutoring schedule** — teachers define per-course availability; students see badge and warning outside hours (#171)
+
+### Fixed
+
+ * Match Jibri room names when separator (e.g. dot) is stripped from MP4 filename
+ * Install `jibri-monitor.sh` from scratch in image-based VM startup script
+ * Disable live streaming in `configOverwrite` using both legacy and current Jitsi keys
+ * Hide recording/streaming buttons while Jibri pool entry is provisioning
+ * Delete AI quiz course module when its recording is deleted
+ * Hide Chrome automation infobar in Jibri recordings (#164)
+ * Grant moderator role to both participants in private sessions (#170)
+ * Base64url encoding for Web Push keys; `mailto:` VAPID subject (#171)
+ * Remove explicit SW scope to support Moodle subdirectory installs (#171)
+ * Various Jibri pool lifecycle fixes (stop/start VMs, idle marking, provisioning timeout)
+
+---
+
 ## v4.5.0
 # Added
 
