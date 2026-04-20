@@ -566,21 +566,12 @@ if ($ADMIN->fulltree) {
         )
     );
 
-    // Experimental Section.
+    // AI Features Section.
     $settings->add(
         new admin_setting_heading(
-            'jitsiexperimental',
-            get_string('experimental', 'jitsi'),
-            get_string('experimentalex', 'jitsi')
-        )
-    );
-
-    $settings->add(
-        new admin_setting_configcheckbox(
-            'mod_jitsi/sharestream',
-            get_string('sharestream', 'jitsi'),
-            get_string('sharestreamex', 'jitsi'),
-            0
+            'jitsiaiheading',
+            get_string('aiheading', 'jitsi'),
+            get_string('aiheadingex', 'jitsi')
         )
     );
 
@@ -610,14 +601,32 @@ if ($ADMIN->fulltree) {
             get_string('vertexairegionex', 'jitsi'),
             'us-central1',
             [
-                'us-central1'    => 'us-central1 — Iowa, USA',
-                'us-east4'       => 'us-east4 — Virginia, USA',
-                'europe-west1'   => 'europe-west1 — Belgium (EU)',
-                'europe-west4'   => 'europe-west4 — Netherlands (EU)',
-                'europe-west9'   => 'europe-west9 — Paris, France (EU)',
+                'us-central1'     => 'us-central1 — Iowa, USA',
+                'us-east4'        => 'us-east4 — Virginia, USA',
+                'europe-west1'    => 'europe-west1 — Belgium (EU)',
+                'europe-west4'    => 'europe-west4 — Netherlands (EU)',
+                'europe-west9'    => 'europe-west9 — Paris, France (EU)',
                 'asia-northeast1' => 'asia-northeast1 — Tokyo, Japan',
                 'asia-southeast1' => 'asia-southeast1 — Singapore',
             ]
+        )
+    );
+
+    // Experimental Section.
+    $settings->add(
+        new admin_setting_heading(
+            'jitsiexperimental',
+            get_string('experimental', 'jitsi'),
+            get_string('experimentalex', 'jitsi')
+        )
+    );
+
+    $settings->add(
+        new admin_setting_configcheckbox(
+            'mod_jitsi/sharestream',
+            get_string('sharestream', 'jitsi'),
+            get_string('sharestreamex', 'jitsi'),
+            0
         )
     );
 }
