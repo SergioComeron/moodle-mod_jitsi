@@ -1,117 +1,48 @@
 # Changelog
 ## v4.6.1
-# Added
+### Added
 
- * replace gcp_zone text input with zone selector (#174)
- * add AI enable toggle and GDPR data notice in view (#174)
-# Fixed
+ * AI enable toggle (`aienabled`) — disabled by default for GDPR safety (#174)
+ * GDPR data notice tab in recordings view for users with AI generation capabilities (#174)
+ * GCP zone selector — dropdown with ~30 zones replacing free-text input (#174)
+ * Configurable Vertex AI processing region (`vertexairegion`) with EU default (#174)
+ * Privacy metadata declarations for Vertex AI external location and AI-generated fields (#174)
+ * Dedicated "AI Features" settings section, separate from Experimental (#174)
+ * README documentation for AI features, DPA/GDPR requirements and data retention (#174)
 
- * move GDPR notice tab to last position and never auto-activate it
- * default Vertex AI region and GCP zone to europe-west1
- * configurable Vertex AI region and GDPR privacy metadata (#174)
-# Changed
+### Fixed
 
- * Merge branch 'dev' into master
- * Merge branch 'feature/gdpr-ai-compliance' into dev
- * document AI features, GDPR/DPA requirements and data processing region
- * move AI settings out of experimental section (#174)
+ * Default Vertex AI region and GCP zone changed to `europe-west1` / `europe-west1-b` (#174)
+ * GDPR notice tab now appears last and is not auto-activated (#174)
+ * AI generation endpoints return error when `aienabled` is off (#174)
 
 ---
 
 ## v4.6.0
-# Added
+### Added
 
- * Jibri pool, AI features, private sessions, tutoring schedule (v4.6)
- * add chapter headings to AI transcription (#167)
- * top up Jibri pool immediately when a unit goes busy
- * allow students to view AI-generated content (summary, quiz, transcription)
- * add Jibri status monitor for pool recording tracking; fix image forceCreate
- * Jibri pool UI — pool status badges, add/remove VM, pool size control
- * Jibri pool — DB schema, pool management task and provision refactor
- * merge feature/gcp-machine-type into dev
- * add per-server GCP machine type selection with specs
- * AI transcription of GCS recordings with clickable timestamps (#166)
- * show last 10 calls chronologically and missed calls in call.php
- * incoming call polling + Web Push notifications (#171)
- * tutoring schedule for private sessions (#171)
- * show recent call history in call.php (#170)
- * log private session access via Moodle event system (#170)
- * restrict private session link to coursemates; add call.php search page (#170)
- * simplify private sessions - symmetric room, direct access from profile (#170)
-# Fixed
+ * **Jibri pool** — simultaneous GCS recordings via a pool of Jibri VMs with status badges, add/remove VM and pool size control (#163)
+ * Per-server GCP machine type selection with specs
+ * Jibri status monitor (`jibri-monitor.sh`) for automatic pool management and immediate top-up when a unit goes busy
+ * **AI transcription** of GCS recordings with clickable timestamps and chapter headings (#166, #167)
+ * Students can view AI-generated content (summary, quiz, transcription) when available
+ * **Private sessions** — symmetric 1-on-1 rooms between coursemates, direct access from user profiles (#170)
+ * `call.php` — coursemate search, call history and incoming call modal (#170)
+ * **Web Push notifications** for incoming private session calls (#171)
+ * **Tutoring schedule** — teachers define per-course availability; students see badge and warning outside hours (#171)
 
- * match Jibri room names when separator is stripped from filename
- * install jibri-monitor.sh from scratch in image-based VM startup script
- * include lib.php in NO_MOODLE_COOKIES callback path
- * use string_sanitize() and default sesionname in jibrirecording callback
- * disable live streaming in configOverwrite using both legacy and current Jitsi key
- * hide recording/streaming buttons while Jibri pool entry is provisioning
- * add defensive guard in process_server for non-GCP/non-Jibri servers
- * disable adhoc task deduplication when provisioning Jibri pool
- * delete all pool Jibris when Jitsi VM is stopped
- * skip Jibri pool management when Jitsi VM is not running
- * stop/start all Jibri pool VMs when stopping/starting the Jitsi server
- * mark pool entry idle immediately when recording finishes
- * reduce jibri-monitor polling interval from 10s to 2s
- * set unique MUC nickname per Jibri VM when booting from image
- * preserve jibri_provisioningstatus=ready when all pool entries are deleted
- * show delete button for Jibri/GCS recordings in adminrecord.php
- * use timecreated instead of timemodified for provisioning timeout check
- * update POOL_ENTRY_ID in baked monitor script when booting from image
- * call jibriready callback from image-based VMs; add provisioning timeout fallback
- * indent jibri-monitor heredoc bodies to satisfy PHP 7.3+ flexible heredoc rules
- * add mkdir -p /etc/jibri before writing delete-token in Jibri startup script
- * use pool status to determine Jibri availability for recording/streaming
- * use GCP instance status instead of Jibri health API port
- * create Jibri base image without stopping the VM
- * merge fix/jibri-automation-banner into dev
- * wrap /opt/google/chrome/chrome not /usr/bin/google-chrome
- * hide Chrome automation infobar in Jibri recordings (#164)
- * delete AI quiz course module when a recording is deleted
- * only open PR when google/apiclient version actually changes
- * only open PR when google/apiclient version actually changes
- * grant moderator role to both participants in private sessions
- * show user names as subject in private session instead of room name
- * use data-bs-dismiss for Bootstrap 5 dismiss button in incoming call modal
- * base64url encoding for push keys; mailto: VAPID subject; push debug logging
- * replace navigator.serviceWorker.ready with per-registration wait
- * add step-by-step status feedback during push subscription flow
- * remove explicit SW scope to support Moodle subdirectory installs
- * improve Web Push error handling and permission flow
- * course headings link to course page in tutoringschedule.php
- * use js_amd_inline for reliable JS loading in tutoringschedule.php
- * use Moodle single_button for back link in tutoringschedule.php
- * use Moodle single_button for tutoring schedule link in call.php
- * code style in call.php
- * code style in jitsi_check_tutoring_availability
- * bump version to avoid downgrade error on dev branch
- * move private sessions setting out of experimental section (#170)
- * disable recording and live streaming in private sessions (#170)
- * redirect to call.php after private session; two-column responsive layout (#170)
- * add missing jitsi-container div to createsessionpriv() (#170)
-# Changed
+### Fixed
 
- * add regression test for dot-separator stripping in Jibri filename matching
- * extract jitsi_build_room_name() and add regression tests
- * close issue #163 — Jibri pool with custom GCP image implemented
- * run check_jibri_pool every minute instead of every 5 minutes
- * fix phpcs in lib.php
- * fix phpcs violations in pool task files
- * fix phpcs formatting in servermanagement.php
- * remove global gcp_machine_type admin setting
- * use sparkles emoji for AI Tools header, remove emojis from tab labels
- * fix phpcs spacing in closure and remove duplicate aiquiz string
- * replace stacked AI buttons with accordion + tabs in view_table.php
- * Revert "chore: bump version to v4.5.1 (build 2026041301)" [skip ci]
- * add missing vendor dependencies for minishlink/web-push
- * fix phpcs blank line after opening brace in external_test
- * add unit tests for tutoring schedule, push subscriptions, and incoming call
- * remove debug console.log statements from push init AMD module
- * granular logs inside button click handler
- * add console.log trace to push init flow
- * move tutoring schedule to dedicated page; filter hidden courses
- * document private sessions feature in README
- * close issue on merge to master
+ * Match Jibri room names when separator (e.g. dot) is stripped from MP4 filename
+ * Install `jibri-monitor.sh` from scratch in image-based VM startup script
+ * Disable live streaming in `configOverwrite` using both legacy and current Jitsi keys
+ * Hide recording/streaming buttons while Jibri pool entry is provisioning
+ * Delete AI quiz course module when its recording is deleted
+ * Hide Chrome automation infobar in Jibri recordings (#164)
+ * Grant moderator role to both participants in private sessions (#170)
+ * Base64url encoding for Web Push keys; `mailto:` VAPID subject (#171)
+ * Remove explicit SW scope to support Moodle subdirectory installs (#171)
+ * Various Jibri pool lifecycle fixes (stop/start VMs, idle marking, provisioning timeout)
 
 ---
 
