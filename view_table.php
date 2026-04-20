@@ -166,9 +166,21 @@ class mod_view_table extends table_sql {
                 // Build per-tab content and determine which tabs to show.
                 $aitabs = [];
 
-                $cangensum = $isgcs && has_capability('mod/jitsi:generateaisummary', $context);
-                $cangenquiz = $isgcs && has_capability('mod/jitsi:generateaiquiz', $context);
-                $cangentrans = $isgcs && has_capability('mod/jitsi:generateaitranscription', $context);
+                $aienabled = (bool)get_config('mod_jitsi', 'aienabled');
+                $cangensum = $aienabled && $isgcs && has_capability('mod/jitsi:generateaisummary', $context);
+                $cangenquiz = $aienabled && $isgcs && has_capability('mod/jitsi:generateaiquiz', $context);
+                $cangentrans = $aienabled && $isgcs && has_capability('mod/jitsi:generateaitranscription', $context);
+
+                // GDPR notice: shown to users who can generate AI content.
+                if ($aienabled && ($cangensum || $cangenquiz || $cangentrans)) {
+                    $aitabs[] = [
+                        'id'      => 'ai-gdpr-' . $sourcerecord->id,
+                        'label'   => '⚠️ ' . get_string('aigdprnotice_tab', 'jitsi'),
+                        'content' => '<div class="alert alert-warning p-2 mb-0" style="font-size:0.9em">'
+                            . get_string('aigdprnotice', 'jitsi', get_config('mod_jitsi', 'vertexairegion') ?: 'us-central1')
+                            . '</div>',
+                    ];
+                }
 
                 // --- Summary tab ---
                 if ($cangensum || ($isgcs && $summaryexists)) {

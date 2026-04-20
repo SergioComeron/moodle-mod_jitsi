@@ -585,6 +585,15 @@ if ($ADMIN->fulltree) {
     );
 
     $settings->add(
+        new admin_setting_configcheckbox(
+            'mod_jitsi/aienabled',
+            get_string('aienabled', 'jitsi'),
+            get_string('aienabledex', 'jitsi'),
+            0
+        )
+    );
+
+    $settings->add(
         new admin_setting_configtext(
             'mod_jitsi/aiquizquestions',
             get_string('aiquizquestions', 'jitsi'),
