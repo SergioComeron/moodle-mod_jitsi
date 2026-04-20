@@ -1,4 +1,23 @@
 # Changelog
+## v4.7.0
+# Added
+
+ * replace gcp_zone text input with zone selector (#174)
+ * add AI enable toggle and GDPR data notice in view (#174)
+# Fixed
+
+ * move GDPR notice tab to last position and never auto-activate it
+ * default Vertex AI region and GCP zone to europe-west1
+ * configurable Vertex AI region and GDPR privacy metadata (#174)
+# Changed
+
+ * Merge branch 'dev' into master
+ * Merge branch 'feature/gdpr-ai-compliance' into dev
+ * document AI features, GDPR/DPA requirements and data processing region
+ * move AI settings out of experimental section (#174)
+
+---
+
 ## v4.6.0
 # Added
 
