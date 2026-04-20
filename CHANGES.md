@@ -1,5 +1,5 @@
 # Changelog
-## v4.7.0
+## v4.6.1
 # Added
 
  * replace gcp_zone text input with zone selector (#174)
