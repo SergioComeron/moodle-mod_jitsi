@@ -29,7 +29,6 @@ defined('MOODLE_INTERNAL') || die();
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class xmldb_schema_test extends \advanced_testcase {
-
     /** @var \xmldb_structure Parsed install.xml structure. */
     private \xmldb_structure $structure;
 
@@ -48,7 +47,7 @@ final class xmldb_schema_test extends \advanced_testcase {
      * Moodle XMLDB automatically strips such defaults and logs a debugging()
      * warning (visible via local_adminer and the performance overview page).
      *
-     * @covers db/install.xml
+     * @covers \xmldb_file
      */
     public function test_no_char_notnull_with_empty_default(): void {
         $violations = [];
