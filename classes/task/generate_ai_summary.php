@@ -146,7 +146,7 @@ class generate_ai_summary extends \core\task\adhoc_task {
             }
 
             $token = $accesstoken['access_token'];
-            $location = get_config('mod_jitsi', 'vertexairegion') ?: 'us-central1';
+            $location = get_config('mod_jitsi', 'vertexairegion') ?: 'europe-west1';
             $model = 'gemini-2.5-flash';
             $endpoint = "https://{$location}-aiplatform.googleapis.com/v1/projects/{$project}"
                 . "/locations/{$location}/publishers/google/models/{$model}:generateContent";

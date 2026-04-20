@@ -514,7 +514,7 @@ if ($ADMIN->fulltree) {
             'mod_jitsi/gcp_zone',
             get_string('gcpzone', 'jitsi'),
             get_string('gcpzoneex', 'jitsi'),
-            '',
+            'europe-west1-b',
             [
                 ''                      => get_string('selectzone', 'jitsi'),
                 'us-central1-a'         => 'us-central1-a — Iowa, USA',
@@ -630,7 +630,7 @@ if ($ADMIN->fulltree) {
             'mod_jitsi/vertexairegion',
             get_string('vertexairegion', 'jitsi'),
             get_string('vertexairegionex', 'jitsi'),
-            'us-central1',
+            'europe-west1',
             [
                 'us-central1'     => 'us-central1 — Iowa, USA',
                 'us-east4'        => 'us-east4 — Virginia, USA',
