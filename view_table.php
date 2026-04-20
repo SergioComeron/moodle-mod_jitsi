@@ -171,17 +171,6 @@ class mod_view_table extends table_sql {
                 $cangenquiz = $aienabled && $isgcs && has_capability('mod/jitsi:generateaiquiz', $context);
                 $cangentrans = $aienabled && $isgcs && has_capability('mod/jitsi:generateaitranscription', $context);
 
-                // GDPR notice: shown to users who can generate AI content.
-                if ($aienabled && ($cangensum || $cangenquiz || $cangentrans)) {
-                    $aitabs[] = [
-                        'id'      => 'ai-gdpr-' . $sourcerecord->id,
-                        'label'   => '⚠️ ' . get_string('aigdprnotice_tab', 'jitsi'),
-                        'content' => '<div class="alert alert-warning p-2 mb-0" style="font-size:0.9em">'
-                            . get_string('aigdprnotice', 'jitsi', get_config('mod_jitsi', 'vertexairegion') ?: 'us-central1')
-                            . '</div>',
-                    ];
-                }
-
                 // --- Summary tab ---
                 if ($cangensum || ($isgcs && $summaryexists)) {
                     if ($summaryexists) {
@@ -303,22 +292,43 @@ class mod_view_table extends table_sql {
                     }
                 }
 
+                // GDPR notice: added last so it never becomes the active tab.
+                if ($aienabled && ($cangensum || $cangenquiz || $cangentrans)) {
+                    $aitabs[] = [
+                        'id'      => 'ai-gdpr-' . $sourcerecord->id,
+                        'label'   => '⚠️ ' . get_string('aigdprnotice_tab', 'jitsi'),
+                        'content' => '<div class="alert alert-warning p-2 mb-0" style="font-size:0.9em">'
+                            . get_string('aigdprnotice', 'jitsi', get_config('mod_jitsi', 'vertexairegion') ?: 'europe-west1')
+                            . '</div>',
+                        'gdpr'    => true,
+                    ];
+                }
+
                 // Build accordion with tabs (only if there are AI features to show).
                 $aiaccordion = '';
                 if (!empty($aitabs)) {
-                    // Open the accordion if any tab has content already generated.
+                    // Open the accordion if any non-GDPR tab has content already generated.
                     $anyaidone = !empty(array_filter($aitabs, function ($t) {
-                        return $t['done'];
+                        return empty($t['gdpr']) && !empty($t['done']);
                     }));
                     $accordionshow = $anyaidone ? 'show' : '';
 
-                    // First tab with content active, otherwise first tab.
-                    $activeidx = 0;
+                    // First non-GDPR tab with content active, otherwise first non-GDPR tab.
+                    $activeidx = null;
                     foreach ($aitabs as $idx => $tab) {
-                        if ($tab['done']) {
+                        if (!empty($tab['gdpr'])) {
+                            continue;
+                        }
+                        if ($activeidx === null) {
+                            $activeidx = $idx;
+                        }
+                        if (!empty($tab['done'])) {
                             $activeidx = $idx;
                             break;
                         }
+                    }
+                    if ($activeidx === null) {
+                        $activeidx = 0;
                     }
 
                     // Nav tabs.
