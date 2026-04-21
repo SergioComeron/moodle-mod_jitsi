@@ -28,7 +28,6 @@
  */
 namespace mod_jitsi\task;
 
-defined('MOODLE_INTERNAL') || die();
 
 /**
  * Scheduled task: keep the Jibri VM pool healthy.
@@ -248,7 +247,7 @@ class check_jibri_pool extends \core\task\scheduled_task {
             );
             $gcpstatus = $instance->getStatus();
         } catch (\Throwable $e) {
-            // notFound = VM was deleted outside Moodle.
+            // NotFound error means the VM was deleted outside Moodle.
             if (
                 strpos($e->getMessage(), 'notFound') !== false
                 || strpos($e->getMessage(), '404') !== false

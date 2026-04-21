@@ -23,7 +23,6 @@
  */
 namespace mod_jitsi\task;
 
-defined('MOODLE_INTERNAL') || die();
 
 /**
  * Ad-hoc task: provision a Jibri recording VM in Google Cloud and add it to the pool.
@@ -161,7 +160,7 @@ class provision_jibri_vm extends \core\task\adhoc_task {
                 $startupscript = '#!/bin/bash' . "\n" .
                     '# Boot from pre-built Jibri image — update per-VM config from metadata.' . "\n" .
                     'META="http://metadata.google.internal/computeMetadata/v1/instance/attributes"' . "\n" .
-                    'INSTANCE_NAME=$(curl -sf -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/name" || hostname)' . "\n" .
+                    'INSTANCE_NAME=$(curl -sf -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/name" || hostname)' . "\n" . // phpcs:ignore moodle.Files.LineLength.MaxExceeded
                     'CALLBACK_URL=$(curl -sf -H "Metadata-Flavor: Google" "$META/CALLBACK_URL" || true)' . "\n" .
                     'POOL_ENTRY_ID=$(curl -sf -H "Metadata-Flavor: Google" "$META/JIBRI_POOL_ENTRY_ID" || true)' . "\n" .
                     'MON_TOKEN=$(curl -sf -H "Metadata-Flavor: Google" "$META/JIBRI_TOKEN" || true)' . "\n" .
@@ -169,7 +168,7 @@ class provision_jibri_vm extends \core\task\adhoc_task {
                     'MON_BASE_URL=$(echo "$MON_MOODLE_URL" | grep -oP \'https?://[^/]+\')' . "\n" .
                     '# Update MUC nickname in jibri.conf with this VM\'s unique instance name.' . "\n" .
                     'if [ -f /etc/jitsi/jibri/jibri.conf ]; then' . "\n" .
-                    '    sed -i "s/nickname = \"jibri-[^\"]*\"/nickname = \"jibri-${INSTANCE_NAME}\"/" /etc/jitsi/jibri/jibri.conf' . "\n" .
+                    '    sed -i "s/nickname = \"jibri-[^\"]*\"/nickname = \"jibri-${INSTANCE_NAME}\"/" /etc/jitsi/jibri/jibri.conf' . "\n" . // phpcs:ignore moodle.Files.LineLength.MaxExceeded
                     '    systemctl restart jibri' . "\n" .
                     '    sleep 10' . "\n" .
                     'fi' . "\n" .
@@ -184,11 +183,11 @@ class provision_jibri_vm extends \core\task\adhoc_task {
                     '    HEALTH=\$(curl -sf http://localhost:2222/jibri/api/v1.0/health 2>/dev/null)' . "\n" .
                     '    if [ -n "\$HEALTH" ]; then' . "\n" .
                     '        PY="import sys,json; d=json.load(sys.stdin)"' . "\n" .
-                    '        BUSY=\$(echo "\$HEALTH" | python3 -c "\$PY; print(d.get(\'status\',{}).get(\'busyStatus\',\'IDLE\'))" 2>/dev/null || echo "IDLE")' . "\n" .
+                    '        BUSY=\$(echo "\$HEALTH" | python3 -c "\$PY; print(d.get(\'status\',{}).get(\'busyStatus\',\'IDLE\'))" 2>/dev/null || echo "IDLE")' . "\n" . // phpcs:ignore moodle.Files.LineLength.MaxExceeded
                     '        if [ "\$BUSY" != "\$LAST_STATUS" ]; then' . "\n" .
                     '            LAST_STATUS="\$BUSY"' . "\n" .
                     '            URL="\${BASE_URL}/mod/jitsi/servermanagement.php"' . "\n" .
-                    '            PARAMS="action=jibristatus&poolentryid=\${POOL_ENTRY_ID}&token=\${TOKEN}&busyness=\${BUSY}"' . "\n" .
+                    '            PARAMS="action=jibristatus&poolentryid=\${POOL_ENTRY_ID}&token=\${TOKEN}&busyness=\${BUSY}"' . "\n" . // phpcs:ignore moodle.Files.LineLength.MaxExceeded
                     '            curl -sf "\${URL}?\${PARAMS}" > /dev/null 2>&1 || true' . "\n" .
                     '        fi' . "\n" .
                     '    fi' . "\n" .

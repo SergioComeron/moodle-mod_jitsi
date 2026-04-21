@@ -23,7 +23,6 @@
  */
 namespace mod_jitsi\task;
 
-defined('MOODLE_INTERNAL') || die();
 
 /**
  * Ad-hoc task: call Vertex AI Gemini to transcribe a GCS recording with timestamps.
@@ -138,7 +137,7 @@ class generate_ai_transcription extends \core\task\adhoc_task {
             $lang = !empty($data->lang) ? $data->lang : 'en';
             $prompt = "Please transcribe this video recording in full. "
                 . "Format the transcription as follows:\n"
-                . "- When the topic changes significantly, insert a chapter heading on its own line using the format: ### Chapter Title\n"
+                . "- When the topic changes significantly, insert a chapter heading on its own line using the format: ### Chapter Title\n" // phpcs:ignore moodle.Files.LineLength.MaxExceeded
                 . "- Each spoken line must start with a timestamp in [MM:SS] format "
                 . "(or [HH:MM:SS] for recordings longer than one hour), followed by the spoken text.\n"
                 . "Example:\n"

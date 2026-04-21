@@ -1877,7 +1877,7 @@ function marktodelete($idrecord, $option) {
 function delete_jibri_file($link) {
     global $DB;
 
-    // GCS URL: https://storage.googleapis.com/<bucket>/<filename>
+    // GCS URL format: https://storage.googleapis.com/<bucket>/<filename>.
     if (preg_match('/^https:\/\/storage\.googleapis\.com\/([^\/]+)\/(.+)$/', $link, $m)) {
         $bucketname = $m[1];
         $objectname = $m[2];
@@ -1919,7 +1919,7 @@ function delete_jibri_file($link) {
         }
     }
 
-    // VM URL: http://<ip>/recordings/<filename>
+    // Jibri VM URL format: http://<ip>/recordings/<filename>.
     if (!preg_match('/^http:\/\/(\d+\.\d+\.\d+\.\d+)\/recordings\/(.+)$/', $link, $m)) {
         return false;
     }
@@ -2861,7 +2861,7 @@ function jitsi_check_tutoring_availability($teacherid, $studentid) {
     $teacher = $DB->get_record('user', ['id' => $teacherid], 'timezone');
     $teachertz = core_date::normalise_timezone($teacher->timezone);
     $now = new DateTime('now', new DateTimeZone($teachertz));
-    $currentweekday = (int)$now->format('w'); // 0=Sunday ... 6=Saturday
+    $currentweekday = (int)$now->format('w'); // 0=Sunday to 6=Saturday.
     $currentsecsofday = ((int)$now->format('H')) * 3600 + ((int)$now->format('i')) * 60 + (int)$now->format('s');
 
     // Check if we are currently within any slot.
