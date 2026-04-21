@@ -6,6 +6,8 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+/* global clients */
+
 self.addEventListener('push', function(event) {
     var data = {};
     if (event.data) {

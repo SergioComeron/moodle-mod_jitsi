@@ -1132,6 +1132,7 @@ class mod_jitsi_external extends external_api {
      * Site admins search all courses; regular users are filtered to their enrolled courses.
      *
      * @param string $query Search string
+     * @param string $excludetoken Token to exclude from results
      * @return array List of matching sessions [{value, label}]
      */
     public static function search_shared_sessions($query, $excludetoken = '') {

@@ -456,6 +456,11 @@ if (!function_exists('mod_jitsi_gcp_ensure_firewall')) {
     /**
      * Ensure there is a permissive firewall rule on the VM's network for web + media ports.
      * Returns one of: 'created' | 'exists' | 'noperms' | 'error:<msg>'.
+     *
+     * @param \Google\Service\Compute $compute GCP Compute service instance.
+     * @param string $project GCP project ID.
+     * @param string $network Network name or selfLink.
+     * @return string Status string.
      */
     function mod_jitsi_gcp_ensure_firewall(\Google\Service\Compute $compute, string $project, string $network): string {
         $rulename = 'mod-jitsi-allow-web';
@@ -1726,6 +1731,12 @@ if (!function_exists('mod_jitsi_gcp_client')) {
 if (!function_exists('mod_jitsi_gcp_create_instance')) {
     /**
      * Creates a bare Compute Engine VM and returns its operation name.
+     *
+     * @param \Google\Service\Compute $compute GCP Compute service instance.
+     * @param string $project GCP project ID.
+     * @param string $zone GCP zone (e.g. europe-west1-b).
+     * @param array $opts Instance options (name, machineType, startupScript, etc.).
+     * @return string Operation name.
      */
     function mod_jitsi_gcp_create_instance(\Google\Service\Compute $compute, string $project, string $zone, array $opts): string {
         $name = $opts['name'];
