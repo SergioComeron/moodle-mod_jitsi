@@ -1137,8 +1137,8 @@ function xmldb_jitsi_upgrade($oldversion) {
         $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE);
         $table->add_field('userid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null);
         $table->add_field('endpoint', XMLDB_TYPE_TEXT, null, null, XMLDB_NOTNULL, null);
-        $table->add_field('authkey', XMLDB_TYPE_CHAR, '255', null, XMLDB_NOTNULL, null, '');
-        $table->add_field('p256dhkey', XMLDB_TYPE_CHAR, '255', null, XMLDB_NOTNULL, null, '');
+        $table->add_field('authkey', XMLDB_TYPE_CHAR, '255', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('p256dhkey', XMLDB_TYPE_CHAR, '255', null, XMLDB_NOTNULL, null, null);
         $table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null);
         $table->add_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null);
 
@@ -1165,9 +1165,9 @@ function xmldb_jitsi_upgrade($oldversion) {
             XMLDB_TYPE_CHAR,
             '20',
             null,
-            XMLDB_NOTNULL,
             null,
-            '',
+            null,
+            null,
             'ai_transcription'
         );
         if (!$dbman->field_exists($table, $field2)) {
