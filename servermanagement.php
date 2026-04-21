@@ -1848,7 +1848,7 @@ if (!function_exists('mod_jitsi_gcs_ensure_bucket')) {
      * @param string $location GCS location (e.g. 'europe-west1')
      * @return string The bucket name
      */
-    function mod_jitsi_gcs_ensure_bucket(\Google\Service\Storage $gcs, string $project, string $bucketname, string $location): string {
+    function mod_jitsi_gcs_ensure_bucket(\Google\Service\Storage $gcs, string $project, string $bucketname, string $location): string { // phpcs:ignore moodle.Files.LineLength.MaxExceeded
         try {
             $gcs->buckets->get($bucketname);
         } catch (\Google\Service\Exception $e) {
@@ -2997,7 +2997,7 @@ SCRIPT;
             'value' => 'n2-standard-4',
             'class' => 'form-control mb-1',
         ]) .
-        html_writer::tag('small', 'Minimum recommended: <code>n2-standard-4</code> (4 vCPUs, 16 GB RAM).', ['class' => 'text-muted']),
+        html_writer::tag('small', 'Minimum recommended: <code>n2-standard-4</code> (4 vCPUs, 16 GB RAM).', ['class' => 'text-muted']), // phpcs:ignore moodle.Files.LineLength.MaxExceeded
         'mb-4'
     );
 
@@ -3151,7 +3151,7 @@ if ($action === 'enablegcs' && $id > 0) {
     }
 
     if ($server->type != 3 || empty($server->jibri_enabled)) {
-        \core\notification::add('GCS is only available for GCP servers with Jibri enabled.', \core\output\notification::NOTIFY_ERROR);
+        \core\notification::add('GCS is only available for GCP servers with Jibri enabled.', \core\output\notification::NOTIFY_ERROR); // phpcs:ignore moodle.Files.LineLength.MaxExceeded
         redirect(new moodle_url('/mod/jitsi/servermanagement.php'));
     }
 
@@ -3179,7 +3179,7 @@ if ($action === 'enablegcs' && $id > 0) {
             } catch (\Throwable $metaex) {
                 debugging('Could not update Jibri VM metadata: ' . $metaex->getMessage(), DEBUG_NORMAL);
                 \core\notification::add(
-                    'GCS enabled in DB but could not update Jibri VM metadata (VM may be stopped). New recordings will use GCS when VM is next started.',
+                    'GCS enabled in DB but could not update Jibri VM metadata (VM may be stopped). New recordings will use GCS when VM is next started.', // phpcs:ignore moodle.Files.LineLength.MaxExceeded
                     \core\output\notification::NOTIFY_WARNING
                 );
             }
@@ -3210,7 +3210,7 @@ if ($action === 'disablegcs' && $id > 0) {
         if (!empty($server->jibri_gcpinstancename) && !empty($server->gcpproject) && !empty($server->gcpzone)) {
             try {
                 $compute = mod_jitsi_gcp_client();
-                mod_jitsi_gcp_update_instance_metadata($compute, $server->gcpproject, $server->gcpzone, $server->jibri_gcpinstancename, [
+                mod_jitsi_gcp_update_instance_metadata($compute, $server->gcpproject, $server->gcpzone, $server->jibri_gcpinstancename, [ // phpcs:ignore moodle.Files.LineLength.MaxExceeded
                     'GCS_BUCKET' => '',
                 ]);
             } catch (\Throwable $metaex) {
@@ -3218,7 +3218,7 @@ if ($action === 'disablegcs' && $id > 0) {
             }
         }
 
-        \core\notification::add('GCS recordings disabled. Existing recordings in GCS are preserved.', \core\output\notification::NOTIFY_SUCCESS);
+        \core\notification::add('GCS recordings disabled. Existing recordings in GCS are preserved.', \core\output\notification::NOTIFY_SUCCESS); // phpcs:ignore moodle.Files.LineLength.MaxExceeded
     } catch (\Throwable $e) {
         \core\notification::add('Failed to disable GCS: ' . $e->getMessage(), \core\output\notification::NOTIFY_ERROR);
     }

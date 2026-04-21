@@ -171,7 +171,7 @@ class mod_view_table extends table_sql {
                 $cangenquiz = $aienabled && $isgcs && has_capability('mod/jitsi:generateaiquiz', $context);
                 $cangentrans = $aienabled && $isgcs && has_capability('mod/jitsi:generateaitranscription', $context);
 
-                // --- Summary tab ---
+                // Summary tab.
                 if ($cangensum || ($isgcs && $summaryexists)) {
                     if ($summaryexists) {
                         $tabcontent = '<div class="p-2" style="font-size:0.95em">'
@@ -199,7 +199,7 @@ class mod_view_table extends table_sql {
                     ];
                 }
 
-                // --- Quiz tab ---
+                // Quiz tab.
                 if ($cangenquiz || ($isgcs && $quizid > 0)) {
                     if ($quizid > 0) {
                         $quizurl = new moodle_url('/mod/quiz/view.php', ['id' => $quizid]);
@@ -229,7 +229,7 @@ class mod_view_table extends table_sql {
                     ];
                 }
 
-                // --- Transcription tab ---
+                // Transcription tab.
                 if ($cangentrans || ($isgcs && $transcriptiondone)) {
                     if ($transcriptiondone) {
                         $lines = explode("\n", $sourcerecord->ai_transcription);

@@ -16,8 +16,6 @@
 
 namespace mod_jitsi;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Schema lint tests for mod_jitsi install.xml.
  *

@@ -67,7 +67,7 @@ $outlogs = $DB->get_records_select(
     50
 );
 
-$calllist = []; // ['peerid' => int, 'time' => int]
+$calllist = []; // List of call entries with peerid and time keys.
 foreach ($outlogs as $log) {
     $other = json_decode($log->other, true);
     $peerid = isset($other['peerid']) ? (int)$other['peerid'] : null;
@@ -100,7 +100,7 @@ $inlogs = $DB->get_records_select(
 );
 
 // Build a set of our outgoing call times per peer for cross-reference.
-$ourtimes = []; // peerid => [timecreated, ...]
+$ourtimes = []; // Map of peerid to list of timecreated values.
 foreach ($outlogs as $log) {
     $other = json_decode($log->other, true);
     $pid = isset($other['peerid']) ? (int)$other['peerid'] : null;
@@ -109,7 +109,7 @@ foreach ($outlogs as $log) {
     }
 }
 
-$missedlist = []; // ['callerid' => int, 'time' => int]
+$missedlist = []; // List of missed call entries with callerid and time keys.
 foreach ($inlogs as $log) {
     $other = json_decode($log->other, true);
     if (!isset($other['peerid']) || (int)$other['peerid'] !== (int)$USER->id) {
@@ -281,7 +281,7 @@ if (!empty($calllist)) {
 
 echo html_writer::end_div();
 
-echo html_writer::end_div(); // .row
+echo html_writer::end_div(); // End of row container.
 
 // Push notification enable/disable button.
 echo html_writer::start_div('mt-3');
