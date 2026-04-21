@@ -23,7 +23,6 @@
  */
 namespace mod_jitsi\task;
 
-defined('MOODLE_INTERNAL') || die();
 
 /**
  * Ad-hoc task: call Vertex AI Gemini to summarise a GCS recording.
