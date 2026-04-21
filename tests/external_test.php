@@ -39,7 +39,7 @@ final class external_test extends \advanced_testcase {
         require_once($CFG->dirroot . '/mod/jitsi/classes/external.php');
     }
 
-    // ─── Push subscription tests ──────────────────────────────────────────────
+    // Push subscription tests.
 
     /**
      * Test that register_push_subscription creates a new record.
@@ -178,7 +178,7 @@ final class external_test extends \advanced_testcase {
         $this->assertEquals(2, $DB->count_records('jitsi_push_subscriptions', ['userid' => $user->id]));
     }
 
-    // ─── Incoming call tests ──────────────────────────────────────────────────
+    // Incoming call tests.
 
     /**
      * Test that check_incoming_call returns incoming=false when no log entries exist.
@@ -332,7 +332,7 @@ final class external_test extends \advanced_testcase {
         $this->assertFalse($result['incoming']);
     }
 
-    // ─── Tutoring schedule tests ──────────────────────────────────────────────
+    // Tutoring schedule tests.
 
     /**
      * Test that get_tutoring_schedule returns empty when user has no slots.

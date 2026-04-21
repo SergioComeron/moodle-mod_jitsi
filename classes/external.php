@@ -1132,6 +1132,7 @@ class mod_jitsi_external extends external_api {
      * Site admins search all courses; regular users are filtered to their enrolled courses.
      *
      * @param string $query Search string
+     * @param string $excludetoken Token to exclude from results
      * @return array List of matching sessions [{value, label}]
      */
     public static function search_shared_sessions($query, $excludetoken = '') {
@@ -1546,7 +1547,7 @@ class mod_jitsi_external extends external_api {
 
         $now = time();
         $existing = $DB->get_record_sql(
-            'SELECT id FROM {jitsi_push_subscriptions} WHERE userid = :userid AND ' . $DB->sql_compare_text('endpoint') . ' = ' . $DB->sql_compare_text(':endpoint'),
+            'SELECT id FROM {jitsi_push_subscriptions} WHERE userid = :userid AND ' . $DB->sql_compare_text('endpoint') . ' = ' . $DB->sql_compare_text(':endpoint'), // phpcs:ignore moodle.Files.LineLength.MaxExceeded
             ['userid' => $USER->id, 'endpoint' => $params['endpoint']]
         );
 
@@ -1663,7 +1664,7 @@ class mod_jitsi_external extends external_api {
                 $caller = $DB->get_record(
                     'user',
                     ['id' => $log->userid, 'deleted' => 0],
-                    'id, firstname, lastname, firstnamephonetic, lastnamephonetic, middlename, alternatename, picture, imagealt, email',
+                    'id, firstname, lastname, firstnamephonetic, lastnamephonetic, middlename, alternatename, picture, imagealt, email', // phpcs:ignore moodle.Files.LineLength.MaxExceeded
                     IGNORE_MISSING
                 );
                 if ($caller) {

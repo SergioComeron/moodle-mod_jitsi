@@ -774,7 +774,7 @@ final class lib_test extends \advanced_testcase {
      */
     public function test_build_room_name_matches_jibri_filename_room(): void {
         // Filename: prueba4prueba-dev-to-master-460_2026-04-19-08-27-30.mp4
-        // Room extracted by finalize script: prueba4prueba-dev-to-master-460
+        // Room extracted by finalize script: prueba4prueba-dev-to-master-460.
         $room = jitsi_build_room_name('prueba', 4, 'Prueba dev to master 4.6.0', '0,1,2', 3);
         $this->assertEquals('prueba4prueba-dev-to-master-460', strtolower($room));
     }

@@ -211,7 +211,7 @@ const initPush = async(swUrl, vapidKey) => {
             getString('pushnotificationsblocked', 'mod_jitsi').then(str => {
                 setStatus(str);
                 return;
-            }).catch(() => {});
+            }).catch(function() { return; });
             return;
         }
 
@@ -222,19 +222,19 @@ const initPush = async(swUrl, vapidKey) => {
                 getString('disablepushnotifications', 'mod_jitsi').then(str => {
                     btn.textContent = str;
                     return;
-                }).catch(() => {});
+                }).catch(function() { return; });
             }
             getString('pushnotificationsenabled', 'mod_jitsi').then(str => {
                 setStatus('✓ ' + str);
                 return;
-            }).catch(() => {});
+            }).catch(function() { return; });
         } else {
             if (btn) {
                 btn.disabled = false;
                 getString('enablepushnotifications', 'mod_jitsi').then(str => {
                     btn.textContent = str;
                     return;
-                }).catch(() => {});
+                }).catch(function() { return; });
             }
             setStatus('');
         }
@@ -397,6 +397,6 @@ export const init = (sessionPrivUrl, swUrl, vapidKey) => {
 
     // Initialise Web Push.
     if (swUrl && vapidKey) {
-        initPush(swUrl, vapidKey).catch(() => {});
+        initPush(swUrl, vapidKey).catch(function() { return; });
     }
 };
