@@ -1,4 +1,11 @@
 # Changelog
+## v4.6.3
+# Fixed
+
+ * resolve remaining moodle.org prechecker warnings (#176) (#177)
+
+---
+
 ## v4.6.2
 # Fixed
 
