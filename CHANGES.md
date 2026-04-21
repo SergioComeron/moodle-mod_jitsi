@@ -1,4 +1,19 @@
 # Changelog
+## v4.6.2
+# Fixed
+
+ * phpcs style in xmldb_schema_test
+ * remove empty string DEFAULT from CHAR NOT NULL columns in install.xml (#175)
+# Changed
+
+ * Merge branch 'dev' into master
+ * Merge branch 'fix/xmldb-char-not-null-defaults' into dev
+ * add schema lint test for CHAR NOT NULL columns with empty default (#175)
+ * Merge branch 'master' into dev
+ * clean up CHANGES.md — consolidate v4.6.0 and v4.6.1 entries [skip ci]
+
+---
+
 ## v4.6.1
 ### Added
 
