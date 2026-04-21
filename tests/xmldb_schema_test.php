@@ -19,8 +19,10 @@ namespace mod_jitsi;
 /**
  * Schema lint tests for mod_jitsi install.xml.
  *
- * Prevents XMLDB warnings caused by CHAR/VARCHAR NOT NULL columns with
- * empty-string defaults, which Moodle does not allow.
+ * Covers common XMLDB mistakes that cause runtime warnings, broken installs,
+ * or Oracle incompatibilities: empty-string defaults, missing defaults on NOT NULL
+ * integer fields, oversized names, CHAR columns that are too wide or missing a
+ * length, and tables without a primary key.
  *
  * @package    mod_jitsi
  * @copyright  2026 Sergio Comerón Sánchez-Paniagua <sergiocomeron@icloud.com>
@@ -29,6 +31,15 @@ namespace mod_jitsi;
 final class xmldb_schema_test extends \advanced_testcase {
     /** @var \xmldb_structure Parsed install.xml structure. */
     private \xmldb_structure $structure;
+
+    /** Maximum table name length (Moodle limit, leaves room for the mdl_ prefix under Oracle's 30-char cap). */
+    private const MAX_TABLE_NAME = 28;
+
+    /** Maximum column name length (Oracle hard limit). */
+    private const MAX_COLUMN_NAME = 30;
+
+    /** Maximum CHAR length before TEXT should be used instead. */
+    private const MAX_CHAR_LENGTH = 1333;
 
     protected function setUp(): void {
         global $CFG;
@@ -43,7 +54,7 @@ final class xmldb_schema_test extends \advanced_testcase {
      * CHAR/VARCHAR NOT NULL columns must not have an empty-string default.
      *
      * Moodle XMLDB automatically strips such defaults and logs a debugging()
-     * warning (visible via local_adminer and the performance overview page).
+     * warning visible via local_adminer and the performance overview page.
      *
      * @covers \xmldb_file
      */
@@ -64,8 +75,123 @@ final class xmldb_schema_test extends \advanced_testcase {
 
         $this->assertEmpty(
             $violations,
-            'CHAR/VARCHAR NOT NULL columns with DEFAULT \'\' found in install.xml ' .
+            'CHAR/TEXT NOT NULL columns with DEFAULT \'\' found in install.xml ' .
             '(Moodle XMLDB does not allow this): ' . implode(', ', $violations)
+        );
+    }
+
+    /**
+     * Table names must not exceed the Moodle maximum length.
+     *
+     * Oracle limits identifiers to 30 characters. With the mdl_ prefix (4 chars),
+     * table names are capped at 26 chars in practice; Moodle's own limit is 28.
+     *
+     * @covers \xmldb_file
+     */
+    public function test_table_name_length(): void {
+        $violations = [];
+
+        foreach ($this->structure->getTables() as $table) {
+            if (strlen($table->getName()) > self::MAX_TABLE_NAME) {
+                $violations[] = $table->getName() . ' (' . strlen($table->getName()) . ' chars)';
+            }
+        }
+
+        $this->assertEmpty(
+            $violations,
+            'Table names exceeding ' . self::MAX_TABLE_NAME . ' characters found in install.xml: ' .
+            implode(', ', $violations)
+        );
+    }
+
+    /**
+     * Column names must not exceed 30 characters (Oracle hard limit).
+     *
+     * @covers \xmldb_file
+     */
+    public function test_column_name_length(): void {
+        $violations = [];
+
+        foreach ($this->structure->getTables() as $table) {
+            foreach ($table->getFields() as $field) {
+                if (strlen($field->getName()) > self::MAX_COLUMN_NAME) {
+                    $violations[] = $table->getName() . '.' . $field->getName() .
+                        ' (' . strlen($field->getName()) . ' chars)';
+                }
+            }
+        }
+
+        $this->assertEmpty(
+            $violations,
+            'Column names exceeding ' . self::MAX_COLUMN_NAME . ' characters found in install.xml: ' .
+            implode(', ', $violations)
+        );
+    }
+
+    /**
+     * CHAR columns must have a length defined and must not exceed the recommended maximum.
+     *
+     * A CHAR column wider than 1333 characters should be declared as TEXT instead,
+     * because some database engines impose byte-length limits on indexed VARCHAR columns.
+     *
+     * @covers \xmldb_file
+     */
+    public function test_char_length(): void {
+        $missing = [];
+        $toolong = [];
+
+        foreach ($this->structure->getTables() as $table) {
+            foreach ($table->getFields() as $field) {
+                if ($field->getType() !== XMLDB_TYPE_CHAR) {
+                    continue;
+                }
+                $length = (int)$field->getLength();
+                if ($length <= 0) {
+                    $missing[] = $table->getName() . '.' . $field->getName();
+                } else if ($length > self::MAX_CHAR_LENGTH) {
+                    $toolong[] = $table->getName() . '.' . $field->getName() . ' (length ' . $length . ')';
+                }
+            }
+        }
+
+        $this->assertEmpty(
+            $missing,
+            'CHAR columns without a length defined in install.xml: ' . implode(', ', $missing)
+        );
+        $this->assertEmpty(
+            $toolong,
+            'CHAR columns exceeding ' . self::MAX_CHAR_LENGTH . ' chars (use TEXT instead) in install.xml: ' .
+            implode(', ', $toolong)
+        );
+    }
+
+    /**
+     * Every table must have a primary key defined.
+     *
+     * A table without a primary key cannot be used reliably across all database
+     * engines supported by Moodle and will cause issues with backup/restore.
+     *
+     * @covers \xmldb_file
+     */
+    public function test_tables_have_primary_key(): void {
+        $violations = [];
+
+        foreach ($this->structure->getTables() as $table) {
+            $haspk = false;
+            foreach ($table->getKeys() as $key) {
+                if ($key->getType() === XMLDB_KEY_PRIMARY) {
+                    $haspk = true;
+                    break;
+                }
+            }
+            if (!$haspk) {
+                $violations[] = $table->getName();
+            }
+        }
+
+        $this->assertEmpty(
+            $violations,
+            'Tables without a primary key found in install.xml: ' . implode(', ', $violations)
         );
     }
 }
