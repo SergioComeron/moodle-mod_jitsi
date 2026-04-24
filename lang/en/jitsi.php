@@ -474,7 +474,6 @@ $string['tutoringnotavailable'] = 'Not available now';
 $string['tutoringoutsideschedule'] = '{$a} is not available for calls right now.';
 $string['tutoringschedule'] = 'Tutoring schedule';
 $string['tutoringschedulehelp'] = 'Define when students can call you for each course. If no schedule is defined, you are always reachable.';
-$string['tuторingnextslot'] = 'Next available: {$a}';
 $string['type'] = 'Type';
 $string['uniqueusers'] = 'Unique users';
 $string['unknowntype'] = 'Unknown type';

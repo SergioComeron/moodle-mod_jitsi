@@ -1934,7 +1934,7 @@ if (!function_exists('mod_jitsi_gcp_wait_zone_op')) {
      * @param \Google\Service\Compute $compute The Google Compute API client instance.
      * @param string $project The GCP project ID.
      * @param string $zone The GCP zone where the operation is being performed.
-     * @param string $opName The name of the operation to wait for.
+     * @param string $opname The name of the operation to wait for.
      * @param int $timeout The maximum time in seconds to wait for the operation to complete. Defaults to 420 seconds (7 minutes).
      * @return void
      * @throws moodle_exception If the operation fails (gcpoperationerror) or exceeds the timeout (gcpoperationtimeout).
@@ -1963,7 +1963,15 @@ if (!function_exists('mod_jitsi_gcp_wait_zone_op')) {
 
 if (!function_exists('mod_jitsi_gcp_wait_region_op')) {
     /**
-     * Waits for a regional GCP operation to complete (e.g., address reservation).
+     * Wait for a Google Cloud Platform regional operation to complete.
+     *
+     * @param \Google\Service\Compute $compute The Google Compute API client instance.
+     * @param string $project The GCP project ID.
+     * @param string $region The GCP region where the operation is being performed.
+     * @param string $opname The name of the operation to wait for.
+     * @param int $timeout The maximum time in seconds to wait. Defaults to 120 seconds.
+     * @return void
+     * @throws moodle_exception If the operation fails or exceeds the timeout.
      */
     function mod_jitsi_gcp_wait_region_op(
         \Google\Service\Compute $compute,
