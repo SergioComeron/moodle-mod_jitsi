@@ -442,12 +442,13 @@ if ($today[0] < $fechacierre || $fechacierre == 0) {
 
 echo "<br><br>";
 
-$sql = 'SELECT r.* FROM {jitsi_record} r
-        JOIN {jitsi_source_record} s ON s.id = r.source
-        WHERE r.jitsi = ' . $jitsiid . ' AND r.deleted = 0
-        AND (s.timeexpires = 0 OR s.timeexpires > ' . time() . ')
-        ORDER BY r.id DESC';
-$records = $DB->get_records_sql($sql);
+$sqlrecords = 'SELECT r.id FROM {jitsi_record} r
+    JOIN {jitsi_source_record} s ON s.id = r.source
+    WHERE r.jitsi = :jitsiid AND r.deleted = 0
+    AND (s.timeexpires = 0 OR s.timeexpires > :now)';
+$recordsparams = ['jitsiid' => $jitsiid, 'now' => time()];
+$records = $DB->record_exists_sql($sqlrecords, $recordsparams);
+$hasvisiblerecords = $DB->record_exists_sql($sqlrecords . ' AND r.visible = 1', $recordsparams);
 
 if (has_capability('mod/jitsi:viewusersonsession', $PAGE->context)) {
     $sqlusersconnected = 'SELECT DISTINCT userid FROM {logstore_standard_log}
@@ -467,7 +468,7 @@ echo "<ul class=\"nav nav-tabs\" id=\"myTab\" role=\"tablist\">";
 
 if (has_capability('mod/jitsi:viewrecords', $PAGE->context) || has_capability('mod/jitsi:record', $PAGE->context)) {
     if (
-        ($records && isallvisible($records)) ||
+        $hasvisiblerecords ||
         has_capability('mod/jitsi:record', $PAGE->context) ||
         get_config('mod_jitsi', 'streamingoption') == 1
     ) {
