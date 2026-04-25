@@ -123,24 +123,56 @@ if (!in_array($sort, ['name', 'minutes'])) {
 }
 $orderby = $sort === 'minutes' ? 'minutes DESC' : 'u.lastname ASC, u.firstname ASC';
 
-// Query attendance from the precomputed table.
-$rows = $DB->get_records_sql(
-    "SELECT jud.userid,
-            u.firstname,
-            u.lastname,
-            SUM(jud.sessions) AS sessions,
-            SUM(jud.minutes) AS minutes
-       FROM {jitsi_usage_daily} jud
-       JOIN {user} u ON u.id = jud.userid
-      WHERE jud.cmid = :cmid
-            AND jud.daykey BETWEEN :fromdaykey AND :todaykey
-   GROUP BY jud.userid, u.firstname, u.lastname
-   ORDER BY $orderby",
-    ['cmid' => $cm->id, 'fromdaykey' => $fromdaykey, 'todaykey' => $todaykey]
-);
-
 // Check whether jitsi_usage_daily has any data for this activity at all.
 $hasanydata = $DB->record_exists('jitsi_usage_daily', ['cmid' => $cm->id]);
+
+// Whether the teacher has explicitly requested a live logstore query.
+$livequery = optional_param('live', 0, PARAM_INT);
+
+if ($hasanydata) {
+    // Fast path: read from precomputed table.
+    $rows = $DB->get_records_sql(
+        "SELECT jud.userid,
+                u.firstname,
+                u.lastname,
+                SUM(jud.sessions) AS sessions,
+                SUM(jud.minutes) AS minutes
+           FROM {jitsi_usage_daily} jud
+           JOIN {user} u ON u.id = jud.userid
+          WHERE jud.cmid = :cmid
+                AND jud.daykey BETWEEN :fromdaykey AND :todaykey
+       GROUP BY jud.userid, u.firstname, u.lastname
+       ORDER BY $orderby",
+        ['cmid' => $cm->id, 'fromdaykey' => $fromdaykey, 'todaykey' => $todaykey]
+    );
+    $usinglivedata = false;
+} else if ($livequery) {
+    // Slow path: query logstore directly (teacher-triggered).
+    [$insql, $inparams] = $DB->get_in_or_equal(['enter', 'participating'], SQL_PARAMS_NAMED, 'lact');
+    $rows = $DB->get_records_sql(
+        "SELECT lsl.userid,
+                u.firstname,
+                u.lastname,
+                SUM(CASE WHEN lsl.action = 'enter' THEN 1 ELSE 0 END) AS sessions,
+                SUM(CASE WHEN lsl.action = 'participating' THEN 1 ELSE 0 END) AS minutes
+           FROM {logstore_standard_log} lsl
+           JOIN {user} u ON u.id = lsl.userid
+          WHERE lsl.contextid = :contextid
+                AND lsl.action $insql
+                AND lsl.timecreated BETWEEN :fromts AND :tots
+       GROUP BY lsl.userid, u.firstname, u.lastname
+       ORDER BY $orderby",
+        array_merge($inparams, [
+            'contextid' => $context->id,
+            'fromts'    => $fromdate,
+            'tots'      => $todate,
+        ])
+    );
+    $usinglivedata = true;
+} else {
+    $rows        = [];
+    $usinglivedata = false;
+}
 
 // Handle export.
 if ($isdownload) {
@@ -201,8 +233,23 @@ $mform->display();
 echo html_writer::end_tag('div');
 echo html_writer::end_tag('div');
 
-if (empty($rows)) {
-    echo $OUTPUT->notification(get_string('statsnodata', 'jitsi'), 'info');
+// If no precomputed data and live query not yet triggered, show the generate button.
+if (!$hasanydata && !$livequery) {
+    $liveurl = new moodle_url('/mod/jitsi/attendancereport.php', [
+        'id'       => $id,
+        'fromdate' => $fromdate,
+        'todate'   => $todate,
+        'live'     => 1,
+    ]);
+    echo $OUTPUT->single_button($liveurl, get_string('attendancegeneratereport', 'jitsi'), 'get');
+} else if ($usinglivedata) {
+    echo $OUTPUT->notification(get_string('attendancelivedata', 'jitsi'), 'info');
+}
+
+if ((!$hasanydata && !$livequery) || empty($rows)) {
+    if ($livequery || $hasanydata) {
+        echo $OUTPUT->notification(get_string('statsnodata', 'jitsi'), 'info');
+    }
 } else {
     // Summary row.
     $totalusers    = count($rows);
