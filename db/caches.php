@@ -43,4 +43,10 @@ $definitions = [
         'simpledata' => true,
         'ttl' => 120,
     ],
+    'sessionusagestats' => [
+        'mode' => cache_store::MODE_APPLICATION,
+        'simplekeys' => true,
+        'simpledata' => false,
+        'ttl' => 600,
+    ],
 ];

@@ -24,7 +24,6 @@
 
 require_once(__DIR__ . '/../../config.php');
 require_once($CFG->libdir . '/formslib.php');
-require_once(__DIR__ . '/sessionusagestats_table.php');
 
 global $DB, $OUTPUT, $PAGE;
 
@@ -54,6 +53,7 @@ require_capability('moodle/site:config', $context);
 $PAGE->set_url(new moodle_url('/mod/jitsi/sessionusagestats.php'));
 $PAGE->set_context($context);
 $PAGE->set_title(get_string('sessionusagestats', 'jitsi'));
+$PAGE->set_heading(format_string(get_string('sessionusagestats', 'jitsi')));
 
 /**
  * Form for session usage statistics date filter.
@@ -106,6 +106,11 @@ if ($fromform = $mform->get_data()) {
     $todate = optional_param('todate', time(), PARAM_INT);
 }
 
+// Detect download intent early to adjust query limits and skip cache.
+$download = optional_param('download', '', PARAM_ALPHA);
+$dataformat = optional_param('dataformat', '', PARAM_ALPHA);
+$isdownload = ($dataformat !== '');
+
 // Build cross-DB month expression from unix timestamp.
 $dbfamily = $DB->get_dbfamily();
 if ($dbfamily === 'postgres') {
@@ -114,96 +119,107 @@ if ($dbfamily === 'postgres') {
     $monthexpr = "DATE_FORMAT(FROM_UNIXTIME(timecreated), '%Y-%m')";
 }
 
-// Query 1: Monthly stats — sessions + minutes + unique users in a single pass.
-[$insql, $inparams] = $DB->get_in_or_equal(['enter', 'participating'], SQL_PARAMS_NAMED, 'mact');
-$sql = "SELECT $monthexpr AS monthkey,
-            SUM(CASE WHEN action = 'enter' THEN 1 ELSE 0 END) AS sessions,
-            SUM(CASE WHEN action = 'participating' THEN 1 ELSE 0 END) AS minutes,
-            COUNT(DISTINCT CASE WHEN action = 'participating' THEN userid END) AS uniqueusers
-       FROM {logstore_standard_log}
-      WHERE component = :mcomponent
-            AND action $insql
-            AND timecreated BETWEEN :mfromdate AND :mtodate
-   GROUP BY 1
-   ORDER BY 1 ASC";
-$bymonth = $DB->get_records_sql($sql, array_merge($inparams, [
-    'mcomponent' => 'mod_jitsi',
-    'mfromdate'  => $fromdate,
-    'mtodate'    => $todate,
-]));
+// Try cache for display requests; exports always query fresh.
+$cache = cache::make('mod_jitsi', 'sessionusagestats');
+$cachekey = $fromdate . '_' . $todate;
+$cached = $isdownload ? false : $cache->get($cachekey);
 
-// Build monthly data array.
-$monthlydata = [];
-foreach ($bymonth as $row) {
-    $monthlydata[$row->monthkey] = [
-        'sessions'    => (int)$row->sessions,
-        'minutes'     => (int)$row->minutes,
-        'uniqueusers' => (int)$row->uniqueusers,
-    ];
+if ($cached !== false) {
+    [$monthlydata, $coursedata, $categorydata, $totaluniqueusers] = $cached;
+} else {
+    // Query 1: Monthly stats — sessions + minutes + unique users in a single pass,
+    // plus total unique users for the whole period as a scalar subquery.
+    [$insql, $inparams] = $DB->get_in_or_equal(['enter', 'participating'], SQL_PARAMS_NAMED, 'mact');
+    $sql = "SELECT $monthexpr AS monthkey,
+                SUM(CASE WHEN action = 'enter' THEN 1 ELSE 0 END) AS sessions,
+                SUM(CASE WHEN action = 'participating' THEN 1 ELSE 0 END) AS minutes,
+                COUNT(DISTINCT CASE WHEN action = 'participating' THEN userid END) AS uniqueusers
+           FROM {logstore_standard_log}
+          WHERE component = :mcomponent
+                AND action $insql
+                AND timecreated BETWEEN :mfromdate AND :mtodate
+       GROUP BY $monthexpr
+       ORDER BY $monthexpr ASC";
+    $bymonth = $DB->get_records_sql($sql, array_merge($inparams, [
+        'mcomponent' => 'mod_jitsi',
+        'mfromdate'  => $fromdate,
+        'mtodate'    => $todate,
+    ]));
+
+    // Build monthly data array.
+    $monthlydata = [];
+    foreach ($bymonth as $row) {
+        $monthlydata[$row->monthkey] = [
+            'sessions'    => (int)$row->sessions,
+            'minutes'     => (int)$row->minutes,
+            'uniqueusers' => (int)$row->uniqueusers,
+        ];
+    }
+    ksort($monthlydata);
+
+    // Total unique users across the whole period (can't be derived from per-month aggregates).
+    $totaluniqueusers = $DB->count_records_sql(
+        "SELECT COUNT(DISTINCT userid)
+           FROM {logstore_standard_log}
+          WHERE component = :component AND action = :action
+                AND timecreated BETWEEN :fromdate AND :todate",
+        ['component' => 'mod_jitsi', 'action' => 'participating', 'fromdate' => $fromdate, 'todate' => $todate]
+    );
+
+    // Query 2: Per-activity stats. For display, only the top 10 are needed.
+    [$insql2, $inparams2] = $DB->get_in_or_equal(['enter', 'participating'], SQL_PARAMS_NAMED, 'cact');
+    $sql = "SELECT lsl.contextinstanceid AS cmid,
+                   c.id AS courseid,
+                   c.shortname AS courseshortname,
+                   j.name AS activityname,
+                   SUM(CASE WHEN lsl.action = 'enter' THEN 1 ELSE 0 END) AS sessions,
+                   SUM(CASE WHEN lsl.action = 'participating' THEN 1 ELSE 0 END) AS minutes,
+                   COUNT(DISTINCT CASE WHEN lsl.action = 'participating' THEN lsl.userid END) AS uniqueusers
+              FROM {logstore_standard_log} lsl
+              JOIN {course_modules} cm ON cm.id = lsl.contextinstanceid
+              JOIN {course} c ON c.id = cm.course
+              JOIN {jitsi} j ON j.id = cm.instance
+             WHERE lsl.component = :ccomponent
+                   AND lsl.action $insql2
+                   AND lsl.timecreated BETWEEN :cfromdate AND :ctodate
+          GROUP BY lsl.contextinstanceid, c.id, c.shortname, j.name
+          ORDER BY minutes DESC";
+    $limitnum = $isdownload ? 0 : 10;
+    $coursedata = $DB->get_records_sql($sql, array_merge($inparams2, [
+        'ccomponent' => 'mod_jitsi',
+        'cfromdate'  => $fromdate,
+        'ctodate'    => $todate,
+    ]), 0, $limitnum);
+
+    // Query 3: Per-category stats. For display, only the top 10 are needed.
+    [$insql3, $inparams3] = $DB->get_in_or_equal(['enter', 'participating'], SQL_PARAMS_NAMED, 'kaact');
+    $sql = "SELECT cc.id AS catid,
+                   cc.name AS catname,
+                   SUM(CASE WHEN lsl.action = 'enter' THEN 1 ELSE 0 END) AS sessions,
+                   SUM(CASE WHEN lsl.action = 'participating' THEN 1 ELSE 0 END) AS minutes,
+                   COUNT(DISTINCT CASE WHEN lsl.action = 'participating' THEN lsl.userid END) AS uniqueusers
+              FROM {logstore_standard_log} lsl
+              JOIN {course_modules} cm ON cm.id = lsl.contextinstanceid
+              JOIN {course} c ON c.id = cm.course
+              JOIN {course_categories} cc ON cc.id = c.category
+             WHERE lsl.component = :kcomponent
+                   AND lsl.action $insql3
+                   AND lsl.timecreated BETWEEN :kfromdate AND :ktodate
+          GROUP BY cc.id, cc.name
+          ORDER BY minutes DESC";
+    $categorydata = $DB->get_records_sql($sql, array_merge($inparams3, [
+        'kcomponent' => 'mod_jitsi',
+        'kfromdate'  => $fromdate,
+        'ktodate'    => $todate,
+    ]), 0, $limitnum);
+
+    if (!$isdownload) {
+        $cache->set($cachekey, [$monthlydata, $coursedata, $categorydata, $totaluniqueusers]);
+    }
 }
 
-// Total unique users across the whole period (can't be derived from per-month aggregates).
-$totaluniqueusers = $DB->count_records_sql(
-    "SELECT COUNT(DISTINCT userid)
-       FROM {logstore_standard_log}
-      WHERE component = :component AND action = :action
-            AND timecreated BETWEEN :fromdate AND :todate",
-    ['component' => 'mod_jitsi', 'action' => 'participating', 'fromdate' => $fromdate, 'todate' => $todate]
-);
-
-// Query 2: Per-activity stats with course/activity info resolved via JOINs — no N+1 in display loops.
-[$insql2, $inparams2] = $DB->get_in_or_equal(['enter', 'participating'], SQL_PARAMS_NAMED, 'cact');
-$sql = "SELECT lsl.contextinstanceid AS cmid,
-               c.id AS courseid,
-               c.shortname AS courseshortname,
-               j.name AS activityname,
-               SUM(CASE WHEN lsl.action = 'enter' THEN 1 ELSE 0 END) AS sessions,
-               SUM(CASE WHEN lsl.action = 'participating' THEN 1 ELSE 0 END) AS minutes,
-               COUNT(DISTINCT CASE WHEN lsl.action = 'participating' THEN lsl.userid END) AS uniqueusers
-          FROM {logstore_standard_log} lsl
-          JOIN {course_modules} cm ON cm.id = lsl.contextinstanceid
-          JOIN {course} c ON c.id = cm.course
-          JOIN {jitsi} j ON j.id = cm.instance
-         WHERE lsl.component = :ccomponent
-               AND lsl.action $insql2
-               AND lsl.timecreated BETWEEN :cfromdate AND :ctodate
-      GROUP BY lsl.contextinstanceid, c.id, c.shortname, j.name
-      ORDER BY minutes DESC";
-$coursedata = $DB->get_records_sql($sql, array_merge($inparams2, [
-    'ccomponent' => 'mod_jitsi',
-    'cfromdate'  => $fromdate,
-    'ctodate'    => $todate,
-]));
-
-// Query 3: Per-category stats in a single pass.
-[$insql3, $inparams3] = $DB->get_in_or_equal(['enter', 'participating'], SQL_PARAMS_NAMED, 'kaact');
-$sql = "SELECT cc.id AS catid,
-               cc.name AS catname,
-               SUM(CASE WHEN lsl.action = 'enter' THEN 1 ELSE 0 END) AS sessions,
-               SUM(CASE WHEN lsl.action = 'participating' THEN 1 ELSE 0 END) AS minutes,
-               COUNT(DISTINCT CASE WHEN lsl.action = 'participating' THEN lsl.userid END) AS uniqueusers
-          FROM {logstore_standard_log} lsl
-          JOIN {course_modules} cm ON cm.id = lsl.contextinstanceid
-          JOIN {course} c ON c.id = cm.course
-          JOIN {course_categories} cc ON cc.id = c.category
-         WHERE lsl.component = :kcomponent
-               AND lsl.action $insql3
-               AND lsl.timecreated BETWEEN :kfromdate AND :ktodate
-      GROUP BY cc.id, cc.name
-      ORDER BY minutes DESC";
-$categorydata = $DB->get_records_sql($sql, array_merge($inparams3, [
-    'kcomponent' => 'mod_jitsi',
-    'kfromdate'  => $fromdate,
-    'ktodate'    => $todate,
-]));
-
-ksort($monthlydata);
-
 // Handle download requests (must be before any output).
-$download = optional_param('download', '', PARAM_ALPHA);
-$dataformat = optional_param('dataformat', '', PARAM_ALPHA);
-
-if ($dataformat !== '') {
+if ($isdownload) {
     $columns = [];
     $exportdata = [];
 
@@ -405,7 +421,6 @@ if (!empty($coursedata)) {
     echo html_writer::end_tag('div');
     echo html_writer::start_tag('div', ['class' => 'card-body']);
 
-    $topcourses  = array_slice($coursedata, 0, 10, true);
     $coursetable = new html_table();
     $coursetable->head = [
         get_string('course', 'jitsi'),
@@ -417,7 +432,7 @@ if (!empty($coursedata)) {
     ];
     $coursetable->attributes['class'] = 'generaltable';
 
-    foreach ($topcourses as $cmid => $data) {
+    foreach ($coursedata as $cmid => $data) {
         $urlcourse    = new moodle_url('/course/view.php', ['id' => $data->courseid]);
         $urlactivity  = new moodle_url('/mod/jitsi/view.php', ['id' => $cmid]);
         $courselink   = '<a href="' . $urlcourse . '">' . format_string($data->courseshortname) . '</a>';
