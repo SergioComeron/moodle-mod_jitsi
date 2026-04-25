@@ -576,21 +576,31 @@ require(['core/ajax', 'core/notification'], function(Ajax, Notification) {
 });
 ");
 
-// Track GCS recording views: fire AJAX once per video element on first play.
+// Track GCS recording views: play event + milestone events at 25/50/75/100%.
 $PAGE->requires->js_amd_inline("
 require(['core/ajax'], function(Ajax) {
     document.querySelectorAll('video[data-sourcerecordid]').forEach(function(video) {
-        var logged = false;
-        video.addEventListener('play', function() {
-            if (logged) { return; }
-            logged = true;
+        var sourcerecordid = parseInt(video.dataset.sourcerecordid, 10);
+        var cmid = parseInt(video.dataset.cmid, 10);
+        var logged = {0: false, 25: false, 50: false, 75: false, 100: false};
+
+        function logMilestone(milestone) {
+            if (logged[milestone]) { return; }
+            logged[milestone] = true;
             Ajax.call([{
                 methodname: 'mod_jitsi_log_recording_view',
-                args: {
-                    sourcerecordid: parseInt(video.dataset.sourcerecordid, 10),
-                    cmid: parseInt(video.dataset.cmid, 10)
-                }
+                args: {sourcerecordid: sourcerecordid, cmid: cmid, milestone: milestone}
             }]);
+        }
+
+        video.addEventListener('play', function() { logMilestone(0); });
+
+        video.addEventListener('timeupdate', function() {
+            if (!video.duration || video.duration === 0) { return; }
+            var pct = (video.currentTime / video.duration) * 100;
+            [25, 50, 75, 100].forEach(function(m) {
+                if (pct >= m) { logMilestone(m); }
+            });
         });
     });
 });

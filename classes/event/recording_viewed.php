@@ -56,8 +56,13 @@ class recording_viewed extends \core\event\base {
      * @return string
      */
     public function get_description() {
-        return "The user with id '{$this->userid}' viewed the GCS recording with source record id
-            '{$this->objectid}' in course module '{$this->contextinstanceid}'.";
+        $milestone = $this->other['milestone'] ?? 0;
+        if ($milestone > 0) {
+            return "The user with id '{$this->userid}' reached {$milestone}% of GCS recording
+                '{$this->objectid}' in course module '{$this->contextinstanceid}'.";
+        }
+        return "The user with id '{$this->userid}' started GCS recording '{$this->objectid}'
+            in course module '{$this->contextinstanceid}'.";
     }
 
     /**

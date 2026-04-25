@@ -2009,23 +2009,30 @@ class mod_jitsi_external extends external_api {
         return new external_function_parameters([
             'sourcerecordid' => new external_value(PARAM_INT, 'jitsi_source_record id'),
             'cmid'           => new external_value(PARAM_INT, 'Course module id'),
+            'milestone'      => new external_value(PARAM_INT, 'Percentage milestone: 0=play, 25, 50, 75, 100', VALUE_DEFAULT, 0),
         ]);
     }
 
     /**
-     * Log that the current user played a GCS recording.
+     * Log that the current user played or reached a milestone in a GCS recording.
      *
      * @param int $sourcerecordid
      * @param int $cmid
+     * @param int $milestone 0=play start, 25/50/75/100=percentage reached
      * @return array
      */
-    public static function log_recording_view($sourcerecordid, $cmid) {
+    public static function log_recording_view($sourcerecordid, $cmid, $milestone = 0) {
         global $DB;
 
         $params = self::validate_parameters(self::log_recording_view_parameters(), [
             'sourcerecordid' => $sourcerecordid,
             'cmid'           => $cmid,
+            'milestone'      => $milestone,
         ]);
+
+        if (!in_array($params['milestone'], [0, 25, 50, 75, 100])) {
+            return ['success' => false];
+        }
 
         $context = context_module::instance($params['cmid']);
         self::validate_context($context);
@@ -2047,6 +2054,7 @@ class mod_jitsi_external extends external_api {
         $event = \mod_jitsi\event\recording_viewed::create([
             'context'  => $context,
             'objectid' => $params['sourcerecordid'],
+            'other'    => ['milestone' => $params['milestone']],
         ]);
         $event->trigger();
 

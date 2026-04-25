@@ -336,9 +336,16 @@ if (!empty($gcsrecordings)) {
         $rectitle = get_string('recordingnumber', 'jitsi', $recnum)
             . ' — ' . userdate($rec->timecreated, get_string('strftimedatetimeshort', 'langconfig'));
 
-        // Total plays and unique viewers for this recording in the date range.
+        // Per-user stats: plays (milestone=0), milestones reached, first/last view.
         $viewrows = $DB->get_records_sql(
-            "SELECT userid, COUNT(*) AS plays, MIN(timecreated) AS firstview, MAX(timecreated) AS lastview
+            "SELECT userid,
+                    SUM(CASE WHEN " . $DB->sql_like('other', ':m0', false) . " THEN 1 ELSE 0 END) AS plays,
+                    MAX(CASE WHEN " . $DB->sql_like('other', ':m25', false) . " THEN 1 ELSE 0 END) AS m25,
+                    MAX(CASE WHEN " . $DB->sql_like('other', ':m50', false) . " THEN 1 ELSE 0 END) AS m50,
+                    MAX(CASE WHEN " . $DB->sql_like('other', ':m75', false) . " THEN 1 ELSE 0 END) AS m75,
+                    MAX(CASE WHEN " . $DB->sql_like('other', ':m100', false) . " THEN 1 ELSE 0 END) AS m100,
+                    MIN(timecreated) AS firstview,
+                    MAX(timecreated) AS lastview
                FROM {logstore_standard_log}
               WHERE contextid = :contextid
                     AND eventname = :eventname
@@ -352,10 +359,15 @@ if (!empty($gcsrecordings)) {
                 'sourcerecordid' => $rec->id,
                 'fromts'         => $fromdate,
                 'tots'           => $todate,
+                'm0'             => '%"milestone":0%',
+                'm25'            => '%"milestone":25%',
+                'm50'            => '%"milestone":50%',
+                'm75'            => '%"milestone":75%',
+                'm100'           => '%"milestone":100%',
             ]
         );
 
-        $totalplays   = array_sum(array_column((array)$viewrows, 'plays'));
+        $totalplays    = array_sum(array_column((array)$viewrows, 'plays'));
         $uniqueviewers = count($viewrows);
 
         echo html_writer::start_tag('div', ['class' => 'mb-4']);
@@ -380,11 +392,12 @@ if (!empty($gcsrecordings)) {
         echo html_writer::end_tag('div');
 
         if (!empty($viewrows)) {
-            $viewtable                     = new html_table();
+            $viewtable                      = new html_table();
             $viewtable->attributes['class'] = 'generaltable table-sm';
             $viewtable->head = [
                 get_string('name'),
                 get_string('totalplays', 'jitsi'),
+                '25%', '50%', '75%', '100%',
                 get_string('firstview', 'jitsi'),
                 get_string('lastview', 'jitsi'),
             ];
@@ -394,9 +407,15 @@ if (!empty($gcsrecordings)) {
                     continue;
                 }
                 $userurl = new moodle_url('/user/view.php', ['id' => $vrow->userid, 'course' => $course->id]);
+                $tick    = html_writer::tag('span', '✓', ['class' => 'text-success fw-bold']);
+                $cross   = html_writer::tag('span', '–', ['class' => 'text-muted']);
                 $viewtable->data[] = [
                     html_writer::link($userurl, fullname($user)),
                     (int)$vrow->plays,
+                    $vrow->m25 ? $tick : $cross,
+                    $vrow->m50 ? $tick : $cross,
+                    $vrow->m75 ? $tick : $cross,
+                    $vrow->m100 ? $tick : $cross,
                     userdate($vrow->firstview, get_string('strftimedatetimeshort', 'langconfig')),
                     userdate($vrow->lastview, get_string('strftimedatetimeshort', 'langconfig')),
                 ];
