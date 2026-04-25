@@ -106,50 +106,43 @@ if ($fromform = $mform->get_data()) {
     $todate = optional_param('todate', time(), PARAM_INT);
 }
 
-// Detect download intent early to adjust query limits and skip cache.
-$download = optional_param('download', '', PARAM_ALPHA);
+// Convert timestamps to YYYYMMDD daykeys for querying the precomputed table.
+$fromdaykey = (int)date('Ymd', $fromdate);
+$todaykey   = (int)date('Ymd', $todate);
+
+// Detect download intent early to skip cache and adjust limits.
+$download   = optional_param('download', '', PARAM_ALPHA);
 $dataformat = optional_param('dataformat', '', PARAM_ALPHA);
 $isdownload = ($dataformat !== '');
 
-// Build cross-DB month expression from unix timestamp.
-$dbfamily = $DB->get_dbfamily();
-if ($dbfamily === 'postgres') {
-    $monthexpr = "TO_CHAR(TO_TIMESTAMP(timecreated), 'YYYY-MM')";
-} else {
-    $monthexpr = "DATE_FORMAT(FROM_UNIXTIME(timecreated), '%Y-%m')";
-}
-
 // Try cache for display requests; exports always query fresh.
-$cache = cache::make('mod_jitsi', 'sessionusagestats');
-$cachekey = $fromdate . '_' . $todate;
-$cached = $isdownload ? false : $cache->get($cachekey);
+$cache    = cache::make('mod_jitsi', 'sessionusagestats');
+$cachekey = $fromdaykey . '_' . $todaykey;
+$cached   = $isdownload ? false : $cache->get($cachekey);
 
 if ($cached !== false) {
-    [$monthlydata, $coursedata, $categorydata, $totaluniqueusers] = $cached;
+    [$monthlydata, $coursedata, $categorydata, $userdata, $totaluniqueusers] = $cached;
 } else {
-    // Query 1: Monthly stats — sessions + minutes + unique users in a single pass,
-    // plus total unique users for the whole period as a scalar subquery.
-    [$insql, $inparams] = $DB->get_in_or_equal(['enter', 'participating'], SQL_PARAMS_NAMED, 'mact');
-    $sql = "SELECT $monthexpr AS monthkey,
-                SUM(CASE WHEN action = 'enter' THEN 1 ELSE 0 END) AS sessions,
-                SUM(CASE WHEN action = 'participating' THEN 1 ELSE 0 END) AS minutes,
-                COUNT(DISTINCT CASE WHEN action = 'participating' THEN userid END) AS uniqueusers
-           FROM {logstore_standard_log}
-          WHERE component = :mcomponent
-                AND action $insql
-                AND timecreated BETWEEN :mfromdate AND :mtodate
-       GROUP BY $monthexpr
-       ORDER BY $monthexpr ASC";
-    $bymonth = $DB->get_records_sql($sql, array_merge($inparams, [
-        'mcomponent' => 'mod_jitsi',
-        'mfromdate'  => $fromdate,
-        'mtodate'    => $todate,
-    ]));
+    $limitnum = $isdownload ? 0 : 10;
 
-    // Build monthly data array.
+    // Query 1: Monthly aggregates from precomputed table.
+    $bymonth = $DB->get_records_sql(
+        "SELECT FLOOR(daykey / 100) AS monthkey,
+                SUM(sessions) AS sessions,
+                SUM(minutes) AS minutes,
+                COUNT(DISTINCT userid) AS uniqueusers
+           FROM {jitsi_usage_daily}
+          WHERE daykey BETWEEN :fromdaykey AND :todaykey
+       GROUP BY FLOOR(daykey / 100)
+       ORDER BY FLOOR(daykey / 100) ASC",
+        ['fromdaykey' => $fromdaykey, 'todaykey' => $todaykey]
+    );
+
     $monthlydata = [];
     foreach ($bymonth as $row) {
-        $monthlydata[$row->monthkey] = [
+        $mk = (int)$row->monthkey;
+        $label = sprintf('%04d-%02d', (int)floor($mk / 100), $mk % 100);
+        $monthlydata[$label] = [
             'sessions'    => (int)$row->sessions,
             'minutes'     => (int)$row->minutes,
             'uniqueusers' => (int)$row->uniqueusers,
@@ -157,70 +150,73 @@ if ($cached !== false) {
     }
     ksort($monthlydata);
 
-    // Total unique users across the whole period (can't be derived from per-month aggregates).
-    $totaluniqueusers = $DB->count_records_sql(
-        "SELECT COUNT(DISTINCT userid)
-           FROM {logstore_standard_log}
-          WHERE component = :component AND action = :action
-                AND timecreated BETWEEN :fromdate AND :todate",
-        ['component' => 'mod_jitsi', 'action' => 'participating', 'fromdate' => $fromdate, 'todate' => $todate]
+    // Total unique users across the whole period.
+    $totaluniqueusers = (int)$DB->get_field_sql(
+        "SELECT COUNT(DISTINCT userid) FROM {jitsi_usage_daily}
+          WHERE daykey BETWEEN :fromdaykey AND :todaykey",
+        ['fromdaykey' => $fromdaykey, 'todaykey' => $todaykey]
     );
 
-    // Query 2: Per-activity stats. For display, only the top 10 are needed.
-    [$insql2, $inparams2] = $DB->get_in_or_equal(['enter', 'participating'], SQL_PARAMS_NAMED, 'cact');
-    $sql = "SELECT lsl.contextinstanceid AS cmid,
-                   c.id AS courseid,
-                   c.shortname AS courseshortname,
-                   j.name AS activityname,
-                   SUM(CASE WHEN lsl.action = 'enter' THEN 1 ELSE 0 END) AS sessions,
-                   SUM(CASE WHEN lsl.action = 'participating' THEN 1 ELSE 0 END) AS minutes,
-                   COUNT(DISTINCT CASE WHEN lsl.action = 'participating' THEN lsl.userid END) AS uniqueusers
-              FROM {logstore_standard_log} lsl
-              JOIN {course_modules} cm ON cm.id = lsl.contextinstanceid
-              JOIN {course} c ON c.id = cm.course
-              JOIN {jitsi} j ON j.id = cm.instance
-             WHERE lsl.component = :ccomponent
-                   AND lsl.action $insql2
-                   AND lsl.timecreated BETWEEN :cfromdate AND :ctodate
-          GROUP BY lsl.contextinstanceid, c.id, c.shortname, j.name
-          ORDER BY minutes DESC";
-    $limitnum = $isdownload ? 0 : 10;
-    $coursedata = $DB->get_records_sql($sql, array_merge($inparams2, [
-        'ccomponent' => 'mod_jitsi',
-        'cfromdate'  => $fromdate,
-        'ctodate'    => $todate,
-    ]), 0, $limitnum);
+    // Query 2: Per-activity aggregates.
+    $coursedata = $DB->get_records_sql(
+        "SELECT jud.cmid,
+                jud.courseid,
+                c.shortname AS courseshortname,
+                j.name AS activityname,
+                SUM(jud.sessions) AS sessions,
+                SUM(jud.minutes) AS minutes,
+                COUNT(DISTINCT jud.userid) AS uniqueusers
+           FROM {jitsi_usage_daily} jud
+           JOIN {course} c ON c.id = jud.courseid
+           JOIN {course_modules} cm ON cm.id = jud.cmid
+           JOIN {jitsi} j ON j.id = cm.instance
+          WHERE jud.daykey BETWEEN :fromdaykey AND :todaykey
+       GROUP BY jud.cmid, jud.courseid, c.shortname, j.name
+       ORDER BY minutes DESC",
+        ['fromdaykey' => $fromdaykey, 'todaykey' => $todaykey],
+        0, $limitnum
+    );
 
-    // Query 3: Per-category stats. For display, only the top 10 are needed.
-    [$insql3, $inparams3] = $DB->get_in_or_equal(['enter', 'participating'], SQL_PARAMS_NAMED, 'kaact');
-    $sql = "SELECT cc.id AS catid,
-                   cc.name AS catname,
-                   SUM(CASE WHEN lsl.action = 'enter' THEN 1 ELSE 0 END) AS sessions,
-                   SUM(CASE WHEN lsl.action = 'participating' THEN 1 ELSE 0 END) AS minutes,
-                   COUNT(DISTINCT CASE WHEN lsl.action = 'participating' THEN lsl.userid END) AS uniqueusers
-              FROM {logstore_standard_log} lsl
-              JOIN {course_modules} cm ON cm.id = lsl.contextinstanceid
-              JOIN {course} c ON c.id = cm.course
-              JOIN {course_categories} cc ON cc.id = c.category
-             WHERE lsl.component = :kcomponent
-                   AND lsl.action $insql3
-                   AND lsl.timecreated BETWEEN :kfromdate AND :ktodate
-          GROUP BY cc.id, cc.name
-          ORDER BY minutes DESC";
-    $categorydata = $DB->get_records_sql($sql, array_merge($inparams3, [
-        'kcomponent' => 'mod_jitsi',
-        'kfromdate'  => $fromdate,
-        'ktodate'    => $todate,
-    ]), 0, $limitnum);
+    // Query 3: Per-category aggregates.
+    $categorydata = $DB->get_records_sql(
+        "SELECT jud.categoryid AS catid,
+                cc.name AS catname,
+                SUM(jud.sessions) AS sessions,
+                SUM(jud.minutes) AS minutes,
+                COUNT(DISTINCT jud.userid) AS uniqueusers
+           FROM {jitsi_usage_daily} jud
+           JOIN {course_categories} cc ON cc.id = jud.categoryid
+          WHERE jud.daykey BETWEEN :fromdaykey AND :todaykey
+       GROUP BY jud.categoryid, cc.name
+       ORDER BY minutes DESC",
+        ['fromdaykey' => $fromdaykey, 'todaykey' => $todaykey],
+        0, $limitnum
+    );
+
+    // Query 4: Per-user aggregates.
+    $userdata = $DB->get_records_sql(
+        "SELECT jud.userid,
+                u.firstname,
+                u.lastname,
+                SUM(jud.sessions) AS sessions,
+                SUM(jud.minutes) AS minutes
+           FROM {jitsi_usage_daily} jud
+           JOIN {user} u ON u.id = jud.userid
+          WHERE jud.daykey BETWEEN :fromdaykey AND :todaykey
+       GROUP BY jud.userid, u.firstname, u.lastname
+       ORDER BY minutes DESC",
+        ['fromdaykey' => $fromdaykey, 'todaykey' => $todaykey],
+        0, $limitnum
+    );
 
     if (!$isdownload) {
-        $cache->set($cachekey, [$monthlydata, $coursedata, $categorydata, $totaluniqueusers]);
+        $cache->set($cachekey, [$monthlydata, $coursedata, $categorydata, $userdata, $totaluniqueusers]);
     }
 }
 
 // Handle download requests (must be before any output).
 if ($isdownload) {
-    $columns = [];
+    $columns    = [];
     $exportdata = [];
 
     switch ($download) {
@@ -289,6 +285,25 @@ if ($isdownload) {
             $filename = 'jitsi_categories_usage';
             break;
 
+        case 'users':
+            $columns = [
+                'user'     => get_string('user'),
+                'sessions' => get_string('sessionsentered', 'jitsi'),
+                'time'     => get_string('totaluserminutes', 'jitsi'),
+                'avgtime'  => get_string('averagetimeperuser', 'jitsi'),
+            ];
+            foreach ($userdata as $data) {
+                $avg = $data->sessions > 0 ? round($data->minutes / $data->sessions) : 0;
+                $exportdata[] = [
+                    'user'     => fullname($data),
+                    'sessions' => $data->sessions,
+                    'time'     => format_jitsi_time($data->minutes),
+                    'avgtime'  => format_jitsi_time($avg),
+                ];
+            }
+            $filename = 'jitsi_users_usage';
+            break;
+
         default:
             $filename = 'jitsi_usage';
             break;
@@ -310,6 +325,9 @@ $downloadparams = ['fromdate' => $fromdate, 'todate' => $todate];
 
 // Begin HTML output.
 echo $OUTPUT->header();
+
+// Notice that stats are updated nightly.
+echo $OUTPUT->notification(get_string('statsdelayed', 'jitsi'), 'info');
 
 // Back to settings button.
 $settingsurl = new moodle_url('/admin/settings.php', ['section' => 'modsettingjitsi']);
@@ -496,6 +514,47 @@ if (!empty($categorydata)) {
         'sessionusagestats.php',
         'dataformat',
         array_merge($downloadparams, ['download' => 'categories'])
+    );
+
+    echo html_writer::end_tag('div');
+    echo html_writer::end_tag('div');
+}
+
+// Top users section.
+if (!empty($userdata)) {
+    echo html_writer::start_tag('div', ['class' => 'card mb-4']);
+    echo html_writer::start_tag('div', ['class' => 'card-header']);
+    echo html_writer::tag('h3', get_string('topusers', 'jitsi'), ['class' => 'mb-0']);
+    echo html_writer::end_tag('div');
+    echo html_writer::start_tag('div', ['class' => 'card-body']);
+
+    $usertable = new html_table();
+    $usertable->head = [
+        get_string('user'),
+        get_string('sessionsentered', 'jitsi'),
+        get_string('totaluserminutes', 'jitsi'),
+        get_string('averagetimeperuser', 'jitsi'),
+    ];
+    $usertable->attributes['class'] = 'generaltable';
+
+    foreach ($userdata as $data) {
+        $urluser  = new moodle_url('/user/view.php', ['id' => $data->userid]);
+        $userlink = '<a href="' . $urluser . '">' . format_string(fullname($data)) . '</a>';
+        $avg = $data->sessions > 0 ? round($data->minutes / $data->sessions) : 0;
+        $usertable->data[] = [
+            $userlink,
+            $data->sessions,
+            format_jitsi_time($data->minutes),
+            format_jitsi_time($avg),
+        ];
+    }
+
+    echo html_writer::table($usertable);
+    echo $OUTPUT->download_dataformat_selector(
+        get_string('download'),
+        'sessionusagestats.php',
+        'dataformat',
+        array_merge($downloadparams, ['download' => 'users'])
     );
 
     echo html_writer::end_tag('div');
