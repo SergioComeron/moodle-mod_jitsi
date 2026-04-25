@@ -1,0 +1,264 @@
+<?php
+// This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
+/**
+ * Attendance report for a Jitsi activity.
+ *
+ * @package    mod_jitsi
+ * @copyright  2026 Sergio Comerón Sánchez-Paniagua <sergiocomeron@icloud.com>
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+
+require_once(__DIR__ . '/../../config.php');
+require_once($CFG->libdir . '/formslib.php');
+
+global $DB, $OUTPUT, $PAGE;
+
+$id = required_param('id', PARAM_INT);
+
+$cm     = get_coursemodule_from_id('jitsi', $id, 0, false, MUST_EXIST);
+$course = $DB->get_record('course', ['id' => $cm->course], '*', MUST_EXIST);
+$jitsi  = $DB->get_record('jitsi', ['id' => $cm->instance], '*', MUST_EXIST);
+
+require_login($course, true, $cm);
+$context = context_module::instance($cm->id);
+require_capability('mod/jitsi:viewattendance', $context);
+
+$PAGE->set_url(new moodle_url('/mod/jitsi/attendancereport.php', ['id' => $id]));
+$PAGE->set_context($context);
+$PAGE->set_title(get_string('attendancereport', 'jitsi') . ': ' . format_string($jitsi->name));
+$PAGE->set_heading(format_string($course->fullname));
+
+/**
+ * Date filter form for the attendance report.
+ *
+ * @package   mod_jitsi
+ * @copyright 2026 Sergio Comerón Sánchez-Paniagua <sergiocomeron@icloud.com>
+ * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+class attendancereport_form extends moodleform {
+    /**
+     * Defines form elements.
+     */
+    public function definition() {
+        $mform = $this->_form;
+        $mform->addElement('hidden', 'id', $this->_customdata['id']);
+        $mform->setType('id', PARAM_INT);
+
+        $defaulttimestart = [
+            'year'   => date('Y'),
+            'month'  => 1,
+            'day'    => 1,
+            'hour'   => 0,
+            'minute' => 0,
+        ];
+        $mform->addElement(
+            'date_time_selector',
+            'timestart',
+            get_string('from', 'jitsi'),
+            ['defaulttime' => $defaulttimestart]
+        );
+        $mform->addElement('date_time_selector', 'timeend', get_string('to', 'jitsi'));
+
+        $buttonarray   = [];
+        $buttonarray[] = $mform->createElement('submit', 'submitbutton', get_string('search'));
+        $mform->addGroup($buttonarray, 'buttonar', '', ' ', false);
+    }
+
+    /**
+     * Validate form data.
+     *
+     * @param array $data  Submitted data.
+     * @param array $files Uploaded files.
+     * @return array Errors.
+     */
+    public function validation($data, $files) {
+        $errors = [];
+        if (!empty($data['timestart']) && !empty($data['timeend']) && $data['timestart'] >= $data['timeend']) {
+            $errors['timeend'] = get_string('statsdateerror', 'jitsi');
+        }
+        return $errors;
+    }
+}
+
+$mform = new attendancereport_form(null, ['id' => $id]);
+
+// Determine date range.
+if ($fromform = $mform->get_data()) {
+    $fromdate = $fromform->timestart;
+    $todate   = $fromform->timeend;
+} else {
+    $fromdate = optional_param('fromdate', mktime(0, 0, 0, 1, 1, date('Y')), PARAM_INT);
+    $todate   = optional_param(
+        'todate',
+        mktime(0, 0, 0, (int)date('m'), (int)date('d') - 1, (int)date('Y')),
+        PARAM_INT
+    );
+}
+
+$fromdaykey = (int)date('Ymd', $fromdate);
+$todaykey   = (int)date('Ymd', $todate);
+
+// Handle export before any output.
+$dataformat = optional_param('dataformat', '', PARAM_ALPHA);
+$isdownload = ($dataformat !== '');
+
+// Sort order for the table.
+$sort = optional_param('sort', 'name', PARAM_ALPHA);
+if (!in_array($sort, ['name', 'minutes'])) {
+    $sort = 'name';
+}
+$orderby = $sort === 'minutes' ? 'minutes DESC' : 'u.lastname ASC, u.firstname ASC';
+
+// Query attendance from the precomputed table.
+$rows = $DB->get_records_sql(
+    "SELECT jud.userid,
+            u.firstname,
+            u.lastname,
+            SUM(jud.sessions) AS sessions,
+            SUM(jud.minutes) AS minutes
+       FROM {jitsi_usage_daily} jud
+       JOIN {user} u ON u.id = jud.userid
+      WHERE jud.cmid = :cmid
+            AND jud.daykey BETWEEN :fromdaykey AND :todaykey
+   GROUP BY jud.userid, u.firstname, u.lastname
+   ORDER BY $orderby",
+    ['cmid' => $cm->id, 'fromdaykey' => $fromdaykey, 'todaykey' => $todaykey]
+);
+
+// Check whether jitsi_usage_daily has any data for this activity at all.
+$hasanydata = $DB->record_exists('jitsi_usage_daily', ['cmid' => $cm->id]);
+
+// Handle export.
+if ($isdownload) {
+    $columns = [
+        'name'     => get_string('name'),
+        'sessions' => get_string('sessionsentered', 'jitsi'),
+        'minutes'  => get_string('totaluserminutes', 'jitsi'),
+        'avgtime'  => get_string('averagetimeperuser', 'jitsi'),
+    ];
+    $exportdata = [];
+    foreach ($rows as $row) {
+        $avg = $row->sessions > 0 ? round($row->minutes / $row->sessions) : 0;
+        $exportdata[] = [
+            'name'     => fullname($row),
+            'sessions' => (int)$row->sessions,
+            'minutes'  => (int)$row->minutes,
+            'avgtime'  => $avg,
+        ];
+    }
+    \core\dataformat::download_data(
+        'jitsi_attendance_' . $cm->id,
+        $dataformat,
+        $columns,
+        $exportdata
+    );
+    die;
+}
+
+// Build sort toggle URLs.
+$baseurl = new moodle_url('/mod/jitsi/attendancereport.php', [
+    'id'       => $id,
+    'fromdate' => $fromdate,
+    'todate'   => $todate,
+]);
+$urlsortname    = new moodle_url($baseurl, ['sort' => 'name']);
+$urlsortminutes = new moodle_url($baseurl, ['sort' => 'minutes']);
+
+// Begin output.
+echo $OUTPUT->header();
+echo $OUTPUT->heading(get_string('attendancereport', 'jitsi') . ': ' . format_string($jitsi->name), 3);
+
+// Back link to activity.
+$activityurl = new moodle_url('/mod/jitsi/view.php', ['id' => $id]);
+echo html_writer::link(
+    $activityurl,
+    '← ' . format_string($jitsi->name),
+    ['class' => 'btn btn-secondary mb-4']
+);
+
+if (!$hasanydata) {
+    echo $OUTPUT->notification(get_string('attendancenodatacron', 'jitsi'), 'warning');
+}
+
+// Filter form.
+echo html_writer::start_tag('div', ['class' => 'card mb-4']);
+echo html_writer::start_tag('div', ['class' => 'card-body']);
+$mform->display();
+echo html_writer::end_tag('div');
+echo html_writer::end_tag('div');
+
+if (empty($rows)) {
+    echo $OUTPUT->notification(get_string('statsnodata', 'jitsi'), 'info');
+} else {
+    // Summary row.
+    $totalusers    = count($rows);
+    $totalsessions = array_sum(array_column((array)$rows, 'sessions'));
+    $totalminutes  = array_sum(array_column((array)$rows, 'minutes'));
+
+    echo html_writer::start_tag('div', ['class' => 'row mb-4']);
+    $statcards = [
+        [get_string('totaluniqueusers', 'jitsi'), $totalusers],
+        [get_string('totalsessionsinperiod', 'jitsi'), $totalsessions],
+        [get_string('totaluserminutesinperiod', 'jitsi'), $totalminutes . ' min'],
+    ];
+    foreach ($statcards as $card) {
+        echo html_writer::start_tag('div', ['class' => 'col-md-4 col-sm-6 mb-3']);
+        echo html_writer::start_tag('div', ['class' => 'card h-100 text-center border-0 bg-light']);
+        echo html_writer::start_tag('div', ['class' => 'card-body py-3']);
+        echo html_writer::tag('div', $card[1], ['class' => 'h2 mb-1 fw-bold']);
+        echo html_writer::tag('div', $card[0], ['class' => 'text-muted small']);
+        echo html_writer::end_tag('div');
+        echo html_writer::end_tag('div');
+        echo html_writer::end_tag('div');
+    }
+    echo html_writer::end_tag('div');
+
+    // Attendance table.
+    $table                    = new html_table();
+    $table->attributes['class'] = 'generaltable';
+
+    $sorticon = $sort === 'name' ? ' ▲' : '';
+    $table->head = [
+        html_writer::link($urlsortname, get_string('name') . ($sort === 'name' ? ' ▲' : '')),
+        get_string('sessionsentered', 'jitsi'),
+        html_writer::link($urlsortminutes, get_string('totaluserminutes', 'jitsi') . ($sort === 'minutes' ? ' ▼' : '')),
+        get_string('averagetimeperuser', 'jitsi'),
+    ];
+
+    foreach ($rows as $row) {
+        $userurl = new moodle_url('/user/view.php', ['id' => $row->userid, 'course' => $course->id]);
+        $avg     = $row->sessions > 0 ? round($row->minutes / $row->sessions) : 0;
+        $table->data[] = [
+            html_writer::link($userurl, fullname($row)),
+            (int)$row->sessions,
+            (int)$row->minutes . ' min',
+            $avg . ' min',
+        ];
+    }
+
+    echo html_writer::table($table);
+
+    // Export selector.
+    echo $OUTPUT->download_dataformat_selector(
+        get_string('download'),
+        'attendancereport.php',
+        'dataformat',
+        ['id' => $id, 'fromdate' => $fromdate, 'todate' => $todate, 'sort' => $sort]
+    );
+}
+
+echo $OUTPUT->footer();

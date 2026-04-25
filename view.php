@@ -457,6 +457,15 @@ if (has_capability('mod/jitsi:viewusersonsession', $PAGE->context)) {
     $usersconnected = $DB->get_records_sql($sqlusersconnected, $params);
 }
 
+if (has_capability('mod/jitsi:viewattendance', $PAGE->context)) {
+    $reporturl = new moodle_url('/mod/jitsi/attendancereport.php', ['id' => $id]);
+    echo html_writer::link(
+        $reporturl,
+        get_string('attendancereport', 'jitsi'),
+        ['class' => 'btn btn-outline-secondary btn-sm mb-3']
+    );
+}
+
 echo "<ul class=\"nav nav-tabs\" id=\"myTab\" role=\"tablist\">";
 
     echo "  <li class=\"nav-item\">";
