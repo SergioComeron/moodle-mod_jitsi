@@ -30,59 +30,6 @@ require_once(dirname(__FILE__) . '/lib.php');
 require_once('view_table.php');
 require_once($CFG->libdir . '/formslib.php');
 
-/**
- * Form to Search for an Attendee’s Minutes on a Specific Day .
- *
- * @package   mod_jitsi
- * @copyright  2024 Sergio Comerón Sánchez-Paniagua <info@sergiocomeron.com>
- * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
-class datesearchattendees_form extends moodleform {
-    /**
-     * Defines forms elements
-     */
-    public function definition() {
-        $mform = $this->_form;
-
-        // Campo oculto para el ID del curso.
-        $mform->addElement('hidden', 'id', $this->_customdata['id']);
-        $mform->setType('id', PARAM_INT);
-        $mform->addElement('hidden', 'sesskey', sesskey());
-        $mform->setType('sesskey', PARAM_RAW);
-        $mform->addElement('hidden', 'generateusersconnected', 1);
-        $mform->setType('generateusersconnected', PARAM_BOOL);
-        $mform->addElement('hidden', 'tab', 'attendees');
-        $mform->setType('tab', PARAM_TEXT);
-
-        // Selector de fecha (solo día) para la búsqueda.
-        $defaultdate = [
-            'year' => date('Y'),
-            'month' => date('n'),
-            'day' => date('j'),
-        ];
-        $mform->addElement('date_selector', 'selecteddate', get_string('selectdate', 'jitsi'), [
-            'defaulttime' => $defaultdate,
-        ]);
-        $mform->setType('selecteddate', PARAM_INT);
-
-        // Botón de envío.
-        $buttonarray = [];
-        $buttonarray[] = $mform->createElement('submit', 'submitbutton', get_string('search', 'jitsi'));
-        $mform->addGroup($buttonarray, 'buttonar', '', ' ', false);
-    }
-
-    /**
-     * Validate data
-     *
-     * @param array $data Data to validate
-     * @param array $files Array of files
-     * @return array Errors found
-     */
-    public function validation($data, $files) {
-        // Validación personalizada si se necesita.
-        return [];
-    }
-}
 // Allow CORS requests.
 header('Access-Control-Allow-Origin: *');
 
@@ -450,13 +397,6 @@ $recordsparams = ['jitsiid' => $jitsiid, 'now' => time()];
 $records = $DB->record_exists_sql($sqlrecords, $recordsparams);
 $hasvisiblerecords = $DB->record_exists_sql($sqlrecords . ' AND r.visible = 1', $recordsparams);
 
-if (has_capability('mod/jitsi:viewusersonsession', $PAGE->context)) {
-    $sqlusersconnected = 'SELECT DISTINCT userid FROM {logstore_standard_log}
-    WHERE contextid = :contextid AND action = \'participating\'';
-    $params = ['contextid' => $contextmodule->id];
-    $usersconnected = $DB->get_records_sql($sqlusersconnected, $params);
-}
-
 if (has_capability('mod/jitsi:viewattendance', $PAGE->context)) {
     $reporturl = new moodle_url('/mod/jitsi/attendancereport.php', ['id' => $id]);
     echo html_writer::link(
@@ -490,17 +430,6 @@ if (has_capability('mod/jitsi:viewrecords', $PAGE->context) || has_capability('m
     }
 }
 
-if (has_capability('mod/jitsi:viewusersonsession', $PAGE->context)) {
-    if ($usersconnected) {
-        echo "  <li class=\"nav-item\">";
-        echo "    <a class=\"nav-link " . ($activetab == 'attendees' ? 'active' : '') .
-            "\" id=\"attendees-tab\" " . ($CFG->branch >= 500 ? 'data-bs-toggle' : 'data-toggle') . "=\"tab\" href=\"#attendees\"
-            role=\"tab\" aria-controls=\"attendees\" aria-selected=\"" .
-            ($activetab == 'attendees' ? 'true' : 'false') . "\">" .
-            get_string('attendeesreport', 'jitsi') . "</a>";
-        echo "  </li>";
-    }
-}
 
 echo "</ul>";
 
@@ -577,62 +506,6 @@ if (has_capability('mod/jitsi:viewrecords', $PAGE->context) || has_capability('m
     ");
 }
 
-    echo "  <div class=\"tab-pane fade " . ($activetab == 'attendees' ? 'show active' : '') .
-        "\" id=\"attendees\" role=\"tabpanel\" aria-labelledby=\"attendees-tab\">";
-    echo "<br>";
-
-    $form = new datesearchattendees_form(null, ['id' => $id]);
-    $form->display();
-
-if (has_capability('mod/jitsi:viewusersonsession', $PAGE->context)) {
-    $generateusersconnected = optional_param('generateusersconnected', 0, PARAM_BOOL);
-    if ($generateusersconnected && confirm_sesskey()) {
-        require_sesskey();
-        $sqlusersconnected = 'SELECT DISTINCT userid FROM {logstore_standard_log}
-                              WHERE contextid = :contextid AND action = \'participating\'';
-        $params = ['contextid' => $contextmodule->id];
-        $usersconnected = $DB->get_records_sql($sqlusersconnected, $params);
-
-        $table = new html_table();
-        $table->head = [
-            get_string('name'),
-            get_string('minutesday', 'jitsi') . ': ' . userdate($selecteddate, '%A %d %B %Y'),
-            get_string('totalminutes', 'jitsi'),
-        ];
-        $table->data = [];
-
-        if ($usersconnected) {
-            $userids = [];
-            foreach ($usersconnected as $userconnected) {
-                if ($userconnected->userid != 0) {
-                    $userids[] = $userconnected->userid;
-                }
-            }
-
-            $users = $DB->get_records_list('user', 'id', $userids);
-            foreach ($users as $user) {
-                $urluser = new moodle_url('/user/profile.php', ['id' => $user->id]);
-                $table->data[] = [
-                    html_writer::link(
-                        $urluser,
-                        fullname($user),
-                        [
-                            'data-toggle' => 'tooltip',
-                            'data-placement' => 'top',
-                            'title' => $user->username,
-                        ]
-                    ),
-                        getminutesdates($id, $user->id, $selecteddate, $selecteddate + DAYSECS),
-                        getminutes($id, $user->id),
-                ];
-            }
-
-            echo html_writer::table($table);
-        }
-    }
-}
-
-    echo "  </div>";
 
 echo "</div>";
 
