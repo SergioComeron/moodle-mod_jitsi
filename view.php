@@ -576,4 +576,24 @@ require(['core/ajax', 'core/notification'], function(Ajax, Notification) {
 });
 ");
 
+// Track GCS recording views: fire AJAX once per video element on first play.
+$PAGE->requires->js_amd_inline("
+require(['core/ajax'], function(Ajax) {
+    document.querySelectorAll('video[data-sourcerecordid]').forEach(function(video) {
+        var logged = false;
+        video.addEventListener('play', function() {
+            if (logged) { return; }
+            logged = true;
+            Ajax.call([{
+                methodname: 'mod_jitsi_log_recording_view',
+                args: {
+                    sourcerecordid: parseInt(video.dataset.sourcerecordid, 10),
+                    cmid: parseInt(video.dataset.cmid, 10)
+                }
+            }]);
+        });
+    });
+});
+");
+
 echo $OUTPUT->footer();

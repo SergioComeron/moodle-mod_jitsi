@@ -2000,4 +2000,66 @@ class mod_jitsi_external extends external_api {
             ),
         ]);
     }
+
+    /**
+     * Parameters for log_recording_view.
+     * @return external_function_parameters
+     */
+    public static function log_recording_view_parameters() {
+        return new external_function_parameters([
+            'sourcerecordid' => new external_value(PARAM_INT, 'jitsi_source_record id'),
+            'cmid'           => new external_value(PARAM_INT, 'Course module id'),
+        ]);
+    }
+
+    /**
+     * Log that the current user played a GCS recording.
+     *
+     * @param int $sourcerecordid
+     * @param int $cmid
+     * @return array
+     */
+    public static function log_recording_view($sourcerecordid, $cmid) {
+        global $DB;
+
+        $params = self::validate_parameters(self::log_recording_view_parameters(), [
+            'sourcerecordid' => $sourcerecordid,
+            'cmid'           => $cmid,
+        ]);
+
+        $context = context_module::instance($params['cmid']);
+        self::validate_context($context);
+        require_capability('mod/jitsi:view', $context);
+
+        $exists = $DB->record_exists_sql(
+            "SELECT 1 FROM {jitsi_source_record} sr
+               JOIN {jitsi_record} r ON r.sourcerecord = sr.id
+               JOIN {jitsi} j ON j.id = r.jitsi
+               JOIN {course_modules} cm ON cm.instance = j.id
+              WHERE sr.id = :srid AND cm.id = :cmid",
+            ['srid' => $params['sourcerecordid'], 'cmid' => $params['cmid']]
+        );
+
+        if (!$exists) {
+            return ['success' => false];
+        }
+
+        $event = \mod_jitsi\event\recording_viewed::create([
+            'context'  => $context,
+            'objectid' => $params['sourcerecordid'],
+        ]);
+        $event->trigger();
+
+        return ['success' => true];
+    }
+
+    /**
+     * Returns for log_recording_view.
+     * @return external_description
+     */
+    public static function log_recording_view_returns() {
+        return new external_single_structure([
+            'success' => new external_value(PARAM_BOOL, 'Whether the event was logged'),
+        ]);
+    }
 }

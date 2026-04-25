@@ -173,6 +173,7 @@ $string['enterprivatesession'] = 'Enter to private session';
 $string['entersession'] = 'Enter to session';
 $string['error'] = 'Error';
 $string['errordeleting'] = 'Error deleting';
+$string['eventrecordingviewed'] = 'GCS recording viewed';
 $string['exitsession'] = 'Exit session';
 $string['experimental'] = 'Experimental';
 $string['experimentalex'] = 'These are options that we are experimenting with and that may disappear in future versions.';

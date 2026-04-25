@@ -336,4 +336,13 @@ $functions = [
                 'ajax' => true,
                 'loginrequired' => true,
         ],
+        'mod_jitsi_log_recording_view' => [
+                'classname' => 'mod_jitsi_external',
+                'methodname' => 'log_recording_view',
+                'classpath' => 'mod/jitsi/classes/external.php',
+                'description' => 'Log that the current user played a GCS recording',
+                'type' => 'write',
+                'ajax' => true,
+                'loginrequired' => true,
+        ],
 ];
