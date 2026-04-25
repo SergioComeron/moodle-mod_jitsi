@@ -266,11 +266,12 @@ if ($saverecordedit && !$errorborrado && confirm_sesskey()) {
 }
 
 if (has_capability('mod/jitsi:viewattendance', $PAGE->context)) {
-    $reporturl  = new moodle_url('/mod/jitsi/attendancereport.php', ['id' => $id]);
-    $reporticon = new pix_icon('i/report', get_string('attendancereport', 'jitsi'));
-    $PAGE->add_header_action($OUTPUT->action_icon($reporturl, $reporticon, null, [
-        'title' => get_string('attendancereport', 'jitsi'),
-    ]));
+    $reporturl = new moodle_url('/mod/jitsi/attendancereport.php', ['id' => $id]);
+    $PAGE->secondarynav->add(
+        get_string('attendancereport', 'jitsi'),
+        $reporturl,
+        \core\navigation\views\secondary::TYPE_SETTING
+    );
 }
 
 if (!$deletejitsirecordid) {
