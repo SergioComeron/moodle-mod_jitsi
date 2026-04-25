@@ -336,39 +336,63 @@ if (!empty($gcsrecordings)) {
         $rectitle = get_string('recordingnumber', 'jitsi', $recnum)
             . ' — ' . userdate($rec->timecreated, get_string('strftimedatetimeshort', 'langconfig'));
 
-        // Per-user stats: plays (milestone=0), milestones reached, first/last view.
-        $viewrows = $DB->get_records_sql(
-            "SELECT userid,
-                    SUM(CASE WHEN " . $DB->sql_like('other', ':m0', false) . " THEN 1 ELSE 0 END) AS plays,
-                    MAX(CASE WHEN " . $DB->sql_like('other', ':m25', false) . " THEN 1 ELSE 0 END) AS m25,
-                    MAX(CASE WHEN " . $DB->sql_like('other', ':m50', false) . " THEN 1 ELSE 0 END) AS m50,
-                    MAX(CASE WHEN " . $DB->sql_like('other', ':m75', false) . " THEN 1 ELSE 0 END) AS m75,
-                    MAX(CASE WHEN " . $DB->sql_like('other', ':m100', false) . " THEN 1 ELSE 0 END) AS m100,
-                    MIN(timecreated) AS firstview,
-                    MAX(timecreated) AS lastview
+        // Fetch all events for this recording and aggregate per user in PHP.
+        $rawevents = $DB->get_records_sql(
+            "SELECT userid, other, timecreated
                FROM {logstore_standard_log}
               WHERE contextid = :contextid
                     AND eventname = :eventname
                     AND objectid = :sourcerecordid
                     AND timecreated BETWEEN :fromts AND :tots
-           GROUP BY userid
-           ORDER BY firstview ASC",
+           ORDER BY timecreated ASC",
             [
                 'contextid'      => $context->id,
                 'eventname'      => $eventname,
                 'sourcerecordid' => $rec->id,
                 'fromts'         => $fromdate,
                 'tots'           => $todate,
-                'm0'             => '%"milestone":0%',
-                'm25'            => '%"milestone":25%',
-                'm50'            => '%"milestone":50%',
-                'm75'            => '%"milestone":75%',
-                'm100'           => '%"milestone":100%',
             ]
         );
 
-        $totalplays    = array_sum(array_column((array)$viewrows, 'plays'));
-        $uniqueviewers = count($viewrows);
+        $byuser = [];
+        foreach ($rawevents as $ev) {
+            $uid       = $ev->userid;
+            $other     = json_decode($ev->other ?? '{}', true);
+            $milestone = (int)($other['milestone'] ?? 0);
+            if (!isset($byuser[$uid])) {
+                $byuser[$uid] = [
+                    'userid'    => $uid,
+                    'plays'     => 0,
+                    'm25'       => 0,
+                    'm50'       => 0,
+                    'm75'       => 0,
+                    'm100'      => 0,
+                    'firstview' => $ev->timecreated,
+                    'lastview'  => $ev->timecreated,
+                ];
+            }
+            if ($milestone === 0) {
+                $byuser[$uid]['plays']++;
+            }
+            if ($milestone >= 25) {
+                $byuser[$uid]['m25'] = 1;
+            }
+            if ($milestone >= 50) {
+                $byuser[$uid]['m50'] = 1;
+            }
+            if ($milestone >= 75) {
+                $byuser[$uid]['m75'] = 1;
+            }
+            if ($milestone >= 100) {
+                $byuser[$uid]['m100'] = 1;
+            }
+            $byuser[$uid]['firstview'] = min($byuser[$uid]['firstview'], $ev->timecreated);
+            $byuser[$uid]['lastview']  = max($byuser[$uid]['lastview'], $ev->timecreated);
+        }
+        $viewrows = array_map(fn($v) => (object)$v, $byuser);
+
+        $totalplays    = array_sum(array_column($byuser, 'plays'));
+        $uniqueviewers = count($byuser);
 
         echo html_writer::start_tag('div', ['class' => 'mb-4']);
         echo html_writer::tag('h5', format_string($rectitle), ['class' => 'mb-2']);
