@@ -576,17 +576,23 @@ require(['core/ajax', 'core/notification'], function(Ajax, Notification) {
 });
 ");
 
-// Track GCS recording views: play event + milestone events at 25/50/75/100%.
+// Track GCS recording views via event delegation so it works with lazy-loaded recordings.
 $PAGE->requires->js_amd_inline("
 require(['core/ajax'], function(Ajax) {
-    document.querySelectorAll('video[data-sourcerecordid]').forEach(function(video) {
+    var trackedVideos = {};
+
+    function setupVideo(video) {
+        var key = video.dataset.sourcerecordid + '_' + video.dataset.cmid;
+        if (trackedVideos[key]) { return; }
+        trackedVideos[key] = {0: false, 25: false, 50: false, 75: false, 100: false};
+
         var sourcerecordid = parseInt(video.dataset.sourcerecordid, 10);
         var cmid = parseInt(video.dataset.cmid, 10);
-        var logged = {0: false, 25: false, 50: false, 75: false, 100: false};
+        var state = trackedVideos[key];
 
         function logMilestone(milestone) {
-            if (logged[milestone]) { return; }
-            logged[milestone] = true;
+            if (state[milestone]) { return; }
+            state[milestone] = true;
             Ajax.call([{
                 methodname: 'mod_jitsi_log_recording_view',
                 args: {sourcerecordid: sourcerecordid, cmid: cmid, milestone: milestone}
@@ -594,15 +600,22 @@ require(['core/ajax'], function(Ajax) {
         }
 
         video.addEventListener('play', function() { logMilestone(0); });
-
         video.addEventListener('timeupdate', function() {
             if (!video.duration || video.duration === 0) { return; }
             var pct = (video.currentTime / video.duration) * 100;
-            [25, 50, 75, 100].forEach(function(m) {
-                if (pct >= m) { logMilestone(m); }
-            });
+            [25, 50, 75, 100].forEach(function(m) { if (pct >= m) { logMilestone(m); } });
         });
-    });
+    }
+
+    // Use capture-phase delegation to catch play events on dynamically added videos.
+    document.addEventListener('play', function(e) {
+        if (e.target.tagName === 'VIDEO' && e.target.dataset.sourcerecordid) {
+            setupVideo(e.target);
+        }
+    }, true);
+
+    // Also set up any videos already in the DOM.
+    document.querySelectorAll('video[data-sourcerecordid]').forEach(setupVideo);
 });
 ");
 
