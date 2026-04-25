@@ -427,6 +427,7 @@ $string['staticinvitationlink'] = 'Invitations option';
 $string['staticinvitationlinkcapabilityex'] = 'Use this option for guests who don\'t have a Moodle user to access. Only if you have capability mod/jitsi:createlink you can create or modify the invitation link.';
 $string['staticinvitationlinkex'] = 'Use this option for guests who don\'t have a Moodle user to access. You can see and copy the link on invitation tab.';
 $string['staticinvitationlinkexview'] = 'Share this link for guests who don\'t have a Moodle user to access.';
+$string['statsdateerror'] = 'The end date must be after the start date.';
 $string['statsdaterange'] = 'Records available from {$a->first} to {$a->last}.';
 $string['statsdelayed'] = 'Statistics are updated nightly. Data from today is not yet included.';
 $string['statsincludetoday'] = 'Include today\'s data (slower, queries live log)';

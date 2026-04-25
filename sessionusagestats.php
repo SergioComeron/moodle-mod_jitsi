@@ -93,7 +93,11 @@ class datesearchsessionstats_form extends moodleform {
      * @return array Errors found
      */
     public function validation($data, $files) {
-        return [];
+        $errors = [];
+        if (!empty($data['timestart']) && !empty($data['timeend']) && $data['timestart'] >= $data['timeend']) {
+            $errors['timeend'] = get_string('statsdateerror', 'jitsi');
+        }
+        return $errors;
     }
 }
 
