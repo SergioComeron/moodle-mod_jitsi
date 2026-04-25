@@ -312,7 +312,7 @@ if ((!$hasanydata && !$livequery) || empty($rows)) {
 $allrecordings = $DB->get_records_sql(
     "SELECT sr.id, sr.link, sr.timecreated
        FROM {jitsi_source_record} sr
-       JOIN {jitsi_record} r ON r.sourcerecord = sr.id
+       JOIN {jitsi_record} r ON r.source = sr.id
        JOIN {jitsi} j ON j.id = r.jitsi
        JOIN {course_modules} cm ON cm.instance = j.id
       WHERE cm.id = :cmid AND sr.link IS NOT NULL

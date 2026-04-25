@@ -2040,7 +2040,7 @@ class mod_jitsi_external extends external_api {
 
         $exists = $DB->record_exists_sql(
             "SELECT 1 FROM {jitsi_source_record} sr
-               JOIN {jitsi_record} r ON r.sourcerecord = sr.id
+               JOIN {jitsi_record} r ON r.source = sr.id
                JOIN {jitsi} j ON j.id = r.jitsi
                JOIN {course_modules} cm ON cm.instance = j.id
               WHERE sr.id = :srid AND cm.id = :cmid",
