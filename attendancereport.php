@@ -211,7 +211,7 @@ if (empty($rows)) {
 
     echo html_writer::start_tag('div', ['class' => 'row mb-4']);
     $statcards = [
-        [get_string('totaluniqueusers', 'jitsi'), $totalusers],
+        [get_string('uniqueusers', 'jitsi'), $totalusers],
         [get_string('totalsessionsinperiod', 'jitsi'), $totalsessions],
         [get_string('totaluserminutesinperiod', 'jitsi'), $totalminutes . ' min'],
     ];
