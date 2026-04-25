@@ -326,11 +326,46 @@ $totalavg      = $totaluniqueusers > 0 ? round($totalminutes / $totaluniqueusers
 // Common download params to preserve date range.
 $downloadparams = ['fromdate' => $fromdate, 'todate' => $todate];
 
+// Date range covered by the precomputed table.
+$tablerange = $DB->get_record_sql(
+    "SELECT MIN(daykey) AS firstday, MAX(daykey) AS lastday FROM {jitsi_usage_daily}"
+);
+
 // Begin HTML output.
 echo $OUTPUT->header();
 
-// Notice that stats are updated nightly.
-echo $OUTPUT->notification(get_string('statsdelayed', 'jitsi'), 'info');
+// Notice that stats are updated nightly, with the covered date range.
+if ($tablerange && $tablerange->firstday) {
+    $firstdate = userdate(
+        mktime(
+            0,
+            0,
+            0,
+            (int)substr((string)$tablerange->firstday, 4, 2),
+            (int)substr((string)$tablerange->firstday, 6, 2),
+            (int)substr((string)$tablerange->firstday, 0, 4)
+        ),
+        get_string('strftimedate', 'langconfig')
+    );
+    $lastdate = userdate(
+        mktime(
+            0,
+            0,
+            0,
+            (int)substr((string)$tablerange->lastday, 4, 2),
+            (int)substr((string)$tablerange->lastday, 6, 2),
+            (int)substr((string)$tablerange->lastday, 0, 4)
+        ),
+        get_string('strftimedate', 'langconfig')
+    );
+    echo $OUTPUT->notification(
+        get_string('statsdelayed', 'jitsi') . ' ' .
+        get_string('statsdaterange', 'jitsi', (object)['first' => $firstdate, 'last' => $lastdate]),
+        'info'
+    );
+} else {
+    echo $OUTPUT->notification(get_string('statsdelayed', 'jitsi'), 'info');
+}
 
 // Back to settings button.
 $settingsurl = new moodle_url('/admin/settings.php', ['section' => 'modsettingjitsi']);

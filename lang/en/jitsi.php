@@ -427,6 +427,7 @@ $string['staticinvitationlinkcapabilityex'] = 'Use this option for guests who do
 $string['staticinvitationlinkex'] = 'Use this option for guests who don\'t have a Moodle user to access. You can see and copy the link on invitation tab.';
 $string['staticinvitationlinkexview'] = 'Share this link for guests who don\'t have a Moodle user to access.';
 $string['statsdelayed'] = 'Statistics are updated nightly. Data from today is not yet included.';
+$string['statsdaterange'] = 'Records available from {$a->first} to {$a->last}.';
 $string['status'] = 'Status';
 $string['streamingandrecording'] = 'Stream & Record';
 $string['streamingbutton'] = 'Live Streaming';
