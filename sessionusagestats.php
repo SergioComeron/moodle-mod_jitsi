@@ -103,7 +103,7 @@ if ($fromform = $mform->get_data()) {
     $todate = $fromform->timeend;
 } else {
     $fromdate = optional_param('fromdate', mktime(0, 0, 0, 1, 1, date('Y')), PARAM_INT);
-    $todate = optional_param('todate', time(), PARAM_INT);
+    $todate = optional_param('todate', mktime(0, 0, 0, (int)date('m'), (int)date('d') - 1, (int)date('Y')), PARAM_INT);
 }
 
 // Convert timestamps to YYYYMMDD daykeys for querying the precomputed table.
@@ -405,6 +405,10 @@ foreach ($statcards as $card) {
 
 echo html_writer::end_tag('div');
 
+if (empty($monthlydata) && empty($coursedata) && empty($categorydata) && empty($userdata)) {
+    echo $OUTPUT->notification(get_string('statsnodata', 'jitsi'), 'warning');
+}
+
 // Monthly section.
 if (!empty($monthlydata)) {
     echo html_writer::start_tag('div', ['class' => 'card mb-4']);
@@ -428,10 +432,31 @@ if (!empty($monthlydata)) {
     }
 
     $chart = new core\chart_bar();
-    $chart->add_series(new core\chart_series(get_string('sessionsentered', 'jitsi'), $sessionsdata));
-    $chart->add_series(new core\chart_series(get_string('uniqueusers', 'jitsi'), $usersdata));
-    $chart->add_series(new core\chart_series(get_string('totaluserminutes', 'jitsi') . ' (min)', $minutesdata));
-    $chart->add_series(new core\chart_series(get_string('averagetimeperuser', 'jitsi') . ' (min)', $avgdata));
+
+    $seriessessions = new core\chart_series(get_string('sessionsentered', 'jitsi'), $sessionsdata);
+    $seriessessions->set_yaxis(0);
+    $chart->add_series($seriessessions);
+
+    $seriesusers = new core\chart_series(get_string('uniqueusers', 'jitsi'), $usersdata);
+    $seriesusers->set_yaxis(0);
+    $chart->add_series($seriesusers);
+
+    $seriesminutes = new core\chart_series(get_string('totaluserminutes', 'jitsi') . ' (min)', $minutesdata);
+    $seriesminutes->set_yaxis(1);
+    $chart->add_series($seriesminutes);
+
+    $seriesavg = new core\chart_series(get_string('averagetimeperuser', 'jitsi') . ' (min)', $avgdata);
+    $seriesavg->set_yaxis(1);
+    $chart->add_series($seriesavg);
+
+    $yaxisleft = new core\chart_axis();
+    $yaxisleft->set_label(get_string('sessionsentered', 'jitsi') . ' / ' . get_string('uniqueusers', 'jitsi'));
+    $yaxisright = new core\chart_axis();
+    $yaxisright->set_label(get_string('totaluserminutes', 'jitsi'));
+    $yaxisright->set_position(core\chart_axis::POS_RIGHT);
+    $chart->set_yaxis($yaxisleft, 0);
+    $chart->set_yaxis($yaxisright, 1);
+
     $chart->set_labels($chartlabels);
     echo $OUTPUT->render_chart($chart);
 
