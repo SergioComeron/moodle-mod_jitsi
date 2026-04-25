@@ -265,6 +265,14 @@ if ($saverecordedit && !$errorborrado && confirm_sesskey()) {
     }
 }
 
+if (has_capability('mod/jitsi:viewattendance', $PAGE->context)) {
+    $reporturl  = new moodle_url('/mod/jitsi/attendancereport.php', ['id' => $id]);
+    $reporticon = new pix_icon('i/report', get_string('attendancereport', 'jitsi'));
+    $PAGE->add_header_action($OUTPUT->action_icon($reporturl, $reporticon, null, [
+        'title' => get_string('attendancereport', 'jitsi'),
+    ]));
+}
+
 if (!$deletejitsirecordid) {
     echo $OUTPUT->header();
 }
@@ -396,13 +404,6 @@ $sqlrecords = 'SELECT r.id FROM {jitsi_record} r
 $recordsparams = ['jitsiid' => $jitsiid, 'now' => time()];
 $records = $DB->record_exists_sql($sqlrecords, $recordsparams);
 $hasvisiblerecords = $DB->record_exists_sql($sqlrecords . ' AND r.visible = 1', $recordsparams);
-
-if (has_capability('mod/jitsi:viewattendance', $PAGE->context)) {
-    $reporturl = new moodle_url('/mod/jitsi/attendancereport.php', ['id' => $id]);
-    $reporticon = new pix_icon('i/report', get_string('attendancereport', 'jitsi'));
-    $reportlink = $OUTPUT->action_icon($reporturl, $reporticon, null, ['title' => get_string('attendancereport', 'jitsi')]);
-    $PAGE->add_header_action($reportlink);
-}
 
 echo "<ul class=\"nav nav-tabs\" id=\"myTab\" role=\"tablist\">";
 
