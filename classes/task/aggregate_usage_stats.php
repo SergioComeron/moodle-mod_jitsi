@@ -29,7 +29,6 @@ namespace mod_jitsi\task;
  * processing one day at a time to avoid locking the log table for long periods.
  */
 class aggregate_usage_stats extends \core\task\scheduled_task {
-
     /** Maximum days to process per task run (limits impact on large backlogs). */
     const MAX_DAYS_PER_RUN = 30;
 
@@ -63,7 +62,9 @@ class aggregate_usage_stats extends \core\task\scheduled_task {
             $lastdayts -= 86400;
         } else {
             $lastdayts = mktime(
-                0, 0, 0,
+                0,
+                0,
+                0,
                 (int)substr((string)$lastday, 4, 2),
                 (int)substr((string)$lastday, 6, 2),
                 (int)substr((string)$lastday, 0, 4)
@@ -82,7 +83,14 @@ class aggregate_usage_stats extends \core\task\scheduled_task {
                 break;
             }
 
-            $daystart = mktime(0, 0, 0, (int)date('m', $currentdayts), (int)date('d', $currentdayts), (int)date('Y', $currentdayts));
+            $daystart = mktime(
+                0,
+                0,
+                0,
+                (int)date('m', $currentdayts),
+                (int)date('d', $currentdayts),
+                (int)date('Y', $currentdayts)
+            );
             $dayend   = $daystart + 86399;
 
             // Delete any existing rows for this day (makes the task idempotent).
