@@ -310,7 +310,6 @@ $downloadparams = ['fromdate' => $fromdate, 'todate' => $todate];
 
 // Begin HTML output.
 echo $OUTPUT->header();
-echo $OUTPUT->heading(get_string('sessionusagestats', 'jitsi'));
 
 // Back to settings button.
 $settingsurl = new moodle_url('/admin/settings.php', ['section' => 'modsettingjitsi']);
