@@ -399,11 +399,9 @@ $hasvisiblerecords = $DB->record_exists_sql($sqlrecords . ' AND r.visible = 1', 
 
 if (has_capability('mod/jitsi:viewattendance', $PAGE->context)) {
     $reporturl = new moodle_url('/mod/jitsi/attendancereport.php', ['id' => $id]);
-    echo html_writer::link(
-        $reporturl,
-        get_string('attendancereport', 'jitsi'),
-        ['class' => 'btn btn-outline-secondary btn-sm mb-3']
-    );
+    $reporticon = new pix_icon('i/report', get_string('attendancereport', 'jitsi'));
+    $reportlink = $OUTPUT->action_icon($reporturl, $reporticon, null, ['title' => get_string('attendancereport', 'jitsi')]);
+    $PAGE->add_header_action($reportlink);
 }
 
 echo "<ul class=\"nav nav-tabs\" id=\"myTab\" role=\"tablist\">";
