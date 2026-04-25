@@ -174,7 +174,8 @@ if ($cached !== false) {
        GROUP BY jud.cmid, jud.courseid, c.shortname, j.name
        ORDER BY minutes DESC",
         ['fromdaykey' => $fromdaykey, 'todaykey' => $todaykey],
-        0, $limitnum
+        0,
+        $limitnum
     );
 
     // Query 3: Per-category aggregates.
@@ -190,7 +191,8 @@ if ($cached !== false) {
        GROUP BY jud.categoryid, cc.name
        ORDER BY minutes DESC",
         ['fromdaykey' => $fromdaykey, 'todaykey' => $todaykey],
-        0, $limitnum
+        0,
+        $limitnum
     );
 
     // Query 4: Per-user aggregates.
@@ -206,7 +208,8 @@ if ($cached !== false) {
        GROUP BY jud.userid, u.firstname, u.lastname
        ORDER BY minutes DESC",
         ['fromdaykey' => $fromdaykey, 'todaykey' => $todaykey],
-        0, $limitnum
+        0,
+        $limitnum
     );
 
     if (!$isdownload) {
