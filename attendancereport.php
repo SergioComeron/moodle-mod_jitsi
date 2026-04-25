@@ -309,17 +309,19 @@ if ((!$hasanydata && !$livequery) || empty($rows)) {
 }
 
 // Recording views section — one card per GCS recording in this activity.
-$gcsrecordings = $DB->get_records_sql(
+$allrecordings = $DB->get_records_sql(
     "SELECT sr.id, sr.link, sr.timecreated
        FROM {jitsi_source_record} sr
        JOIN {jitsi_record} r ON r.sourcerecord = sr.id
        JOIN {jitsi} j ON j.id = r.jitsi
        JOIN {course_modules} cm ON cm.instance = j.id
-      WHERE cm.id = :cmid
-            AND sr.link IS NOT NULL
-            AND " . $DB->sql_like('sr.link', ':gcslink') . "
+      WHERE cm.id = :cmid AND sr.link IS NOT NULL
       ORDER BY sr.timecreated ASC",
-    ['cmid' => $cm->id, 'gcslink' => '%storage.googleapis.com%']
+    ['cmid' => $cm->id]
+);
+$gcsrecordings = array_filter(
+    $allrecordings,
+    fn($r) => strpos($r->link, 'storage.googleapis.com') !== false
 );
 
 if (!empty($gcsrecordings)) {
@@ -337,7 +339,7 @@ if (!empty($gcsrecordings)) {
             . ' — ' . userdate($rec->timecreated, get_string('strftimedatetimeshort', 'langconfig'));
 
         // Fetch all events for this recording and aggregate per user in PHP.
-        $rawevents = $DB->get_records_sql(
+        $rs = $DB->get_recordset_sql(
             "SELECT userid, other, timecreated
                FROM {logstore_standard_log}
               WHERE contextid = :contextid
@@ -355,7 +357,7 @@ if (!empty($gcsrecordings)) {
         );
 
         $byuser = [];
-        foreach ($rawevents as $ev) {
+        foreach ($rs as $ev) {
             $uid       = $ev->userid;
             $other     = json_decode($ev->other ?? '{}', true);
             $milestone = (int)($other['milestone'] ?? 0);
@@ -389,6 +391,7 @@ if (!empty($gcsrecordings)) {
             $byuser[$uid]['firstview'] = min($byuser[$uid]['firstview'], $ev->timecreated);
             $byuser[$uid]['lastview']  = max($byuser[$uid]['lastview'], $ev->timecreated);
         }
+        $rs->close();
         $viewrows = array_map(fn($v) => (object)$v, $byuser);
 
         $totalplays    = array_sum(array_column($byuser, 'plays'));
