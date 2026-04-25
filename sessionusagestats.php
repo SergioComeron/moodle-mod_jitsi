@@ -77,6 +77,8 @@ class datesearchsessionstats_form extends moodleform {
         ];
         $mform->addElement('date_time_selector', 'timestart', get_string('from', 'jitsi'), ['defaulttime' => $defaulttimestart]);
         $mform->addElement('date_time_selector', 'timeend', get_string('to', 'jitsi'));
+        $mform->addElement('checkbox', 'includetoday', get_string('statsincludetoday', 'jitsi'));
+        $mform->addHelpButton('includetoday', 'statsincludetoday', 'jitsi');
 
         $buttonarray = [];
         $buttonarray[] = $mform->createElement('submit', 'submitbutton', get_string('search'));
@@ -98,32 +100,42 @@ class datesearchsessionstats_form extends moodleform {
 $mform = new datesearchsessionstats_form();
 
 // Determine date range.
+$includetoday = false;
 if ($fromform = $mform->get_data()) {
-    $fromdate = $fromform->timestart;
-    $todate = $fromform->timeend;
+    $fromdate     = $fromform->timestart;
+    $todate       = $fromform->timeend;
+    $includetoday = !empty($fromform->includetoday);
 } else {
-    $fromdate = optional_param('fromdate', mktime(0, 0, 0, 1, 1, date('Y')), PARAM_INT);
-    $todate = optional_param('todate', mktime(0, 0, 0, (int)date('m'), (int)date('d') - 1, (int)date('Y')), PARAM_INT);
+    $fromdate     = optional_param('fromdate', mktime(0, 0, 0, 1, 1, date('Y')), PARAM_INT);
+    $todate       = optional_param('todate', mktime(0, 0, 0, (int)date('m'), (int)date('d') - 1, (int)date('Y')), PARAM_INT);
+    $includetoday = (bool)optional_param('includetoday', 0, PARAM_INT);
+}
+
+// Configurable top-N limit for display sections (not exports).
+$toplimit = optional_param('toplimit', 10, PARAM_INT);
+if (!in_array($toplimit, [10, 25, 50])) {
+    $toplimit = 10;
 }
 
 // Convert timestamps to YYYYMMDD daykeys for querying the precomputed table.
-$fromdaykey = (int)date('Ymd', $fromdate);
-$todaykey   = (int)date('Ymd', $todate);
+$fromdaykey   = (int)date('Ymd', $fromdate);
+$todaykey     = (int)date('Ymd', $todate);
+$todaydaykey  = (int)date('Ymd');
 
 // Detect download intent early to skip cache and adjust limits.
 $download   = optional_param('download', '', PARAM_ALPHA);
 $dataformat = optional_param('dataformat', '', PARAM_ALPHA);
 $isdownload = ($dataformat !== '');
 
-// Try cache for display requests; exports always query fresh.
+// Try cache for display requests; exports and includetoday always query fresh.
 $cache    = cache::make('mod_jitsi', 'sessionusagestats');
-$cachekey = $fromdaykey . '_' . $todaykey;
-$cached   = $isdownload ? false : $cache->get($cachekey);
+$cachekey = $fromdaykey . '_' . $todaykey . '_' . $toplimit;
+$cached   = ($isdownload || $includetoday) ? false : $cache->get($cachekey);
 
 if ($cached !== false) {
     [$monthlydata, $coursedata, $categorydata, $userdata, $totaluniqueusers] = $cached;
 } else {
-    $limitnum = $isdownload ? 0 : 10;
+    $limitnum = $isdownload ? 0 : $toplimit;
 
     // Query 1: Monthly aggregates from precomputed table.
     $bymonth = $DB->get_records_sql(
@@ -214,6 +226,153 @@ if ($cached !== false) {
 
     if (!$isdownload) {
         $cache->set($cachekey, [$monthlydata, $coursedata, $categorydata, $userdata, $totaluniqueusers]);
+    }
+}
+
+// Merge today's live data from logstore when requested.
+if ($includetoday && $todaydaykey >= $fromdaykey) {
+    $todaystart = mktime(0, 0, 0, (int)date('m'), (int)date('d'), (int)date('Y'));
+    $todayend   = time();
+    [$insqlt, $inparamst] = $DB->get_in_or_equal(['enter', 'participating'], SQL_PARAMS_NAMED, 'tact');
+    $todayrows = $DB->get_records_sql(
+        "SELECT lsl.contextinstanceid AS cmid,
+                lsl.userid,
+                cm.course AS courseid,
+                c.category AS categoryid,
+                SUM(CASE WHEN lsl.action = 'enter' THEN 1 ELSE 0 END) AS sessions,
+                SUM(CASE WHEN lsl.action = 'participating' THEN 1 ELSE 0 END) AS minutes
+           FROM {logstore_standard_log} lsl
+           JOIN {course_modules} cm ON cm.id = lsl.contextinstanceid
+           JOIN {course} c ON c.id = cm.course
+          WHERE lsl.component = :tcomponent
+                AND lsl.action $insqlt
+                AND lsl.timecreated BETWEEN :tdaystart AND :tdayend
+       GROUP BY lsl.contextinstanceid, lsl.userid, cm.course, c.category",
+        array_merge($inparamst, [
+            'tcomponent' => 'mod_jitsi',
+            'tdaystart'  => $todaystart,
+            'tdayend'    => $todayend,
+        ])
+    );
+
+    // Merge today's rows into the aggregated data structures.
+    $todaymonthkey = date('Y-m');
+    $todaycourses  = [];
+    $todaycats     = [];
+    $todayusers    = [];
+    foreach ($todayrows as $row) {
+        // Monthly bucket.
+        if (!isset($monthlydata[$todaymonthkey])) {
+            $monthlydata[$todaymonthkey] = ['sessions' => 0, 'minutes' => 0, 'uniqueusers' => 0];
+        }
+        $monthlydata[$todaymonthkey]['sessions'] += (int)$row->sessions;
+        $monthlydata[$todaymonthkey]['minutes']  += (int)$row->minutes;
+
+        // Course bucket (keyed by cmid).
+        $cmid = $row->cmid;
+        if (!isset($todaycourses[$cmid])) {
+            $todaycourses[$cmid] = ['sessions' => 0, 'minutes' => 0, 'userids' => []];
+        }
+        $todaycourses[$cmid]['sessions']          += (int)$row->sessions;
+        $todaycourses[$cmid]['minutes']           += (int)$row->minutes;
+        $todaycourses[$cmid]['userids'][$row->userid] = true;
+
+        // Category bucket.
+        $catid = $row->categoryid;
+        if (!isset($todaycats[$catid])) {
+            $todaycats[$catid] = ['sessions' => 0, 'minutes' => 0, 'userids' => []];
+        }
+        $todaycats[$catid]['sessions']             += (int)$row->sessions;
+        $todaycats[$catid]['minutes']              += (int)$row->minutes;
+        $todaycats[$catid]['userids'][$row->userid] = true;
+
+        // User bucket.
+        $uid = $row->userid;
+        if (!isset($todayusers[$uid])) {
+            $todayusers[$uid] = ['sessions' => 0, 'minutes' => 0];
+        }
+        $todayusers[$uid]['sessions'] += (int)$row->sessions;
+        $todayusers[$uid]['minutes']  += (int)$row->minutes;
+    }
+    ksort($monthlydata);
+
+    // Merge today's courses into $coursedata (update existing or add new entries).
+    foreach ($todaycourses as $cmid => $tdata) {
+        if (isset($coursedata[$cmid])) {
+            $coursedata[$cmid]->sessions   += $tdata['sessions'];
+            $coursedata[$cmid]->minutes    += $tdata['minutes'];
+            $coursedata[$cmid]->uniqueusers = max($coursedata[$cmid]->uniqueusers, count($tdata['userids']));
+        } else {
+            $cm = $DB->get_record('course_modules', ['id' => $cmid]);
+            if ($cm) {
+                $course  = $DB->get_record('course', ['id' => $cm->course]);
+                $jitsi   = $DB->get_record('jitsi', ['id' => $cm->instance]);
+                if ($course && $jitsi) {
+                    $entry = new stdClass();
+                    $entry->cmid           = $cmid;
+                    $entry->courseid       = $course->id;
+                    $entry->courseshortname = $course->shortname;
+                    $entry->activityname   = $jitsi->name;
+                    $entry->sessions       = $tdata['sessions'];
+                    $entry->minutes        = $tdata['minutes'];
+                    $entry->uniqueusers    = count($tdata['userids']);
+                    $coursedata[$cmid]     = $entry;
+                }
+            }
+        }
+    }
+    uasort($coursedata, fn($a, $b) => $b->minutes <=> $a->minutes);
+
+    // Merge today's categories.
+    foreach ($todaycats as $catid => $tdata) {
+        if (isset($categorydata[$catid])) {
+            $categorydata[$catid]->sessions   += $tdata['sessions'];
+            $categorydata[$catid]->minutes    += $tdata['minutes'];
+            $categorydata[$catid]->uniqueusers = max($categorydata[$catid]->uniqueusers, count($tdata['userids']));
+        } else {
+            $cat = $DB->get_record('course_categories', ['id' => $catid]);
+            if ($cat) {
+                $entry             = new stdClass();
+                $entry->catid      = $catid;
+                $entry->catname    = $cat->name;
+                $entry->sessions   = $tdata['sessions'];
+                $entry->minutes    = $tdata['minutes'];
+                $entry->uniqueusers = count($tdata['userids']);
+                $categorydata[$catid] = $entry;
+            }
+        }
+    }
+    uasort($categorydata, fn($a, $b) => $b->minutes <=> $a->minutes);
+
+    // Merge today's users.
+    foreach ($todayusers as $uid => $tdata) {
+        if (isset($userdata[$uid])) {
+            $userdata[$uid]->sessions += $tdata['sessions'];
+            $userdata[$uid]->minutes  += $tdata['minutes'];
+        } else {
+            $user = $DB->get_record('user', ['id' => $uid]);
+            if ($user) {
+                $entry            = new stdClass();
+                $entry->userid    = $uid;
+                $entry->firstname = $user->firstname;
+                $entry->lastname  = $user->lastname;
+                $entry->sessions  = $tdata['sessions'];
+                $entry->minutes   = $tdata['minutes'];
+                $userdata[$uid]   = $entry;
+            }
+        }
+    }
+    uasort($userdata, fn($a, $b) => $b->minutes <=> $a->minutes);
+
+    // Add today's users that don't appear in the precomputed period.
+    $todayuniqueids = array_unique(array_column((array)$todayrows, 'userid'));
+    if (!empty($todayuniqueids)) {
+        $precomputedids = $DB->get_fieldset_sql(
+            "SELECT DISTINCT userid FROM {jitsi_usage_daily}
+              WHERE daykey BETWEEN :fromdaykey AND :todaykey",
+            ['fromdaykey' => $fromdaykey, 'todaykey' => $todaykey]
+        );
+        $totaluniqueusers += count(array_diff($todayuniqueids, $precomputedids));
     }
 }
 
@@ -323,8 +482,9 @@ $totalsessions = array_sum(array_column($monthlydata, 'sessions'));
 $totalminutes  = array_sum(array_column($monthlydata, 'minutes'));
 $totalavg      = $totaluniqueusers > 0 ? round($totalminutes / $totaluniqueusers) : 0;
 
-// Common download params to preserve date range.
-$downloadparams = ['fromdate' => $fromdate, 'todate' => $todate];
+// Common params to preserve date range and limit across links.
+$downloadparams  = ['fromdate' => $fromdate, 'todate' => $todate];
+$limitparams     = ['fromdate' => $fromdate, 'todate' => $todate, 'toplimit' => $toplimit];
 
 // Date range covered by the precomputed table.
 $tablerange = $DB->get_record_sql(
@@ -333,6 +493,15 @@ $tablerange = $DB->get_record_sql(
 
 // Begin HTML output.
 echo $OUTPUT->header();
+
+// Warn if the selected date range falls outside the available precomputed data.
+if ($tablerange && $tablerange->firstday) {
+    if ($fromdaykey > $tablerange->lastday || $todaykey < $tablerange->firstday) {
+        echo $OUTPUT->notification(get_string('statsrangeoutside', 'jitsi'), 'warning');
+    } else if ($fromdaykey < $tablerange->firstday || (!$includetoday && $todaykey > $tablerange->lastday)) {
+        echo $OUTPUT->notification(get_string('statsrangepartial', 'jitsi'), 'warning');
+    }
+}
 
 // Notice that stats are updated nightly, with the covered date range.
 if ($tablerange && $tablerange->firstday) {
@@ -409,10 +578,31 @@ if (empty($monthlydata) && empty($coursedata) && empty($categorydata) && empty($
     echo $OUTPUT->notification(get_string('statsnodata', 'jitsi'), 'warning');
 }
 
+/**
+ * Render a top-N limit selector as small links.
+ *
+ * @param int   $current    Current limit value.
+ * @param array $baseurl    Base URL params (fromdate, todate).
+ * @return string HTML for the limit selector.
+ */
+function jitsi_toplimit_selector($current, $baseurl) {
+    $links = [];
+    foreach ([10, 25, 50] as $n) {
+        $url = new moodle_url('/mod/jitsi/sessionusagestats.php', array_merge($baseurl, ['toplimit' => $n]));
+        if ($n === $current) {
+            $links[] = html_writer::tag('strong', $n);
+        } else {
+            $links[] = html_writer::link($url, $n);
+        }
+    }
+    $label = get_string('toplimit', 'jitsi') . ': ' . implode(' | ', $links);
+    return html_writer::tag('span', $label, ['class' => 'float-end small text-muted mt-1']);
+}
+
 // Monthly section.
 if (!empty($monthlydata)) {
     echo html_writer::start_tag('div', ['class' => 'card mb-4']);
-    echo html_writer::start_tag('div', ['class' => 'card-header']);
+    echo html_writer::start_tag('div', ['class' => 'card-header d-flex align-items-center justify-content-between']);
     echo html_writer::tag('h3', get_string('monthlyusage', 'jitsi'), ['class' => 'mb-0']);
     echo html_writer::end_tag('div');
     echo html_writer::start_tag('div', ['class' => 'card-body']);
@@ -496,8 +686,9 @@ if (!empty($monthlydata)) {
 // Top courses section.
 if (!empty($coursedata)) {
     echo html_writer::start_tag('div', ['class' => 'card mb-4']);
-    echo html_writer::start_tag('div', ['class' => 'card-header']);
+    echo html_writer::start_tag('div', ['class' => 'card-header d-flex align-items-center justify-content-between']);
     echo html_writer::tag('h3', get_string('topcourses', 'jitsi'), ['class' => 'mb-0']);
+    echo jitsi_toplimit_selector($toplimit, $limitparams);
     echo html_writer::end_tag('div');
     echo html_writer::start_tag('div', ['class' => 'card-body']);
 
@@ -543,8 +734,9 @@ if (!empty($coursedata)) {
 // Top categories section.
 if (!empty($categorydata)) {
     echo html_writer::start_tag('div', ['class' => 'card mb-4']);
-    echo html_writer::start_tag('div', ['class' => 'card-header']);
+    echo html_writer::start_tag('div', ['class' => 'card-header d-flex align-items-center justify-content-between']);
     echo html_writer::tag('h3', get_string('topcategories', 'jitsi'), ['class' => 'mb-0']);
+    echo jitsi_toplimit_selector($toplimit, $limitparams);
     echo html_writer::end_tag('div');
     echo html_writer::start_tag('div', ['class' => 'card-body']);
 
@@ -586,8 +778,9 @@ if (!empty($categorydata)) {
 // Top users section.
 if (!empty($userdata)) {
     echo html_writer::start_tag('div', ['class' => 'card mb-4']);
-    echo html_writer::start_tag('div', ['class' => 'card-header']);
+    echo html_writer::start_tag('div', ['class' => 'card-header d-flex align-items-center justify-content-between']);
     echo html_writer::tag('h3', get_string('topusers', 'jitsi'), ['class' => 'mb-0']);
+    echo jitsi_toplimit_selector($toplimit, $limitparams);
     echo html_writer::end_tag('div');
     echo html_writer::start_tag('div', ['class' => 'card-body']);
 

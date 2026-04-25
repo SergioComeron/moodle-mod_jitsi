@@ -144,5 +144,16 @@ class aggregate_usage_stats extends \core\task\scheduled_task {
                 sleep(1);
             }
         }
+
+        // Remove rows whose course module no longer exists (deleted courses/activities).
+        $orphancmids = $DB->get_fieldset_sql(
+            "SELECT DISTINCT jud.cmid FROM {jitsi_usage_daily} jud
+              WHERE NOT EXISTS (SELECT 1 FROM {course_modules} cm WHERE cm.id = jud.cmid)"
+        );
+        if (!empty($orphancmids)) {
+            [$insql, $inparams] = $DB->get_in_or_equal($orphancmids);
+            $DB->delete_records_select('jitsi_usage_daily', "cmid $insql", $inparams);
+            mtrace('mod_jitsi aggregate_usage_stats: removed ' . count($orphancmids) . ' orphaned cmid(s)');
+        }
     }
 }
