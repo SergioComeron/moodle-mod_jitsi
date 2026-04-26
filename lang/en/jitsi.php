@@ -466,6 +466,8 @@ $string['telemetryenabledex'] = 'When enabled, a weekly anonymous ping is sent t
 Data is sent to <code>https://stats.sergiocomeron.com/collect.php</code>. This feature is disabled by default and can be turned off at any time.';
 $string['telemetryendpoint'] = 'Telemetry endpoint URL';
 $string['telemetryendpointex'] = 'URL of the server that receives the usage pings. Leave as default unless instructed otherwise.';
+$string['telemetrynudge'] = 'Enabling this takes 2 seconds and makes a real difference. The developer uses this data to understand which Moodle versions and server types are most used, so development effort goes where it matters most.';
+$string['telemetrynudgetitle'] = 'Help shape the future of mod_jitsi';
 $string['telemetryheading'] = 'Usage statistics (opt-in)';
 $string['telemetryheadingex'] = 'Help improve mod_jitsi by sharing anonymous usage data with the developer. All data is anonymised — only aggregate statistics are collected. This feature is disabled by default.';
 $string['telemetrykey'] = 'Telemetry secret key';

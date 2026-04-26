@@ -666,7 +666,12 @@ if ($ADMIN->fulltree) {
         new admin_setting_heading(
             'jitsitelemetryheading',
             get_string('telemetryheading', 'jitsi'),
-            get_string('telemetryheadingex', 'jitsi')
+            html_writer::div(
+                html_writer::tag('strong', '💡 ' . get_string('telemetrynudgetitle', 'jitsi')) .
+                html_writer::empty_tag('br') .
+                get_string('telemetrynudge', 'jitsi'),
+                'alert alert-info mt-2'
+            ) . get_string('telemetryheadingex', 'jitsi')
         )
     );
 
