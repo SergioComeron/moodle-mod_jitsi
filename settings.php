@@ -660,4 +660,22 @@ if ($ADMIN->fulltree) {
             0
         )
     );
+
+    // Usage telemetry (opt-in).
+    $settings->add(
+        new admin_setting_heading(
+            'jitsitelemetryheading',
+            get_string('telemetryheading', 'jitsi'),
+            get_string('telemetryheadingex', 'jitsi')
+        )
+    );
+
+    $settings->add(
+        new admin_setting_configcheckbox(
+            'mod_jitsi/telemetry_enabled',
+            get_string('telemetryenabled', 'jitsi'),
+            get_string('telemetryenabledex', 'jitsi'),
+            0
+        )
+    );
 }

@@ -458,6 +458,18 @@ $string['streamingoption'] = 'Live Streaming Method';
 $string['streamingoptionex'] = '<b>Jitsi interface</b> enable the "Start Live Streming" in the Jitsi interface and users can use their own streaming accounts. </br><b>Moodle integrated</b> is the easyest option for users. Teachers can start a "Record & Stream" inmediatly and no credetials account will be required to them. Stremings/Recordings are stored in a corporate account and will be available inmediatly for students. You must set OAuth2 credentials and a streming account bellow.';
 $string['tablelistjitsis'] = "List with all the videos in your Streaming/Recording Accounts providers which are available to be deleted because they are no more linked in Jitsi activities in this moodle instance. You can safely delete them in order to free up space on the streaming server. The list could include videos that now are in the 'Recycle bin' in some course. It's recommended to delete just old recordings that you know won't be required. </br></br> <b>¡¡¡ WARNING!!! </b>If you have moodle backup instances you should NOT remove these videos if they are linked in other instances.";
 $string['task_aggregate_usage_stats'] = 'Aggregate Jitsi daily usage statistics';
+$string['task_send_telemetry'] = 'Send anonymous usage telemetry (opt-in)';
+$string['telemetryenabled'] = 'Share anonymous usage data';
+$string['telemetryenabledex'] = 'When enabled, a weekly anonymous ping is sent to the plugin developer to help improve mod_jitsi.<br><br>
+<strong>What is sent:</strong> server type, Moodle version, plugin version, number of Jitsi activities, and which optional features are enabled (AI, recording, private sessions, push notifications).<br><br>
+<strong>What is NOT sent:</strong> your site URL, site name, user data, course data, session content, or any personal information. Your site is identified only by an irreversible anonymous hash — the original URL cannot be recovered from it.<br><br>
+Data is sent to <code>https://aula.sergiocomeron.com/jitsi-stats/collect.php</code>. This feature is disabled by default and can be turned off at any time.';
+$string['telemetryendpoint'] = 'Telemetry endpoint URL';
+$string['telemetryendpointex'] = 'URL of the server that receives the usage pings. Leave as default unless instructed otherwise.';
+$string['telemetryheading'] = 'Usage statistics (opt-in)';
+$string['telemetryheadingex'] = 'Help improve mod_jitsi by sharing anonymous usage data with the developer. All data is anonymised — only aggregate statistics are collected. This feature is disabled by default.';
+$string['telemetrykey'] = 'Telemetry secret key';
+$string['telemetrykeyex'] = 'Secret key used to authenticate pings to the telemetry endpoint.';
 $string['timeopen'] = 'Session time open';
 $string['to'] = 'To';
 $string['toenter'] = 'to enter';

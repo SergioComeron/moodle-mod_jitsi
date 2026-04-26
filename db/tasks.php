@@ -52,4 +52,13 @@ $tasks = [
         'month' => '*',
         'dayofweek' => '*',
     ],
+    [
+        'classname' => 'mod_jitsi\task\send_telemetry',
+        'blocking' => 0,
+        'minute' => '0',
+        'hour' => '6',
+        'day' => '*',
+        'month' => '*',
+        'dayofweek' => '1',
+    ],
 ];
