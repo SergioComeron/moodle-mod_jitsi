@@ -579,7 +579,8 @@ require(['core/ajax', 'core/notification'], function(Ajax, Notification) {
 // Track GCS recording views with real segment tracking.
 $PAGE->requires->js_amd_inline("
 require(['core/ajax'], function(Ajax) {
-    var trackers = {};
+    var trackers     = {};
+    var linkClicked  = {};
 
     function mergeSegments(segs) {
         if (!segs.length) { return []; }
@@ -717,6 +718,23 @@ require(['core/ajax'], function(Ajax) {
     }, true);
 
     document.querySelectorAll('video[data-sourcerecordid]').forEach(setupTracking);
+
+    // Track clicks on non-embeddable recording links (8x8, external, Jibri).
+    document.addEventListener('click', function(e) {
+        var link = e.target.closest('.jitsi-recording-link');
+        if (!link || !link.dataset.sourcerecordid) { return; }
+        var key = link.dataset.sourcerecordid + '_' + link.dataset.cmid;
+        if (linkClicked[key]) { return; }
+        linkClicked[key] = true;
+        Ajax.call([{
+            methodname: 'mod_jitsi_log_recording_view',
+            args: {
+                sourcerecordid: parseInt(link.dataset.sourcerecordid, 10),
+                cmid:           parseInt(link.dataset.cmid, 10),
+                milestone:      0
+            }
+        }]);
+    });
 });
 ");
 

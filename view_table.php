@@ -413,7 +413,12 @@ class mod_view_table extends table_sql {
                 $openlink = html_writer::link(
                     $sourcerecord->link,
                     $btnlabel,
-                    ['target' => '_blank', 'class' => 'btn btn-sm btn-primary']
+                    [
+                        'target' => '_blank',
+                        'class'  => 'btn btn-sm btn-primary jitsi-recording-link',
+                        'data-sourcerecordid' => (int)$sourcerecord->id,
+                        'data-cmid'           => (int)$cm->id,
+                    ]
                 );
 
                 // Detect Jibri recordings (served directly from a GCP VM IP).

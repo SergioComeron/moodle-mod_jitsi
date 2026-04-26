@@ -377,6 +377,7 @@ $string['recordingname'] = 'Recording name (optional)';
 $string['recordingnoviews'] = 'No views recorded for this recording in the selected period.';
 $string['recordingnumber'] = 'Recording {$a}';
 $string['recordingurl'] = 'Recording URL';
+$string['recordingaccesslog'] = 'Recording access log';
 $string['recordingviews'] = 'Recording views';
 $string['recordingwasbloquedby'] = 'The user who started this recording is no longer participating in the session. Do you want to stop this recording? It was started by ';
 $string['records'] = 'Recordings';

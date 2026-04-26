@@ -310,7 +310,7 @@ if ((!$hasanydata && !$livequery) || empty($rows)) {
 
 // Recording views section — one card per GCS recording in this activity.
 $allrecordings = $DB->get_records_sql(
-    "SELECT sr.id, sr.link, sr.timecreated, r.name AS recordname
+    "SELECT sr.id, sr.link, sr.timecreated, sr.embed, r.name AS recordname
        FROM {jitsi_source_record} sr
        JOIN {jitsi_record} r ON r.source = sr.id
        JOIN {jitsi} j ON j.id = r.jitsi
@@ -319,9 +319,17 @@ $allrecordings = $DB->get_records_sql(
       ORDER BY sr.timecreated ASC",
     ['cmid' => $cm->id]
 );
+// Recordings with an embedded player (GCS or Dropbox-with-embed): full segment tracking.
 $gcsrecordings = array_filter(
     $allrecordings,
     fn($r) => strpos($r->link, 'storage.googleapis.com') !== false
+        || (!empty($r->embed) && strpos($r->link, 'dropbox.com') !== false)
+);
+// Link-only recordings (8x8, external, Jibri): track clicks only.
+$linkrecordings = array_filter(
+    $allrecordings,
+    fn($r) => strpos($r->link, 'storage.googleapis.com') === false
+        && !(!empty($r->embed) && strpos($r->link, 'dropbox.com') !== false)
 );
 
 if (!empty($gcsrecordings)) {
@@ -464,6 +472,79 @@ if (!empty($gcsrecordings)) {
         echo html_writer::end_tag('div');
 
         if ($idx < count($gcsrecordings) - 1) {
+            echo html_writer::empty_tag('hr');
+        }
+    }
+
+    echo html_writer::end_tag('div');
+    echo html_writer::end_tag('div');
+}
+
+if (!empty($linkrecordings)) {
+    $eventname = '\\mod_jitsi\\event\\recording_viewed';
+
+    echo html_writer::start_tag('div', ['class' => 'card mb-4']);
+    echo html_writer::start_tag('div', ['class' => 'card-header']);
+    echo html_writer::tag('h3', get_string('recordingaccesslog', 'jitsi'), ['class' => 'mb-0']);
+    echo html_writer::end_tag('div');
+    echo html_writer::start_tag('div', ['class' => 'card-body']);
+
+    foreach ($linkrecordings as $idx => $rec) {
+        $recname  = !empty($rec->recordname) ? format_string($rec->recordname) : get_string('recordingnumber', 'jitsi', $idx + 1);
+        $rectitle = $recname . ' — ' . userdate($rec->timecreated, get_string('strftimedatetimeshort', 'langconfig'));
+
+        $rs = $DB->get_recordset_sql(
+            "SELECT userid, MIN(timecreated) AS firstaccess
+               FROM {logstore_standard_log}
+              WHERE contextid  = :contextid
+                AND eventname  = :eventname
+                AND objectid   = :sourcerecordid
+                AND timecreated BETWEEN :fromts AND :tots
+           GROUP BY userid",
+            [
+                'contextid'      => $context->id,
+                'eventname'      => $eventname,
+                'sourcerecordid' => $rec->id,
+                'fromts'         => $fromdate,
+                'tots'           => $todate,
+            ]
+        );
+
+        $accessed = [];
+        foreach ($rs as $row) {
+            $accessed[$row->userid] = $row->firstaccess;
+        }
+        $rs->close();
+
+        echo html_writer::start_tag('div', ['class' => 'mb-4']);
+        echo html_writer::tag('h5', format_string($rectitle), ['class' => 'mb-2']);
+
+        if (!empty($accessed)) {
+            $linktable                      = new html_table();
+            $linktable->attributes['class'] = 'generaltable table-sm';
+            $linktable->head = [
+                get_string('name'),
+                get_string('firstview', 'jitsi'),
+            ];
+            foreach ($accessed as $uid => $ts) {
+                $user = $DB->get_record('user', ['id' => $uid], 'id, firstname, lastname');
+                if (!$user) {
+                    continue;
+                }
+                $userurl = new moodle_url('/user/view.php', ['id' => $uid, 'course' => $course->id]);
+                $linktable->data[] = [
+                    html_writer::link($userurl, fullname($user)),
+                    userdate($ts, get_string('strftimedatetimeshort', 'langconfig')),
+                ];
+            }
+            echo html_writer::table($linktable);
+        } else {
+            echo html_writer::tag('p', get_string('recordingnoviews', 'jitsi'), ['class' => 'text-muted']);
+        }
+
+        echo html_writer::end_tag('div');
+
+        if ($idx < count($linkrecordings) - 1) {
             echo html_writer::empty_tag('hr');
         }
     }
