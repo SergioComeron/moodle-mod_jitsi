@@ -511,17 +511,16 @@ echo "</div>";
 
 echo "<hr>";
 
-// JS for AI dropdown (uses core/modal_factory for GDPR confirmation) + transcript timestamps.
+// JS for AI dropdown + transcript timestamps.
 $PAGE->requires->strings_for_js(
     ['aisummaryqueued', 'aiquizqueued', 'aitranscriptionqueued', 'aigdprnoticetitle'],
     'jitsi'
 );
 if (get_config('mod_jitsi', 'aienabled')) {
-    $gdprregion  = get_config('mod_jitsi', 'vertexairegion') ?: 'us-central1';
-    $gdprbody    = json_encode('<p>' . get_string('aigdprnotice', 'jitsi', s($gdprregion)) . '</p>');
+    $gdprregion = get_config('mod_jitsi', 'vertexairegion') ?: 'us-central1';
+    $gdprbody   = json_encode('<p>' . get_string('aigdprnotice', 'jitsi', s($gdprregion)) . '</p>');
     $PAGE->requires->js_amd_inline("
-require(['core/ajax', 'core/notification', 'core/modal_factory', 'core/modal_events'],
-    function(Ajax, Notification, ModalFactory, ModalEvents) {
+require(['core/ajax', 'core/notification'], function(Ajax, Notification) {
 
     var gdprBody = $gdprbody;
     var queuedMap = {
@@ -530,48 +529,66 @@ require(['core/ajax', 'core/notification', 'core/modal_factory', 'core/modal_eve
         'mod_jitsi_queue_ai_transcription': 'aitranscriptionqueued'
     };
 
+    function executeAction(action) {
+        action.el.classList.add('disabled');
+        Ajax.call([{
+            methodname: action.methodname,
+            args: {sourcerecordid: action.sourcerecordid, cmid: action.cmid},
+            done: function(result) {
+                if (result.success) {
+                    action.el.textContent =
+                        M.util.get_string(queuedMap[action.methodname], 'mod_jitsi');
+                } else {
+                    action.el.classList.remove('disabled');
+                }
+            },
+            fail: function(ex) {
+                Notification.exception(ex);
+                action.el.classList.remove('disabled');
+            }
+        }]);
+    }
+
+    function showGdprModal(action) {
+        // Load modal modules lazily so a load error doesn't break the click handler.
+        require(['core/modal_factory', 'core/modal_events'],
+            function(ModalFactory, ModalEvents) {
+                ModalFactory.create({
+                    type:  ModalFactory.types.SAVE_CANCEL,
+                    title: M.util.get_string('aigdprnoticetitle', 'mod_jitsi'),
+                    body:  gdprBody
+                }).done(function(modal) {
+                    modal.setSaveButtonText(M.util.get_string('confirm', 'core'));
+                    var root = modal.getRoot();
+                    root.on(ModalEvents.save, function() {
+                        modal.destroy();
+                        executeAction(action);
+                    });
+                    root.on(ModalEvents.cancel, function() { modal.destroy(); });
+                    modal.show();
+                });
+            },
+            function() {
+                // Fallback: native browser confirm if modal modules unavailable.
+                var plainText = gdprBody.replace(/<[^>]+>/g, '');
+                if (window.confirm(plainText)) {
+                    executeAction(action);
+                }
+            }
+        );
+    }
+
     document.addEventListener('click', function(e) {
         var generateItem = e.target.closest('.jitsi-ai-generate');
         if (generateItem) {
             e.preventDefault();
             e.stopPropagation();
-            var action = {
+            showGdprModal({
                 methodname:     generateItem.dataset.method,
                 sourcerecordid: parseInt(generateItem.dataset.sourcerecordid, 10),
                 cmid:           parseInt(generateItem.dataset.cmid, 10),
                 el:             generateItem
-            };
-            ModalFactory.create({
-                type:  ModalFactory.types.SAVE_CANCEL,
-                title: M.util.get_string('aigdprnoticetitle', 'mod_jitsi'),
-                body:  gdprBody
-            }).then(function(modal) {
-                modal.setSaveButtonText(M.util.get_string('confirm', 'core'));
-                var root = modal.getRoot();
-                root.on(ModalEvents.save, function() {
-                    modal.destroy();
-                    action.el.classList.add('disabled');
-                    Ajax.call([{
-                        methodname: action.methodname,
-                        args: {sourcerecordid: action.sourcerecordid, cmid: action.cmid},
-                        done: function(result) {
-                            if (result.success) {
-                                action.el.textContent =
-                                    M.util.get_string(queuedMap[action.methodname], 'mod_jitsi');
-                            } else {
-                                action.el.classList.remove('disabled');
-                            }
-                        },
-                        fail: function(ex) {
-                            Notification.exception(ex);
-                            action.el.classList.remove('disabled');
-                        }
-                    }]);
-                });
-                root.on(ModalEvents.cancel, function() { modal.destroy(); });
-                modal.show();
-                return modal;
-            }).catch(Notification.exception);
+            });
             return;
         }
 
