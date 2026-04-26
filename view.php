@@ -514,7 +514,7 @@ echo "<hr>";
 // JS for AI dropdown + transcript timestamps.
 $PAGE->requires->strings_for_js(
     ['aisummaryqueued', 'aiquizqueued', 'aitranscriptionqueued', 'aigdprnoticetitle'],
-    'jitsi'
+    'mod_jitsi'
 );
 if (get_config('mod_jitsi', 'aienabled')) {
     $gdprregion = get_config('mod_jitsi', 'vertexairegion') ?: 'us-central1';
