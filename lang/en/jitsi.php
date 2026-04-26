@@ -460,7 +460,10 @@ $string['tablelistjitsis'] = "List with all the videos in your Streaming/Recordi
 $string['task_aggregate_usage_stats'] = 'Aggregate Jitsi daily usage statistics';
 $string['task_send_telemetry'] = 'Send anonymous usage telemetry (opt-in)';
 $string['telemetryenabled'] = 'Share anonymous usage data';
-$string['telemetryenabledex'] = 'Send a weekly anonymous ping to the plugin developer with basic usage statistics (server type, Moodle version, number of activities, enabled features). No personal data or user information is transmitted. Data is sent to <code>https://aula.sergiocomeron.com/jitsi-stats/collect.php</code>. You can disable this at any time.';
+$string['telemetryenabledex'] = 'When enabled, a weekly anonymous ping is sent to the plugin developer to help improve mod_jitsi.<br><br>
+<strong>What is sent:</strong> server type, Moodle version, plugin version, number of Jitsi activities, and which optional features are enabled (AI, recording, private sessions, push notifications).<br><br>
+<strong>What is NOT sent:</strong> your site URL, site name, user data, course data, session content, or any personal information. Your site is identified only by an irreversible anonymous hash — the original URL cannot be recovered from it.<br><br>
+Data is sent to <code>https://aula.sergiocomeron.com/jitsi-stats/collect.php</code>. This feature is disabled by default and can be turned off at any time.';
 $string['telemetryendpoint'] = 'Telemetry endpoint URL';
 $string['telemetryendpointex'] = 'URL of the server that receives the usage pings. Leave as default unless instructed otherwise.';
 $string['telemetryheading'] = 'Usage statistics (opt-in)';
