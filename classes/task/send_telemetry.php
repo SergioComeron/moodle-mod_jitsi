@@ -49,7 +49,7 @@ class send_telemetry extends \core\task\scheduled_task {
         }
 
         $endpoint = 'https://stats.sergiocomeron.com/collect.php';
-        $secret   = '2128c0261f824e8c7c83715526da5d5c8ef0657ba851644fb9c6ef987c1a7963';
+        $secret   = 'b0c55fbcdb6b43bbbd25535147b5c8ebb708638f8f3d9c75e3f86e7b2659daeb';
 
         // Build anonymous site hash (SHA-256 of wwwroot — no URL sent).
         $sitehash = hash('sha256', $CFG->wwwroot);
