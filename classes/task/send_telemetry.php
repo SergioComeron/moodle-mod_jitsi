@@ -48,7 +48,7 @@ class send_telemetry extends \core\task\scheduled_task {
             return;
         }
 
-        $endpoint = 'https://aula.sergiocomeron.com/jitsi-stats/collect.php';
+        $endpoint = 'https://stats.sergiocomeron.com/collect.php';
         $secret   = 'b0c55fbcdb6b43bbbd25535147b5c8ebb708638f8f3d9c75e3f86e7b2659daeb';
 
         // Build anonymous site hash (SHA-256 of wwwroot — no URL sent).
