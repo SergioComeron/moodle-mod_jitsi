@@ -577,9 +577,11 @@ require(['core/ajax', 'core/notification'], function(Ajax, Notification) {
 ");
 
 // Track GCS recording views via event delegation so it works with lazy-loaded recordings.
+// Milestones 25/50/75/100 are based on cumulative seconds actually played (not scrubbed position).
 $PAGE->requires->js_amd_inline("
 require(['core/ajax'], function(Ajax) {
     var milestones = {};
+    var trackers   = {};
 
     function logMilestone(video, milestone) {
         var key = video.dataset.sourcerecordid + '_' + video.dataset.cmid;
@@ -596,30 +598,45 @@ require(['core/ajax'], function(Ajax) {
         }]);
     }
 
-    function setupTimeupdate(video) {
+    function setupWatchTracking(video) {
         var key = video.dataset.sourcerecordid + '_' + video.dataset.cmid;
-        if (milestones[key] && milestones[key]._tu) { return; }
-        if (!milestones[key]) { milestones[key] = {}; }
-        milestones[key]._tu = true;
-        video.addEventListener('timeupdate', function() {
+        if (trackers[key]) { return; }
+        trackers[key] = {watched: 0, interval: null};
+        var t = trackers[key];
+
+        function tick() {
             if (!video.duration) { return; }
-            var pct = (video.currentTime / video.duration) * 100;
+            t.watched++;
+            var pct = (t.watched / video.duration) * 100;
             [25, 50, 75, 100].forEach(function(m) { if (pct >= m) { logMilestone(video, m); } });
-        });
+        }
+
+        function startInterval() {
+            if (!t.interval) { t.interval = setInterval(tick, 1000); }
+        }
+        function stopInterval() {
+            clearInterval(t.interval);
+            t.interval = null;
+        }
+
+        video.addEventListener('pause', stopInterval);
+        video.addEventListener('ended', stopInterval);
+        // play listener handles restarts after pause; milestone 0 is logged
+        // from the delegation handler below to avoid dependency on listener order.
+        video.addEventListener('play', startInterval);
     }
 
-    // Capture-phase delegation: fires before the video's own listeners,
-    // works with lazy-loaded videos, and logs milestone 0 directly so
-    // it is not dependent on whether the browser fires a newly-added listener.
+    // Capture-phase delegation: catches play on lazy-loaded videos and logs
+    // milestone 0 directly (reliable regardless of listener-registration timing).
     document.addEventListener('play', function(e) {
         if (e.target.tagName === 'VIDEO' && e.target.dataset.sourcerecordid) {
-            setupTimeupdate(e.target);
+            setupWatchTracking(e.target);
             logMilestone(e.target, 0);
         }
     }, true);
 
-    // Set up timeupdate for any videos already in the DOM at load time.
-    document.querySelectorAll('video[data-sourcerecordid]').forEach(setupTimeupdate);
+    // Set up tracking for any videos already in the DOM at load time.
+    document.querySelectorAll('video[data-sourcerecordid]').forEach(setupWatchTracking);
 });
 ");
 
