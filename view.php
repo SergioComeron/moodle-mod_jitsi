@@ -490,6 +490,9 @@ if (has_capability('mod/jitsi:viewrecords', $PAGE->context) || has_capability('m
                     .then(function(html) {
                         container.innerHTML = html;
                         initDropboxToggle();
+                        // Notify Moodle that new content has been added so
+                        // components like inplace_editable can re-initialise.
+                        require(['core/inplace_editable'], function() {});
                     });
             }
 
@@ -582,7 +585,6 @@ require(['core/ajax', 'core/notification'], function(Ajax, Notification) {
         var generateItem = e.target.closest('.jitsi-ai-generate');
         if (generateItem) {
             e.preventDefault();
-            e.stopPropagation();
             showGdprModal({
                 methodname:     generateItem.dataset.method,
                 sourcerecordid: parseInt(generateItem.dataset.sourcerecordid, 10),
