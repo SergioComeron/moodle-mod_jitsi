@@ -418,13 +418,19 @@ if (!empty($gcsrecordings)) {
         }
         echo html_writer::end_tag('div');
 
+        // Load all segment rows for this recording in one query.
+        $segrows = $DB->get_records('jitsi_recording_segments', [
+            'sourcerecordid' => $rec->id,
+            'cmid'           => $cm->id,
+        ], '', 'userid, segments, duration');
+
         if (!empty($viewrows)) {
             $viewtable                      = new html_table();
             $viewtable->attributes['class'] = 'generaltable table-sm';
             $viewtable->head = [
                 get_string('name'),
                 get_string('totalplays', 'jitsi'),
-                '25%', '50%', '75%', '100%',
+                get_string('watchprogress', 'jitsi'),
                 get_string('firstview', 'jitsi'),
                 get_string('lastview', 'jitsi'),
             ];
@@ -434,15 +440,18 @@ if (!empty($gcsrecordings)) {
                     continue;
                 }
                 $userurl = new moodle_url('/user/view.php', ['id' => $vrow->userid, 'course' => $course->id]);
-                $tick    = html_writer::tag('span', '✓', ['class' => 'text-success fw-bold']);
-                $cross   = html_writer::tag('span', '–', ['class' => 'text-muted']);
+
+                $segrow  = $segrows[$vrow->userid] ?? null;
+                $segs    = $segrow ? (json_decode($segrow->segments, true) ?? []) : [];
+                $dur     = $segrow ? (float)($segrow->duration ?? 0) : 0;
+                $pct     = jitsi_segments_watched_pct($segs, $dur);
+                $bar     = jitsi_render_segments_bar($segs, $dur);
+                $barcell = $bar . '<small class="text-muted">' . $pct . '%</small>';
+
                 $viewtable->data[] = [
                     html_writer::link($userurl, fullname($user)),
                     (int)$vrow->plays,
-                    $vrow->m25 ? $tick : $cross,
-                    $vrow->m50 ? $tick : $cross,
-                    $vrow->m75 ? $tick : $cross,
-                    $vrow->m100 ? $tick : $cross,
+                    $barcell,
                     userdate($vrow->firstview, get_string('strftimedatetimeshort', 'langconfig')),
                     userdate($vrow->lastview, get_string('strftimedatetimeshort', 'langconfig')),
                 ];

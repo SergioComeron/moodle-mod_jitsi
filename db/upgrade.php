@@ -1262,5 +1262,26 @@ function xmldb_jitsi_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026042501, 'jitsi');
     }
 
+    if ($oldversion < 2026042504) {
+        $table = new xmldb_table('jitsi_recording_segments');
+        $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE);
+        $table->add_field('userid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL);
+        $table->add_field('sourcerecordid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL);
+        $table->add_field('cmid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL);
+        $table->add_field('segments', XMLDB_TYPE_TEXT, null, null, XMLDB_NOTNULL);
+        $table->add_field('duration', XMLDB_TYPE_NUMBER, '10, 3', null, null);
+        $table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL);
+        $table->add_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL);
+        $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+        $table->add_index('userid_sourcerecordid_cmid', XMLDB_INDEX_UNIQUE, ['userid', 'sourcerecordid', 'cmid']);
+        $table->add_index('sourcerecordid_cmid', XMLDB_INDEX_NOTUNIQUE, ['sourcerecordid', 'cmid']);
+
+        if (!$dbman->table_exists($table)) {
+            $dbman->create_table($table);
+        }
+
+        upgrade_mod_savepoint(true, 2026042504, 'jitsi');
+    }
+
     return true;
 }

@@ -482,6 +482,7 @@ $string['total_recordings'] = 'Total Recordings';
 $string['totalminutes'] = 'Total minutes';
 $string['totalminutesinperiod'] = 'Total minutes in period';
 $string['totalplays'] = 'Total plays';
+$string['watchprogress'] = 'Watch progress';
 $string['totalsessionsinperiod'] = 'Total sessions in period';
 $string['totaluniqueusersinperiod'] = 'Total unique users in period';
 $string['totaluserminutes'] = 'Total user-minutes';

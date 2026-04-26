@@ -576,67 +576,149 @@ require(['core/ajax', 'core/notification'], function(Ajax, Notification) {
 });
 ");
 
-// Track GCS recording views via event delegation so it works with lazy-loaded recordings.
-// Milestones 25/50/75/100 are based on cumulative seconds actually played (not scrubbed position).
+// Track GCS recording views with real segment tracking.
 $PAGE->requires->js_amd_inline("
 require(['core/ajax'], function(Ajax) {
-    var milestones = {};
-    var trackers   = {};
+    var trackers = {};
 
-    function logMilestone(video, milestone) {
+    function mergeSegments(segs) {
+        if (!segs.length) { return []; }
+        var sorted = segs.slice().sort(function(a, b) { return a[0] - b[0]; });
+        var merged = [sorted[0].slice()];
+        for (var i = 1; i < sorted.length; i++) {
+            var last = merged[merged.length - 1];
+            if (sorted[i][0] <= last[1]) {
+                last[1] = Math.max(last[1], sorted[i][1]);
+            } else {
+                merged.push(sorted[i].slice());
+            }
+        }
+        return merged;
+    }
+
+    function updateBar(sourcerecordid, segments, duration) {
+        var bar   = document.getElementById('jitsi-segbar-' + sourcerecordid);
+        var label = document.getElementById('jitsi-segbar-pct-' + sourcerecordid);
+        if (!bar || !duration) { return; }
+        var html = '';
+        var watched = 0;
+        segments.forEach(function(seg) {
+            var left  = (seg[0] / duration) * 100;
+            var width = ((seg[1] - seg[0]) / duration) * 100;
+            watched  += seg[1] - seg[0];
+            html += '<div style=\"position:absolute;left:' + left.toFixed(2)
+                + '%;width:' + width.toFixed(2)
+                + '%;height:100%;background:#0d6efd\"></div>';
+        });
+        bar.innerHTML = html;
+        if (label) {
+            label.textContent = Math.min(100, Math.round((watched / duration) * 100)) + '%';
+        }
+    }
+
+    function saveSegments(video) {
         var key = video.dataset.sourcerecordid + '_' + video.dataset.cmid;
-        if (!milestones[key]) { milestones[key] = {}; }
-        if (milestones[key][milestone]) { return; }
-        milestones[key][milestone] = true;
+        var t = trackers[key];
+        if (!t || !t.segments.length || !video.duration) { return; }
+        var merged = mergeSegments(t.segments.slice());
         Ajax.call([{
-            methodname: 'mod_jitsi_log_recording_view',
+            methodname: 'mod_jitsi_save_recording_segments',
             args: {
                 sourcerecordid: parseInt(video.dataset.sourcerecordid, 10),
-                cmid: parseInt(video.dataset.cmid, 10),
-                milestone: milestone
+                cmid:           parseInt(video.dataset.cmid, 10),
+                segments:       JSON.stringify(merged),
+                duration:       video.duration
             }
-        }]);
+        }])[0].then(function(result) {
+            if (result.success && result.segments) {
+                t.segments = JSON.parse(result.segments);
+                updateBar(video.dataset.sourcerecordid, t.segments, video.duration);
+            }
+        });
     }
 
-    function setupWatchTracking(video) {
+    function setupTracking(video) {
         var key = video.dataset.sourcerecordid + '_' + video.dataset.cmid;
         if (trackers[key]) { return; }
-        trackers[key] = {watched: 0, interval: null};
+        trackers[key] = {segments: [], segStart: null, lastTime: 0, saveTimer: null, played: false};
         var t = trackers[key];
 
-        function tick() {
-            if (!video.duration) { return; }
-            t.watched++;
-            var pct = (t.watched / video.duration) * 100;
-            [25, 50, 75, 100].forEach(function(m) { if (pct >= m) { logMilestone(video, m); } });
-        }
+        video.addEventListener('timeupdate', function() {
+            if (!video.seeking) {
+                t.lastTime = video.currentTime;
+                if (t.segStart !== null && video.duration) {
+                    var preview = t.segments.concat([[t.segStart, video.currentTime]]);
+                    updateBar(video.dataset.sourcerecordid, mergeSegments(preview), video.duration);
+                }
+            }
+        });
 
-        function startInterval() {
-            if (!t.interval) { t.interval = setInterval(tick, 1000); }
-        }
-        function stopInterval() {
-            clearInterval(t.interval);
-            t.interval = null;
-        }
+        video.addEventListener('seeking', function() {
+            if (t.segStart !== null) {
+                var end = Math.max(t.segStart, t.lastTime);
+                if (end > t.segStart) {
+                    t.segments.push([t.segStart, end]);
+                }
+                t.segStart = null;
+            }
+        });
 
-        video.addEventListener('pause', stopInterval);
-        video.addEventListener('ended', stopInterval);
-        // play listener handles restarts after pause; milestone 0 is logged
-        // from the delegation handler below to avoid dependency on listener order.
-        video.addEventListener('play', startInterval);
+        video.addEventListener('seeked', function() {
+            if (!video.paused) {
+                t.segStart = video.currentTime;
+                t.lastTime = video.currentTime;
+            }
+        });
+
+        video.addEventListener('pause', function() {
+            if (t.segStart !== null) {
+                t.segments.push([t.segStart, video.currentTime]);
+                t.segStart = null;
+            }
+            clearInterval(t.saveTimer);
+            t.saveTimer = null;
+            updateBar(video.dataset.sourcerecordid, mergeSegments(t.segments), video.duration);
+            saveSegments(video);
+        });
+
+        video.addEventListener('ended', function() {
+            if (t.segStart !== null) {
+                t.segments.push([t.segStart, video.duration]);
+                t.segStart = null;
+            }
+            clearInterval(t.saveTimer);
+            t.saveTimer = null;
+            updateBar(video.dataset.sourcerecordid, mergeSegments(t.segments), video.duration);
+            saveSegments(video);
+        });
     }
 
-    // Capture-phase delegation: catches play on lazy-loaded videos and logs
-    // milestone 0 directly (reliable regardless of listener-registration timing).
+    // Capture-phase delegation: handles play for lazy-loaded videos.
     document.addEventListener('play', function(e) {
-        if (e.target.tagName === 'VIDEO' && e.target.dataset.sourcerecordid) {
-            setupWatchTracking(e.target);
-            logMilestone(e.target, 0);
+        var video = e.target;
+        if (video.tagName !== 'VIDEO' || !video.dataset.sourcerecordid) { return; }
+        setupTracking(video);
+        var key = video.dataset.sourcerecordid + '_' + video.dataset.cmid;
+        var t = trackers[key];
+        t.segStart = video.currentTime;
+        t.lastTime = video.currentTime;
+        if (!t.saveTimer) {
+            t.saveTimer = setInterval(function() { saveSegments(video); }, 30000);
+        }
+        if (!t.played) {
+            t.played = true;
+            Ajax.call([{
+                methodname: 'mod_jitsi_log_recording_view',
+                args: {
+                    sourcerecordid: parseInt(video.dataset.sourcerecordid, 10),
+                    cmid:           parseInt(video.dataset.cmid, 10),
+                    milestone:      0
+                }
+            }]);
         }
     }, true);
 
-    // Set up tracking for any videos already in the DOM at load time.
-    document.querySelectorAll('video[data-sourcerecordid]').forEach(setupWatchTracking);
+    document.querySelectorAll('video[data-sourcerecordid]').forEach(setupTracking);
 });
 ");
 

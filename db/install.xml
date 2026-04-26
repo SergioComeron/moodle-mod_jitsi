@@ -191,5 +191,24 @@
         <INDEX NAME="userid_courseid" UNIQUE="false" FIELDS="userid, courseid"/>
       </INDEXES>
     </TABLE>
+    <TABLE NAME="jitsi_recording_segments" COMMENT="Watched video segments per user per GCS recording">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="sourcerecordid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="cmid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="segments" TYPE="text" NOTNULL="true" SEQUENCE="false" COMMENT="JSON array of [start,end] pairs in seconds"/>
+        <FIELD NAME="duration" TYPE="number" LENGTH="10" DECIMALS="3" NOTNULL="false" SEQUENCE="false" COMMENT="Video duration in seconds"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="userid_sourcerecordid_cmid" UNIQUE="true" FIELDS="userid, sourcerecordid, cmid"/>
+        <INDEX NAME="sourcerecordid_cmid" UNIQUE="false" FIELDS="sourcerecordid, cmid"/>
+      </INDEXES>
+    </TABLE>
   </TABLES>
 </XMLDB>

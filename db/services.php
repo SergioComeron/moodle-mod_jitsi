@@ -345,4 +345,13 @@ $functions = [
                 'ajax' => true,
                 'loginrequired' => true,
         ],
+        'mod_jitsi_save_recording_segments' => [
+                'classname' => 'mod_jitsi_external',
+                'methodname' => 'save_recording_segments',
+                'classpath' => 'mod/jitsi/classes/external.php',
+                'description' => 'Save and merge watched segments for a GCS recording',
+                'type' => 'write',
+                'ajax' => true,
+                'loginrequired' => true,
+        ],
 ];

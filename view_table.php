@@ -370,6 +370,29 @@ class mod_view_table extends table_sql {
                         . '</div></div></div></div>';
                 }
 
+                // Load existing watched segments for this user to pre-render the bar.
+                $segrow = $DB->get_record('jitsi_recording_segments', [
+                    'userid'         => $USER->id,
+                    'sourcerecordid' => (int)$sourcerecord->id,
+                    'cmid'           => (int)$cm->id,
+                ]);
+                $existingsegs = [];
+                $existingdur  = 0;
+                if ($segrow) {
+                    $existingsegs = json_decode($segrow->segments, true) ?? [];
+                    $existingdur  = (float)($segrow->duration ?? 0);
+                }
+                $barhtml = '<div class="mt-2 mb-1">'
+                    . jitsi_render_segments_bar(
+                        $existingsegs,
+                        $existingdur,
+                        'jitsi-segbar-' . (int)$sourcerecord->id
+                    )
+                    . '<small class="text-muted" id="jitsi-segbar-pct-' . (int)$sourcerecord->id . '">'
+                    . ($existingdur > 0 ? jitsi_segments_watched_pct($existingsegs, $existingdur) . '%' : '')
+                    . '</small>'
+                    . '</div>';
+
                 $content = "<h5>" . $OUTPUT->render($tmpl) . "</h5>"
                     . "<h6 class=\"card-subtitle mb-2 text-muted\">" . userdate($values->timecreated) . "</h6>"
                     . "<span class=\"align-middle " . $alignmentclass . "\"><p>" . $actions . "</p></span>"
@@ -378,6 +401,7 @@ class mod_view_table extends table_sql {
                     . " data-cmid=\"" . (int)$cm->id . "\">"
                     . "<source src=\"" . s($embedurl) . "\" type=\"video/mp4\">"
                     . "</video>"
+                    . $barhtml
                     . "<p><a href=\"" . s($sourcerecord->link) . "\" target=\"_blank\""
                     . " class=\"btn btn-sm btn-outline-secondary mt-1\">"
                     . get_string('openrecording', 'jitsi') . "</a></p>"
