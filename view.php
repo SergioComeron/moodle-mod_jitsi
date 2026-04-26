@@ -511,90 +511,67 @@ echo "</div>";
 
 echo "<hr>";
 
-// GDPR modal for AI generation (shown once on page, triggered by dropdown items).
-if (get_config('mod_jitsi', 'aienabled')) {
-    $bsdismiss = $CFG->branch >= 500 ? 'data-bs-dismiss' : 'data-dismiss';
-    $gdprregion = get_config('mod_jitsi', 'vertexairegion') ?: 'us-central1';
-    echo '<div class="modal fade" id="jitsi-ai-gdpr-modal" tabindex="-1" role="dialog">'
-        . '<div class="modal-dialog" role="document">'
-        . '<div class="modal-content">'
-        . '<div class="modal-header">'
-        . '<h5 class="modal-title">' . get_string('aigdprnoticetitle', 'jitsi') . '</h5>'
-        . '</div>'
-        . '<div class="modal-body">'
-        . '<p>' . get_string('aigdprnotice', 'jitsi', s($gdprregion)) . '</p>'
-        . '</div>'
-        . '<div class="modal-footer">'
-        . '<button type="button" class="btn btn-secondary" ' . $bsdismiss . '="modal">'
-        . get_string('cancel') . '</button>'
-        . '<button type="button" class="btn btn-primary" id="jitsi-ai-gdpr-confirm">'
-        . get_string('confirm') . '</button>'
-        . '</div>'
-        . '</div></div></div>';
-}
-
-// JS for AI dropdown + transcript timestamps.
+// JS for AI dropdown (uses core/modal_factory for GDPR confirmation) + transcript timestamps.
 $PAGE->requires->strings_for_js(
-    ['aisummaryqueued', 'aiquizqueued', 'aitranscriptionqueued'],
+    ['aisummaryqueued', 'aiquizqueued', 'aitranscriptionqueued', 'aigdprnoticetitle'],
     'jitsi'
 );
-$PAGE->requires->js_amd_inline("
-require(['core/ajax', 'core/notification'], function(Ajax, Notification) {
-    var pendingAction = null;
+if (get_config('mod_jitsi', 'aienabled')) {
+    $gdprregion  = get_config('mod_jitsi', 'vertexairegion') ?: 'us-central1';
+    $gdprbody    = json_encode('<p>' . get_string('aigdprnotice', 'jitsi', s($gdprregion)) . '</p>');
+    $PAGE->requires->js_amd_inline("
+require(['core/ajax', 'core/notification', 'core/modal_factory', 'core/modal_events'],
+    function(Ajax, Notification, ModalFactory, ModalEvents) {
 
-    function toggleModal(show) {
-        var modal = document.getElementById('jitsi-ai-gdpr-modal');
-        if (!modal) { return; }
-        if (window.bootstrap && bootstrap.Modal) {
-            var m = bootstrap.Modal.getOrCreateInstance(modal);
-            show ? m.show() : m.hide();
-        } else if (typeof \$ !== 'undefined') {
-            \$(modal).modal(show ? 'show' : 'hide');
-        }
-    }
-
-    var queuedStrings = {
-        'mod_jitsi_queue_ai_summary':       M.util.get_string('aisummaryqueued', 'mod_jitsi'),
-        'mod_jitsi_queue_ai_quiz':          M.util.get_string('aiquizqueued', 'mod_jitsi'),
-        'mod_jitsi_queue_ai_transcription': M.util.get_string('aitranscriptionqueued', 'mod_jitsi')
+    var gdprBody = $gdprbody;
+    var queuedMap = {
+        'mod_jitsi_queue_ai_summary':       'aisummaryqueued',
+        'mod_jitsi_queue_ai_quiz':          'aiquizqueued',
+        'mod_jitsi_queue_ai_transcription': 'aitranscriptionqueued'
     };
 
     document.addEventListener('click', function(e) {
         var generateItem = e.target.closest('.jitsi-ai-generate');
         if (generateItem) {
             e.preventDefault();
-            pendingAction = {
+            e.stopPropagation();
+            var action = {
                 methodname:     generateItem.dataset.method,
                 sourcerecordid: parseInt(generateItem.dataset.sourcerecordid, 10),
                 cmid:           parseInt(generateItem.dataset.cmid, 10),
                 el:             generateItem
             };
-            toggleModal(true);
-            return;
-        }
-
-        var confirmBtn = e.target.closest('#jitsi-ai-gdpr-confirm');
-        if (confirmBtn) {
-            toggleModal(false);
-            if (!pendingAction) { return; }
-            var action = pendingAction;
-            pendingAction = null;
-            action.el.classList.add('disabled');
-            Ajax.call([{
-                methodname: action.methodname,
-                args: {sourcerecordid: action.sourcerecordid, cmid: action.cmid},
-                done: function(result) {
-                    if (result.success) {
-                        action.el.textContent = queuedStrings[action.methodname] || '';
-                    } else {
-                        action.el.classList.remove('disabled');
-                    }
-                },
-                fail: function(ex) {
-                    Notification.exception(ex);
-                    action.el.classList.remove('disabled');
-                }
-            }]);
+            ModalFactory.create({
+                type:  ModalFactory.types.SAVE_CANCEL,
+                title: M.util.get_string('aigdprnoticetitle', 'mod_jitsi'),
+                body:  gdprBody
+            }).then(function(modal) {
+                modal.setSaveButtonText(M.util.get_string('confirm', 'core'));
+                var root = modal.getRoot();
+                root.on(ModalEvents.save, function() {
+                    modal.destroy();
+                    action.el.classList.add('disabled');
+                    Ajax.call([{
+                        methodname: action.methodname,
+                        args: {sourcerecordid: action.sourcerecordid, cmid: action.cmid},
+                        done: function(result) {
+                            if (result.success) {
+                                action.el.textContent =
+                                    M.util.get_string(queuedMap[action.methodname], 'mod_jitsi');
+                            } else {
+                                action.el.classList.remove('disabled');
+                            }
+                        },
+                        fail: function(ex) {
+                            Notification.exception(ex);
+                            action.el.classList.remove('disabled');
+                        }
+                    }]);
+                });
+                root.on(ModalEvents.cancel, function() { modal.destroy(); });
+                modal.show();
+                return modal;
+            }).catch(Notification.exception);
             return;
         }
 
@@ -613,6 +590,7 @@ require(['core/ajax', 'core/notification'], function(Ajax, Notification) {
     });
 });
 ");
+}
 
 // Track GCS recording views with real segment tracking.
 $PAGE->requires->js_amd_inline("
