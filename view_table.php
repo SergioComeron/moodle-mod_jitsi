@@ -328,7 +328,8 @@ class mod_view_table extends table_sql {
 
                 $content = "<h5>" . $OUTPUT->render($tmpl) . "</h5>"
                     . "<h6 class=\"card-subtitle mb-2 text-muted\">" . userdate($values->timecreated) . "</h6>"
-                    . "<span class=\"align-middle " . $alignmentclass . "\"><p>" . $actions . $aidropdown . "</p></span>"
+                    . "<div class=\"d-flex align-items-center justify-content-end gap-1 mb-1\">"
+                    . $actions . $aidropdown . "</div>"
                     . "<video id=\"" . s($videoid) . "\" controls style=\"width:100%;max-width:100%\""
                     . " data-sourcerecordid=\"" . (int)$sourcerecord->id . "\""
                     . " data-cmid=\"" . (int)$cm->id . "\">"
