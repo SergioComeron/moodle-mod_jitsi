@@ -643,36 +643,34 @@ require(['core/ajax'], function(Ajax) {
         trackers[key] = {segments: [], segStart: null, lastTime: 0, saveTimer: null, played: false};
         var t = trackers[key];
 
+        // Detect seeks via delta in timeupdate instead of seeking/seeked events,
+        // which have a timing race where timeupdate can update lastTime to the
+        // new seek position before seeking fires.
         video.addEventListener('timeupdate', function() {
-            if (!video.seeking) {
-                t.lastTime = video.currentTime;
-                if (t.segStart !== null && video.duration) {
-                    var preview = t.segments.concat([[t.segStart, video.currentTime]]);
-                    updateBar(video.dataset.sourcerecordid, mergeSegments(preview), video.duration);
+            if (video.paused || video.ended || t.segStart === null) { return; }
+            var ct    = video.currentTime;
+            var delta = ct - t.lastTime;
+            if (delta > 0 && delta < 2) {
+                // Normal forward playback.
+                t.lastTime = ct;
+                updateBar(video.dataset.sourcerecordid,
+                    mergeSegments(t.segments.concat([[t.segStart, ct]])),
+                    video.duration);
+            } else if (delta >= 2 || delta < 0) {
+                // Seek detected: large forward jump or any backward jump.
+                if (t.lastTime > t.segStart) {
+                    t.segments.push([t.segStart, t.lastTime]);
                 }
-            }
-        });
-
-        video.addEventListener('seeking', function() {
-            if (t.segStart !== null) {
-                var end = Math.max(t.segStart, t.lastTime);
-                if (end > t.segStart) {
-                    t.segments.push([t.segStart, end]);
-                }
-                t.segStart = null;
-            }
-        });
-
-        video.addEventListener('seeked', function() {
-            if (!video.paused) {
-                t.segStart = video.currentTime;
-                t.lastTime = video.currentTime;
+                t.segStart = ct;
+                t.lastTime = ct;
             }
         });
 
         video.addEventListener('pause', function() {
             if (t.segStart !== null) {
-                t.segments.push([t.segStart, video.currentTime]);
+                if (t.lastTime > t.segStart) {
+                    t.segments.push([t.segStart, t.lastTime]);
+                }
                 t.segStart = null;
             }
             clearInterval(t.saveTimer);
