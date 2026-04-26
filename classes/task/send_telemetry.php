@@ -59,13 +59,13 @@ class send_telemetry extends \core\task\scheduled_task {
         // Build anonymous site hash (SHA-256 of wwwroot — no URL sent).
         $sitehash = hash('sha256', $CFG->wwwroot);
 
-        // Detect active server type (use the first active server found).
+        // Detect active server type from plugin config.
         $servertype = -1;
-        $servers = $DB->get_records('jitsi_servers', [], 'id ASC');
-        foreach ($servers as $s) {
-            if (!empty($s->inuse)) {
-                $servertype = (int)$s->type;
-                break;
+        $activeserverid = (int)($config->server ?? 0);
+        if ($activeserverid > 0) {
+            $server = $DB->get_record('jitsi_servers', ['id' => $activeserverid], 'type');
+            if ($server) {
+                $servertype = (int)$server->type;
             }
         }
 
