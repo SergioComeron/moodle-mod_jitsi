@@ -579,43 +579,47 @@ require(['core/ajax', 'core/notification'], function(Ajax, Notification) {
 // Track GCS recording views via event delegation so it works with lazy-loaded recordings.
 $PAGE->requires->js_amd_inline("
 require(['core/ajax'], function(Ajax) {
-    var trackedVideos = {};
+    var milestones = {};
 
-    function setupVideo(video) {
+    function logMilestone(video, milestone) {
         var key = video.dataset.sourcerecordid + '_' + video.dataset.cmid;
-        if (trackedVideos[key]) { return; }
-        trackedVideos[key] = {0: false, 25: false, 50: false, 75: false, 100: false};
+        if (!milestones[key]) { milestones[key] = {}; }
+        if (milestones[key][milestone]) { return; }
+        milestones[key][milestone] = true;
+        Ajax.call([{
+            methodname: 'mod_jitsi_log_recording_view',
+            args: {
+                sourcerecordid: parseInt(video.dataset.sourcerecordid, 10),
+                cmid: parseInt(video.dataset.cmid, 10),
+                milestone: milestone
+            }
+        }]);
+    }
 
-        var sourcerecordid = parseInt(video.dataset.sourcerecordid, 10);
-        var cmid = parseInt(video.dataset.cmid, 10);
-        var state = trackedVideos[key];
-
-        function logMilestone(milestone) {
-            if (state[milestone]) { return; }
-            state[milestone] = true;
-            Ajax.call([{
-                methodname: 'mod_jitsi_log_recording_view',
-                args: {sourcerecordid: sourcerecordid, cmid: cmid, milestone: milestone}
-            }]);
-        }
-
-        video.addEventListener('play', function() { logMilestone(0); });
+    function setupTimeupdate(video) {
+        var key = video.dataset.sourcerecordid + '_' + video.dataset.cmid;
+        if (milestones[key] && milestones[key]._tu) { return; }
+        if (!milestones[key]) { milestones[key] = {}; }
+        milestones[key]._tu = true;
         video.addEventListener('timeupdate', function() {
-            if (!video.duration || video.duration === 0) { return; }
+            if (!video.duration) { return; }
             var pct = (video.currentTime / video.duration) * 100;
-            [25, 50, 75, 100].forEach(function(m) { if (pct >= m) { logMilestone(m); } });
+            [25, 50, 75, 100].forEach(function(m) { if (pct >= m) { logMilestone(video, m); } });
         });
     }
 
-    // Use capture-phase delegation to catch play events on dynamically added videos.
+    // Capture-phase delegation: fires before the video's own listeners,
+    // works with lazy-loaded videos, and logs milestone 0 directly so
+    // it is not dependent on whether the browser fires a newly-added listener.
     document.addEventListener('play', function(e) {
         if (e.target.tagName === 'VIDEO' && e.target.dataset.sourcerecordid) {
-            setupVideo(e.target);
+            setupTimeupdate(e.target);
+            logMilestone(e.target, 0);
         }
     }, true);
 
-    // Also set up any videos already in the DOM.
-    document.querySelectorAll('video[data-sourcerecordid]').forEach(setupVideo);
+    // Set up timeupdate for any videos already in the DOM at load time.
+    document.querySelectorAll('video[data-sourcerecordid]').forEach(setupTimeupdate);
 });
 ");
 
