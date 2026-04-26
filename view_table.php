@@ -55,7 +55,7 @@ class mod_view_table extends table_sql {
      *     when downloading.
      */
     protected function col_id($values) {
-        global $DB, $OUTPUT, $CFG;
+        global $DB, $OUTPUT, $CFG, $USER;
 
         if ($CFG->branch >= 500) {
             $alignmentclass = 'text-end';
