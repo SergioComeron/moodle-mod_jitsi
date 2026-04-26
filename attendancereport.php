@@ -104,7 +104,7 @@ if ($fromform = $mform->get_data()) {
     $fromdate = optional_param('fromdate', mktime(0, 0, 0, 1, 1, date('Y')), PARAM_INT);
     $todate   = optional_param(
         'todate',
-        mktime(0, 0, 0, (int)date('m'), (int)date('d') - 1, (int)date('Y')),
+        mktime(23, 59, 59, (int)date('m'), (int)date('d'), (int)date('Y')),
         PARAM_INT
     );
 }
