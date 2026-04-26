@@ -310,7 +310,7 @@ if ((!$hasanydata && !$livequery) || empty($rows)) {
 
 // Recording views section — one card per GCS recording in this activity.
 $allrecordings = $DB->get_records_sql(
-    "SELECT sr.id, sr.link, sr.timecreated
+    "SELECT sr.id, sr.link, sr.timecreated, r.name AS recordname
        FROM {jitsi_source_record} sr
        JOIN {jitsi_record} r ON r.source = sr.id
        JOIN {jitsi} j ON j.id = r.jitsi
@@ -335,8 +335,8 @@ if (!empty($gcsrecordings)) {
 
     foreach ($gcsrecordings as $idx => $rec) {
         $recnum = $idx + 1;
-        $rectitle = get_string('recordingnumber', 'jitsi', $recnum)
-            . ' — ' . userdate($rec->timecreated, get_string('strftimedatetimeshort', 'langconfig'));
+        $recname = !empty($rec->recordname) ? format_string($rec->recordname) : get_string('recordingnumber', 'jitsi', $recnum);
+        $rectitle = $recname . ' — ' . userdate($rec->timecreated, get_string('strftimedatetimeshort', 'langconfig'));
 
         // Fetch all events for this recording and aggregate per user in PHP.
         $rs = $DB->get_recordset_sql(
