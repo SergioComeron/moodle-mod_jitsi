@@ -199,7 +199,8 @@ class mod_view_table extends table_sql {
                     $aidropdown = '<div class="dropdown d-inline-block ms-1">'
                         . '<button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle"'
                         . ' ' . $bstoggle . '="dropdown" aria-expanded="false">'
-                        . '&#10024; AI</button>'
+                        . '<i class="fa fa-wand-magic-sparkles text-primary me-1"'
+                        . ' aria-hidden="true"></i>AI</button>'
                         . '<ul class="dropdown-menu">' . $aidropdownitems . '</ul>'
                         . '</div>';
                 }
