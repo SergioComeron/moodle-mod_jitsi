@@ -382,7 +382,11 @@ class mod_view_table extends table_sql {
                     $existingsegs = json_decode($segrow->segments, true) ?? [];
                     $existingdur  = (float)($segrow->duration ?? 0);
                 }
-                $barhtml = '<div class="mt-2 mb-1">'
+                $barsegsjson = htmlspecialchars(json_encode($existingsegs), ENT_QUOTES, 'UTF-8');
+                $barhtml = '<div class="mt-2 mb-1"'
+                    . ' data-segments="' . $barsegsjson . '"'
+                    . ' data-duration="' . $existingdur . '"'
+                    . ' id="jitsi-segbar-wrap-' . (int)$sourcerecord->id . '">'
                     . jitsi_render_segments_bar(
                         $existingsegs,
                         $existingdur,

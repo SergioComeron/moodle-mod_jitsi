@@ -641,7 +641,15 @@ require(['core/ajax'], function(Ajax) {
     function setupTracking(video) {
         var key = video.dataset.sourcerecordid + '_' + video.dataset.cmid;
         if (trackers[key]) { return; }
-        trackers[key] = {segments: [], segStart: null, lastTime: 0, saveTimer: null, played: false};
+        // Seed existing segments from the server-rendered bar so the bar
+        // stays accurate during playback without waiting for the next save.
+        var wrap = document.getElementById('jitsi-segbar-wrap-' + video.dataset.sourcerecordid);
+        var seedSegs = (wrap && wrap.dataset.segments) ? JSON.parse(wrap.dataset.segments) : [];
+        var seedDur  = (wrap && wrap.dataset.duration) ? parseFloat(wrap.dataset.duration) : 0;
+        trackers[key] = {segments: seedSegs, segStart: null, lastTime: 0, saveTimer: null, played: false};
+        if (seedSegs.length && seedDur) {
+            updateBar(video.dataset.sourcerecordid, seedSegs, seedDur);
+        }
         var t = trackers[key];
 
         // Detect seeks via delta in timeupdate instead of seeking/seeked events,
