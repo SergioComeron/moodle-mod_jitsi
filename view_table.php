@@ -406,9 +406,6 @@ class mod_view_table extends table_sql {
                     . "<source src=\"" . s($embedurl) . "\" type=\"video/mp4\">"
                     . "</video>"
                     . $barhtml
-                    . "<p><a href=\"" . s($sourcerecord->link) . "\" target=\"_blank\""
-                    . " class=\"btn btn-sm btn-outline-secondary mt-1\">"
-                    . get_string('openrecording', 'jitsi') . "</a></p>"
                     . $aiaccordion
                     . "<br>";
             } else {
