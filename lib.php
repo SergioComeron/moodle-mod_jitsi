@@ -2937,3 +2937,50 @@ function jitsi_is_jibri_ready(\stdClass $server): bool {
     // Fallback: legacy field (servers not yet migrated to pool).
     return ($server->jibri_provisioningstatus ?? '') === 'ready';
 }
+
+/**
+ * Render an HTML progress bar showing watched segments of a GCS recording.
+ *
+ * @param array  $segments Array of [start, end] pairs in seconds
+ * @param float  $duration Video duration in seconds
+ * @param string $barid    Optional HTML id for the container div
+ * @return string HTML
+ */
+function jitsi_render_segments_bar(array $segments, float $duration, string $barid = ''): string {
+    $idattr = $barid !== '' ? ' id="' . s($barid) . '"' : '';
+    $html = '<div' . $idattr . ' class="jitsi-segbar"'
+        . ' style="position:relative;height:8px;background:#dee2e6;border-radius:4px;overflow:hidden">';
+    if ($duration > 0) {
+        foreach ($segments as $seg) {
+            if (!is_array($seg) || count($seg) < 2) {
+                continue;
+            }
+            $left  = max(0, min(100, ($seg[0] / $duration) * 100));
+            $width = max(0, min(100 - $left, (($seg[1] - $seg[0]) / $duration) * 100));
+            $html .= '<div style="position:absolute;left:' . number_format($left, 2, '.', '') . '%;'
+                . 'width:' . number_format($width, 2, '.', '') . '%;height:100%;background:#0d6efd"></div>';
+        }
+    }
+    $html .= '</div>';
+    return $html;
+}
+
+/**
+ * Compute total watched percentage from segments.
+ *
+ * @param array $segments Array of [start, end] pairs in seconds
+ * @param float $duration Video duration in seconds
+ * @return int  0–100
+ */
+function jitsi_segments_watched_pct(array $segments, float $duration): int {
+    if ($duration <= 0 || empty($segments)) {
+        return 0;
+    }
+    $watched = 0;
+    foreach ($segments as $seg) {
+        if (is_array($seg) && count($seg) >= 2) {
+            $watched += max(0, (float)$seg[1] - (float)$seg[0]);
+        }
+    }
+    return min(100, (int)round(($watched / $duration) * 100));
+}

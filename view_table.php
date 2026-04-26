@@ -239,9 +239,9 @@ class mod_view_table extends table_sql {
                             if ($line === '') {
                                 continue;
                             }
-                            if (preg_match('/^###\s+(.+)$/u', $line, $cm)) {
+                            if (preg_match('/^###\s+(.+)$/u', $line, $match)) {
                                 $transcriptionlines .= '<div class="jitsi-transcript-chapter mt-3 mb-1">'
-                                    . '<strong>' . s($cm[1]) . '</strong></div>';
+                                    . '<strong>' . s($match[1]) . '</strong></div>';
                             } else if (preg_match('/^\[(\d+):(\d{2})(?::(\d{2}))?\]\s*(.*)$/u', $line, $tm)) {
                                 if (isset($tm[3]) && $tm[3] !== '') {
                                     $seconds = (int)$tm[1] * 3600 + (int)$tm[2] * 60 + (int)$tm[3];
@@ -370,12 +370,38 @@ class mod_view_table extends table_sql {
                         . '</div></div></div></div>';
                 }
 
+                // Load existing watched segments for this user to pre-render the bar.
+                $segrow = $DB->get_record('jitsi_recording_segments', [
+                    'userid'         => $USER->id,
+                    'sourcerecordid' => (int)$sourcerecord->id,
+                    'cmid'           => (int)$cm->id,
+                ]);
+                $existingsegs = [];
+                $existingdur  = 0;
+                if ($segrow) {
+                    $existingsegs = json_decode($segrow->segments, true) ?? [];
+                    $existingdur  = (float)($segrow->duration ?? 0);
+                }
+                $barhtml = '<div class="mt-2 mb-1">'
+                    . jitsi_render_segments_bar(
+                        $existingsegs,
+                        $existingdur,
+                        'jitsi-segbar-' . (int)$sourcerecord->id
+                    )
+                    . '<small class="text-muted" id="jitsi-segbar-pct-' . (int)$sourcerecord->id . '">'
+                    . ($existingdur > 0 ? jitsi_segments_watched_pct($existingsegs, $existingdur) . '%' : '')
+                    . '</small>'
+                    . '</div>';
+
                 $content = "<h5>" . $OUTPUT->render($tmpl) . "</h5>"
                     . "<h6 class=\"card-subtitle mb-2 text-muted\">" . userdate($values->timecreated) . "</h6>"
                     . "<span class=\"align-middle " . $alignmentclass . "\"><p>" . $actions . "</p></span>"
-                    . "<video id=\"" . s($videoid) . "\" controls style=\"width:100%;max-width:100%\">"
+                    . "<video id=\"" . s($videoid) . "\" controls style=\"width:100%;max-width:100%\""
+                    . " data-sourcerecordid=\"" . (int)$sourcerecord->id . "\""
+                    . " data-cmid=\"" . (int)$cm->id . "\">"
                     . "<source src=\"" . s($embedurl) . "\" type=\"video/mp4\">"
                     . "</video>"
+                    . $barhtml
                     . "<p><a href=\"" . s($sourcerecord->link) . "\" target=\"_blank\""
                     . " class=\"btn btn-sm btn-outline-secondary mt-1\">"
                     . get_string('openrecording', 'jitsi') . "</a></p>"
@@ -387,7 +413,12 @@ class mod_view_table extends table_sql {
                 $openlink = html_writer::link(
                     $sourcerecord->link,
                     $btnlabel,
-                    ['target' => '_blank', 'class' => 'btn btn-sm btn-primary']
+                    [
+                        'target' => '_blank',
+                        'class'  => 'btn btn-sm btn-primary jitsi-recording-link',
+                        'data-sourcerecordid' => (int)$sourcerecord->id,
+                        'data-cmid'           => (int)$cm->id,
+                    ]
                 );
 
                 // Detect Jibri recordings (served directly from a GCP VM IP).

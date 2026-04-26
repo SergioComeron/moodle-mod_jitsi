@@ -576,4 +576,166 @@ require(['core/ajax', 'core/notification'], function(Ajax, Notification) {
 });
 ");
 
+// Track GCS recording views with real segment tracking.
+$PAGE->requires->js_amd_inline("
+require(['core/ajax'], function(Ajax) {
+    var trackers     = {};
+    var linkClicked  = {};
+
+    function mergeSegments(segs) {
+        if (!segs.length) { return []; }
+        var sorted = segs.slice().sort(function(a, b) { return a[0] - b[0]; });
+        var merged = [sorted[0].slice()];
+        for (var i = 1; i < sorted.length; i++) {
+            var last = merged[merged.length - 1];
+            if (sorted[i][0] <= last[1]) {
+                last[1] = Math.max(last[1], sorted[i][1]);
+            } else {
+                merged.push(sorted[i].slice());
+            }
+        }
+        return merged;
+    }
+
+    function updateBar(sourcerecordid, segments, duration) {
+        var bar   = document.getElementById('jitsi-segbar-' + sourcerecordid);
+        var label = document.getElementById('jitsi-segbar-pct-' + sourcerecordid);
+        if (!bar || !duration) { return; }
+        var html = '';
+        var watched = 0;
+        segments.forEach(function(seg) {
+            var left  = (seg[0] / duration) * 100;
+            var width = ((seg[1] - seg[0]) / duration) * 100;
+            watched  += seg[1] - seg[0];
+            html += '<div style=\"position:absolute;left:' + left.toFixed(2)
+                + '%;width:' + width.toFixed(2)
+                + '%;height:100%;background:#0d6efd\"></div>';
+        });
+        bar.innerHTML = html;
+        if (label) {
+            label.textContent = Math.min(100, Math.round((watched / duration) * 100)) + '%';
+        }
+    }
+
+    function saveSegments(video) {
+        var key = video.dataset.sourcerecordid + '_' + video.dataset.cmid;
+        var t = trackers[key];
+        if (!t || !t.segments.length || !video.duration) { return; }
+        var merged = mergeSegments(t.segments.slice());
+        Ajax.call([{
+            methodname: 'mod_jitsi_save_recording_segments',
+            args: {
+                sourcerecordid: parseInt(video.dataset.sourcerecordid, 10),
+                cmid:           parseInt(video.dataset.cmid, 10),
+                segments:       JSON.stringify(merged),
+                duration:       video.duration
+            }
+        }])[0].then(function(result) {
+            if (result.success && result.segments) {
+                t.segments = JSON.parse(result.segments);
+                updateBar(video.dataset.sourcerecordid, t.segments, video.duration);
+            }
+        });
+    }
+
+    function setupTracking(video) {
+        var key = video.dataset.sourcerecordid + '_' + video.dataset.cmid;
+        if (trackers[key]) { return; }
+        trackers[key] = {segments: [], segStart: null, lastTime: 0, saveTimer: null, played: false};
+        var t = trackers[key];
+
+        // Detect seeks via delta in timeupdate instead of seeking/seeked events,
+        // which have a timing race where timeupdate can update lastTime to the
+        // new seek position before seeking fires.
+        video.addEventListener('timeupdate', function() {
+            if (video.paused || video.ended || t.segStart === null) { return; }
+            var ct    = video.currentTime;
+            var delta = ct - t.lastTime;
+            if (delta > 0 && delta < 2) {
+                // Normal forward playback.
+                t.lastTime = ct;
+                updateBar(video.dataset.sourcerecordid,
+                    mergeSegments(t.segments.concat([[t.segStart, ct]])),
+                    video.duration);
+            } else if (delta >= 2 || delta < 0) {
+                // Seek detected: large forward jump or any backward jump.
+                if (t.lastTime > t.segStart) {
+                    t.segments.push([t.segStart, t.lastTime]);
+                }
+                t.segStart = ct;
+                t.lastTime = ct;
+            }
+        });
+
+        video.addEventListener('pause', function() {
+            if (t.segStart !== null) {
+                if (t.lastTime > t.segStart) {
+                    t.segments.push([t.segStart, t.lastTime]);
+                }
+                t.segStart = null;
+            }
+            clearInterval(t.saveTimer);
+            t.saveTimer = null;
+            updateBar(video.dataset.sourcerecordid, mergeSegments(t.segments), video.duration);
+            saveSegments(video);
+        });
+
+        video.addEventListener('ended', function() {
+            if (t.segStart !== null) {
+                t.segments.push([t.segStart, video.duration]);
+                t.segStart = null;
+            }
+            clearInterval(t.saveTimer);
+            t.saveTimer = null;
+            updateBar(video.dataset.sourcerecordid, mergeSegments(t.segments), video.duration);
+            saveSegments(video);
+        });
+    }
+
+    // Capture-phase delegation: handles play for lazy-loaded videos.
+    document.addEventListener('play', function(e) {
+        var video = e.target;
+        if (video.tagName !== 'VIDEO' || !video.dataset.sourcerecordid) { return; }
+        setupTracking(video);
+        var key = video.dataset.sourcerecordid + '_' + video.dataset.cmid;
+        var t = trackers[key];
+        t.segStart = video.currentTime;
+        t.lastTime = video.currentTime;
+        if (!t.saveTimer) {
+            t.saveTimer = setInterval(function() { saveSegments(video); }, 30000);
+        }
+        if (!t.played) {
+            t.played = true;
+            Ajax.call([{
+                methodname: 'mod_jitsi_log_recording_view',
+                args: {
+                    sourcerecordid: parseInt(video.dataset.sourcerecordid, 10),
+                    cmid:           parseInt(video.dataset.cmid, 10),
+                    milestone:      0
+                }
+            }]);
+        }
+    }, true);
+
+    document.querySelectorAll('video[data-sourcerecordid]').forEach(setupTracking);
+
+    // Track clicks on non-embeddable recording links (8x8, external, Jibri).
+    document.addEventListener('click', function(e) {
+        var link = e.target.closest('.jitsi-recording-link');
+        if (!link || !link.dataset.sourcerecordid) { return; }
+        var key = link.dataset.sourcerecordid + '_' + link.dataset.cmid;
+        if (linkClicked[key]) { return; }
+        linkClicked[key] = true;
+        Ajax.call([{
+            methodname: 'mod_jitsi_log_recording_view',
+            args: {
+                sourcerecordid: parseInt(link.dataset.sourcerecordid, 10),
+                cmid:           parseInt(link.dataset.cmid, 10),
+                milestone:      0
+            }
+        }]);
+    });
+});
+");
+
 echo $OUTPUT->footer();

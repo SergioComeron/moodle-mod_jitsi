@@ -104,7 +104,7 @@ if ($fromform = $mform->get_data()) {
     $fromdate = optional_param('fromdate', mktime(0, 0, 0, 1, 1, date('Y')), PARAM_INT);
     $todate   = optional_param(
         'todate',
-        mktime(0, 0, 0, (int)date('m'), (int)date('d') - 1, (int)date('Y')),
+        mktime(23, 59, 59, (int)date('m'), (int)date('d'), (int)date('Y')),
         PARAM_INT
     );
 }
@@ -306,6 +306,251 @@ if ((!$hasanydata && !$livequery) || empty($rows)) {
         'dataformat',
         ['id' => $id, 'fromdate' => $fromdate, 'todate' => $todate, 'sort' => $sort]
     );
+}
+
+// Recording views section — one card per GCS recording in this activity.
+$allrecordings = $DB->get_records_sql(
+    "SELECT sr.id, sr.link, sr.timecreated, sr.embed, r.name AS recordname
+       FROM {jitsi_source_record} sr
+       JOIN {jitsi_record} r ON r.source = sr.id
+       JOIN {jitsi} j ON j.id = r.jitsi
+       JOIN {course_modules} cm ON cm.instance = j.id
+      WHERE cm.id = :cmid AND sr.link IS NOT NULL
+      ORDER BY sr.timecreated ASC",
+    ['cmid' => $cm->id]
+);
+// Recordings with an embedded player (GCS or Dropbox-with-embed): full segment tracking.
+$gcsrecordings = array_filter(
+    $allrecordings,
+    fn($r) => strpos($r->link, 'storage.googleapis.com') !== false
+        || (!empty($r->embed) && strpos($r->link, 'dropbox.com') !== false)
+);
+// Link-only recordings (8x8, external, Jibri): track clicks only.
+$linkrecordings = array_filter(
+    $allrecordings,
+    fn($r) => strpos($r->link, 'storage.googleapis.com') === false
+        && !(!empty($r->embed) && strpos($r->link, 'dropbox.com') !== false)
+);
+
+if (!empty($gcsrecordings)) {
+    echo html_writer::start_tag('div', ['class' => 'card mb-4']);
+    echo html_writer::start_tag('div', ['class' => 'card-header']);
+    echo html_writer::tag('h3', get_string('recordingviews', 'jitsi'), ['class' => 'mb-0']);
+    echo html_writer::end_tag('div');
+    echo html_writer::start_tag('div', ['class' => 'card-body']);
+
+    $eventname = '\\mod_jitsi\\event\\recording_viewed';
+
+    foreach ($gcsrecordings as $idx => $rec) {
+        $recnum = $idx + 1;
+        $recname = !empty($rec->recordname) ? format_string($rec->recordname) : get_string('recordingnumber', 'jitsi', $recnum);
+        $rectitle = $recname . ' — ' . userdate($rec->timecreated, get_string('strftimedatetimeshort', 'langconfig'));
+
+        // Fetch all events for this recording and aggregate per user in PHP.
+        $rs = $DB->get_recordset_sql(
+            "SELECT userid, other, timecreated
+               FROM {logstore_standard_log}
+              WHERE contextid = :contextid
+                    AND eventname = :eventname
+                    AND objectid = :sourcerecordid
+                    AND timecreated BETWEEN :fromts AND :tots
+           ORDER BY timecreated ASC",
+            [
+                'contextid'      => $context->id,
+                'eventname'      => $eventname,
+                'sourcerecordid' => $rec->id,
+                'fromts'         => $fromdate,
+                'tots'           => $todate,
+            ]
+        );
+
+        $byuser = [];
+        foreach ($rs as $ev) {
+            $uid       = $ev->userid;
+            $other     = json_decode($ev->other ?? '{}', true);
+            $milestone = (int)($other['milestone'] ?? 0);
+            if (!isset($byuser[$uid])) {
+                $byuser[$uid] = [
+                    'userid'    => $uid,
+                    'plays'     => 0,
+                    'm25'       => 0,
+                    'm50'       => 0,
+                    'm75'       => 0,
+                    'm100'      => 0,
+                    'firstview' => $ev->timecreated,
+                    'lastview'  => $ev->timecreated,
+                ];
+            }
+            if ($milestone === 0) {
+                $byuser[$uid]['plays']++;
+            }
+            if ($milestone >= 25) {
+                $byuser[$uid]['m25'] = 1;
+            }
+            if ($milestone >= 50) {
+                $byuser[$uid]['m50'] = 1;
+            }
+            if ($milestone >= 75) {
+                $byuser[$uid]['m75'] = 1;
+            }
+            if ($milestone >= 100) {
+                $byuser[$uid]['m100'] = 1;
+            }
+            $byuser[$uid]['firstview'] = min($byuser[$uid]['firstview'], $ev->timecreated);
+            $byuser[$uid]['lastview']  = max($byuser[$uid]['lastview'], $ev->timecreated);
+        }
+        $rs->close();
+        $viewrows = array_map(fn($v) => (object)$v, $byuser);
+
+        $totalplays    = array_sum(array_column($byuser, 'plays'));
+        $uniqueviewers = count($byuser);
+
+        echo html_writer::start_tag('div', ['class' => 'mb-4']);
+        echo html_writer::tag('h5', format_string($rectitle), ['class' => 'mb-2']);
+
+        echo html_writer::start_tag('div', ['class' => 'row mb-2']);
+        foreach (
+            [
+            [get_string('totalplays', 'jitsi'), $totalplays],
+            [get_string('uniqueviewers', 'jitsi'), $uniqueviewers],
+            ] as $card
+        ) {
+            echo html_writer::start_tag('div', ['class' => 'col-md-3 col-sm-6 mb-2']);
+            echo html_writer::start_tag('div', ['class' => 'card text-center border-0 bg-light']);
+            echo html_writer::start_tag('div', ['class' => 'card-body py-2']);
+            echo html_writer::tag('div', $card[1], ['class' => 'h3 mb-0 fw-bold']);
+            echo html_writer::tag('div', $card[0], ['class' => 'text-muted small']);
+            echo html_writer::end_tag('div');
+            echo html_writer::end_tag('div');
+            echo html_writer::end_tag('div');
+        }
+        echo html_writer::end_tag('div');
+
+        // Load all segment rows for this recording in one query.
+        $segrows = $DB->get_records('jitsi_recording_segments', [
+            'sourcerecordid' => $rec->id,
+            'cmid'           => $cm->id,
+        ], '', 'userid, segments, duration');
+
+        if (!empty($viewrows)) {
+            $viewtable                      = new html_table();
+            $viewtable->attributes['class'] = 'generaltable table-sm';
+            $viewtable->head = [
+                get_string('name'),
+                get_string('totalplays', 'jitsi'),
+                get_string('watchprogress', 'jitsi'),
+                get_string('firstview', 'jitsi'),
+                get_string('lastview', 'jitsi'),
+            ];
+            foreach ($viewrows as $vrow) {
+                $user = $DB->get_record('user', ['id' => $vrow->userid], 'id, firstname, lastname');
+                if (!$user) {
+                    continue;
+                }
+                $userurl = new moodle_url('/user/view.php', ['id' => $vrow->userid, 'course' => $course->id]);
+
+                $segrow  = $segrows[$vrow->userid] ?? null;
+                $segs    = $segrow ? (json_decode($segrow->segments, true) ?? []) : [];
+                $dur     = $segrow ? (float)($segrow->duration ?? 0) : 0;
+                $pct     = jitsi_segments_watched_pct($segs, $dur);
+                $bar     = jitsi_render_segments_bar($segs, $dur);
+                $barcell = $bar . '<small class="text-muted">' . $pct . '%</small>';
+
+                $viewtable->data[] = [
+                    html_writer::link($userurl, fullname($user)),
+                    (int)$vrow->plays,
+                    $barcell,
+                    userdate($vrow->firstview, get_string('strftimedatetimeshort', 'langconfig')),
+                    userdate($vrow->lastview, get_string('strftimedatetimeshort', 'langconfig')),
+                ];
+            }
+            echo html_writer::table($viewtable);
+        } else {
+            echo html_writer::tag('p', get_string('recordingnoviews', 'jitsi'), ['class' => 'text-muted']);
+        }
+
+        echo html_writer::end_tag('div');
+
+        if ($idx < count($gcsrecordings) - 1) {
+            echo html_writer::empty_tag('hr');
+        }
+    }
+
+    echo html_writer::end_tag('div');
+    echo html_writer::end_tag('div');
+}
+
+if (!empty($linkrecordings)) {
+    $eventname = '\\mod_jitsi\\event\\recording_viewed';
+
+    echo html_writer::start_tag('div', ['class' => 'card mb-4']);
+    echo html_writer::start_tag('div', ['class' => 'card-header']);
+    echo html_writer::tag('h3', get_string('recordingaccesslog', 'jitsi'), ['class' => 'mb-0']);
+    echo html_writer::end_tag('div');
+    echo html_writer::start_tag('div', ['class' => 'card-body']);
+
+    foreach ($linkrecordings as $idx => $rec) {
+        $recname  = !empty($rec->recordname) ? format_string($rec->recordname) : get_string('recordingnumber', 'jitsi', $idx + 1);
+        $rectitle = $recname . ' — ' . userdate($rec->timecreated, get_string('strftimedatetimeshort', 'langconfig'));
+
+        $rs = $DB->get_recordset_sql(
+            "SELECT userid, MIN(timecreated) AS firstaccess
+               FROM {logstore_standard_log}
+              WHERE contextid  = :contextid
+                AND eventname  = :eventname
+                AND objectid   = :sourcerecordid
+                AND timecreated BETWEEN :fromts AND :tots
+           GROUP BY userid",
+            [
+                'contextid'      => $context->id,
+                'eventname'      => $eventname,
+                'sourcerecordid' => $rec->id,
+                'fromts'         => $fromdate,
+                'tots'           => $todate,
+            ]
+        );
+
+        $accessed = [];
+        foreach ($rs as $row) {
+            $accessed[$row->userid] = $row->firstaccess;
+        }
+        $rs->close();
+
+        echo html_writer::start_tag('div', ['class' => 'mb-4']);
+        echo html_writer::tag('h5', format_string($rectitle), ['class' => 'mb-2']);
+
+        if (!empty($accessed)) {
+            $linktable                      = new html_table();
+            $linktable->attributes['class'] = 'generaltable table-sm';
+            $linktable->head = [
+                get_string('name'),
+                get_string('firstview', 'jitsi'),
+            ];
+            foreach ($accessed as $uid => $ts) {
+                $user = $DB->get_record('user', ['id' => $uid], 'id, firstname, lastname');
+                if (!$user) {
+                    continue;
+                }
+                $userurl = new moodle_url('/user/view.php', ['id' => $uid, 'course' => $course->id]);
+                $linktable->data[] = [
+                    html_writer::link($userurl, fullname($user)),
+                    userdate($ts, get_string('strftimedatetimeshort', 'langconfig')),
+                ];
+            }
+            echo html_writer::table($linktable);
+        } else {
+            echo html_writer::tag('p', get_string('recordingnoviews', 'jitsi'), ['class' => 'text-muted']);
+        }
+
+        echo html_writer::end_tag('div');
+
+        if ($idx < count($linkrecordings) - 1) {
+            echo html_writer::empty_tag('hr');
+        }
+    }
+
+    echo html_writer::end_tag('div');
+    echo html_writer::end_tag('div');
 }
 
 echo $OUTPUT->footer();

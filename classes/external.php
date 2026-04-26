@@ -2000,4 +2000,207 @@ class mod_jitsi_external extends external_api {
             ),
         ]);
     }
+
+    /**
+     * Parameters for log_recording_view.
+     * @return external_function_parameters
+     */
+    public static function log_recording_view_parameters() {
+        return new external_function_parameters([
+            'sourcerecordid' => new external_value(PARAM_INT, 'jitsi_source_record id'),
+            'cmid'           => new external_value(PARAM_INT, 'Course module id'),
+            'milestone'      => new external_value(PARAM_INT, 'Percentage milestone: 0=play, 25, 50, 75, 100', VALUE_DEFAULT, 0),
+        ]);
+    }
+
+    /**
+     * Log that the current user played or reached a milestone in a GCS recording.
+     *
+     * @param int $sourcerecordid
+     * @param int $cmid
+     * @param int $milestone 0=play start, 25/50/75/100=percentage reached
+     * @return array
+     */
+    public static function log_recording_view($sourcerecordid, $cmid, $milestone = 0) {
+        global $DB;
+
+        $params = self::validate_parameters(self::log_recording_view_parameters(), [
+            'sourcerecordid' => $sourcerecordid,
+            'cmid'           => $cmid,
+            'milestone'      => $milestone,
+        ]);
+
+        if (!in_array($params['milestone'], [0, 25, 50, 75, 100])) {
+            return ['success' => false];
+        }
+
+        $context = context_module::instance($params['cmid']);
+        self::validate_context($context);
+        require_capability('mod/jitsi:view', $context);
+
+        $exists = $DB->record_exists_sql(
+            "SELECT 1 FROM {jitsi_source_record} sr
+               JOIN {jitsi_record} r ON r.source = sr.id
+               JOIN {jitsi} j ON j.id = r.jitsi
+               JOIN {course_modules} cm ON cm.instance = j.id
+              WHERE sr.id = :srid AND cm.id = :cmid",
+            ['srid' => $params['sourcerecordid'], 'cmid' => $params['cmid']]
+        );
+
+        if (!$exists) {
+            return ['success' => false];
+        }
+
+        $event = \mod_jitsi\event\recording_viewed::create([
+            'context'  => $context,
+            'objectid' => $params['sourcerecordid'],
+            'other'    => ['milestone' => $params['milestone']],
+        ]);
+        $event->trigger();
+
+        return ['success' => true];
+    }
+
+    /**
+     * Returns for log_recording_view.
+     * @return external_description
+     */
+    public static function log_recording_view_returns() {
+        return new external_single_structure([
+            'success' => new external_value(PARAM_BOOL, 'Whether the event was logged'),
+        ]);
+    }
+
+    /**
+     * Parameters for save_recording_segments.
+     * @return external_function_parameters
+     */
+    public static function save_recording_segments_parameters() {
+        return new external_function_parameters([
+            'sourcerecordid' => new external_value(PARAM_INT, 'jitsi_source_record id'),
+            'cmid'           => new external_value(PARAM_INT, 'Course module id'),
+            'segments'       => new external_value(PARAM_TEXT, 'JSON array of [start,end] pairs in seconds'),
+            'duration'       => new external_value(PARAM_FLOAT, 'Video duration in seconds'),
+        ]);
+    }
+
+    /**
+     * Save and merge watched segments for a GCS recording.
+     *
+     * @param int    $sourcerecordid
+     * @param int    $cmid
+     * @param string $segments JSON [[start,end],...]
+     * @param float  $duration video duration in seconds
+     * @return array
+     */
+    public static function save_recording_segments($sourcerecordid, $cmid, $segments, $duration) {
+        global $DB, $USER;
+
+        $params = self::validate_parameters(self::save_recording_segments_parameters(), [
+            'sourcerecordid' => $sourcerecordid,
+            'cmid'           => $cmid,
+            'segments'       => $segments,
+            'duration'       => $duration,
+        ]);
+
+        $context = context_module::instance($params['cmid']);
+        self::validate_context($context);
+        require_capability('mod/jitsi:view', $context);
+
+        $exists = $DB->record_exists_sql(
+            "SELECT 1 FROM {jitsi_source_record} sr
+               JOIN {jitsi_record} r ON r.source = sr.id
+               JOIN {jitsi} j ON j.id = r.jitsi
+               JOIN {course_modules} cm ON cm.instance = j.id
+              WHERE sr.id = :srid AND cm.id = :cmid",
+            ['srid' => $params['sourcerecordid'], 'cmid' => $params['cmid']]
+        );
+        if (!$exists) {
+            return ['success' => false, 'segments' => '[]'];
+        }
+
+        $newsegments = json_decode($params['segments'], true);
+        if (!is_array($newsegments)) {
+            return ['success' => false, 'segments' => '[]'];
+        }
+
+        $existing = $DB->get_record('jitsi_recording_segments', [
+            'userid'         => $USER->id,
+            'sourcerecordid' => $params['sourcerecordid'],
+            'cmid'           => $params['cmid'],
+        ]);
+
+        $allsegs = $newsegments;
+        if ($existing) {
+            $stored = json_decode($existing->segments, true);
+            if (is_array($stored)) {
+                $allsegs = array_merge($stored, $newsegments);
+            }
+        }
+
+        $merged     = self::merge_segments($allsegs, (float)$params['duration']);
+        $mergedjson = json_encode($merged);
+
+        if ($existing) {
+            $existing->segments     = $mergedjson;
+            $existing->duration     = (float)$params['duration'];
+            $existing->timemodified = time();
+            $DB->update_record('jitsi_recording_segments', $existing);
+        } else {
+            $DB->insert_record('jitsi_recording_segments', (object)[
+                'userid'         => $USER->id,
+                'sourcerecordid' => $params['sourcerecordid'],
+                'cmid'           => $params['cmid'],
+                'segments'       => $mergedjson,
+                'duration'       => (float)$params['duration'],
+                'timecreated'    => time(),
+                'timemodified'   => time(),
+            ]);
+        }
+
+        return ['success' => true, 'segments' => $mergedjson];
+    }
+
+    /**
+     * Merge and clamp an array of [start,end] segments.
+     *
+     * @param array $segments
+     * @param float $duration
+     * @return array
+     */
+    private static function merge_segments(array $segments, float $duration): array {
+        $segments = array_values(array_filter($segments, function ($s) use ($duration) {
+            return is_array($s) && count($s) === 2
+                && is_numeric($s[0]) && is_numeric($s[1])
+                && $s[1] > $s[0] && $s[0] >= 0
+                && ($duration <= 0 || $s[1] <= $duration + 2);
+        }));
+        if (empty($segments)) {
+            return [];
+        }
+        usort($segments, fn($a, $b) => $a[0] <=> $b[0]);
+        $merged = [[(float)$segments[0][0], (float)$segments[0][1]]];
+        for ($i = 1; $i < count($segments); $i++) {
+            $last = &$merged[count($merged) - 1];
+            $s0 = (float)$segments[$i][0];
+            $s1 = (float)$segments[$i][1];
+            if ($s0 <= $last[1]) {
+                $last[1] = max($last[1], $s1);
+            } else {
+                $merged[] = [$s0, $s1];
+            }
+        }
+        return $merged;
+    }
+
+    /**
+     * Returns for save_recording_segments.
+     * @return external_description
+     */
+    public static function save_recording_segments_returns() {
+        return new external_single_structure([
+            'success'  => new external_value(PARAM_BOOL, 'Whether segments were saved'),
+            'segments' => new external_value(PARAM_TEXT, 'Merged segments as JSON'),
+        ]);
+    }
 }
