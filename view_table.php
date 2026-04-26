@@ -284,10 +284,12 @@ class mod_view_table extends table_sql {
                         . '<div class="accordion-item border-0">'
                         . '<h2 class="accordion-header">'
                         . '<button class="accordion-button"'
-                        . ' style="font-size:0.9em;padding:0.5rem 1rem;background:none"'
+                        . ' style="font-size:0.8em;padding:0.3rem 0.75rem;background:none"'
                         . ' type="button" data-bs-toggle="collapse"'
                         . ' data-bs-target="#' . s($aiid) . '-body">'
-                        . '&#10024; ' . get_string('aitools', 'jitsi')
+                        . '<i class="fa fa-wand-magic-sparkles text-primary me-1"'
+                        . ' aria-hidden="true"></i>'
+                        . get_string('aitools', 'jitsi')
                         . '</button></h2>'
                         . '<div id="' . s($aiid) . '-body" class="accordion-collapse collapse show">'
                         . '<div class="accordion-body pt-1 pb-2">'
