@@ -443,7 +443,8 @@ if (!empty($gcsrecordings)) {
                 get_string('lastview', 'jitsi'),
             ];
             foreach ($viewrows as $vrow) {
-                $user = $DB->get_record('user', ['id' => $vrow->userid], 'id, firstname, lastname, firstnamephonetic, lastnamephonetic, middlename, alternatename');
+                $namefields = 'id, firstname, lastname, firstnamephonetic, lastnamephonetic, middlename, alternatename';
+                $user = $DB->get_record('user', ['id' => $vrow->userid], $namefields);
                 if (!$user) {
                     continue;
                 }
@@ -527,7 +528,8 @@ if (!empty($linkrecordings)) {
                 get_string('firstview', 'jitsi'),
             ];
             foreach ($accessed as $uid => $ts) {
-                $user = $DB->get_record('user', ['id' => $uid], 'id, firstname, lastname, firstnamephonetic, lastnamephonetic, middlename, alternatename');
+                $namefields = 'id, firstname, lastname, firstnamephonetic, lastnamephonetic, middlename, alternatename';
+                $user = $DB->get_record('user', ['id' => $uid], $namefields);
                 if (!$user) {
                     continue;
                 }
