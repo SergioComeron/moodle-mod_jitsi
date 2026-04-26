@@ -173,25 +173,29 @@ class mod_view_table extends table_sql {
                         . ' data-method="mod_jitsi_queue_ai_summary"'
                         . ' data-sourcerecordid="' . (int)$sourcerecord->id . '"'
                         . ' data-cmid="' . (int)$cm->id . '">'
-                        . '&#10024; ' . get_string('generateaisummary', 'jitsi') . '</a></li>';
+                        . '<i class="fa fa-align-left me-1" aria-hidden="true"></i>'
+                        . get_string('generateaisummary', 'jitsi') . '</a></li>';
                 }
                 if ($cangenquiz && $quizid <= 0) {
                     $aidropdownitems .= '<li><a class="dropdown-item jitsi-ai-generate" href="#"'
                         . ' data-method="mod_jitsi_queue_ai_quiz"'
                         . ' data-sourcerecordid="' . (int)$sourcerecord->id . '"'
                         . ' data-cmid="' . (int)$cm->id . '">'
-                        . '&#128221; ' . get_string('aiquizgenerate', 'jitsi') . '</a></li>';
+                        . '<i class="fa fa-list-check me-1" aria-hidden="true"></i>'
+                        . get_string('aiquizgenerate', 'jitsi') . '</a></li>';
                 }
                 if ($cangentrans && !$transcriptiondone) {
                     if ($transcriptionstatus === 'pending') {
                         $aidropdownitems .= '<li><span class="dropdown-item disabled">'
-                            . '&#127908; ' . get_string('aitranscriptionqueued', 'jitsi') . '</span></li>';
+                            . '<i class="fa fa-microphone me-1" aria-hidden="true"></i>'
+                            . get_string('aitranscriptionqueued', 'jitsi') . '</span></li>';
                     } else {
                         $aidropdownitems .= '<li><a class="dropdown-item jitsi-ai-generate" href="#"'
                             . ' data-method="mod_jitsi_queue_ai_transcription"'
                             . ' data-sourcerecordid="' . (int)$sourcerecord->id . '"'
                             . ' data-cmid="' . (int)$cm->id . '">'
-                            . '&#127908; ' . get_string('generateaitranscription', 'jitsi') . '</a></li>';
+                            . '<i class="fa fa-microphone me-1" aria-hidden="true"></i>'
+                            . get_string('generateaitranscription', 'jitsi') . '</a></li>';
                     }
                 }
                 $aidropdown = '';
@@ -281,23 +285,12 @@ class mod_view_table extends table_sql {
                             . ' id="' . s($tab['id']) . '" role="tabpanel">'
                             . $tab['content'] . '</div>';
                     }
-                    $aiaccordion = '<div class="accordion mt-2 border rounded" id="' . s($aiid) . '">'
-                        . '<div class="accordion-item border-0">'
-                        . '<h2 class="accordion-header">'
-                        . '<button class="accordion-button"'
-                        . ' style="font-size:0.8em;padding:0.3rem 0.75rem;background:none"'
-                        . ' type="button" data-bs-toggle="collapse"'
-                        . ' data-bs-target="#' . s($aiid) . '-body">'
-                        . '<i class="fa fa-wand-magic-sparkles text-primary me-1"'
-                        . ' aria-hidden="true"></i>'
-                        . get_string('aitools', 'jitsi')
-                        . '</button></h2>'
-                        . '<div id="' . s($aiid) . '-body" class="accordion-collapse collapse show">'
-                        . '<div class="accordion-body pt-1 pb-2">'
-                        . '<ul class="nav nav-tabs nav-sm mb-0" role="tablist">' . $navtabs . '</ul>'
-                        . '<div class="tab-content p-2 border border-top-0 rounded-bottom bg-light">'
+                    $aiaccordion = '<div class="mt-2 border rounded">'
+                        . '<ul class="nav nav-tabs nav-sm mb-0 px-2 pt-1" role="tablist">'
+                        . $navtabs . '</ul>'
+                        . '<div class="tab-content p-2 bg-light rounded-bottom">'
                         . $tabpanes . '</div>'
-                        . '</div></div></div></div>';
+                        . '</div>';
                 }
 
                 // Load existing watched segments for this user to pre-render the bar.
