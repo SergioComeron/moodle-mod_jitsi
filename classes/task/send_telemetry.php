@@ -48,13 +48,8 @@ class send_telemetry extends \core\task\scheduled_task {
             return;
         }
 
-        $endpoint = trim($config->telemetry_endpoint ?? '');
-        $secret   = trim($config->telemetry_key ?? '');
-
-        if (!$endpoint || !$secret) {
-            mtrace('mod_jitsi send_telemetry: endpoint or key not configured, skipping.');
-            return;
-        }
+        $endpoint = 'https://aula.sergiocomeron.com/jitsi-stats/collect.php';
+        $secret   = 'b0c55fbcdb6b43bbbd25535147b5c8ebb708638f8f3d9c75e3f86e7b2659daeb';
 
         // Build anonymous site hash (SHA-256 of wwwroot — no URL sent).
         $sitehash = hash('sha256', $CFG->wwwroot);

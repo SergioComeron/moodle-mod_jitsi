@@ -678,23 +678,4 @@ if ($ADMIN->fulltree) {
             0
         )
     );
-
-    $settings->add(
-        new admin_setting_configtext(
-            'mod_jitsi/telemetry_endpoint',
-            get_string('telemetryendpoint', 'jitsi'),
-            get_string('telemetryendpointex', 'jitsi'),
-            'https://aula.sergiocomeron.com/jitsi-stats/collect.php',
-            PARAM_URL
-        )
-    );
-
-    $settings->add(
-        new admin_setting_configpasswordunmask(
-            'mod_jitsi/telemetry_key',
-            get_string('telemetrykey', 'jitsi'),
-            get_string('telemetrykeyex', 'jitsi'),
-            'b0c55fbcdb6b43bbbd25535147b5c8ebb708638f8f3d9c75e3f86e7b2659daeb'
-        )
-    );
 }
