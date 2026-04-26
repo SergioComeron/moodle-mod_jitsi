@@ -28,7 +28,6 @@ namespace mod_jitsi\task;
  * Sends anonymous usage data to the developer if the admin has opted in.
  */
 class send_telemetry extends \core\task\scheduled_task {
-
     /**
      * Returns the task name.
      * @return string
