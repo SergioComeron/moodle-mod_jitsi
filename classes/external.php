@@ -2169,7 +2169,7 @@ class mod_jitsi_external extends external_api {
      * @return array
      */
     private static function merge_segments(array $segments, float $duration): array {
-        $segments = array_values(array_filter($segments, function($s) use ($duration) {
+        $segments = array_values(array_filter($segments, function ($s) use ($duration) {
             return is_array($s) && count($s) === 2
                 && is_numeric($s[0]) && is_numeric($s[1])
                 && $s[1] > $s[0] && $s[0] >= 0
