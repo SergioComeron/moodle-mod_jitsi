@@ -88,16 +88,17 @@ class send_telemetry extends \core\task\scheduled_task {
         }
 
         $payload = [
-            'site_hash'       => $sitehash,
-            'plugin_version'  => (int)($config->version ?? 0),
-            'moodle_branch'   => (int)$CFG->branch,
-            'server_type'     => $servertype,
-            'activity_count'  => (int)$DB->count_records('jitsi'),
-            'ai_enabled'      => !empty($config->aienabled),
-            'jibri_enabled'   => $DB->record_exists_select('jitsi_servers', "jibri_enabled = 1"),
+            'site_hash'        => $sitehash,
+            'license_key'      => $config->portal_license_key,
+            'plugin_version'   => (int)($config->version ?? 0),
+            'moodle_branch'    => (int)$CFG->branch,
+            'server_type'      => $servertype,
+            'activity_count'   => (int)$DB->count_records('jitsi'),
+            'ai_enabled'       => !empty($config->aienabled),
+            'jibri_enabled'    => $DB->record_exists_select('jitsi_servers', "jibri_enabled = 1"),
             'private_sessions' => !empty($config->enableprivatesessions),
-            'push_enabled'    => !empty($config->enablepushnotifications),
-            'site_timezone'   => $CFG->timezone ?? date_default_timezone_get(),
+            'push_enabled'     => !empty($config->enablepushnotifications),
+            'site_timezone'    => $CFG->timezone ?? date_default_timezone_get(),
         ];
 
         $curl = curl_init($endpoint);
