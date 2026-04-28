@@ -18,6 +18,9 @@ Glad to see you here again. These are some of the Jitsi features inside Moodle y
 * Moodle profile pictures used as avatar in webconference
 * Guest URLs for users in other courses or out of Moodle
 * **Private 1-on-1 sessions** — call any coursemate directly from their Moodle profile, with call history and instant notification
+* **Attendance report** — detailed per-activity report with time-on-session per student, recording view tracking and access log *(requires mod_jitsi Account)*
+* **Recording view tracking** — progress bars showing exactly which parts of each video each student has watched, persisted between sessions *(requires mod_jitsi Account)*
+* **Session usage statistics** — site-wide aggregated stats (sessions, participants, recordings) with daily breakdown *(requires mod_jitsi Account)*
 * HD Audio Video
 * Multiple participants can share their screen simultaneusly
 * Tile view
@@ -49,6 +52,7 @@ Most of them are available at the activity level so a teachers can override some
 - **Record session** (mod/jitsi:record): allow to start recordings. You could create Jitsi Sessions where students could record themselves.
 - **View Jitsi** (mod/jitsi:view): set the users who can see and access Jitsi activities in the course view.
 - **Access to the attendees reports** (mod/jitsi:viewuseronsession): you may want to allow students from access to attendees reports.
+- **Access to the attendance report** (mod/jitsi:viewattendance): allows teachers to access the detailed attendance report with recording view tracking. Requires mod_jitsi Account.
 
 ## Streaming configuration
 
@@ -521,6 +525,59 @@ The plugin's `privacy/provider.php` declares:
 - The `jitsi_source_record` database table storing AI-generated outputs.
 
 For a full list of data exported and deleted per user, see the Moodle Privacy API integration in `classes/privacy/provider.php`.
+
+## mod_jitsi Account
+
+Some features require registering your Moodle installation at the **mod_jitsi Account** portal ([portal.sergiocomeron.com](https://portal.sergiocomeron.com)). Registration is free and takes less than a minute.
+
+### Features that require registration
+
+| Feature | Description |
+|---------|-------------|
+| Attendance report | Detailed per-activity report: time on session, recording views, access log |
+| Recording view tracking | Progress bars showing which parts of each video each student has watched |
+| Session usage statistics | Site-wide aggregated stats with daily breakdown |
+
+### How to register
+
+1. Go to **Site administration > Plugins > Activity modules > Jitsi**
+2. In the **mod_jitsi Account** section at the top, enter your email and click **Register & enable**
+3. Check your email and complete registration at the portal
+4. Return to the settings page — it will automatically detect your registration and activate the features
+
+### What data is collected
+
+When you register, the following information is stored:
+- Your email address
+- Your Moodle site name and URL
+- An anonymous hash of your site URL (for telemetry)
+
+If you also enable the optional **Share usage data** setting, a weekly anonymous ping is sent containing: server type, Moodle version, plugin version, activity count, and which optional features are enabled. No user data, course data or session content is ever sent.
+
+See the [Privacy Policy](https://portal.sergiocomeron.com/privacy.php) for full details.
+
+## Attendance Report
+
+The attendance report (`mod/jitsi:viewattendance`) provides teachers with a detailed breakdown of student participation in each Jitsi activity. It is accessible from the activity's secondary navigation.
+
+### What the report shows
+
+- **Time on session** — total minutes each student spent in live sessions, aggregated across all sessions in the activity
+- **Recording views** — for GCS and Dropbox recordings: a visual progress bar showing exactly which segments of each recording the student has watched and the percentage watched
+- **Recording access log** — for non-embeddable recordings (8x8, external links): a log of when each student clicked to open the recording
+
+### Requirements
+
+- The `mod/jitsi:viewattendance` capability (granted to teachers by default)
+- A registered mod_jitsi Account
+
+## Session Usage Statistics
+
+The session usage statistics page (`/mod/jitsi/sessionusagestats.php`) provides site administrators with an aggregated view of Jitsi usage across the entire Moodle site.
+
+Stats are pre-computed nightly by the `aggregate_usage_stats` scheduled task and include daily breakdowns of sessions, unique participants, total minutes and recordings. A live report can also be generated directly from the activity log.
+
+Requires a registered mod_jitsi Account.
 
 ## Disclaimer
 
