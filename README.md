@@ -83,60 +83,52 @@ These are the permissions populated by default with the plugin. Most of them are
 - **Generate AI transcription** (mod/jitsi:generateaitranscription): allows generating AI transcriptions for GCS recordings. Requires AI features to be enabled.
 - **Access to the attendance report** (mod/jitsi:viewattendance): allows teachers to access the detailed attendance report with recording view tracking. Requires mod_jitsi Account.
 
-## Streaming configuration
+## Recording configuration
 
-"Out of the box" teachers can stream and record sessions using their own YouTube accounts. They just need to create a "Go Live" streaming in YouTube and copy the "stream key"  in the "Start  live stream" Jitsi interface and later the teacher can publish the link to the recording in his YouTube channel. That's easy but maybe your teachers haven't YouTube accounts or these are not allowed to stream (YouTube must approve this feature).
+The plugin supports several recording methods. Choose the one that best fits your infrastructure.
 
-For a better experience you can configure the plugin to stream and record in corporate YouTube accounts that previously you prepare to work in that way and your teachers just need to click in the "Record and Streaming" switch.
+### GCP auto-managed with Jibri (recommended)
 
-![record-switch](doc/pix/record-switch.png)
+The most integrated recording option. When using a **GCP auto-managed server** (Type 3), the plugin automatically provisions a dedicated **Jibri** recording VM alongside the Jitsi server. Recordings are saved directly to **Google Cloud Storage (GCS)** and published automatically in the activity's Recordings tab — no YouTube account or manual intervention required.
 
-With this advance configuration, recordings will be automatically published to students and teacher can edit the title of every recording. One Jitsi activity can have many recordings.
+This method also unlocks **AI features** (summary, quiz, transcription) powered by Google Vertex AI (Gemini), since recordings are stored in GCS.
 
-Recordings will remain on "unlisted" mode in the YouTube accounts so nobody will find them searching in YouTube but there is no way to stop your students from posting the url somewhere unwanted. Your teachers should be warned about it.
+To use this method, set up a GCP auto-managed server (see the GCP section below). Recording and AI features are enabled automatically once Jibri is provisioned.
 
-![recordings](doc/pix/recordings.png)
+### YouTube Moodle-integrated
 
-Teachers can hide or deleted the recordings in the Jitsi activities but only administrators can order to completely delete the recording in YouTube. This is because backup and restore tasks with user data could cause a recording to be available in different courses (or different Moodle environments). Now an scheduled task is configured by default in order to  remove recordings in YouTube. You can set the retention period for this automatic deletion task.
+Configure the plugin to record sessions to corporate YouTube accounts. Teachers just need to click the **Record and Streaming** switch — recordings are automatically published as unlisted videos and embedded in the activity's Recordings tab. One Jitsi activity can have many recordings.
 
-All the magic works using **YouTube v3 APIs** in order to:
+Recordings are stored as unlisted videos in YouTube. Teachers can hide or delete recordings from the activity; only administrators can permanently delete them from YouTube. A scheduled task handles automatic deletion based on a configurable retention period.
 
+This method uses **YouTube v3 APIs** to:
 - create live streaming sessions on the fly
-- set recordings with "embed" properties to display inside Moodle
-- delete recordings when they are no longer needed
+- embed recordings inside Moodle
+- delete recordings when no longer needed
 
-So you need to configure your own OAuth 2.0 Client IDs in the Google Cloud Platform and connect one or more YouTube accounts. 
+**Note**: recordings remain unlisted on YouTube but there is no way to prevent students from sharing the URL externally. Teachers should be aware of this.
 
-Only ONE YouTube account can be set as "in use", and all the streamings in your Moodle will be saved there. 
+Multiple YouTube accounts can be configured — only one is active at a time, but having extras available is useful if YouTube restricts a specific account.
 
-Why it's allowed to set up several YouTube accounts? YouTube is unpredictable and we don't know if in the future they could establish quotas for "unlisted" videos or if in some moment they decide to restrict your Live Stream permission caused for reputation problems in some teacher recording (a teacher doesn't should stream Rolling Stones concerts). If  this happens, it is a good idea to have some extra accounts set up... just in case.
+#### Set up your OAuth 2.0 Client ID in Google Cloud
 
-### Set up your OAuth 2.0 Client ID in Google Cloud
+1. Prepare one or more YouTube accounts with live streaming enabled (requires phone verification and a 24-hour wait)
+2. Create a project in [Google Cloud Console](https://console.cloud.google.com) and enable the **YouTube Data API v3**
+3. Create OAuth 2.0 credentials for a **Web application**, adding the redirect URI shown in the Jitsi plugin settings (e.g. `https://your_moodle_domain/mod/jitsi/auth.php`)
+4. Add your YouTube accounts as **Test users** in the OAuth consent screen
+5. Copy the **Client ID** and **Client Secret** to the Jitsi plugin settings in Moodle
+6. In Moodle, add and authorise your Streaming/Recording Accounts
+7. Enable **Live stream** and select **Moodle Integrated** as the Live Streaming Method
 
-We recommend to use different Google accounts for your OAuth2 client and for your YouTube accounts. If you are just testing you can use the same account.
+**Google Workspace users**: set the "User type" in the OAuth consent screen to **INTERNAL** — no test users are needed and tokens never expire. This is the easiest setup if your institution uses Google Workspace.
 
-On few steps... you must
+**Important**: never delete the OAuth credentials in Google Cloud — doing so will remove all recordings from the associated YouTube accounts.
 
-- prepare one or two YouTube accounts with live streaming features enabled (requires register a phone and wait for 24 hours)
-- create a new project in Google Console (https://console.cloud.google.com)
-- access to "APIs and services" and enable "youtube data api v3"
-- create OAuth2 credentials for a "Web application" adding the "Authorized redirect URIs" you will find in the Jitsi configuration plugin in the "OAuth2 id" instructions... (something like this **`https://your_moodle_domain/mod/jitsi/auth.php`** )
-- add your YouTube accounts as "Test users" in the "OAuth2 consent screen"
-- Copy "Your Client ID" and "Your Client Secret" to Jitsi config in Moodle
-- In Moodle add and authorize your Streaming/Recording Accounts (YouTube accounts)
-- In Moodle enable "Live stream" and select "Moodle Integrated" as "Live Streaming Method"
+In Testing mode, authorisations expire after 7 days. Consider publishing the app or using the Google Workspace internal mode for production. See [Google's documentation](https://support.google.com/cloud/answer/10311615) for details.
 
-At this moment you have set up an EXTERNAL app in "Testing" and now you can try if everything is working as expected.
+### YouTube manual (teacher's own account)
 
-We have recorded a screencast with the "how to":
-
-https://youtu.be/BFHMsQYDprA
-
-You should consider to get the status of "Publish App"  because in "Testing", authorizations expire in 7 days and the integrated switch to start recordings will disappear. In that case, as an administrator you should re-authorize your  Streaming/Recording YouTube account. You should read about the limitations when "Testing" status. https://support.google.com/cloud/answer/10311615#publishing-status&zippy=%2Ctesting.
-
-**IMPORTANT**: if your institution has **Google Workspace the "User type" in the "OAuth consent screen" can be "INTERNAL"**. In this way, none "Test users" are required to be added and tokens will never expire. **Probably that's the easiest and fastest way to set up this and you don't need to request the "Publish App"**.
-
-**WARNING**: the credentials should never been deleted in the Google console because all the recordings done will be removed in all the YouTube accounts.
+Teachers can also stream using their own personal YouTube accounts by creating a "Go Live" stream and copying the stream key into the Jitsi interface. The recording link must then be published manually. This requires no plugin configuration but each teacher needs their own YouTube account with live streaming enabled.
 
 ## Dropbox and external recording links
 
