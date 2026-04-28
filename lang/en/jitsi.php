@@ -463,7 +463,7 @@ $string['telemetryenabled'] = 'Share anonymous usage data';
 $string['telemetryenabledex'] = 'When enabled, a weekly anonymous ping is sent to the plugin developer to help improve mod_jitsi.<br><br>
 <strong>What is sent:</strong> server type, Moodle version, plugin version, number of Jitsi activities, and which optional features are enabled (AI, recording, private sessions, push notifications).<br><br>
 <strong>What is NOT sent:</strong> your site URL, site name, user data, course data, session content, or any personal information. Your site is identified only by an irreversible anonymous hash — the original URL cannot be recovered from it.<br><br>
-Data is sent to <code>https://stats.sergiocomeron.com/collect.php</code>. This feature is disabled by default and can be turned off at any time.';
+Data is sent to <code>https://portal.sergiocomeron.com/collect.php</code>. This feature is disabled by default and can be turned off at any time.';
 $string['telemetryendpoint'] = 'Telemetry endpoint URL';
 $string['telemetryendpointex'] = 'URL of the server that receives the usage pings. Leave as default unless instructed otherwise.';
 $string['telemetryheading'] = 'Usage statistics (opt-in)';
