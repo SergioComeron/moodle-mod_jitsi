@@ -120,6 +120,14 @@ class send_telemetry extends \core\task\scheduled_task {
         if ($response === false) {
             mtrace('mod_jitsi send_telemetry: portal unreachable, skipping ping.');
         } else if ($httpcode === 200) {
+            $responsedata = json_decode($response, true);
+            if (!empty($responsedata['deactivated'])) {
+                unset_config('portal_email', 'mod_jitsi');
+                unset_config('portal_status', 'mod_jitsi');
+                unset_config('portal_license_key', 'mod_jitsi');
+                mtrace('mod_jitsi send_telemetry: account deactivated from portal, local config cleared.');
+                return;
+            }
             mtrace('mod_jitsi send_telemetry: ping sent successfully.');
         } else {
             mtrace('mod_jitsi send_telemetry: ping failed (HTTP ' . $httpcode . '): ' . $response);
