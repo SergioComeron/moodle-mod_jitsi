@@ -42,7 +42,12 @@ if (optional_param('cancel', 0, PARAM_INT)) {
 $email = optional_param('email', '', PARAM_EMAIL);
 if ($email && confirm_sesskey()) {
     $sitehash = hash('sha256', $CFG->wwwroot);
-    $payload  = json_encode(['email' => $email, 'site_hash' => $sitehash]);
+    $payload  = json_encode([
+        'email'     => $email,
+        'site_hash' => $sitehash,
+        'site_name' => $CFG->fullname,
+        'site_url'  => $CFG->wwwroot,
+    ]);
 
     $ch = curl_init('https://portal.sergiocomeron.com/register-site.php');
     curl_setopt_array($ch, [

@@ -36,7 +36,12 @@ if ($action === 'resend') {
     $email = get_config('mod_jitsi', 'portal_email');
     if ($email) {
         $sitehash = hash('sha256', $CFG->wwwroot);
-        $payload  = json_encode(['email' => $email, 'site_hash' => $sitehash]);
+        $payload  = json_encode([
+            'email'     => $email,
+            'site_hash' => $sitehash,
+            'site_name' => $CFG->fullname,
+            'site_url'  => $CFG->wwwroot,
+        ]);
         $ch = curl_init('https://portal.sergiocomeron.com/register-site.php');
         curl_setopt_array($ch, [
             CURLOPT_POST           => true,

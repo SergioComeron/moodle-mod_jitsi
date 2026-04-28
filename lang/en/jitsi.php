@@ -339,7 +339,7 @@ $string['polls'] = 'Polls';
 $string['pollsex'] = 'Enable the polls feature for all participants. Note: polls are always disabled when chat is disabled.';
 $string['portalemail'] = 'Your email';
 $string['portalheading'] = 'mod_jitsi Account';
-$string['portalheadingex'] = 'Connect your installation to the mod_jitsi Account to share anonymous usage statistics and get access to upcoming features.';
+$string['portalheadingex'] = 'Connect your installation to the mod_jitsi Account to share usage statistics and get access to upcoming features. Your site name and URL will be stored to identify your installation.';
 $string['portalregisterbutton'] = 'Register &amp; enable';
 $string['portalregistrationerror'] = 'Could not connect to the portal. Please try again later.';
 $string['portalregistrationsent'] = 'Check your email to complete registration and activate usage statistics.';
@@ -475,9 +475,10 @@ $string['tablelistjitsis'] = "List with all the videos in your Streaming/Recordi
 $string['task_aggregate_usage_stats'] = 'Aggregate Jitsi daily usage statistics';
 $string['task_send_telemetry'] = 'Send anonymous usage telemetry (opt-in)';
 $string['telemetryenabled'] = 'Share anonymous usage data';
-$string['telemetryenabledex'] = 'When enabled, a weekly anonymous ping is sent to the plugin developer to help improve mod_jitsi.<br><br>
+$string['telemetryenabledex'] = 'When enabled, a weekly ping is sent to the plugin developer to help improve mod_jitsi.<br><br>
 <strong>What is sent:</strong> server type, Moodle version, plugin version, number of Jitsi activities, and which optional features are enabled (AI, recording, private sessions, push notifications).<br><br>
-<strong>What is NOT sent:</strong> your site URL, site name, user data, course data, session content, or any personal information. Your site is identified only by an irreversible anonymous hash — the original URL cannot be recovered from it.<br><br>
+<strong>What is NOT sent:</strong> user data, course data, session content, or any other personal information. Your site is identified by an anonymous hash — the original URL cannot be recovered from it.<br><br>
+<strong>Note:</strong> your site name and URL are stored separately when you register your installation in the mod_jitsi Account.<br><br>
 Data is sent to <code>https://portal.sergiocomeron.com/collect.php</code>. This feature is disabled by default and can be turned off at any time.';
 $string['telemetryendpoint'] = 'Telemetry endpoint URL';
 $string['telemetryendpointex'] = 'URL of the server that receives the usage pings. Leave as default unless instructed otherwise.';
@@ -485,7 +486,7 @@ $string['telemetryheading'] = 'Usage statistics (opt-in)';
 $string['telemetryheadingex'] = 'Help improve mod_jitsi by sharing anonymous usage data with the developer. All data is anonymised — only aggregate statistics are collected. This feature is disabled by default.';
 $string['telemetrykey'] = 'Telemetry secret key';
 $string['telemetrykeyex'] = 'Secret key used to authenticate pings to the telemetry endpoint.';
-$string['telemetrynudge'] = 'Register your installation in under a minute. The developer uses this data to understand which Moodle versions and server types are most used, so development effort goes where it matters most. No personal data is ever sent.';
+$string['telemetrynudge'] = 'Register your installation in under a minute. The developer uses this data to understand which Moodle versions and server types are most used, so development effort goes where it matters most. Your site name and URL will be stored to identify your installation — see the <a href="https://portal.sergiocomeron.com/privacy.php" target="_blank">Privacy Policy</a>.';
 $string['telemetrynudgetitle'] = 'Help shape the future of mod_jitsi';
 $string['timeopen'] = 'Session time open';
 $string['to'] = 'To';
