@@ -81,59 +81,38 @@ if ($ADMIN->fulltree) {
             'alert alert-success mt-2'
         );
     } else if ($portalstatus === 'pending') {
+        $resendurl  = new moodle_url('/mod/jitsi/portal_action.php',
+            ['action' => 'resend', 'sesskey' => sesskey()]);
         $statushtml = html_writer::div(
             html_writer::tag('strong', '⏳ ' . get_string('portalstatuspending', 'jitsi')) .
             html_writer::empty_tag('br') .
             get_string('portalstatuspendingdesc', 'jitsi', $portalemail) .
             html_writer::empty_tag('br') . html_writer::empty_tag('br') .
-            html_writer::tag(
-                'form',
-                html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'action', 'value' => 'register']) .
-                html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'sesskey', 'value' => sesskey()]) .
-                html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'email', 'value' => $portalemail]) .
-                html_writer::tag(
-                    'button',
-                    get_string('portalresendemail', 'jitsi'),
-                    ['type' => 'submit', 'class' => 'btn btn-sm btn-outline-primary']
-                ),
-                ['method' => 'post', 'action' => (new moodle_url('/mod/jitsi/portal_action.php'))->out(false)]
+            html_writer::link(
+                $resendurl,
+                get_string('portalresendemail', 'jitsi'),
+                ['class' => 'btn btn-sm btn-outline-primary']
+            ) . ' ' .
+            html_writer::link(
+                $unregisterurl,
+                get_string('portalunregisterlink', 'jitsi'),
+                ['class' => 'btn btn-sm btn-outline-secondary']
             ),
             'alert alert-warning mt-2'
         );
     } else {
-        $statushtml = html_writer::div(
+        $registerurl = new moodle_url('/mod/jitsi/portal_register.php');
+        $statushtml  = html_writer::div(
             html_writer::tag('strong', '💡 ' . get_string('telemetrynudgetitle', 'jitsi')) .
             html_writer::empty_tag('br') .
-            get_string('telemetrynudge', 'jitsi'),
-            'alert alert-info mt-2'
-        );
-        $statushtml .= html_writer::tag(
-            'form',
-            html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'action', 'value' => 'register']) .
-            html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'sesskey', 'value' => sesskey()]) .
-            html_writer::div(
-                html_writer::tag(
-                    'label',
-                    get_string('portalemail', 'jitsi'),
-                    ['for' => 'jitsi_portal_email', 'class' => 'col-form-label mr-2']
-                ) .
-                html_writer::empty_tag('input', [
-                    'type'        => 'email',
-                    'name'        => 'email',
-                    'id'          => 'jitsi_portal_email',
-                    'class'       => 'form-control d-inline-block mr-2',
-                    'style'       => 'width:auto;max-width:280px',
-                    'placeholder' => 'admin@yoursite.com',
-                    'required'    => 'required',
-                ]) .
-                html_writer::tag(
-                    'button',
-                    get_string('portalregisterbutton', 'jitsi'),
-                    ['type' => 'submit', 'class' => 'btn btn-primary']
-                ),
-                'd-flex align-items-center gap-2 flex-wrap mt-2'
+            get_string('telemetrynudge', 'jitsi') .
+            html_writer::empty_tag('br') . html_writer::empty_tag('br') .
+            html_writer::link(
+                $registerurl,
+                get_string('portalregisterbutton', 'jitsi'),
+                ['class' => 'btn btn-primary']
             ),
-            ['method' => 'post', 'action' => (new moodle_url('/mod/jitsi/portal_action.php'))->out(false)]
+            'alert alert-info mt-2'
         );
     }
 

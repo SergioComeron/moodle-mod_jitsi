@@ -32,6 +32,26 @@ require_sesskey();
 $action = required_param('action', PARAM_ALPHA);
 $returnurl = new moodle_url('/admin/settings.php', ['section' => 'modsettingjitsi']);
 
+if ($action === 'resend') {
+    $email = get_config('mod_jitsi', 'portal_email');
+    if ($email) {
+        $sitehash = hash('sha256', $CFG->wwwroot);
+        $payload  = json_encode(['email' => $email, 'site_hash' => $sitehash]);
+        $ch = curl_init('https://portal.sergiocomeron.com/register-site.php');
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => $payload,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+        ]);
+        curl_exec($ch);
+        curl_close($ch);
+    }
+    redirect($returnurl, get_string('portalregistrationsent', 'jitsi'), null,
+        \core\output\notification::NOTIFY_SUCCESS);
+}
+
 if ($action === 'register') {
     $email = required_param('email', PARAM_EMAIL);
 
