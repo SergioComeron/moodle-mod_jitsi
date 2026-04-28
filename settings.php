@@ -740,15 +740,16 @@ if ($ADMIN->fulltree) {
                 ),
                 'd-flex align-items-center gap-2 flex-wrap mt-2'
             ),
-            ['method' => 'post', 'action' => (new moodle_url('/mod/jitsi/portal_action.php'))->out(false)]
+            ['method' => 'post', 'action' => (new moodle_url('/mod/jitsi/portal_action.php'))->out(false),
+            'style' => 'margin-bottom:3rem']
         );
     }
 
     $settings->add(
         new admin_setting_heading(
             'jitsitelemetryheading',
-            get_string('telemetryheading', 'jitsi'),
-            get_string('telemetryheadingex', 'jitsi') . $statushtml
+            get_string('portalheading', 'jitsi'),
+            get_string('portalheadingex', 'jitsi') . $statushtml
         )
     );
 }
