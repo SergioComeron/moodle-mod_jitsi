@@ -4,7 +4,7 @@
 
 - **JaaS (8x8)** — hosted service, free up to 25 monthly active users. The quickest way to get started. More information at https://jaas.8x8.vc/
 - **Self-hosted** — your own Jitsi Meet server with full control and JWT authentication.
-- **GCP auto-managed** — the plugin provisions and manages a Jitsi server in Google Cloud Platform automatically (BETA).
+- **GCP auto-managed** — the plugin provisions and manages a Jitsi server in Google Cloud Platform automatically. A Google Cloud account with billing enabled is all you need — no manual server setup required (BETA).
 
 The public server at meet.jit.si can be used for quick testing but restricts sessions to 5 minutes and is not suitable for production.
 
