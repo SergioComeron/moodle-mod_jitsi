@@ -65,6 +65,28 @@ if ($ADMIN->fulltree) {
     $portalstatus  = get_config('mod_jitsi', 'portal_status');
     $portalemail   = get_config('mod_jitsi', 'portal_email');
     $licensekey    = get_config('mod_jitsi', 'portal_license_key');
+
+    // If pending, try to fetch license key from portal now (avoid waiting for cron).
+    if (!$licensekey && $portalstatus === 'pending') {
+        $sitehash = hash('sha256', $CFG->wwwroot);
+        $ch = curl_init('https://portal.sergiocomeron.com/validate.php');
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => json_encode(['site_hash' => $sitehash]),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 5,
+            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+        ]);
+        $vresp = curl_exec($ch);
+        curl_close($ch);
+        $vdata = json_decode($vresp, true);
+        if (!empty($vdata['ok']) && !empty($vdata['license_key'])) {
+            set_config('portal_license_key', $vdata['license_key'], 'mod_jitsi');
+            set_config('portal_status', 'active', 'mod_jitsi');
+            $licensekey   = $vdata['license_key'];
+            $portalstatus = 'active';
+        }
+    }
     $unregisterurl = new moodle_url(
         '/mod/jitsi/portal_action.php',
         ['action' => 'unregister', 'sesskey' => sesskey()]
