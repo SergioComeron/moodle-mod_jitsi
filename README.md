@@ -51,7 +51,12 @@ Most of them are available at the activity level so a teachers can override some
 - **Jitsi Moderation** (mod/jitsi:moderation): determine who is moderator in sessions. When "Token configuration" is set only users with this rol are promoted as Jitsi moderators and this icon ![image-20220309175303324](doc/pix/moderator_icon.png)is displayed with these users. When "Token configuration" is missing some buttons and features like "mute-everyone" or "kick off participant" are hidden to non moderator user but you must be careful because we are not able to hide all moderation options in scenarios without token configuration and experienced users may be able to bypass these restrictions.
 - **Record session** (mod/jitsi:record): allow to start recordings. You could create Jitsi Sessions where students could record themselves.
 - **View Jitsi** (mod/jitsi:view): set the users who can see and access Jitsi activities in the course view.
-- **Access to the attendees reports** (mod/jitsi:viewuseronsession): you may want to allow students from access to attendees reports.
+- **Access to the attendees reports** (mod/jitsi:viewusersonsession): allows seeing who is currently in a session. You may want to allow students access to attendees reports.
+- **View recordings** (mod/jitsi:viewrecords): allows access to the Recordings tab. Disable this to hide recordings from specific roles.
+- **View external recording links** (mod/jitsi:viewexternallink): allows viewing externally-linked recordings (Dropbox, 8x8, manual links).
+- **Generate AI summary** (mod/jitsi:generateaisummary): allows generating AI-powered summaries for GCS recordings. Requires AI features to be enabled.
+- **Generate AI quiz** (mod/jitsi:generateaiquiz): allows generating AI-powered quizzes from GCS recordings. Requires AI features to be enabled.
+- **Generate AI transcription** (mod/jitsi:generateaitranscription): allows generating AI transcriptions for GCS recordings. Requires AI features to be enabled.
 - **Access to the attendance report** (mod/jitsi:viewattendance): allows teachers to access the detailed attendance report with recording view tracking. Requires mod_jitsi Account.
 
 ## Streaming configuration
