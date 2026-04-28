@@ -37,18 +37,14 @@ Glad to see you here again. These are some of the Jitsi features inside Moodle y
 
 ## Permissions
 
-These are the permissions populated by default with the plugin.
-
-![](doc/pix/permissions.png)
-
-Most of them are available at the activity level so a teachers can override some default restrictions.
+These are the permissions populated by default with the plugin. Most of them are available at the activity level so teachers can override some default restrictions.
 
 - **Add a new Jitsi** (mod/jitsi:addinstance): allow to create Jitsi activities.
 - **View and copy invite links for guest users** (mod/jitsi:createlink): a teacher could allow students to share the invitation links for guest users.
-- **Delete record** (mod/jitsi:deleterecord): allow to mark a recording as deleted. The recording will be set as private in YouTube.  Recordings marked as deleted will be deleted in YouTube with the scheduled task (\mod_jitsi\task\cron_task_delete) or by the admin from a list. You may want to prevent non-editing teachers from deleting recordings.
+- **Delete record** (mod/jitsi:deleterecord): allow to mark a recording as deleted. The recording will be set as private in YouTube. Recordings marked as deleted will be deleted in YouTube with the scheduled task (\mod_jitsi\task\cron_task_delete) or by the admin from a list. You may want to prevent non-editing teachers from deleting recordings.
 - **Edit record name** (mod/jitsi:editrecordname): allow to rename the title in a recording. You may want to prevent non-editing teachers from renaming recordings.
 - **Hide recordings** (mod/jitsi:hide): allow to hide recordings. You may want to prevent non-editing teachers from hiding recordings.
-- **Jitsi Moderation** (mod/jitsi:moderation): determine who is moderator in sessions. When "Token configuration" is set only users with this rol are promoted as Jitsi moderators and this icon ![image-20220309175303324](doc/pix/moderator_icon.png)is displayed with these users. When "Token configuration" is missing some buttons and features like "mute-everyone" or "kick off participant" are hidden to non moderator user but you must be careful because we are not able to hide all moderation options in scenarios without token configuration and experienced users may be able to bypass these restrictions.
+- **Jitsi Moderation** (mod/jitsi:moderation): determines who is moderator in sessions. When "Token configuration" is set, only users with this capability are promoted as Jitsi moderators and a moderator indicator is displayed next to their name. When "Token configuration" is missing, some buttons and features like "mute-everyone" or "kick off participant" are hidden to non-moderator users, but experienced users may be able to bypass these restrictions.
 - **Record session** (mod/jitsi:record): allow to start recordings. You could create Jitsi Sessions where students could record themselves.
 - **View Jitsi** (mod/jitsi:view): set the users who can see and access Jitsi activities in the course view.
 - **Access to the attendees reports** (mod/jitsi:viewusersonsession): allows seeing who is currently in a session. You may want to allow students access to attendees reports.
