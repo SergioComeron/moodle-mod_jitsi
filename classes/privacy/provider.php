@@ -64,6 +64,18 @@ class provider implements
             'ai_quiz_id'       => 'privacy:metadata:jitsi_source_record:ai_quiz_id',
         ], 'privacy:metadata:jitsi_source_record');
 
+        // Anonymous usage telemetry sent to the mod_jitsi Account portal.
+        // Sent only when the site administrator has registered the installation.
+        // Contains no personal user data — only site-level aggregate statistics.
+        $collection->add_external_location_link('mod_jitsi_portal', [
+            'site_hash'      => 'privacy:metadata:portal:site_hash',
+            'plugin_version' => 'privacy:metadata:portal:plugin_version',
+            'moodle_branch'  => 'privacy:metadata:portal:moodle_branch',
+            'server_type'    => 'privacy:metadata:portal:server_type',
+            'activity_count' => 'privacy:metadata:portal:activity_count',
+            'features'       => 'privacy:metadata:portal:features',
+        ], 'privacy:metadata:portal');
+
         return $collection;
     }
 }
