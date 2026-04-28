@@ -28,12 +28,15 @@ global $DB, $CFG, $PAGE;
 if ($ADMIN->fulltree) {
     require_once($CFG->dirroot . '/mod/jitsi/lib.php');
 
-    $link = new moodle_url('/mod/jitsi/servermanagement.php');
+    $link          = new moodle_url('/mod/jitsi/servermanagement.php');
+    $linkusagestats = new moodle_url('/mod/jitsi/sessionusagestats.php');
     $settings->add(
         new admin_setting_heading(
             'mod_jitsi/servermanagementlink',
             get_string('servermanagement', 'jitsi'),
             html_writer::link($link, get_string('servermanagementdesc', 'jitsi'))
+            . ' &nbsp;·&nbsp; '
+            . html_writer::link($linkusagestats, get_string('sessionusagestats', 'jitsi'))
         )
     );
 
@@ -123,16 +126,6 @@ if ($ADMIN->fulltree) {
             'jitsitelemetryheading',
             get_string('portalheading', 'jitsi'),
             get_string('portalheadingex', 'jitsi') . $statushtml
-        )
-    );
-
-    $linkusagestats = new moodle_url('/mod/jitsi/sessionusagestats.php');
-    $settings->add(
-        new admin_setting_heading(
-            'mod_jitsi/sessionusagestats',
-            '',
-            '<a href=' . $linkusagestats . ' >' . get_string('sessionusagestats', 'jitsi') . '</a>'
-            . ' <span class="text-muted small">(' . get_string('sessionusagestatsslow', 'jitsi') . ')</span>'
         )
     );
 

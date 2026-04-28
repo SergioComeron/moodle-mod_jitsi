@@ -35,13 +35,14 @@ $PAGE->set_heading(get_string('portalheading', 'jitsi'));
 
 $returnurl = new moodle_url('/admin/settings.php', ['section' => 'modsettingjitsi']);
 
-$mform = new \mod_jitsi\form\portal_register_form();
-
-if ($mform->is_cancelled()) {
+if (optional_param('cancel', 0, PARAM_INT)) {
     redirect($returnurl);
-} else if ($data = $mform->get_data()) {
+}
+
+$email = optional_param('email', '', PARAM_EMAIL);
+if ($email && confirm_sesskey()) {
     $sitehash = hash('sha256', $CFG->wwwroot);
-    $payload  = json_encode(['email' => $data->email, 'site_hash' => $sitehash]);
+    $payload  = json_encode(['email' => $email, 'site_hash' => $sitehash]);
 
     $ch = curl_init('https://portal.sergiocomeron.com/register-site.php');
     curl_setopt_array($ch, [
@@ -58,7 +59,7 @@ if ($mform->is_cancelled()) {
     $result = json_decode($response, true);
 
     if ($httpcode === 200 && !empty($result['ok'])) {
-        set_config('portal_email', $data->email, 'mod_jitsi');
+        set_config('portal_email', $email, 'mod_jitsi');
         set_config('portal_status', 'pending', 'mod_jitsi');
         redirect(
             $returnurl,
@@ -79,5 +80,36 @@ if ($mform->is_cancelled()) {
 echo $OUTPUT->header();
 echo $OUTPUT->heading(get_string('portalheading', 'jitsi'));
 echo html_writer::tag('p', get_string('portalheadingex', 'jitsi'));
-$mform->display();
+
+$actionurl = new moodle_url('/mod/jitsi/portal_register.php');
+echo html_writer::start_tag('form', ['method' => 'post', 'action' => $actionurl->out(false)]);
+echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'sesskey', 'value' => sesskey()]);
+echo html_writer::start_div('mb-3');
+echo html_writer::tag(
+    'label',
+    get_string('portalemail', 'jitsi'),
+    ['for' => 'jitsi_portal_email', 'class' => 'form-label fw-bold']
+);
+echo html_writer::empty_tag('input', [
+    'type'        => 'email',
+    'name'        => 'email',
+    'id'          => 'jitsi_portal_email',
+    'class'       => 'form-control',
+    'style'       => 'max-width:360px',
+    'placeholder' => 'admin@yoursite.com',
+    'required'    => 'required',
+]);
+echo html_writer::end_div();
+echo html_writer::tag(
+    'button',
+    get_string('portalregisterbutton', 'jitsi'),
+    ['type' => 'submit', 'class' => 'btn btn-primary me-2']
+);
+echo html_writer::tag(
+    'button',
+    get_string('cancel', 'core'),
+    ['type' => 'submit', 'name' => 'cancel', 'value' => '1', 'class' => 'btn btn-secondary']
+);
+echo html_writer::end_tag('form');
+
 echo $OUTPUT->footer();
