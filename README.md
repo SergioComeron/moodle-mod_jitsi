@@ -1,10 +1,14 @@
 # Jitsi Meet Moodle Plugin
 
-This plugin (**mod_jitsi**) allows teachers to **create webconference activities** fully integrated with **Jitsi Meet servers**.
+**mod_jitsi** integrates Jitsi Meet videoconferencing into Moodle. To use it in production you need a Jitsi server — the plugin supports three options:
 
-**Jitsi Meet** is an open-source videoconferencing solution that enables you to easily build and deploy secure video conferencing. More information about Jitsi can be found at https://jitsi.org/
+- **JaaS (8x8)** — hosted service, free up to 25 monthly active users. The quickest way to get started. More information at https://jaas.8x8.vc/
+- **Self-hosted** — your own Jitsi Meet server with full control and JWT authentication.
+- **GCP auto-managed** — the plugin provisions and manages a Jitsi server in Google Cloud Platform automatically (BETA).
 
-**Out of the box the plugin works** using the public Jitsi Meet server (meet.jit.si). **It's free** and the best way to test if this plugin suits your needs. However, the public server restricts embed mode to **5 minutes per conference** — for production use you will need a [JaaS (8x8) account](https://jaas.8x8.vc/) (free up to 25 monthly active users), a self-hosted Jitsi server, or a GCP auto-managed server (see below).
+The public server at meet.jit.si can be used for quick testing but restricts sessions to 5 minutes and is not suitable for production.
+
+More information about Jitsi Meet at https://jitsi.org/
 
 ![jitsi-moodle](doc/pix/jitsi-moodle.png)
 
