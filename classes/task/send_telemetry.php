@@ -44,15 +44,37 @@ class send_telemetry extends \core\task\scheduled_task {
 
         $config = get_config('mod_jitsi');
 
-        if (empty($config->telemetry_enabled)) {
+        // Build anonymous site hash (SHA-256 of wwwroot — no URL sent).
+        $sitehash = hash('sha256', $CFG->wwwroot);
+
+        // If no license key yet, try to fetch it from the portal.
+        if (empty($config->portal_license_key) && !empty($config->portal_status)) {
+            $ch = curl_init('https://portal.sergiocomeron.com/validate.php');
+            curl_setopt_array($ch, [
+                CURLOPT_POST           => true,
+                CURLOPT_POSTFIELDS     => json_encode(['site_hash' => $sitehash]),
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => 10,
+                CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+            ]);
+            $vresponse = curl_exec($ch);
+            curl_close($ch);
+            $vdata = json_decode($vresponse, true);
+            if (!empty($vdata['ok']) && !empty($vdata['license_key'])) {
+                set_config('portal_license_key', $vdata['license_key'], 'mod_jitsi');
+                set_config('portal_status', 'active', 'mod_jitsi');
+                $config->portal_license_key = $vdata['license_key'];
+                mtrace('mod_jitsi send_telemetry: license key retrieved from portal.');
+            }
+        }
+
+        // Only send if registered (license key present).
+        if (empty($config->portal_license_key)) {
             return;
         }
 
         $endpoint = 'https://portal.sergiocomeron.com/collect.php';
         $secret   = 'b0c55fbcdb6b43bbbd25535147b5c8ebb708638f8f3d9c75e3f86e7b2659daeb';
-
-        // Build anonymous site hash (SHA-256 of wwwroot — no URL sent).
-        $sitehash = hash('sha256', $CFG->wwwroot);
 
         // Detect active server type from plugin config.
         $servertype = -1;
