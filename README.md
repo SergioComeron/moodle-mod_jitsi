@@ -1,39 +1,63 @@
-# Jitsi Meet moodle plugin
-This plugin (**mod_jitsi**) allows teachers **create webconference activities** fully integrated **with Jitsi Meet Servers**.
+# Jitsi Meet Moodle Plugin
 
-**Jitsi Meet** is an open-source videoconferencing solution that enables you to easily build and implement secure video conferencing. If you don't know about Jitsi Meet you can try it at https://meet.jit.si/. Many commercial web conference services are deployed using Jitsi Meet because it is extremely scalable. More information about Jitsi can be found at https://jitsi.org/
+This plugin (**mod_jitsi**) allows teachers to **create webconference activities** fully integrated with **Jitsi Meet servers**.
 
-**Out of the box the plugin works** using the public Jitsi Meet Servers (meet.jit.si). **It's free** and that's the best way to test if this plugin satisfies you. Most of the features in this plugin are available using the public server but probably you'll be restricted to 5 minutes per conference (read more below).
+**Jitsi Meet** is an open-source videoconferencing solution that enables you to easily build and deploy secure video conferencing. More information about Jitsi can be found at https://jitsi.org/
 
-Stop reading here... try the plugin now in your test Moodle environment and return later to continue reading.
+**Out of the box the plugin works** using the public Jitsi Meet server (meet.jit.si). **It's free** and the best way to test if this plugin suits your needs. However, the public server restricts embed mode to **5 minutes per conference** — for production use you will need a [JaaS (8x8) account](https://jaas.8x8.vc/) (free up to 25 monthly active users), a self-hosted Jitsi server, or a GCP auto-managed server (see below).
 
 ![jitsi-moodle](doc/pix/jitsi-moodle.png)
 
-Glad to see you here again. These are some of the Jitsi features inside Moodle you was able to try:
+Features available in the plugin:
 
 * Schedule webconferences in your course
 * Attendees report accounting minutes
 * Activity completion tracking (conditions related with time attendance)
 * Unlimited participants (limits are imposed mainly by bandwidth in your Jitsi servers)
 * Moodle profile pictures used as avatar in webconference
-* Guest URLs for users in other courses or out of Moodle
+* Guest URLs for users in other courses or outside Moodle
 * **Private 1-on-1 sessions** — call any coursemate directly from their Moodle profile, with call history and instant notification
+* HD Audio/Video
+* Multiple participants can share their screen simultaneously
+* Tile view, break-out rooms, chat, polls, virtual backgrounds
+* YouTube video sharing — pause, rewind and comment videos with all your students
+* Full moderation control to silence or remove students (token-based mode recommended — see below)
+* YouTube streaming and **automatic recordings publishing** in your course (requires streaming configuration — see below)
+* **Dropbox recording** with automatic or manual link publishing in the recordings tab
+* **JaaS (8x8) cloud recordings** automatically captured and available for download, expiring after 24 hours
 * **Attendance report** — detailed per-activity report with time-on-session per student, recording view tracking and access log *(requires mod_jitsi Account)*
 * **Recording view tracking** — progress bars showing exactly which parts of each video each student has watched, persisted between sessions *(requires mod_jitsi Account)*
 * **Session usage statistics** — site-wide aggregated stats (sessions, participants, recordings) with daily breakdown *(requires mod_jitsi Account)*
-* HD Audio Video
-* Multiple participants can share their screen simultaneusly
-* Tile view
-* Break out rooms
-* Chat with emojis
-* Polls
-* Virtual Backgrounds
-* YouTube video sharing... pause, rewind and comment videos with all your students (cool)
-* Full moderation control in order to silence or kickoff students (token based mode recomended... see below)
-* YouTube streaming and **automatic recordings publishing** in your course...  really cool (requires the streaming configuration... see below)
-* **Dropbox recording** with automatic or manual link publishing in the recordings tab
-* **JaaS (8x8) cloud recordings** automatically captured and available for download, expiring after 24 hours
-* and others...
+
+## mod_jitsi Account
+
+Some features require registering your Moodle installation at the **mod_jitsi Account** portal ([portal.sergiocomeron.com](https://portal.sergiocomeron.com)). Registration is free and takes less than a minute.
+
+### Features that require registration
+
+| Feature | Description |
+|---------|-------------|
+| Attendance report | Detailed per-activity report: time on session, recording views, access log |
+| Recording view tracking | Progress bars showing which parts of each video each student has watched |
+| Session usage statistics | Site-wide aggregated stats with daily breakdown |
+
+### How to register
+
+1. Go to **Site administration > Plugins > Activity modules > Jitsi**
+2. In the **mod_jitsi Account** section at the top, enter your email and click **Register & enable**
+3. Check your email and complete registration at the portal
+4. Return to the settings page — it will automatically detect your registration and activate the features
+
+### What data is collected
+
+When you register, the following information is stored:
+- Your email address
+- Your Moodle site name and URL
+- An anonymous hash of your site URL (for telemetry)
+
+If you also enable the optional **Share usage data** setting, a weekly anonymous ping is sent containing: server type, Moodle version, plugin version, activity count, and which optional features are enabled. No user data, course data or session content is ever sent.
+
+See the [Privacy Policy](https://portal.sergiocomeron.com/privacy.php) for full details.
 
 ## Permissions
 
@@ -208,7 +232,7 @@ Jitsi Meet deployment servers can be complex and is beyond the scope of this art
 
 Many Governmental Education Institutions deploy their own Jitsi servers to be used by their schools or universities... you could ask them if they provide Jitsi token credentials for this configuration.
 
-Basically the token configuration send your teachers (or roles with the mod/jitsi:moderation enabled) as moderators in a Jitsi session in a secure mode and only they are allowed to mute participants, disable cameras or kick-off participants.
+The token configuration sends users with the `mod/jitsi:moderation` capability as moderators in a Jitsi session — only they are allowed to mute participants, disable cameras or remove participants.
 
 ### Required plugin for JWT moderation on self-hosted servers
 
@@ -220,13 +244,9 @@ This plugin is not required for **8x8 JaaS** (Type 2) or **GCP auto-managed** (T
 
 ## Recommendations when using public Jitsi servers
 
-As we said "out of the box", the plugin connects with the public servers at meet.jit.si but there many other public Jitsi Meet servers... just make some search with Google or look at the [Community-run instances list](https://jitsi.github.io/handbook/docs/community/community-instances/).  You should test other servers in order to be able change in case of a disruption service or maybe because you find a public server nearest to your users and with less latency.
+The plugin connects by default with the public server at meet.jit.si. There are many other public Jitsi Meet servers — search Google or look at the [Community-run instances list](https://jitsi.github.io/handbook/docs/community/community-instances/). Testing alternative servers is a good idea in case of service disruption or to find one closer to your users.
 
-## Important announcement from meet.jit.si team
-
-The **meet.jit.si** team recently announced that the embed mode, required by our plugin, **is now restricted and they only allow to use it for 5 minutes on every conference**, but this is enough in order to test if this fits to you. You can [read about this announcement here](https://community.jitsi.org/t/important-embedding-meet-jit-si-in-your-web-app-will-no-longer-be-supported-please-use-jaas/). We would like to thank them for providing such a good service for so many years without restrictions, which helped many schools to continue their activities during the Covid pandemic.
-
-**Jitsi is Open Source** and you can **install your own Jitsi Server** or **rent the service from https://jaas.8x8.vc/**, which is **free up to 25 unique monthly active users**. Read more about it [here](https://jaas.8x8.vc/#/pricing). Probably you could find other unofficial sites providing professional hosting for Jitsi, but 8x8 is the company which supports the Jitsi project and buying their services is the best way to support the project in order to guarantee its future.
+Bear in mind that meet.jit.si restricts embed mode to **5 minutes per conference**. For production use, you need either a **JaaS (8x8) account** (free up to 25 monthly active users — [pricing](https://jaas.8x8.vc/#/pricing)), a **self-hosted Jitsi server**, or a **GCP auto-managed server** provisioned by this plugin. 8x8 is the company behind the Jitsi project and using their service is the best way to support its future.
 
 ## Using a Jitsi as a Service Account
 
@@ -524,36 +544,6 @@ The plugin's `privacy/provider.php` declares:
 - The `jitsi_source_record` database table storing AI-generated outputs.
 
 For a full list of data exported and deleted per user, see the Moodle Privacy API integration in `classes/privacy/provider.php`.
-
-## mod_jitsi Account
-
-Some features require registering your Moodle installation at the **mod_jitsi Account** portal ([portal.sergiocomeron.com](https://portal.sergiocomeron.com)). Registration is free and takes less than a minute.
-
-### Features that require registration
-
-| Feature | Description |
-|---------|-------------|
-| Attendance report | Detailed per-activity report: time on session, recording views, access log |
-| Recording view tracking | Progress bars showing which parts of each video each student has watched |
-| Session usage statistics | Site-wide aggregated stats with daily breakdown |
-
-### How to register
-
-1. Go to **Site administration > Plugins > Activity modules > Jitsi**
-2. In the **mod_jitsi Account** section at the top, enter your email and click **Register & enable**
-3. Check your email and complete registration at the portal
-4. Return to the settings page — it will automatically detect your registration and activate the features
-
-### What data is collected
-
-When you register, the following information is stored:
-- Your email address
-- Your Moodle site name and URL
-- An anonymous hash of your site URL (for telemetry)
-
-If you also enable the optional **Share usage data** setting, a weekly anonymous ping is sent containing: server type, Moodle version, plugin version, activity count, and which optional features are enabled. No user data, course data or session content is ever sent.
-
-See the [Privacy Policy](https://portal.sergiocomeron.com/privacy.php) for full details.
 
 ## Attendance Report
 
