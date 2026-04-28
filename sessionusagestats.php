@@ -50,6 +50,24 @@ $context = context_system::instance();
 require_login();
 require_capability('moodle/site:config', $context);
 
+if (!get_config('mod_jitsi', 'portal_license_key')) {
+    $PAGE->set_url(new moodle_url('/mod/jitsi/sessionusagestats.php'));
+    $PAGE->set_context($context);
+    $PAGE->set_title(get_string('sessionusagestats', 'jitsi'));
+    $PAGE->set_heading(get_string('sessionusagestats', 'jitsi'));
+    echo $OUTPUT->header();
+    echo $OUTPUT->notification(
+        get_string('portalrequired', 'jitsi') . ' ' .
+        html_writer::link(
+            new moodle_url('/admin/settings.php', ['section' => 'modsettingjitsi']),
+            get_string('portalregisterbutton', 'jitsi')
+        ) . '.',
+        'warning'
+    );
+    echo $OUTPUT->footer();
+    exit;
+}
+
 $PAGE->set_url(new moodle_url('/mod/jitsi/sessionusagestats.php'));
 $PAGE->set_context($context);
 $PAGE->set_title(get_string('sessionusagestats', 'jitsi'));

@@ -37,6 +37,24 @@ require_login($course, true, $cm);
 $context = context_module::instance($cm->id);
 require_capability('mod/jitsi:viewattendance', $context);
 
+if (!get_config('mod_jitsi', 'portal_license_key')) {
+    $PAGE->set_url(new moodle_url('/mod/jitsi/attendancereport.php', ['id' => $id]));
+    $PAGE->set_context($context);
+    $PAGE->set_title(get_string('attendancereport', 'jitsi'));
+    $PAGE->set_heading(get_string('attendancereport', 'jitsi'));
+    echo $OUTPUT->header();
+    echo $OUTPUT->notification(
+        get_string('portalrequired', 'jitsi') . ' ' .
+        html_writer::link(
+            new moodle_url('/admin/settings.php', ['section' => 'modsettingjitsi']),
+            get_string('portalregisterbutton', 'jitsi')
+        ) . '.',
+        'warning'
+    );
+    echo $OUTPUT->footer();
+    exit;
+}
+
 $PAGE->set_url(new moodle_url('/mod/jitsi/attendancereport.php', ['id' => $id]));
 $PAGE->set_context($context);
 $PAGE->set_title(get_string('attendancereport', 'jitsi') . ': ' . format_string($jitsi->name));
