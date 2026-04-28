@@ -2024,6 +2024,10 @@ class mod_jitsi_external extends external_api {
     public static function log_recording_view($sourcerecordid, $cmid, $milestone = 0) {
         global $DB;
 
+        if (!get_config('mod_jitsi', 'portal_license_key')) {
+            return ['success' => true];
+        }
+
         $params = self::validate_parameters(self::log_recording_view_parameters(), [
             'sourcerecordid' => $sourcerecordid,
             'cmid'           => $cmid,
@@ -2095,6 +2099,10 @@ class mod_jitsi_external extends external_api {
      */
     public static function save_recording_segments($sourcerecordid, $cmid, $segments, $duration) {
         global $DB, $USER;
+
+        if (!get_config('mod_jitsi', 'portal_license_key')) {
+            return ['success' => true];
+        }
 
         $params = self::validate_parameters(self::save_recording_segments_parameters(), [
             'sourcerecordid' => $sourcerecordid,

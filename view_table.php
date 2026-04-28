@@ -294,31 +294,37 @@ class mod_view_table extends table_sql {
                 }
 
                 // Load existing watched segments for this user to pre-render the bar.
-                $segrow = $DB->get_record('jitsi_recording_segments', [
-                    'userid'         => $USER->id,
-                    'sourcerecordid' => (int)$sourcerecord->id,
-                    'cmid'           => (int)$cm->id,
-                ]);
+                $segrow = null;
                 $existingsegs = [];
                 $existingdur  = 0;
-                if ($segrow) {
-                    $existingsegs = json_decode($segrow->segments, true) ?? [];
-                    $existingdur  = (float)($segrow->duration ?? 0);
+                if (get_config('mod_jitsi', 'portal_license_key')) {
+                    $segrow = $DB->get_record('jitsi_recording_segments', [
+                        'userid'         => $USER->id,
+                        'sourcerecordid' => (int)$sourcerecord->id,
+                        'cmid'           => (int)$cm->id,
+                    ]);
+                    if ($segrow) {
+                        $existingsegs = json_decode($segrow->segments, true) ?? [];
+                        $existingdur  = (float)($segrow->duration ?? 0);
+                    }
                 }
-                $barsegsjson = htmlspecialchars(json_encode($existingsegs), ENT_QUOTES, 'UTF-8');
-                $barhtml = '<div class="mt-2 mb-1"'
-                    . ' data-segments="' . $barsegsjson . '"'
-                    . ' data-duration="' . $existingdur . '"'
-                    . ' id="jitsi-segbar-wrap-' . (int)$sourcerecord->id . '">'
-                    . jitsi_render_segments_bar(
-                        $existingsegs,
-                        $existingdur,
-                        'jitsi-segbar-' . (int)$sourcerecord->id
-                    )
-                    . '<small class="text-muted" id="jitsi-segbar-pct-' . (int)$sourcerecord->id . '">'
-                    . ($existingdur > 0 ? jitsi_segments_watched_pct($existingsegs, $existingdur) . '%' : '')
-                    . '</small>'
-                    . '</div>';
+                $barhtml = '';
+                if (get_config('mod_jitsi', 'portal_license_key')) {
+                    $barsegsjson = htmlspecialchars(json_encode($existingsegs), ENT_QUOTES, 'UTF-8');
+                    $barhtml = '<div class="mt-2 mb-1"'
+                        . ' data-segments="' . $barsegsjson . '"'
+                        . ' data-duration="' . $existingdur . '"'
+                        . ' id="jitsi-segbar-wrap-' . (int)$sourcerecord->id . '">'
+                        . jitsi_render_segments_bar(
+                            $existingsegs,
+                            $existingdur,
+                            'jitsi-segbar-' . (int)$sourcerecord->id
+                        )
+                        . '<small class="text-muted" id="jitsi-segbar-pct-' . (int)$sourcerecord->id . '">'
+                        . ($existingdur > 0 ? jitsi_segments_watched_pct($existingsegs, $existingdur) . '%' : '')
+                        . '</small>'
+                        . '</div>';
+                }
 
                 $content = "<h5>" . $OUTPUT->render($tmpl) . "</h5>"
                     . "<h6 class=\"card-subtitle mb-2 text-muted\">" . userdate($values->timecreated) . "</h6>"
