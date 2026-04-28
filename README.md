@@ -115,7 +115,7 @@ Multiple YouTube accounts can be configured — only one is active at a time, bu
 1. Prepare one or more YouTube accounts with live streaming enabled (requires phone verification and a 24-hour wait)
 2. Create a project in [Google Cloud Console](https://console.cloud.google.com) and enable the **YouTube Data API v3**
 3. Create OAuth 2.0 credentials for a **Web application**, adding the redirect URI shown in the Jitsi plugin settings (e.g. `https://your_moodle_domain/mod/jitsi/auth.php`)
-4. Add your YouTube accounts as **Test users** in the OAuth consent screen
+4. Add the Google accounts associated with your YouTube channels as **Test users** in the OAuth consent screen
 5. Copy the **Client ID** and **Client Secret** to the Jitsi plugin settings in Moodle
 6. In Moodle, add and authorise your Streaming/Recording Accounts
 7. Enable **Live stream** and select **Moodle Integrated** as the Live Streaming Method
