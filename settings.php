@@ -81,8 +81,10 @@ if ($ADMIN->fulltree) {
             'alert alert-success mt-2'
         );
     } else if ($portalstatus === 'pending') {
-        $resendurl  = new moodle_url('/mod/jitsi/portal_action.php',
-            ['action' => 'resend', 'sesskey' => sesskey()]);
+        $resendurl  = new moodle_url(
+            '/mod/jitsi/portal_action.php',
+            ['action' => 'resend', 'sesskey' => sesskey()]
+        );
         $statushtml = html_writer::div(
             html_writer::tag('strong', '⏳ ' . get_string('portalstatuspending', 'jitsi')) .
             html_writer::empty_tag('br') .

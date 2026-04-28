@@ -60,13 +60,15 @@ if ($mform->is_cancelled()) {
     if ($httpcode === 200 && !empty($result['ok'])) {
         set_config('portal_email', $data->email, 'mod_jitsi');
         set_config('portal_status', 'pending', 'mod_jitsi');
-        redirect($returnurl,
+        redirect(
+            $returnurl,
             get_string('portalregistrationsent', 'jitsi'),
             null,
             \core\output\notification::NOTIFY_SUCCESS
         );
     } else {
-        redirect($returnurl,
+        redirect(
+            $returnurl,
             get_string('portalregistrationerror', 'jitsi'),
             null,
             \core\output\notification::NOTIFY_ERROR

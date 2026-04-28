@@ -48,8 +48,12 @@ if ($action === 'resend') {
         curl_exec($ch);
         curl_close($ch);
     }
-    redirect($returnurl, get_string('portalregistrationsent', 'jitsi'), null,
-        \core\output\notification::NOTIFY_SUCCESS);
+    redirect(
+        $returnurl,
+        get_string('portalregistrationsent', 'jitsi'),
+        null,
+        \core\output\notification::NOTIFY_SUCCESS
+    );
 }
 
 if ($action === 'register') {
