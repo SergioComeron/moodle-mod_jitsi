@@ -59,7 +59,7 @@ When you register, the following information is stored:
 - Your Moodle site name and URL
 - An anonymous hash of your site URL (for telemetry)
 
-If you also enable the optional **Share usage data** setting, a weekly anonymous ping is sent containing: server type, Moodle version, plugin version, activity count, and which optional features are enabled. No user data, course data or session content is ever sent.
+Once registered, a weekly anonymous ping is automatically sent containing: server type, Moodle version, plugin version, activity count, and which optional features are enabled. No user data, course data or session content is ever sent.
 
 See the [Privacy Policy](https://portal.sergiocomeron.com/privacy.php) for full details.
 
