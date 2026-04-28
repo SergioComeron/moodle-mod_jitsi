@@ -15,7 +15,6 @@ More information about Jitsi Meet at https://jitsi.org/
 Features available in the plugin:
 
 * Schedule webconferences in your course
-* Attendees report accounting minutes
 * Activity completion tracking (conditions related with time attendance)
 * Unlimited participants (limits are imposed mainly by bandwidth in your Jitsi servers)
 * Moodle profile pictures used as avatar in webconference
