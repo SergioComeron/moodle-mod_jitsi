@@ -74,6 +74,7 @@ if ($ADMIN->fulltree) {
             CURLOPT_POST           => true,
             CURLOPT_POSTFIELDS     => json_encode(['site_hash' => $sitehash]),
             CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 3,
             CURLOPT_TIMEOUT        => 5,
             CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
         ]);

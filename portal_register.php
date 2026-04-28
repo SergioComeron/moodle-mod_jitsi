@@ -54,6 +54,7 @@ if ($email && confirm_sesskey()) {
         CURLOPT_POST           => true,
         CURLOPT_POSTFIELDS     => $payload,
         CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CONNECTTIMEOUT => 5,
         CURLOPT_TIMEOUT        => 10,
         CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
     ]);
@@ -61,7 +62,7 @@ if ($email && confirm_sesskey()) {
     $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
-    $result = json_decode($response, true);
+    $result = $response !== false ? json_decode($response, true) : null;
 
     if ($httpcode === 200 && !empty($result['ok'])) {
         set_config('portal_email', $email, 'mod_jitsi');
