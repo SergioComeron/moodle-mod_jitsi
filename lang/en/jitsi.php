@@ -344,6 +344,7 @@ $string['portalregisterbutton'] = 'Register &amp; enable';
 $string['portalregistrationerror'] = 'Could not connect to the portal. Please try again later.';
 $string['portalregistrationsent'] = 'Check your email to complete registration and activate usage statistics.';
 $string['portalrequired'] = 'This feature requires a mod_jitsi Account. Please register your installation to access it.';
+$string['portalrequiredcontactadmin'] = 'This feature requires a mod_jitsi Account. Please contact your site administrator to enable it.';
 $string['portalresendemail'] = 'Resend email';
 $string['portalstatusactive'] = 'Connected to mod_jitsi Account';
 $string['portalstatusactivedesc'] = 'Sharing anonymous usage data with the developer. Registered as {$a}.';

@@ -43,14 +43,17 @@ if (!get_config('mod_jitsi', 'portal_license_key')) {
     $PAGE->set_title(get_string('attendancereport', 'jitsi'));
     $PAGE->set_heading(get_string('attendancereport', 'jitsi'));
     echo $OUTPUT->header();
-    echo $OUTPUT->notification(
-        get_string('portalrequired', 'jitsi') . ' ' .
-        html_writer::link(
-            new moodle_url('/admin/settings.php', ['section' => 'modsettingjitsi']),
-            get_string('portalregisterbutton', 'jitsi')
-        ) . '.',
-        'warning'
-    );
+    $syscontext = context_system::instance();
+    if (has_capability('moodle/site:config', $syscontext)) {
+        $notice = get_string('portalrequired', 'jitsi') . ' ' .
+            html_writer::link(
+                new moodle_url('/admin/settings.php', ['section' => 'modsettingjitsi']),
+                get_string('portalregisterbutton', 'jitsi')
+            ) . '.';
+    } else {
+        $notice = get_string('portalrequiredcontactadmin', 'jitsi');
+    }
+    echo $OUTPUT->notification($notice, 'warning');
     echo $OUTPUT->footer();
     exit;
 }
