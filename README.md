@@ -154,7 +154,7 @@ If Dropbox is configured in the plugin settings (**App Key** and **Redirect URI*
 - After the session, the teacher gets the share link from their Dropbox account.
 - In the activity's Recordings tab, the teacher pastes the link using the **"Add recording link"** form.
 
-> Jitsi events (`recordingLinkAvailable`, `recordingStatusChanged`) always fire with the JaaS CDN link (`8x8.vc`), never with the Dropbox URL — so Dropbox links cannot be captured automatically.
+> When using Dropbox recording, Jitsi fires `recordingStatusChanged` when the recording stops, but the Dropbox URL is not included — it is generated asynchronously by Dropbox after the upload completes. This is why Dropbox links cannot be captured automatically and must be published manually.
 
 #### Dropbox configuration
 
