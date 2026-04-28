@@ -47,9 +47,10 @@ Some features require registering your Moodle installation at the **mod_jitsi Ac
 ### How to register
 
 1. Go to **Site administration > Plugins > Activity modules > Jitsi**
-2. In the **mod_jitsi Account** section at the top, enter your email and click **Register & enable**
-3. Check your email and complete registration at the portal
-4. Return to the settings page — it will automatically detect your registration and activate the features
+2. In the **mod_jitsi Account** section at the top, click **Register & enable**
+3. Enter your email address and submit the form
+4. Check your email and complete registration at the portal
+5. Return to the settings page — it will automatically detect your registration and activate the features
 
 ### What data is collected
 
