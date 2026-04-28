@@ -115,16 +115,16 @@ Multiple YouTube accounts can be configured — only one is active at a time, bu
 1. Prepare one or more YouTube accounts with live streaming enabled (requires phone verification and a 24-hour wait)
 2. Create a project in [Google Cloud Console](https://console.cloud.google.com) and enable the **YouTube Data API v3**
 3. Create OAuth 2.0 credentials for a **Web application**, adding the redirect URI shown in the Jitsi plugin settings (e.g. `https://your_moodle_domain/mod/jitsi/auth.php`)
-4. Add the Google accounts associated with your YouTube channels as **Test users** in the OAuth consent screen
+4. In the OAuth consent screen, add the Google accounts associated with your YouTube channels as **authorised users**. Google calls these "Test users" — despite the name, this is the correct setup for production use when you only need a limited set of known accounts. You do not need to publish the app publicly.
 5. Copy the **Client ID** and **Client Secret** to the Jitsi plugin settings in Moodle
 6. In Moodle, add and authorise your Streaming/Recording Accounts
 7. Enable **Live stream** and select **Moodle Integrated** as the Live Streaming Method
 
-**Google Workspace users**: set the "User type" in the OAuth consent screen to **INTERNAL** — no test users are needed and tokens never expire. This is the easiest setup if your institution uses Google Workspace.
+**Note on app status**: Google's "Testing" status means only the accounts you explicitly added can authorise the app, and tokens expire every 7 days — requiring periodic re-authorisation in Moodle. To avoid token expiry, either publish the app (Google may require verification depending on scopes) or use the Google Workspace internal mode described below.
+
+**Google Workspace users**: set the "User type" in the OAuth consent screen to **INTERNAL** — no authorised users need to be added and tokens never expire. This is the recommended setup if your institution uses Google Workspace.
 
 **Important**: never delete the OAuth credentials in Google Cloud — doing so will remove all recordings from the associated YouTube accounts.
-
-In Testing mode, authorisations expire after 7 days. Consider publishing the app or using the Google Workspace internal mode for production. See [Google's documentation](https://support.google.com/cloud/answer/10311615) for details.
 
 ### YouTube manual (teacher's own account)
 
