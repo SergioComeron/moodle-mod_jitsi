@@ -366,8 +366,6 @@ $string['privacy:metadata:jitsi_source_record'] = 'AI-generated content derived 
 $string['privacy:metadata:jitsi_source_record:ai_quiz_id'] = 'Course module ID of the Moodle quiz automatically generated from the recording content.';
 $string['privacy:metadata:jitsi_source_record:ai_summary'] = 'AI-generated text summary of the recording content.';
 $string['privacy:metadata:jitsi_source_record:ai_transcription'] = 'AI-generated full transcription of the recording audio, including timestamps and chapter headings.';
-$string['privacy:metadata:vertexai'] = 'When a teacher generates an AI summary, quiz or transcription, the video recording is sent to Google Vertex AI (Gemini) for processing. The recording may contain personal data (voices and images of participants). The region where processing occurs is configurable in the plugin settings.';
-$string['privacy:metadata:vertexai:recording'] = 'The video recording is sent to Google Vertex AI to generate AI-powered educational content (summary, quiz, transcription). Processing occurs in the configured Vertex AI region.';
 $string['privacy:metadata:portal'] = 'When the site administrator registers the installation, anonymous usage statistics are sent weekly to the mod_jitsi Account portal (portal.sergiocomeron.com). No personal user data is included.';
 $string['privacy:metadata:portal:activity_count'] = 'The total number of Jitsi activities on the site.';
 $string['privacy:metadata:portal:features'] = 'Which optional features are enabled: AI, recording, private sessions, push notifications.';
@@ -375,6 +373,8 @@ $string['privacy:metadata:portal:moodle_branch'] = 'The Moodle major version num
 $string['privacy:metadata:portal:plugin_version'] = 'The mod_jitsi plugin version number.';
 $string['privacy:metadata:portal:server_type'] = 'The type of Jitsi server configured (public, self-hosted, JaaS or GCP).';
 $string['privacy:metadata:portal:site_hash'] = 'An irreversible SHA-256 hash of the site URL. The original URL cannot be recovered from this value.';
+$string['privacy:metadata:vertexai'] = 'When a teacher generates an AI summary, quiz or transcription, the video recording is sent to Google Vertex AI (Gemini) for processing. The recording may contain personal data (voices and images of participants). The region where processing occurs is configurable in the plugin settings.';
+$string['privacy:metadata:vertexai:recording'] = 'The video recording is sent to Google Vertex AI to generate AI-powered educational content (summary, quiz, transcription). Processing occurs in the configured Vertex AI region.';
 $string['privatekey'] = 'Private key';
 $string['privatekeyex'] = 'Private key to sign the token with 8x8 server. You can get it from the 8x8 server administration. (https://jaas.8x8.com/).
 Download the private key file and copy the content here.
