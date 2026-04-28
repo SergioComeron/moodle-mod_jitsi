@@ -350,6 +350,7 @@ $string['portalstatusactive'] = 'Connected to mod_jitsi Account';
 $string['portalstatusactivedesc'] = 'Sharing anonymous usage data with the developer. Registered as {$a}.';
 $string['portalstatuspending'] = 'Waiting for registration';
 $string['portalstatuspendingdesc'] = 'An invitation was sent to {$a}. Complete registration to activate usage statistics.';
+$string['portalunregisterconfirm'] = 'This will disable the attendance report, session usage statistics and recording views. Are you sure you want to unregister?';
 $string['portalunregistered'] = 'Portal registration removed.';
 $string['portalunregisterlink'] = 'Disable and unregister';
 $string['preparing'] = 'Preparing. Please wait...';
