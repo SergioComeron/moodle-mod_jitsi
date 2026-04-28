@@ -483,7 +483,6 @@ $string['telemetryheading'] = 'Usage statistics (opt-in)';
 $string['telemetryheadingex'] = 'Help improve mod_jitsi by sharing anonymous usage data with the developer. All data is anonymised — only aggregate statistics are collected. This feature is disabled by default.';
 $string['telemetrykey'] = 'Telemetry secret key';
 $string['telemetrykeyex'] = 'Secret key used to authenticate pings to the telemetry endpoint.';
-$string['telemetrynudge'] = 'Enabling this takes 2 seconds and makes a real difference. The developer uses this data to understand which Moodle versions and server types are most used, so development effort goes where it matters most.';
 $string['telemetrynudge'] = 'Register your installation in under a minute. The developer uses this data to understand which Moodle versions and server types are most used, so development effort goes where it matters most. No personal data is ever sent.';
 $string['telemetrynudgetitle'] = 'Help shape the future of mod_jitsi';
 $string['timeopen'] = 'Session time open';
