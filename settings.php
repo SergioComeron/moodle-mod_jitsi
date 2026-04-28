@@ -58,7 +58,7 @@ if ($ADMIN->fulltree) {
         }
     }
 
-    // mod_jitsi Account — portal registration (shown prominently at top).
+    // mod_jitsi Account: portal registration shown at top of settings.
     $portalstatus  = get_config('mod_jitsi', 'portal_status');
     $portalemail   = get_config('mod_jitsi', 'portal_email');
     $licensekey    = get_config('mod_jitsi', 'portal_license_key');
