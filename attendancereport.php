@@ -133,6 +133,62 @@ if ($fromform = $mform->get_data()) {
 $fromdaykey = (int)date('Ymd', $fromdate);
 $todaykey   = (int)date('Ymd', $todate);
 
+// Course overview queries.
+$moduleid = $DB->get_field('modules', 'id', ['name' => 'jitsi']);
+
+$courseactivitiessql = "
+    SELECT j.id, j.name, cm.id AS cmid,
+           COALESCE(SUM(ud.sessions), 0) AS totalsessions,
+           COALESCE(SUM(ud.minutes), 0) AS totalminutes,
+           COUNT(DISTINCT ud.userid) AS uniqueparticipants,
+           COUNT(DISTINCT r.id) AS recordings
+      FROM {jitsi} j
+      JOIN {course_modules} cm ON cm.instance = j.id AND cm.module = :moduleid
+      LEFT JOIN {jitsi_usage_daily} ud ON ud.cmid = cm.id
+      LEFT JOIN {jitsi_record} r ON r.jitsi = j.id AND r.deleted = 0
+     WHERE j.course = :courseid
+     GROUP BY j.id, j.name, cm.id
+     ORDER BY j.name ASC";
+$courseactivities = $DB->get_records_sql($courseactivitiessql, [
+    'moduleid' => $moduleid,
+    'courseid' => $course->id,
+]);
+
+$coursestudentssql = "
+    SELECT u.id, u.firstname, u.lastname,
+           COALESCE(SUM(ud.minutes), 0) AS totalminutes,
+           COALESCE(SUM(ud.sessions), 0) AS totalsessions
+      FROM {user} u
+      JOIN {jitsi_usage_daily} ud ON ud.userid = u.id AND ud.courseid = :courseid
+     WHERE u.deleted = 0
+     GROUP BY u.id, u.firstname, u.lastname
+     ORDER BY totalminutes DESC";
+$coursestudents = $DB->get_records_sql($coursestudentssql, ['courseid' => $course->id]);
+
+$courserecviewssql = "
+    SELECT rs.userid, COUNT(DISTINCT rs.sourcerecordid) AS recordings_started
+      FROM {jitsi_recording_segments} rs
+      JOIN {jitsi_record} r ON r.source = rs.sourcerecordid AND r.deleted = 0
+      JOIN {jitsi} j ON j.id = r.jitsi AND j.course = :courseid
+     GROUP BY rs.userid";
+$courserecviews = $DB->get_records_sql($courserecviewssql, ['courseid' => $course->id]);
+
+$toprecordingssql = "
+    SELECT sr.id, sr.link, sr.timecreated,
+           j.name AS activityname, r.name AS recordingname,
+           COUNT(DISTINCT rs.userid) AS viewers
+      FROM {jitsi_source_record} sr
+      JOIN {jitsi_record} r ON r.source = sr.id AND r.deleted = 0
+      JOIN {jitsi} j ON j.id = r.jitsi AND j.course = :courseid
+      JOIN {course_modules} cm ON cm.instance = j.id AND cm.module = :moduleid
+      JOIN {jitsi_recording_segments} rs ON rs.sourcerecordid = sr.id
+     GROUP BY sr.id, sr.link, sr.timecreated, j.name, r.name
+     ORDER BY viewers DESC";
+$toprecordings = $DB->get_records_sql($toprecordingssql, [
+    'courseid' => $course->id,
+    'moduleid' => $moduleid,
+]);
+
 // Handle export before any output.
 $dataformat = optional_param('dataformat', '', PARAM_ALPHA);
 $isdownload = ($dataformat !== '');
@@ -242,6 +298,91 @@ echo html_writer::link(
     '← ' . format_string($jitsi->name),
     ['class' => 'btn btn-secondary mb-4']
 );
+
+// Course overview section.
+echo html_writer::start_tag('div', ['class' => 'card mb-4']);
+echo html_writer::start_tag('div', ['class' => 'card-header d-flex align-items-center justify-content-between']);
+echo html_writer::tag('h4', get_string('coursedashboard', 'jitsi'), ['class' => 'mb-0']);
+echo html_writer::end_tag('div');
+echo html_writer::start_tag('div', ['class' => 'card-body']);
+
+echo html_writer::tag('h5', get_string('coursedashboardactivities', 'jitsi'), ['class' => 'mt-2 mb-2']);
+if (empty($courseactivities)) {
+    echo $OUTPUT->notification(get_string('coursedashboardnodata', 'jitsi'), 'info');
+} else {
+    $acttable = new html_table();
+    $acttable->head = [
+        get_string('activity'),
+        get_string('coursedashboardsessions', 'jitsi'),
+        get_string('coursedashboardparticipants', 'jitsi'),
+        get_string('coursedashboardminutes', 'jitsi'),
+        get_string('coursedashboardrecordings', 'jitsi'),
+    ];
+    $acttable->attributes['class'] = 'generaltable table-sm';
+    foreach ($courseactivities as $act) {
+        $acturl = new moodle_url('/mod/jitsi/view.php', ['id' => $act->cmid]);
+        $acttable->data[] = [
+            html_writer::link($acturl, format_string($act->name)),
+            (int)$act->totalsessions,
+            (int)$act->uniqueparticipants,
+            (int)$act->totalminutes . ' min',
+            (int)$act->recordings,
+        ];
+    }
+    echo html_writer::table($acttable);
+}
+
+echo html_writer::tag('h5', get_string('coursedashboardstudents', 'jitsi'), ['class' => 'mt-4 mb-2']);
+if (empty($coursestudents)) {
+    echo $OUTPUT->notification(get_string('coursedashboardnodata', 'jitsi'), 'info');
+} else {
+    $stutable = new html_table();
+    $stutable->head = [
+        get_string('user'),
+        get_string('coursedashboardsessions', 'jitsi'),
+        get_string('coursedashboardminutes', 'jitsi'),
+        get_string('coursedashboardrecordingsstarted', 'jitsi'),
+    ];
+    $stutable->attributes['class'] = 'generaltable table-sm';
+    foreach ($coursestudents as $student) {
+        $profileurl = new moodle_url('/user/view.php', ['id' => $student->id, 'course' => $course->id]);
+        $recstarted = isset($courserecviews[$student->id]) ? (int)$courserecviews[$student->id]->recordings_started : 0;
+        $stutable->data[] = [
+            html_writer::link($profileurl, fullname($student)),
+            (int)$student->totalsessions,
+            (int)$student->totalminutes . ' min',
+            $recstarted,
+        ];
+    }
+    echo html_writer::table($stutable);
+}
+
+echo html_writer::tag('h5', get_string('coursedashboardtoprecordings', 'jitsi'), ['class' => 'mt-4 mb-2']);
+if (empty($toprecordings)) {
+    echo $OUTPUT->notification(get_string('coursedashboardnorecordingdata', 'jitsi'), 'info');
+} else {
+    $rectable = new html_table();
+    $rectable->head = [
+        get_string('coursedashboardrecording', 'jitsi'),
+        get_string('activity'),
+        get_string('date'),
+        get_string('coursedashboardviewers', 'jitsi'),
+    ];
+    $rectable->attributes['class'] = 'generaltable table-sm';
+    foreach ($toprecordings as $rec) {
+        $recname = !empty($rec->recordingname) ? format_string($rec->recordingname) : userdate($rec->timecreated);
+        $rectable->data[] = [
+            html_writer::link($rec->link, $recname, ['target' => '_blank']),
+            format_string($rec->activityname),
+            userdate($rec->timecreated),
+            (int)$rec->viewers,
+        ];
+    }
+    echo html_writer::table($rectable);
+}
+
+echo html_writer::end_tag('div');
+echo html_writer::end_tag('div');
 
 if (!$hasanydata) {
     echo $OUTPUT->notification(get_string('attendancenodatacron', 'jitsi'), 'warning');

@@ -272,12 +272,6 @@ if (has_capability('mod/jitsi:viewattendance', $PAGE->context)) {
         $reporturl,
         \core\navigation\views\secondary::TYPE_SETTING
     );
-    $dashboardurl = new moodle_url('/mod/jitsi/coursedashboard.php', ['id' => $id]);
-    $PAGE->secondarynav->add(
-        get_string('coursedashboard', 'jitsi'),
-        $dashboardurl,
-        \core\navigation\views\secondary::TYPE_SETTING
-    );
 }
 
 if (!$deletejitsirecordid) {
