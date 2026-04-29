@@ -326,6 +326,14 @@ class mod_view_table extends table_sql {
                         . '</div>';
                 }
 
+                $heatmaphtml = '';
+                if (
+                    get_config('mod_jitsi', 'portal_license_key')
+                    && has_capability('mod/jitsi:viewattendance', $context)
+                ) {
+                    $heatmaphtml = jitsi_render_heatmap_bar((int)$sourcerecord->id, (int)$cm->id);
+                }
+
                 $content = "<h5>" . $OUTPUT->render($tmpl) . "</h5>"
                     . "<h6 class=\"card-subtitle mb-2 text-muted\">" . userdate($values->timecreated) . "</h6>"
                     . "<div class=\"d-flex align-items-center justify-content-end gap-1 mb-1\">"
@@ -336,6 +344,7 @@ class mod_view_table extends table_sql {
                     . "<source src=\"" . s($embedurl) . "\" type=\"video/mp4\">"
                     . "</video>"
                     . $barhtml
+                    . $heatmaphtml
                     . $aiaccordion
                     . "<br>";
             } else {

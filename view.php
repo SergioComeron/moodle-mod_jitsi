@@ -662,14 +662,17 @@ require(['core/ajax'], function(Ajax) {
         var t = trackers[key];
         var dur = getDuration(video, t);
         if (!t || !t.segments.length || !dur) { return; }
-        var merged = mergeSegments(t.segments.slice());
+        var merged        = mergeSegments(t.segments.slice());
+        var sessionMerged = mergeSegments(t.sessionSegs.slice());
+        t.sessionSegs = [];
         Ajax.call([{
             methodname: 'mod_jitsi_save_recording_segments',
             args: {
-                sourcerecordid: parseInt(video.dataset.sourcerecordid, 10),
-                cmid:           parseInt(video.dataset.cmid, 10),
-                segments:       JSON.stringify(merged),
-                duration:       dur
+                sourcerecordid:  parseInt(video.dataset.sourcerecordid, 10),
+                cmid:            parseInt(video.dataset.cmid, 10),
+                segments:        JSON.stringify(merged),
+                duration:        dur,
+                session_segments: JSON.stringify(sessionMerged)
             }
         }])[0].then(function(result) {
             if (result.success && result.segments) {
@@ -687,7 +690,10 @@ require(['core/ajax'], function(Ajax) {
         var wrap = document.getElementById('jitsi-segbar-wrap-' + video.dataset.sourcerecordid);
         var seedSegs = (wrap && wrap.dataset.segments) ? JSON.parse(wrap.dataset.segments) : [];
         var seedDur  = (wrap && wrap.dataset.duration) ? parseFloat(wrap.dataset.duration) : 0;
-        trackers[key] = {segments: seedSegs, segStart: null, lastTime: 0, saveTimer: null, played: false, duration: seedDur};
+        trackers[key] = {
+            segments: seedSegs, segStart: null, lastTime: 0,
+            saveTimer: null, played: false, duration: seedDur, sessionSegs: []
+        };
         var t = trackers[key];
 
         // Capture duration from metadata and update the bar immediately —
@@ -725,6 +731,7 @@ require(['core/ajax'], function(Ajax) {
             } else if (delta >= 2 || delta < 0) {
                 if (t.lastTime > t.segStart) {
                     t.segments.push([t.segStart, t.lastTime]);
+                    t.sessionSegs.push([t.segStart, t.lastTime]);
                 }
                 t.segStart = ct;
                 t.lastTime = ct;
@@ -735,6 +742,7 @@ require(['core/ajax'], function(Ajax) {
             if (t.segStart !== null) {
                 if (t.lastTime > t.segStart) {
                     t.segments.push([t.segStart, t.lastTime]);
+                    t.sessionSegs.push([t.segStart, t.lastTime]);
                 }
                 t.segStart = null;
             }
@@ -748,6 +756,7 @@ require(['core/ajax'], function(Ajax) {
             var dur = getDuration(video, t);
             if (t.segStart !== null) {
                 t.segments.push([t.segStart, dur || t.lastTime]);
+                t.sessionSegs.push([t.segStart, dur || t.lastTime]);
                 t.segStart = null;
             }
             clearInterval(t.saveTimer);
@@ -764,8 +773,9 @@ require(['core/ajax'], function(Ajax) {
         setupTracking(video);
         var key = video.dataset.sourcerecordid + '_' + video.dataset.cmid;
         var t = trackers[key];
-        t.segStart = video.currentTime;
-        t.lastTime = video.currentTime;
+        t.segStart    = video.currentTime;
+        t.lastTime    = video.currentTime;
+        t.sessionSegs = [];
         if (!t.saveTimer) {
             t.saveTimer = setInterval(function() { saveSegments(video); }, 30000);
         }

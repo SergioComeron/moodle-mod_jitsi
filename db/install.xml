@@ -164,6 +164,7 @@
         <FIELD NAME="categoryid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
         <FIELD NAME="sessions" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
         <FIELD NAME="minutes" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="times" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="JSON array of enter timestamps for this user on this day"/>
       </FIELDS>
       <KEYS>
         <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
@@ -198,6 +199,7 @@
         <FIELD NAME="sourcerecordid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
         <FIELD NAME="cmid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
         <FIELD NAME="segments" TYPE="text" NOTNULL="true" SEQUENCE="false" COMMENT="JSON array of [start,end] pairs in seconds"/>
+        <FIELD NAME="playcounts" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="JSON array of int play counts per 10s bucket"/>
         <FIELD NAME="duration" TYPE="number" LENGTH="10" DECIMALS="3" NOTNULL="false" SEQUENCE="false" COMMENT="Video duration in seconds"/>
         <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
         <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>

@@ -74,6 +74,7 @@ if ($ADMIN->fulltree) {
             CURLOPT_POST           => true,
             CURLOPT_POSTFIELDS     => json_encode(['site_hash' => $sitehash]),
             CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 3,
             CURLOPT_TIMEOUT        => 5,
             CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
         ]);
@@ -92,6 +93,8 @@ if ($ADMIN->fulltree) {
         ['action' => 'unregister', 'sesskey' => sesskey()]
     );
 
+    $unregisterconfirm = get_string('portalunregisterconfirm', 'jitsi');
+
     if ($licensekey) {
         $statushtml = html_writer::div(
             html_writer::tag('strong', '✅ ' . get_string('portalstatusactive', 'jitsi')) .
@@ -101,7 +104,10 @@ if ($ADMIN->fulltree) {
             html_writer::link(
                 $unregisterurl,
                 get_string('portalunregisterlink', 'jitsi'),
-                ['class' => 'btn btn-sm btn-outline-secondary']
+                [
+                    'class'   => 'btn btn-sm btn-outline-secondary',
+                    'onclick' => 'return confirm(' . json_encode($unregisterconfirm) . ')',
+                ]
             ),
             'alert alert-success mt-2'
         );
@@ -123,7 +129,10 @@ if ($ADMIN->fulltree) {
             html_writer::link(
                 $unregisterurl,
                 get_string('portalunregisterlink', 'jitsi'),
-                ['class' => 'btn btn-sm btn-outline-secondary']
+                [
+                    'class'   => 'btn btn-sm btn-outline-secondary',
+                    'onclick' => 'return confirm(' . json_encode($unregisterconfirm) . ')',
+                ]
             ),
             'alert alert-warning mt-2'
         );

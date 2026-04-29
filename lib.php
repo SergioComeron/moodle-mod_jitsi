@@ -2984,3 +2984,218 @@ function jitsi_segments_watched_pct(array $segments, float $duration): int {
     }
     return min(100, (int)round(($watched / $duration) * 100));
 }
+
+/**
+ * Render an aggregate heatmap bar showing which parts of a recording each fraction of viewers watched.
+ * Color intensity is proportional to the share of viewers who watched each time bucket.
+ * Only shown to users with mod/jitsi:viewattendance.
+ *
+ * @param int $sourcerecordid
+ * @param int $cmid
+ * @return string HTML, or empty string if no data
+ */
+/**
+ * Format a number of seconds as a video timestamp (MM:SS or H:MM:SS).
+ *
+ * @param int $seconds
+ * @return string
+ */
+function jitsi_format_video_seconds(int $seconds): string {
+    if ($seconds < 60) {
+        return $seconds . 's';
+    }
+    $h   = intdiv($seconds, 3600);
+    $m   = intdiv($seconds % 3600, 60);
+    $s   = $seconds % 60;
+    $out = '';
+    if ($h > 0) {
+        $out .= $h . 'h ';
+    }
+    if ($m > 0 || $h > 0) {
+        $out .= $m . 'min';
+        if ($s > 0) {
+            $out .= ' ' . $s . 's';
+        }
+    } else {
+        $out .= $s . 's';
+    }
+    return trim($out);
+}
+
+/**
+ * Render an aggregate heatmap bar showing which parts of a recording each fraction of viewers watched.
+ * Color intensity is proportional to the share of viewers who watched each time bucket.
+ * Only shown to users with mod/jitsi:viewattendance.
+ *
+ * @param int $sourcerecordid
+ * @param int $cmid
+ * @return string HTML, or empty string if no data
+ */
+function jitsi_render_heatmap_bar(int $sourcerecordid, int $cmid): string {
+    global $DB;
+
+    $rows = $DB->get_records('jitsi_recording_segments', [
+        'sourcerecordid' => $sourcerecordid,
+        'cmid'           => $cmid,
+    ]);
+
+    if (empty($rows)) {
+        return '';
+    }
+
+    $duration = 0.0;
+    foreach ($rows as $row) {
+        if ((float)$row->duration > $duration) {
+            $duration = (float)$row->duration;
+        }
+    }
+    if ($duration <= 0) {
+        return '';
+    }
+
+    $totalviewers = count($rows);
+    $bucketsize   = 10;
+    $numbuckets   = max(1, (int)ceil($duration / $bucketsize));
+    $buckets      = array_fill(0, $numbuckets, 0);
+
+    foreach ($rows as $row) {
+        $segments = json_decode($row->segments, true);
+        if (!is_array($segments)) {
+            continue;
+        }
+        $covered = array_fill(0, $numbuckets, false);
+        foreach ($segments as $seg) {
+            if (!is_array($seg) || count($seg) < 2) {
+                continue;
+            }
+            $startbucket = max(0, (int)floor((float)$seg[0] / $bucketsize));
+            $endbucket   = min($numbuckets - 1, (int)floor((float)$seg[1] / $bucketsize));
+            for ($b = $startbucket; $b <= $endbucket; $b++) {
+                $covered[$b] = true;
+            }
+        }
+        foreach ($covered as $b => $iscovered) {
+            if ($iscovered) {
+                $buckets[$b]++;
+            }
+        }
+    }
+
+    // Aggregate playcounts across all users.
+    $playtotals = array_fill(0, $numbuckets, 0);
+    $maxplays   = 0;
+    foreach ($rows as $row) {
+        if (empty($row->playcounts)) {
+            continue;
+        }
+        $counts = json_decode($row->playcounts, true);
+        if (!is_array($counts)) {
+            continue;
+        }
+        foreach ($counts as $b => $c) {
+            if ($b < $numbuckets) {
+                $playtotals[$b] += (int)$c;
+                if ($playtotals[$b] > $maxplays) {
+                    $maxplays = $playtotals[$b];
+                }
+            }
+        }
+    }
+
+    // Build viewers-per-bucket map for inline tooltip data.
+    $userids = array_unique(array_map(fn($r) => (int)$r->userid, (array)$rows));
+    $usernames = [];
+    if (!empty($userids)) {
+        [$insql, $inparams] = $DB->get_in_or_equal($userids, SQL_PARAMS_NAMED, 'uid');
+        $namefields = 'id, firstname, lastname, firstnamephonetic, lastnamephonetic, middlename, alternatename';
+        $users = $DB->get_records_sql("SELECT $namefields FROM {user} WHERE id $insql", $inparams);
+        foreach ($users as $u) {
+            $usernames[$u->id] = fullname($u);
+        }
+    }
+
+    $viewersperbucket = [];
+    foreach ($rows as $row) {
+        $segments = json_decode($row->segments, true);
+        if (!is_array($segments)) {
+            continue;
+        }
+        $name = $usernames[(int)$row->userid] ?? '';
+        if ($name === '') {
+            continue;
+        }
+        $covered = array_fill(0, $numbuckets, false);
+        foreach ($segments as $seg) {
+            if (!is_array($seg) || count($seg) < 2) {
+                continue;
+            }
+            $sb = max(0, (int)floor((float)$seg[0] / $bucketsize));
+            $eb = min($numbuckets - 1, (int)floor((float)$seg[1] / $bucketsize));
+            for ($b = $sb; $b <= $eb; $b++) {
+                $covered[$b] = true;
+            }
+        }
+        foreach ($covered as $b => $c) {
+            if ($c) {
+                $viewersperbucket[$b][] = $name;
+            }
+        }
+    }
+
+    $viewerlabel  = get_string('recordingheatmapviewers', 'jitsi', $totalviewers);
+    $viewersjson  = htmlspecialchars(json_encode($viewersperbucket), ENT_QUOTES, 'UTF-8');
+    $html  = '<div class="mt-3">';
+    $html .= '<small class="text-muted d-block mb-1">'
+        . get_string('recordingheatmap', 'jitsi') . ' — ' . $viewerlabel
+        . '</small>';
+
+    $bucketwidth = 100 / $numbuckets;
+
+    // Bar 1: unique viewers (blue) — hover tooltip shows viewer names.
+    $html .= '<div class="jitsi-heatmap mb-1"'
+        . ' data-viewers="' . $viewersjson . '"'
+        . ' data-bucketsize="' . $bucketsize . '"'
+        . ' style="position:relative;height:8px;background:#dee2e6;border-radius:4px;overflow:hidden;cursor:crosshair">';
+    foreach ($buckets as $i => $count) {
+        if ($count === 0) {
+            continue;
+        }
+        $opacity   = number_format($count / $totalviewers, 3, '.', '');
+        $left      = number_format($i * $bucketwidth, 3, '.', '');
+        $width     = number_format($bucketwidth + 0.1, 3, '.', '');
+        $start     = $i * $bucketsize;
+        $end       = $start + $bucketsize;
+        $fmtstart  = jitsi_format_video_seconds($start);
+        $fmtend    = jitsi_format_video_seconds($end);
+        $html     .= '<div data-bucket="' . $i . '" data-start="' . s($fmtstart) . '" data-end="' . s($fmtend) . '"'
+            . ' style="position:absolute;left:' . $left . '%;width:' . $width
+            . '%;height:100%;background:rgba(13,110,253,' . $opacity . ')"></div>';
+    }
+    $html .= '</div>';
+
+    // Bar 2: total plays (orange), only if we have data.
+    if ($maxplays > 0) {
+        $html .= '<small class="text-muted d-block mb-1">'
+            . get_string('recordingheatmapplays', 'jitsi', $maxplays)
+            . '</small>';
+        $html .= '<div class="jitsi-heatmap" style="position:relative;height:8px;'
+            . 'background:#dee2e6;border-radius:4px;overflow:hidden;cursor:default">';
+        foreach ($playtotals as $i => $count) {
+            if ($count === 0) {
+                continue;
+            }
+            $opacity  = number_format($count / $maxplays, 3, '.', '');
+            $left     = number_format($i * $bucketwidth, 3, '.', '');
+            $width    = number_format($bucketwidth + 0.1, 3, '.', '');
+            $start    = $i * $bucketsize;
+            $end      = $start + $bucketsize;
+            $tooltip  = s($count . ' plays · ' . jitsi_format_video_seconds($start) . '–' . jitsi_format_video_seconds($end));
+            $html    .= '<div title="' . $tooltip . '" style="position:absolute;left:' . $left . '%;width:' . $width
+                . '%;height:100%;background:rgba(253,126,20,' . $opacity . ')"></div>';
+        }
+        $html .= '</div>';
+    }
+
+    $html .= '</div>';
+    return $html;
+}

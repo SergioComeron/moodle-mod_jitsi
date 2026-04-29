@@ -133,6 +133,62 @@ if ($fromform = $mform->get_data()) {
 $fromdaykey = (int)date('Ymd', $fromdate);
 $todaykey   = (int)date('Ymd', $todate);
 
+// Course overview queries.
+$moduleid = $DB->get_field('modules', 'id', ['name' => 'jitsi']);
+
+$courseactivitiessql = "
+    SELECT j.id, j.name, cm.id AS cmid,
+           COALESCE(SUM(ud.sessions), 0) AS totalsessions,
+           COALESCE(SUM(ud.minutes), 0) AS totalminutes,
+           COUNT(DISTINCT ud.userid) AS uniqueparticipants,
+           COUNT(DISTINCT r.id) AS recordings
+      FROM {jitsi} j
+      JOIN {course_modules} cm ON cm.instance = j.id AND cm.module = :moduleid
+      LEFT JOIN {jitsi_usage_daily} ud ON ud.cmid = cm.id
+      LEFT JOIN {jitsi_record} r ON r.jitsi = j.id AND r.deleted = 0
+     WHERE j.course = :courseid
+     GROUP BY j.id, j.name, cm.id
+     ORDER BY j.name ASC";
+$courseactivities = $DB->get_records_sql($courseactivitiessql, [
+    'moduleid' => $moduleid,
+    'courseid' => $course->id,
+]);
+
+$coursestudentssql = "
+    SELECT u.id, u.firstname, u.lastname,
+           COALESCE(SUM(ud.minutes), 0) AS totalminutes,
+           COALESCE(SUM(ud.sessions), 0) AS totalsessions
+      FROM {user} u
+      JOIN {jitsi_usage_daily} ud ON ud.userid = u.id AND ud.courseid = :courseid
+     WHERE u.deleted = 0
+     GROUP BY u.id, u.firstname, u.lastname
+     ORDER BY totalminutes DESC";
+$coursestudents = $DB->get_records_sql($coursestudentssql, ['courseid' => $course->id]);
+
+$courserecviewssql = "
+    SELECT rs.userid, COUNT(DISTINCT rs.sourcerecordid) AS recordings_started
+      FROM {jitsi_recording_segments} rs
+      JOIN {jitsi_record} r ON r.source = rs.sourcerecordid AND r.deleted = 0
+      JOIN {jitsi} j ON j.id = r.jitsi AND j.course = :courseid
+     GROUP BY rs.userid";
+$courserecviews = $DB->get_records_sql($courserecviewssql, ['courseid' => $course->id]);
+
+$toprecordingssql = "
+    SELECT sr.id, sr.link, sr.timecreated,
+           j.name AS activityname, r.name AS recordingname,
+           COUNT(DISTINCT rs.userid) AS viewers
+      FROM {jitsi_source_record} sr
+      JOIN {jitsi_record} r ON r.source = sr.id AND r.deleted = 0
+      JOIN {jitsi} j ON j.id = r.jitsi AND j.course = :courseid
+      JOIN {course_modules} cm ON cm.instance = j.id AND cm.module = :moduleid
+      JOIN {jitsi_recording_segments} rs ON rs.sourcerecordid = sr.id
+     GROUP BY sr.id, sr.link, sr.timecreated, j.name, r.name
+     ORDER BY viewers DESC";
+$toprecordings = $DB->get_records_sql($toprecordingssql, [
+    'courseid' => $course->id,
+    'moduleid' => $moduleid,
+]);
+
 // Handle export before any output.
 $dataformat = optional_param('dataformat', '', PARAM_ALPHA);
 $isdownload = ($dataformat !== '');
@@ -147,11 +203,40 @@ $orderby = $sort === 'minutes' ? 'minutes DESC' : 'u.lastname ASC, u.firstname A
 // Check whether jitsi_usage_daily has any data for this activity at all.
 $hasanydata = $DB->record_exists('jitsi_usage_daily', ['cmid' => $cm->id]);
 
+// Dates (and times if available) attended per user — all time, no date filter.
+$datesperbuser = [];
+if ($hasanydata) {
+    $datefmt = get_string('strftimedate', 'langconfig');
+    $datetimefmt = get_string('strftimedatetimeshort', 'langconfig');
+    $daterset = $DB->get_recordset_sql(
+        "SELECT userid, daykey, times
+           FROM {jitsi_usage_daily}
+          WHERE cmid = :cmid
+                AND sessions > 0
+          ORDER BY userid, daykey ASC",
+        ['cmid' => $cm->id]
+    );
+    foreach ($daterset as $dr) {
+        $timestamps = !empty($dr->times) ? json_decode($dr->times, true) : [];
+        if (!empty($timestamps)) {
+            foreach ($timestamps as $ts) {
+                $datesperbuser[$dr->userid][] = userdate((int)$ts, $datetimefmt);
+            }
+        } else {
+            $y = (int)substr((string)$dr->daykey, 0, 4);
+            $m = (int)substr((string)$dr->daykey, 4, 2);
+            $d = (int)substr((string)$dr->daykey, 6, 2);
+            $datesperbuser[$dr->userid][] = userdate(mktime(0, 0, 0, $m, $d, $y), $datefmt);
+        }
+    }
+    $daterset->close();
+}
+
 // Whether the teacher has explicitly requested a live logstore query.
 $livequery = optional_param('live', 0, PARAM_INT);
 
 if ($hasanydata) {
-    // Fast path: read from precomputed table.
+    // Fast path: read from precomputed table — all time, no date filter.
     $rows = $DB->get_records_sql(
         "SELECT jud.userid,
                 u.firstname,
@@ -161,10 +246,9 @@ if ($hasanydata) {
            FROM {jitsi_usage_daily} jud
            JOIN {user} u ON u.id = jud.userid
           WHERE jud.cmid = :cmid
-                AND jud.daykey BETWEEN :fromdaykey AND :todaykey
        GROUP BY jud.userid, u.firstname, u.lastname
        ORDER BY $orderby",
-        ['cmid' => $cm->id, 'fromdaykey' => $fromdaykey, 'todaykey' => $todaykey]
+        ['cmid' => $cm->id]
     );
     $usinglivedata = false;
 } else if ($livequery) {
@@ -202,6 +286,7 @@ if ($isdownload) {
         'sessions' => get_string('sessionsentered', 'jitsi'),
         'minutes'  => get_string('totaluserminutes', 'jitsi'),
         'avgtime'  => get_string('averagetimeperuser', 'jitsi'),
+        'dates'    => get_string('attendancedates', 'jitsi'),
     ];
     $exportdata = [];
     foreach ($rows as $row) {
@@ -211,6 +296,7 @@ if ($isdownload) {
             'sessions' => (int)$row->sessions,
             'minutes'  => (int)$row->minutes,
             'avgtime'  => $avg,
+            'dates'    => implode(', ', $datesperbuser[$row->userid] ?? []),
         ];
     }
     \core\dataformat::download_data(
@@ -223,13 +309,49 @@ if ($isdownload) {
 }
 
 // Build sort toggle URLs.
-$baseurl = new moodle_url('/mod/jitsi/attendancereport.php', [
-    'id'       => $id,
-    'fromdate' => $fromdate,
-    'todate'   => $todate,
-]);
+$baseurl        = new moodle_url('/mod/jitsi/attendancereport.php', ['id' => $id]);
 $urlsortname    = new moodle_url($baseurl, ['sort' => 'name']);
 $urlsortminutes = new moodle_url($baseurl, ['sort' => 'minutes']);
+
+// Heatmap hover tooltip JS.
+$strnoviewers = json_encode(get_string('heatmapbucketnoviewers', 'jitsi'));
+$PAGE->requires->js_amd_inline("
+require(['core/first'], function() {
+    var strNoViewers = " . $strnoviewers . ";
+    var tip = document.createElement('div');
+    tip.style.cssText = 'position:fixed;z-index:9999;background:#333;color:#fff;padding:6px 10px;'
+        + 'border-radius:4px;font-size:12px;pointer-events:none;display:none;max-width:220px;line-height:1.4';
+    document.body.appendChild(tip);
+
+    document.addEventListener('mousemove', function(e) {
+        var bucket = e.target.closest('[data-bucket]');
+        if (!bucket) { tip.style.display = 'none'; return; }
+        var bar = bucket.closest('.jitsi-heatmap[data-viewers]');
+        if (!bar) { tip.style.display = 'none'; return; }
+
+        var viewers  = JSON.parse(bar.dataset.viewers || '{}');
+        var bidx     = bucket.dataset.bucket;
+        var start    = bucket.dataset.start;
+        var end      = bucket.dataset.end;
+        var list     = viewers[bidx] || [];
+
+        var html = '<strong>' + start + '–' + end + '</strong><br>';
+        if (!list.length) {
+            html += strNoViewers;
+        } else {
+            html += list.join('<br>');
+        }
+        tip.innerHTML = html;
+        tip.style.display = 'block';
+        tip.style.left = (e.clientX + 12) + 'px';
+        tip.style.top  = (e.clientY - 10) + 'px';
+    });
+
+    document.addEventListener('mouseleave', function(e) {
+        if (!e.target.closest('[data-bucket]')) { tip.style.display = 'none'; }
+    }, true);
+});
+");
 
 // Begin output.
 echo $OUTPUT->header();
@@ -243,25 +365,35 @@ echo html_writer::link(
     ['class' => 'btn btn-secondary mb-4']
 );
 
+$bstoggle = ($CFG->branch >= 500) ? 'data-bs-toggle' : 'data-toggle';
+
+// Tab navigation.
+echo '<ul class="nav nav-tabs mb-3" id="attendanceTabs" role="tablist">';
+echo '<li class="nav-item">';
+echo '<a class="nav-link active" id="tab-sessions-link" ' . $bstoggle . '="tab"'
+    . ' href="#tab-sessions" role="tab">' . get_string('attendancetablive', 'jitsi') . '</a>';
+echo '</li>';
+echo '<li class="nav-item">';
+echo '<a class="nav-link" id="tab-recordings-link" ' . $bstoggle . '="tab"'
+    . ' href="#tab-recordings" role="tab">' . get_string('records', 'jitsi') . '</a>';
+echo '</li>';
+echo '<li class="nav-item">';
+echo '<a class="nav-link" id="tab-course-link" ' . $bstoggle . '="tab"'
+    . ' href="#tab-course" role="tab">' . get_string('coursedashboard', 'jitsi') . '</a>';
+echo '</li>';
+echo '</ul>';
+
+echo '<div class="tab-content">';
+
+// Tab 1: Live sessions.
+echo '<div class="tab-pane fade show active" id="tab-sessions" role="tabpanel">';
+
 if (!$hasanydata) {
     echo $OUTPUT->notification(get_string('attendancenodatacron', 'jitsi'), 'warning');
 }
 
-// Filter form.
-echo html_writer::start_tag('div', ['class' => 'card mb-4']);
-echo html_writer::start_tag('div', ['class' => 'card-body']);
-$mform->display();
-echo html_writer::end_tag('div');
-echo html_writer::end_tag('div');
-
-// If no precomputed data and live query not yet triggered, show the generate button.
 if (!$hasanydata && !$livequery) {
-    $liveurl = new moodle_url('/mod/jitsi/attendancereport.php', [
-        'id'       => $id,
-        'fromdate' => $fromdate,
-        'todate'   => $todate,
-        'live'     => 1,
-    ]);
+    $liveurl = new moodle_url('/mod/jitsi/attendancereport.php', ['id' => $id, 'live' => 1]);
     echo $OUTPUT->single_button($liveurl, get_string('attendancegeneratereport', 'jitsi'), 'get');
 } else if ($usinglivedata) {
     echo $OUTPUT->notification(get_string('attendancelivedata', 'jitsi'), 'info');
@@ -305,16 +437,19 @@ if ((!$hasanydata && !$livequery) || empty($rows)) {
         get_string('sessionsentered', 'jitsi'),
         html_writer::link($urlsortminutes, get_string('totaluserminutes', 'jitsi') . ($sort === 'minutes' ? ' ▼' : '')),
         get_string('averagetimeperuser', 'jitsi'),
+        get_string('attendancedates', 'jitsi'),
     ];
 
     foreach ($rows as $row) {
         $userurl = new moodle_url('/user/view.php', ['id' => $row->userid, 'course' => $course->id]);
         $avg     = $row->sessions > 0 ? round($row->minutes / $row->sessions) : 0;
+        $dates   = implode(' · ', $datesperbuser[$row->userid] ?? []);
         $table->data[] = [
             html_writer::link($userurl, fullname($row)),
             (int)$row->sessions,
             (int)$row->minutes . ' min',
             $avg . ' min',
+            $dates ?: '—',
         ];
     }
 
@@ -325,9 +460,21 @@ if ((!$hasanydata && !$livequery) || empty($rows)) {
         get_string('download'),
         'attendancereport.php',
         'dataformat',
-        ['id' => $id, 'fromdate' => $fromdate, 'todate' => $todate, 'sort' => $sort]
+        ['id' => $id, 'sort' => $sort]
     );
 }
+
+echo '</div>'; // End tab-sessions pane.
+
+// Tab 2: Recordings.
+echo '<div class="tab-pane fade" id="tab-recordings" role="tabpanel">';
+
+// Filter form for recording views.
+echo html_writer::start_tag('div', ['class' => 'card mb-4']);
+echo html_writer::start_tag('div', ['class' => 'card-body']);
+$mform->display();
+echo html_writer::end_tag('div');
+echo html_writer::end_tag('div');
 
 // Recording views section — one card per GCS recording in this activity.
 $allrecordings = $DB->get_records_sql(
@@ -453,6 +600,11 @@ if (!empty($gcsrecordings)) {
             'cmid'           => $cm->id,
         ], '', 'userid, segments, duration');
 
+        $heatmap = jitsi_render_heatmap_bar((int)$rec->id, (int)$cm->id);
+        if (!empty($heatmap)) {
+            echo $heatmap;
+        }
+
         if (!empty($viewrows)) {
             $viewtable                      = new html_table();
             $viewtable->attributes['class'] = 'generaltable table-sm';
@@ -575,5 +727,88 @@ if (!empty($linkrecordings)) {
     echo html_writer::end_tag('div');
     echo html_writer::end_tag('div');
 }
+
+echo '</div>'; // End tab-recordings pane.
+
+// Tab 3: Course overview.
+echo '<div class="tab-pane fade" id="tab-course" role="tabpanel">';
+
+echo html_writer::tag('h5', get_string('coursedashboardactivities', 'jitsi'), ['class' => 'mt-2 mb-2']);
+if (empty($courseactivities)) {
+    echo $OUTPUT->notification(get_string('coursedashboardnodata', 'jitsi'), 'info');
+} else {
+    $acttable = new html_table();
+    $acttable->head = [
+        get_string('activity'),
+        get_string('coursedashboardsessions', 'jitsi'),
+        get_string('coursedashboardparticipants', 'jitsi'),
+        get_string('coursedashboardminutes', 'jitsi'),
+        get_string('coursedashboardrecordings', 'jitsi'),
+    ];
+    $acttable->attributes['class'] = 'generaltable table-sm';
+    foreach ($courseactivities as $act) {
+        $acturl = new moodle_url('/mod/jitsi/view.php', ['id' => $act->cmid]);
+        $acttable->data[] = [
+            html_writer::link($acturl, format_string($act->name)),
+            (int)$act->totalsessions,
+            (int)$act->uniqueparticipants,
+            (int)$act->totalminutes . ' min',
+            (int)$act->recordings,
+        ];
+    }
+    echo html_writer::table($acttable);
+}
+
+echo html_writer::tag('h5', get_string('coursedashboardstudents', 'jitsi'), ['class' => 'mt-4 mb-2']);
+if (empty($coursestudents)) {
+    echo $OUTPUT->notification(get_string('coursedashboardnodata', 'jitsi'), 'info');
+} else {
+    $stutable = new html_table();
+    $stutable->head = [
+        get_string('user'),
+        get_string('coursedashboardsessions', 'jitsi'),
+        get_string('coursedashboardminutes', 'jitsi'),
+        get_string('coursedashboardrecordingsstarted', 'jitsi'),
+    ];
+    $stutable->attributes['class'] = 'generaltable table-sm';
+    foreach ($coursestudents as $student) {
+        $profileurl = new moodle_url('/user/view.php', ['id' => $student->id, 'course' => $course->id]);
+        $recstarted = isset($courserecviews[$student->id]) ? (int)$courserecviews[$student->id]->recordings_started : 0;
+        $stutable->data[] = [
+            html_writer::link($profileurl, fullname($student)),
+            (int)$student->totalsessions,
+            (int)$student->totalminutes . ' min',
+            $recstarted,
+        ];
+    }
+    echo html_writer::table($stutable);
+}
+
+echo html_writer::tag('h5', get_string('coursedashboardtoprecordings', 'jitsi'), ['class' => 'mt-4 mb-2']);
+if (empty($toprecordings)) {
+    echo $OUTPUT->notification(get_string('coursedashboardnorecordingdata', 'jitsi'), 'info');
+} else {
+    $rectable = new html_table();
+    $rectable->head = [
+        get_string('coursedashboardrecording', 'jitsi'),
+        get_string('activity'),
+        get_string('date'),
+        get_string('coursedashboardviewers', 'jitsi'),
+    ];
+    $rectable->attributes['class'] = 'generaltable table-sm';
+    foreach ($toprecordings as $rec) {
+        $recname = !empty($rec->recordingname) ? format_string($rec->recordingname) : userdate($rec->timecreated);
+        $rectable->data[] = [
+            html_writer::link($rec->link, $recname, ['target' => '_blank']),
+            format_string($rec->activityname),
+            userdate($rec->timecreated),
+            (int)$rec->viewers,
+        ];
+    }
+    echo html_writer::table($rectable);
+}
+
+echo '</div>'; // End tab-course pane.
+echo '</div>'; // End tab-content.
 
 echo $OUTPUT->footer();

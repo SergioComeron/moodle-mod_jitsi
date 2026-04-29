@@ -47,11 +47,22 @@ if ($action === 'resend') {
             CURLOPT_POST           => true,
             CURLOPT_POSTFIELDS     => $payload,
             CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 5,
             CURLOPT_TIMEOUT        => 10,
             CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
         ]);
-        curl_exec($ch);
+        $resendresponse = curl_exec($ch);
+        $resendhttpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
+
+        if ($resendresponse === false || $resendhttpcode < 200 || $resendhttpcode >= 300) {
+            redirect(
+                $returnurl,
+                get_string('portalregistrationerror', 'jitsi'),
+                null,
+                \core\output\notification::NOTIFY_ERROR
+            );
+        }
     }
     redirect(
         $returnurl,
@@ -92,6 +103,24 @@ if ($action === 'register') {
 }
 
 if ($action === 'unregister') {
+    $licensekey = get_config('mod_jitsi', 'portal_license_key');
+    $sitehash   = hash('sha256', $CFG->wwwroot);
+
+    // Best-effort notification to the portal — do not block if unreachable.
+    if ($licensekey) {
+        $ch = curl_init('https://portal.sergiocomeron.com/unregister.php');
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => json_encode(['site_hash' => $sitehash, 'license_key' => $licensekey]),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 5,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+        ]);
+        curl_exec($ch);
+        curl_close($ch);
+    }
+
     unset_config('portal_email', 'mod_jitsi');
     unset_config('portal_status', 'mod_jitsi');
     unset_config('portal_license_key', 'mod_jitsi');

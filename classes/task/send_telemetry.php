@@ -54,12 +54,13 @@ class send_telemetry extends \core\task\scheduled_task {
                 CURLOPT_POST           => true,
                 CURLOPT_POSTFIELDS     => json_encode(['site_hash' => $sitehash]),
                 CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_CONNECTTIMEOUT => 5,
                 CURLOPT_TIMEOUT        => 10,
                 CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
             ]);
             $vresponse = curl_exec($ch);
             curl_close($ch);
-            $vdata = json_decode($vresponse, true);
+            $vdata = $vresponse !== false ? json_decode($vresponse, true) : null;
             if (!empty($vdata['ok']) && !empty($vdata['license_key'])) {
                 set_config('portal_license_key', $vdata['license_key'], 'mod_jitsi');
                 set_config('portal_status', 'active', 'mod_jitsi');
@@ -87,16 +88,17 @@ class send_telemetry extends \core\task\scheduled_task {
         }
 
         $payload = [
-            'site_hash'       => $sitehash,
-            'plugin_version'  => (int)($config->version ?? 0),
-            'moodle_branch'   => (int)$CFG->branch,
-            'server_type'     => $servertype,
-            'activity_count'  => (int)$DB->count_records('jitsi'),
-            'ai_enabled'      => !empty($config->aienabled),
-            'jibri_enabled'   => $DB->record_exists_select('jitsi_servers', "jibri_enabled = 1"),
+            'site_hash'        => $sitehash,
+            'license_key'      => $config->portal_license_key,
+            'plugin_version'   => (int)($config->version ?? 0),
+            'moodle_branch'    => (int)$CFG->branch,
+            'server_type'      => $servertype,
+            'activity_count'   => (int)$DB->count_records('jitsi'),
+            'ai_enabled'       => !empty($config->aienabled),
+            'jibri_enabled'    => $DB->record_exists_select('jitsi_servers', "jibri_enabled = 1"),
             'private_sessions' => !empty($config->enableprivatesessions),
-            'push_enabled'    => !empty($config->enablepushnotifications),
-            'site_timezone'   => $CFG->timezone ?? date_default_timezone_get(),
+            'push_enabled'     => !empty($config->enablepushnotifications),
+            'site_timezone'    => $CFG->timezone ?? date_default_timezone_get(),
         ];
 
         $curl = curl_init($endpoint);
@@ -104,6 +106,7 @@ class send_telemetry extends \core\task\scheduled_task {
             CURLOPT_POST           => true,
             CURLOPT_POSTFIELDS     => json_encode($payload),
             CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 5,
             CURLOPT_TIMEOUT        => 10,
             CURLOPT_HTTPHEADER     => [
                 'Content-Type: application/json',
@@ -115,7 +118,17 @@ class send_telemetry extends \core\task\scheduled_task {
         $httpcode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
         curl_close($curl);
 
-        if ($httpcode === 200) {
+        if ($response === false) {
+            mtrace('mod_jitsi send_telemetry: portal unreachable, skipping ping.');
+        } else if ($httpcode === 200) {
+            $responsedata = json_decode($response, true);
+            if (!empty($responsedata['deactivated'])) {
+                unset_config('portal_email', 'mod_jitsi');
+                unset_config('portal_status', 'mod_jitsi');
+                unset_config('portal_license_key', 'mod_jitsi');
+                mtrace('mod_jitsi send_telemetry: account deactivated from portal, local config cleared.');
+                return;
+            }
             mtrace('mod_jitsi send_telemetry: ping sent successfully.');
         } else {
             mtrace('mod_jitsi send_telemetry: ping failed (HTTP ' . $httpcode . '): ' . $response);

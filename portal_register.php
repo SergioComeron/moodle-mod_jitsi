@@ -45,7 +45,7 @@ if ($email && confirm_sesskey()) {
     $payload  = json_encode([
         'email'     => $email,
         'site_hash' => $sitehash,
-        'site_name' => $CFG->fullname,
+        'site_name' => $SITE->fullname,
         'site_url'  => $CFG->wwwroot,
     ]);
 
@@ -54,6 +54,7 @@ if ($email && confirm_sesskey()) {
         CURLOPT_POST           => true,
         CURLOPT_POSTFIELDS     => $payload,
         CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CONNECTTIMEOUT => 5,
         CURLOPT_TIMEOUT        => 10,
         CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
     ]);
@@ -61,7 +62,7 @@ if ($email && confirm_sesskey()) {
     $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
-    $result = json_decode($response, true);
+    $result = $response !== false ? json_decode($response, true) : null;
 
     if ($httpcode === 200 && !empty($result['ok'])) {
         set_config('portal_email', $email, 'mod_jitsi');
@@ -84,6 +85,7 @@ if ($email && confirm_sesskey()) {
 
 echo $OUTPUT->header();
 echo html_writer::tag('p', get_string('portalheadingex', 'jitsi'));
+echo html_writer::div(get_string('portalopensourcenote', 'jitsi'), 'alert alert-info');
 
 $actionurl = new moodle_url('/mod/jitsi/portal_register.php');
 echo html_writer::start_tag('form', ['method' => 'post', 'action' => $actionurl->out(false)]);

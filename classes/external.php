@@ -2081,10 +2081,11 @@ class mod_jitsi_external extends external_api {
      */
     public static function save_recording_segments_parameters() {
         return new external_function_parameters([
-            'sourcerecordid' => new external_value(PARAM_INT, 'jitsi_source_record id'),
-            'cmid'           => new external_value(PARAM_INT, 'Course module id'),
-            'segments'       => new external_value(PARAM_TEXT, 'JSON array of [start,end] pairs in seconds'),
-            'duration'       => new external_value(PARAM_FLOAT, 'Video duration in seconds'),
+            'sourcerecordid'  => new external_value(PARAM_INT, 'jitsi_source_record id'),
+            'cmid'            => new external_value(PARAM_INT, 'Course module id'),
+            'segments'        => new external_value(PARAM_TEXT, 'JSON array of [start,end] pairs in seconds'),
+            'duration'        => new external_value(PARAM_FLOAT, 'Video duration in seconds'),
+            'session_segments' => new external_value(PARAM_TEXT, 'JSON segments from current play session', VALUE_DEFAULT, '[]'),
         ]);
     }
 
@@ -2097,7 +2098,7 @@ class mod_jitsi_external extends external_api {
      * @param float  $duration video duration in seconds
      * @return array
      */
-    public static function save_recording_segments($sourcerecordid, $cmid, $segments, $duration) {
+    public static function save_recording_segments($sourcerecordid, $cmid, $segments, $duration, $sessionsegments = '[]') {
         global $DB, $USER;
 
         if (!get_config('mod_jitsi', 'portal_license_key')) {
@@ -2105,10 +2106,11 @@ class mod_jitsi_external extends external_api {
         }
 
         $params = self::validate_parameters(self::save_recording_segments_parameters(), [
-            'sourcerecordid' => $sourcerecordid,
-            'cmid'           => $cmid,
-            'segments'       => $segments,
-            'duration'       => $duration,
+            'sourcerecordid'  => $sourcerecordid,
+            'cmid'            => $cmid,
+            'segments'        => $segments,
+            'duration'        => $duration,
+            'session_segments' => $sessionsegments,
         ]);
 
         $context = context_module::instance($params['cmid']);
@@ -2149,9 +2151,39 @@ class mod_jitsi_external extends external_api {
         $merged     = self::merge_segments($allsegs, (float)$params['duration']);
         $mergedjson = json_encode($merged);
 
+        // Compute updated playcounts from session_segments.
+        $newsessionsegs = json_decode($params['session_segments'], true);
+        $duration       = (float)$params['duration'];
+        $playcountsjson = null;
+        if (is_array($newsessionsegs) && !empty($newsessionsegs) && $duration > 0) {
+            $bucketsize  = 10;
+            $numbuckets  = max(1, (int)ceil($duration / $bucketsize));
+            $existingcounts = [];
+            if ($existing && !empty($existing->playcounts)) {
+                $existingcounts = json_decode($existing->playcounts, true) ?? [];
+            }
+            if (count($existingcounts) < $numbuckets) {
+                $existingcounts = array_pad($existingcounts, $numbuckets, 0);
+            }
+            foreach ($newsessionsegs as $seg) {
+                if (!is_array($seg) || count($seg) < 2) {
+                    continue;
+                }
+                $startbucket = max(0, (int)floor((float)$seg[0] / $bucketsize));
+                $endbucket   = min($numbuckets - 1, (int)floor((float)$seg[1] / $bucketsize));
+                for ($b = $startbucket; $b <= $endbucket; $b++) {
+                    $existingcounts[$b] = ($existingcounts[$b] ?? 0) + 1;
+                }
+            }
+            $playcountsjson = json_encode(array_values($existingcounts));
+        } else if ($existing && !empty($existing->playcounts)) {
+            $playcountsjson = $existing->playcounts;
+        }
+
         if ($existing) {
             $existing->segments     = $mergedjson;
-            $existing->duration     = (float)$params['duration'];
+            $existing->playcounts   = $playcountsjson;
+            $existing->duration     = $duration;
             $existing->timemodified = time();
             $DB->update_record('jitsi_recording_segments', $existing);
         } else {
@@ -2160,7 +2192,8 @@ class mod_jitsi_external extends external_api {
                 'sourcerecordid' => $params['sourcerecordid'],
                 'cmid'           => $params['cmid'],
                 'segments'       => $mergedjson,
-                'duration'       => (float)$params['duration'],
+                'playcounts'     => $playcountsjson,
+                'duration'       => $duration,
                 'timecreated'    => time(),
                 'timemodified'   => time(),
             ]);
@@ -2209,6 +2242,91 @@ class mod_jitsi_external extends external_api {
         return new external_single_structure([
             'success'  => new external_value(PARAM_BOOL, 'Whether segments were saved'),
             'segments' => new external_value(PARAM_TEXT, 'Merged segments as JSON'),
+        ]);
+    }
+
+    /**
+     * Parameters for get_bucket_viewers.
+     * @return external_function_parameters
+     */
+    public static function get_bucket_viewers_parameters() {
+        return new external_function_parameters([
+            'sourcerecordid' => new external_value(PARAM_INT, 'jitsi_source_record id'),
+            'cmid'           => new external_value(PARAM_INT, 'Course module id'),
+            'bucketindex'    => new external_value(PARAM_INT, 'Zero-based bucket index (10s buckets)'),
+        ]);
+    }
+
+    /**
+     * Get the list of users who watched a specific 10-second bucket of a recording.
+     *
+     * @param int $sourcerecordid
+     * @param int $cmid
+     * @param int $bucketindex
+     * @return array
+     */
+    public static function get_bucket_viewers($sourcerecordid, $cmid, $bucketindex) {
+        global $DB;
+
+        $params = self::validate_parameters(self::get_bucket_viewers_parameters(), [
+            'sourcerecordid' => $sourcerecordid,
+            'cmid'           => $cmid,
+            'bucketindex'    => $bucketindex,
+        ]);
+
+        $context = context_module::instance($params['cmid']);
+        self::validate_context($context);
+        require_capability('mod/jitsi:viewattendance', $context);
+
+        $bucketsize  = 10;
+        $bucketstart = $params['bucketindex'] * $bucketsize;
+        $bucketend   = $bucketstart + $bucketsize;
+
+        $rows = $DB->get_records('jitsi_recording_segments', [
+            'sourcerecordid' => $params['sourcerecordid'],
+            'cmid'           => $params['cmid'],
+        ]);
+
+        $viewers = [];
+        foreach ($rows as $row) {
+            $segments = json_decode($row->segments, true);
+            if (!is_array($segments)) {
+                continue;
+            }
+            foreach ($segments as $seg) {
+                if (!is_array($seg) || count($seg) < 2) {
+                    continue;
+                }
+                if ((float)$seg[0] < $bucketend && (float)$seg[1] > $bucketstart) {
+                    $namefields = 'id, firstname, lastname, firstnamephonetic, lastnamephonetic, middlename, alternatename';
+                    $user = $DB->get_record('user', ['id' => $row->userid], $namefields);
+                    if ($user) {
+                        $viewers[] = ['userid' => (int)$user->id, 'fullname' => fullname($user)];
+                    }
+                    break;
+                }
+            }
+        }
+
+        usort($viewers, fn($a, $b) => strcmp($a['fullname'], $b['fullname']));
+
+        return ['viewers' => $viewers, 'bucketstart' => $bucketstart, 'bucketend' => $bucketend];
+    }
+
+    /**
+     * Returns for get_bucket_viewers.
+     * @return external_description
+     */
+    public static function get_bucket_viewers_returns() {
+        return new external_single_structure([
+            'viewers'     => new external_multiple_structure(
+                new external_single_structure([
+                    'userid'   => new external_value(PARAM_INT, 'User id'),
+                    'fullname' => new external_value(PARAM_TEXT, 'User full name'),
+                ])
+            ),
+            'bucketstart' => new external_value(PARAM_INT, 'Bucket start in seconds'),
+            'bucketend'   => new external_value(PARAM_INT, 'Bucket end in seconds'),
         ]);
     }
 }
