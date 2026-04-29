@@ -2994,6 +2994,19 @@ function jitsi_segments_watched_pct(array $segments, float $duration): int {
  * @param int $cmid
  * @return string HTML, or empty string if no data
  */
+/**
+ * Format a number of seconds as a video timestamp (MM:SS or H:MM:SS).
+ *
+ * @param int $seconds
+ * @return string
+ */
+function jitsi_format_video_seconds(int $seconds): string {
+    if ($seconds < 3600) {
+        return sprintf('%d:%02d', intdiv($seconds, 60), $seconds % 60);
+    }
+    return sprintf('%d:%02d:%02d', intdiv($seconds, 3600), intdiv($seconds % 3600, 60), $seconds % 60);
+}
+
 function jitsi_render_heatmap_bar(int $sourcerecordid, int $cmid): string {
     global $DB;
 
@@ -3123,12 +3136,14 @@ function jitsi_render_heatmap_bar(int $sourcerecordid, int $cmid): string {
         if ($count === 0) {
             continue;
         }
-        $opacity = number_format($count / $totalviewers, 3, '.', '');
-        $left    = number_format($i * $bucketwidth, 3, '.', '');
-        $width   = number_format($bucketwidth + 0.1, 3, '.', '');
-        $start   = $i * $bucketsize;
-        $end     = $start + $bucketsize;
-        $html   .= '<div data-bucket="' . $i . '" data-start="' . $start . '" data-end="' . $end . '"'
+        $opacity   = number_format($count / $totalviewers, 3, '.', '');
+        $left      = number_format($i * $bucketwidth, 3, '.', '');
+        $width     = number_format($bucketwidth + 0.1, 3, '.', '');
+        $start     = $i * $bucketsize;
+        $end       = $start + $bucketsize;
+        $fmtstart  = jitsi_format_video_seconds($start);
+        $fmtend    = jitsi_format_video_seconds($end);
+        $html     .= '<div data-bucket="' . $i . '" data-start="' . s($fmtstart) . '" data-end="' . s($fmtend) . '"'
             . ' style="position:absolute;left:' . $left . '%;width:' . $width
             . '%;height:100%;background:rgba(13,110,253,' . $opacity . ')"></div>';
     }
@@ -3150,7 +3165,7 @@ function jitsi_render_heatmap_bar(int $sourcerecordid, int $cmid): string {
             $width    = number_format($bucketwidth + 0.1, 3, '.', '');
             $start    = $i * $bucketsize;
             $end      = $start + $bucketsize;
-            $tooltip  = s($count . ' plays · ' . $start . 's–' . $end . 's');
+            $tooltip  = s($count . ' plays · ' . jitsi_format_video_seconds($start) . '–' . jitsi_format_video_seconds($end));
             $html    .= '<div title="' . $tooltip . '" style="position:absolute;left:' . $left . '%;width:' . $width
                 . '%;height:100%;background:rgba(253,126,20,' . $opacity . ')"></div>';
         }
