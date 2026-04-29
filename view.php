@@ -314,23 +314,7 @@ if ($errorborrado) {
     echo $OUTPUT->footer();
     die();
 }
-// Session status card.
-echo html_writer::start_div('card shadow-sm mb-4');
-echo html_writer::start_div('card-body');
-
-// User identity.
-$avatar = $CFG->wwwroot . '/user/pix.php/' . $USER->id . '/f1.jpg';
-echo html_writer::start_div('text-center mb-3');
-echo html_writer::empty_tag('img', [
-    'src'   => s($avatar),
-    'class' => 'rounded-circle mb-2',
-    'style' => 'width:64px;height:64px;object-fit:cover',
-    'alt'   => s(fullname($USER)),
-]);
-echo html_writer::tag('div', s(fullname($USER)), ['class' => 'fw-semibold']);
-echo html_writer::end_div();
-
-// Metrics row.
+// Metrics and status badges — outside the card.
 echo html_writer::start_div('d-flex gap-4 mb-3');
 echo html_writer::start_div('text-center');
 echo html_writer::tag('div', (int)$jitsi->numberofparticipants, ['class' => 'h4 mb-0 fw-bold']);
@@ -342,7 +326,6 @@ echo html_writer::tag('div', get_string('totaluserminutes', 'jitsi'), ['class' =
 echo html_writer::end_div();
 echo html_writer::end_div();
 
-// Status badges.
 if ($jitsi->sessionwithtoken) {
     $sql = "select * from {jitsi} where tokeninterno = '" . $jitsi->tokeninvitacion . "'";
     $jitsimaster = $DB->get_record_sql($sql);
@@ -382,7 +365,7 @@ if ($CFG->branch <= 311 && $jitsi->intro) {
     );
 }
 
-// Join button or status message.
+// Centered card with avatar, name and join button.
 $fechacierre = $jitsi->timeclose;
 $fechainicio = $jitsi->timeopen;
 
@@ -390,6 +373,19 @@ if ($jitsi->sessionwithtoken == 1) {
     $fechacierre = $jitsiinvitado->timeclose;
     $fechainicio = $jitsiinvitado->timeopen;
 }
+
+echo html_writer::start_div('d-flex justify-content-center mb-4');
+echo html_writer::start_div('card shadow-sm', ['style' => 'max-width:420px;width:100%']);
+echo html_writer::start_div('card-body p-4 text-center');
+
+$avatar = $CFG->wwwroot . '/user/pix.php/' . $USER->id . '/f1.jpg';
+echo html_writer::empty_tag('img', [
+    'src'   => s($avatar),
+    'class' => 'rounded-circle mb-2',
+    'style' => 'width:64px;height:64px;object-fit:cover',
+    'alt'   => s(fullname($USER)),
+]);
+echo html_writer::tag('p', s(fullname($USER)), ['class' => 'fw-semibold mb-3']);
 
 if ($today[0] < $fechacierre || $fechacierre == 0) {
     if (
@@ -400,7 +396,7 @@ if ($today[0] < $fechacierre || $fechacierre == 0) {
         echo html_writer::link(
             $button,
             get_string('access', 'jitsi'),
-            ['class' => 'btn btn-primary btn-lg']
+            ['class' => 'btn btn-primary btn-lg w-100']
         );
     } else {
         echo $OUTPUT->notification(get_string('nostart', 'jitsi', userdate($jitsi->timeopen)), 'info');
@@ -409,6 +405,7 @@ if ($today[0] < $fechacierre || $fechacierre == 0) {
     echo $OUTPUT->notification(get_string('finish', 'jitsi'), 'warning');
 }
 
+echo html_writer::end_div();
 echo html_writer::end_div();
 echo html_writer::end_div();
 echo '<br>';
