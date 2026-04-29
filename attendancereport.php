@@ -309,7 +309,7 @@ require(['core/first'], function() {
         var end      = bucket.dataset.end;
         var list     = viewers[bidx] || [];
 
-        var html = '<strong>' + start + 's–' + end + 's</strong><br>';
+        var html = '<strong>' + start + '–' + end + '</strong><br>';
         if (!list.length) {
             html += strNoViewers;
         } else {
