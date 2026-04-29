@@ -287,46 +287,43 @@ $baseurl = new moodle_url('/mod/jitsi/attendancereport.php', [
 $urlsortname    = new moodle_url($baseurl, ['sort' => 'name']);
 $urlsortminutes = new moodle_url($baseurl, ['sort' => 'minutes']);
 
-// Heatmap bucket-click JS: load viewer list on click.
-$strloading    = json_encode(get_string('loading', 'core'));
-$strnoviewers  = json_encode(get_string('heatmapbucketnoviewers', 'jitsi'));
+// Heatmap hover tooltip JS.
+$strnoviewers = json_encode(get_string('heatmapbucketnoviewers', 'jitsi'));
 $PAGE->requires->js_amd_inline("
-require(['core/ajax'], function(Ajax) {
-    var strLoading   = " . $strloading . ";
+require(['core/first'], function() {
     var strNoViewers = " . $strnoviewers . ";
+    var tip = document.createElement('div');
+    tip.style.cssText = 'position:fixed;z-index:9999;background:#333;color:#fff;padding:6px 10px;'
+        + 'border-radius:4px;font-size:12px;pointer-events:none;display:none;max-width:220px;line-height:1.4';
+    document.body.appendChild(tip);
 
-    document.addEventListener('click', function(e) {
+    document.addEventListener('mousemove', function(e) {
         var bucket = e.target.closest('[data-bucket]');
-        if (!bucket) { return; }
-        var bar = bucket.closest('.jitsi-heatmap[data-sourcerecordid]');
-        if (!bar) { return; }
-        var sourcerecordid = parseInt(bar.dataset.sourcerecordid, 10);
-        var cmid           = parseInt(bar.dataset.cmid, 10);
-        var bucketindex    = parseInt(bucket.dataset.bucket, 10);
-        var panel = document.getElementById('jitsi-bucket-viewers-' + sourcerecordid);
-        if (!panel) { return; }
-        panel.innerHTML = '<small class=\"text-muted\">' + strLoading + '</small>';
-        Ajax.call([{
-            methodname: 'mod_jitsi_get_bucket_viewers',
-            args: {sourcerecordid: sourcerecordid, cmid: cmid, bucketindex: bucketindex}
-        }])[0].then(function(result) {
-            var start = result.bucketstart;
-            var end   = result.bucketend;
-            var html  = '<small class=\"fw-bold\">' + start + 's–' + end + 's: </small>';
-            if (!result.viewers.length) {
-                html += '<small class=\"text-muted\">' + strNoViewers + '</small>';
-            } else {
-                html += '<ul class=\"list-unstyled mb-0 ms-2\">';
-                result.viewers.forEach(function(v) {
-                    html += '<li><small>' + v.fullname + '</small></li>';
-                });
-                html += '</ul>';
-            }
-            panel.innerHTML = html;
-        }).catch(function() {
-            panel.innerHTML = '';
-        });
+        if (!bucket) { tip.style.display = 'none'; return; }
+        var bar = bucket.closest('.jitsi-heatmap[data-viewers]');
+        if (!bar) { tip.style.display = 'none'; return; }
+
+        var viewers  = JSON.parse(bar.dataset.viewers || '{}');
+        var bidx     = bucket.dataset.bucket;
+        var start    = bucket.dataset.start;
+        var end      = bucket.dataset.end;
+        var list     = viewers[bidx] || [];
+
+        var html = '<strong>' + start + 's–' + end + 's</strong><br>';
+        if (!list.length) {
+            html += strNoViewers;
+        } else {
+            html += list.join('<br>');
+        }
+        tip.innerHTML = html;
+        tip.style.display = 'block';
+        tip.style.left = (e.clientX + 12) + 'px';
+        tip.style.top  = (e.clientY - 10) + 'px';
     });
+
+    document.addEventListener('mouseleave', function(e) {
+        if (!e.target.closest('[data-bucket]')) { tip.style.display = 'none'; }
+    }, true);
 });
 ");
 
@@ -572,7 +569,7 @@ if (!empty($gcsrecordings)) {
         ], '', 'userid, segments, duration');
 
         $heatmap = jitsi_render_heatmap_bar((int)$rec->id, (int)$cm->id);
-        if ($heatmap) {
+        if (!empty($heatmap)) {
             echo $heatmap;
         }
 

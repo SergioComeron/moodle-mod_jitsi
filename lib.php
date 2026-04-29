@@ -3065,7 +3065,48 @@ function jitsi_render_heatmap_bar(int $sourcerecordid, int $cmid): string {
         }
     }
 
-    $viewerlabel = get_string('recordingheatmapviewers', 'jitsi', $totalviewers);
+    // Build viewers-per-bucket map for inline tooltip data.
+    $userids = array_unique(array_map(fn($r) => (int)$r->userid, (array)$rows));
+    $usernames = [];
+    if (!empty($userids)) {
+        [$insql, $inparams] = $DB->get_in_or_equal($userids, SQL_PARAMS_NAMED, 'uid');
+        $namefields = 'id, firstname, lastname, firstnamephonetic, lastnamephonetic, middlename, alternatename';
+        $users = $DB->get_records_sql("SELECT $namefields FROM {user} WHERE id $insql", $inparams);
+        foreach ($users as $u) {
+            $usernames[$u->id] = fullname($u);
+        }
+    }
+
+    $viewersperbucket = [];
+    foreach ($rows as $row) {
+        $segments = json_decode($row->segments, true);
+        if (!is_array($segments)) {
+            continue;
+        }
+        $name = $usernames[(int)$row->userid] ?? '';
+        if ($name === '') {
+            continue;
+        }
+        $covered = array_fill(0, $numbuckets, false);
+        foreach ($segments as $seg) {
+            if (!is_array($seg) || count($seg) < 2) {
+                continue;
+            }
+            $sb = max(0, (int)floor((float)$seg[0] / $bucketsize));
+            $eb = min($numbuckets - 1, (int)floor((float)$seg[1] / $bucketsize));
+            for ($b = $sb; $b <= $eb; $b++) {
+                $covered[$b] = true;
+            }
+        }
+        foreach ($covered as $b => $c) {
+            if ($c) {
+                $viewersperbucket[$b][] = $name;
+            }
+        }
+    }
+
+    $viewerlabel  = get_string('recordingheatmapviewers', 'jitsi', $totalviewers);
+    $viewersjson  = htmlspecialchars(json_encode($viewersperbucket), ENT_QUOTES, 'UTF-8');
     $html  = '<div class="mt-3">';
     $html .= '<small class="text-muted d-block mb-1">'
         . get_string('recordingheatmap', 'jitsi') . ' — ' . $viewerlabel
@@ -3073,27 +3114,25 @@ function jitsi_render_heatmap_bar(int $sourcerecordid, int $cmid): string {
 
     $bucketwidth = 100 / $numbuckets;
 
-    // Bar 1: unique viewers (blue) — clickable to show viewer list.
+    // Bar 1: unique viewers (blue) — hover tooltip shows viewer names.
     $html .= '<div class="jitsi-heatmap mb-1"'
-        . ' data-sourcerecordid="' . (int)$sourcerecordid . '"'
-        . ' data-cmid="' . (int)$cmid . '"'
-        . ' style="position:relative;height:8px;background:#dee2e6;border-radius:4px;overflow:hidden;cursor:pointer">';
+        . ' data-viewers="' . $viewersjson . '"'
+        . ' data-bucketsize="' . $bucketsize . '"'
+        . ' style="position:relative;height:8px;background:#dee2e6;border-radius:4px;overflow:hidden;cursor:crosshair">';
     foreach ($buckets as $i => $count) {
         if ($count === 0) {
             continue;
         }
-        $opacity  = number_format($count / $totalviewers, 3, '.', '');
-        $left     = number_format($i * $bucketwidth, 3, '.', '');
-        $width    = number_format($bucketwidth + 0.1, 3, '.', '');
-        $start    = $i * $bucketsize;
-        $end      = $start + $bucketsize;
-        $tooltip  = s($count . '/' . $totalviewers . ' viewers · ' . $start . 's–' . $end . 's');
-        $html    .= '<div title="' . $tooltip . '" data-bucket="' . $i . '"'
+        $opacity = number_format($count / $totalviewers, 3, '.', '');
+        $left    = number_format($i * $bucketwidth, 3, '.', '');
+        $width   = number_format($bucketwidth + 0.1, 3, '.', '');
+        $start   = $i * $bucketsize;
+        $end     = $start + $bucketsize;
+        $html   .= '<div data-bucket="' . $i . '" data-start="' . $start . '" data-end="' . $end . '"'
             . ' style="position:absolute;left:' . $left . '%;width:' . $width
             . '%;height:100%;background:rgba(13,110,253,' . $opacity . ')"></div>';
     }
     $html .= '</div>';
-    $html .= '<div id="jitsi-bucket-viewers-' . (int)$sourcerecordid . '" class="jitsi-bucket-viewers mt-1"></div>';
 
     // Bar 2: total plays (orange), only if we have data.
     if ($maxplays > 0) {
