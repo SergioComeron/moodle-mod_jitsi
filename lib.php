@@ -3001,10 +3001,25 @@ function jitsi_segments_watched_pct(array $segments, float $duration): int {
  * @return string
  */
 function jitsi_format_video_seconds(int $seconds): string {
-    if ($seconds < 3600) {
-        return sprintf('%d:%02d', intdiv($seconds, 60), $seconds % 60);
+    if ($seconds < 60) {
+        return $seconds . 's';
     }
-    return sprintf('%d:%02d:%02d', intdiv($seconds, 3600), intdiv($seconds % 3600, 60), $seconds % 60);
+    $h   = intdiv($seconds, 3600);
+    $m   = intdiv($seconds % 3600, 60);
+    $s   = $seconds % 60;
+    $out = '';
+    if ($h > 0) {
+        $out .= $h . 'h ';
+    }
+    if ($m > 0 || $h > 0) {
+        $out .= $m . 'min';
+        if ($s > 0) {
+            $out .= ' ' . $s . 's';
+        }
+    } else {
+        $out .= $s . 's';
+    }
+    return trim($out);
 }
 
 /**
