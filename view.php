@@ -318,6 +318,18 @@ if ($errorborrado) {
 echo html_writer::start_div('card shadow-sm mb-4');
 echo html_writer::start_div('card-body');
 
+// User identity.
+$avatar = $CFG->wwwroot . '/user/pix.php/' . $USER->id . '/f1.jpg';
+echo html_writer::start_div('text-center mb-3');
+echo html_writer::empty_tag('img', [
+    'src'   => s($avatar),
+    'class' => 'rounded-circle mb-2',
+    'style' => 'width:64px;height:64px;object-fit:cover',
+    'alt'   => s(fullname($USER)),
+]);
+echo html_writer::tag('div', s(fullname($USER)), ['class' => 'fw-semibold']);
+echo html_writer::end_div();
+
 // Metrics row.
 echo html_writer::start_div('d-flex gap-4 mb-3');
 echo html_writer::start_div('text-center');
