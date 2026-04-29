@@ -288,49 +288,43 @@ $urlsortname    = new moodle_url($baseurl, ['sort' => 'name']);
 $urlsortminutes = new moodle_url($baseurl, ['sort' => 'minutes']);
 
 // Heatmap bucket-click JS: load viewer list on click.
+$strloading    = json_encode(get_string('loading', 'core'));
+$strnoviewers  = json_encode(get_string('heatmapbucketnoviewers', 'jitsi'));
 $PAGE->requires->js_amd_inline("
-require(['core/ajax', 'core/str'], function(Ajax, Str) {
-    Str.get_strings([
-        {key: 'heatmapbucketviewers', component: 'jitsi'},
-        {key: 'heatmapbucketnoviewers', component: 'jitsi'},
-        {key: 'loading', component: 'core'},
-    ]).then(function(s) {
-        var strViewers   = s[0];
-        var strNoViewers = s[1];
-        var strLoading   = s[2];
+require(['core/ajax'], function(Ajax) {
+    var strLoading   = " . $strloading . ";
+    var strNoViewers = " . $strnoviewers . ";
 
-        document.addEventListener('click', function(e) {
-            var bucket = e.target.closest('[data-bucket]');
-            if (!bucket) { return; }
-            var bar = bucket.closest('.jitsi-heatmap[data-sourcerecordid]');
-            if (!bar) { return; }
-            var sourcerecordid = parseInt(bar.dataset.sourcerecordid, 10);
-            var cmid           = parseInt(bar.dataset.cmid, 10);
-            var bucketindex    = parseInt(bucket.dataset.bucket, 10);
-            var panel = document.getElementById('jitsi-bucket-viewers-' + sourcerecordid);
-            if (!panel) { return; }
-            panel.innerHTML = '<small class=\"text-muted\">' + strLoading + '</small>';
-            Ajax.call([{
-                methodname: 'mod_jitsi_get_bucket_viewers',
-                args: {sourcerecordid: sourcerecordid, cmid: cmid, bucketindex: bucketindex}
-            }])[0].then(function(result) {
-                var start = result.bucketstart;
-                var end   = result.bucketend;
-                var label = strViewers
-                    .replace('{start}', start)
-                    .replace('{end}', end);
-                var html = '<small class=\"fw-bold\">' + label + '</small>';
-                if (!result.viewers.length) {
-                    html += ' <small class=\"text-muted\">' + strNoViewers + '</small>';
-                } else {
-                    html += '<ul class=\"list-unstyled mb-0 ms-2\">';
-                    result.viewers.forEach(function(v) {
-                        html += '<li><small>' + v.fullname + '</small></li>';
-                    });
-                    html += '</ul>';
-                }
-                panel.innerHTML = html;
-            });
+    document.addEventListener('click', function(e) {
+        var bucket = e.target.closest('[data-bucket]');
+        if (!bucket) { return; }
+        var bar = bucket.closest('.jitsi-heatmap[data-sourcerecordid]');
+        if (!bar) { return; }
+        var sourcerecordid = parseInt(bar.dataset.sourcerecordid, 10);
+        var cmid           = parseInt(bar.dataset.cmid, 10);
+        var bucketindex    = parseInt(bucket.dataset.bucket, 10);
+        var panel = document.getElementById('jitsi-bucket-viewers-' + sourcerecordid);
+        if (!panel) { return; }
+        panel.innerHTML = '<small class=\"text-muted\">' + strLoading + '</small>';
+        Ajax.call([{
+            methodname: 'mod_jitsi_get_bucket_viewers',
+            args: {sourcerecordid: sourcerecordid, cmid: cmid, bucketindex: bucketindex}
+        }])[0].then(function(result) {
+            var start = result.bucketstart;
+            var end   = result.bucketend;
+            var html  = '<small class=\"fw-bold\">' + start + 's–' + end + 's: </small>';
+            if (!result.viewers.length) {
+                html += '<small class=\"text-muted\">' + strNoViewers + '</small>';
+            } else {
+                html += '<ul class=\"list-unstyled mb-0 ms-2\">';
+                result.viewers.forEach(function(v) {
+                    html += '<li><small>' + v.fullname + '</small></li>';
+                });
+                html += '</ul>';
+            }
+            panel.innerHTML = html;
+        }).catch(function() {
+            panel.innerHTML = '';
         });
     });
 });
