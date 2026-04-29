@@ -192,7 +192,7 @@ $toprecordings = $DB->get_records_sql($toprecordingssql, [
 // Dates attended per user — all time, no date filter.
 $datesperbuser = [];
 if ($hasanydata) {
-    $daterows = $DB->get_records_sql(
+    $daterset = $DB->get_recordset_sql(
         "SELECT userid, daykey
            FROM {jitsi_usage_daily}
           WHERE cmid = :cmid
@@ -200,12 +200,13 @@ if ($hasanydata) {
           ORDER BY userid, daykey ASC",
         ['cmid' => $cm->id]
     );
-    foreach ($daterows as $dr) {
+    foreach ($daterset as $dr) {
         $y = (int)substr((string)$dr->daykey, 0, 4);
         $m = (int)substr((string)$dr->daykey, 4, 2);
         $d = (int)substr((string)$dr->daykey, 6, 2);
         $datesperbuser[$dr->userid][] = userdate(mktime(0, 0, 0, $m, $d, $y), get_string('strftimedate', 'langconfig'));
     }
+    $daterset->close();
 }
 
 // Handle export before any output.
