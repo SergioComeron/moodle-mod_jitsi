@@ -3101,7 +3101,7 @@ function jitsi_render_heatmap_bar(int $sourcerecordid, int $cmid): string {
             . get_string('recordingheatmapplays', 'jitsi', $maxplays)
             . '</small>';
         $html .= '<div class="jitsi-heatmap" style="position:relative;height:8px;'
-            . 'background:#dee2e6;border-radius:4px;overflow:hidden;cursor:help">';
+            . 'background:#dee2e6;border-radius:4px;overflow:hidden;cursor:default">';
         foreach ($playtotals as $i => $count) {
             if ($count === 0) {
                 continue;
