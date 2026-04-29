@@ -189,6 +189,20 @@ $toprecordings = $DB->get_records_sql($toprecordingssql, [
     'moduleid' => $moduleid,
 ]);
 
+// Handle export before any output.
+$dataformat = optional_param('dataformat', '', PARAM_ALPHA);
+$isdownload = ($dataformat !== '');
+
+// Sort order for the table.
+$sort = optional_param('sort', 'name', PARAM_ALPHA);
+if (!in_array($sort, ['name', 'minutes'])) {
+    $sort = 'name';
+}
+$orderby = $sort === 'minutes' ? 'minutes DESC' : 'u.lastname ASC, u.firstname ASC';
+
+// Check whether jitsi_usage_daily has any data for this activity at all.
+$hasanydata = $DB->record_exists('jitsi_usage_daily', ['cmid' => $cm->id]);
+
 // Dates attended per user — all time, no date filter.
 $datesperbuser = [];
 if ($hasanydata) {
@@ -208,20 +222,6 @@ if ($hasanydata) {
     }
     $daterset->close();
 }
-
-// Handle export before any output.
-$dataformat = optional_param('dataformat', '', PARAM_ALPHA);
-$isdownload = ($dataformat !== '');
-
-// Sort order for the table.
-$sort = optional_param('sort', 'name', PARAM_ALPHA);
-if (!in_array($sort, ['name', 'minutes'])) {
-    $sort = 'name';
-}
-$orderby = $sort === 'minutes' ? 'minutes DESC' : 'u.lastname ASC, u.firstname ASC';
-
-// Check whether jitsi_usage_daily has any data for this activity at all.
-$hasanydata = $DB->record_exists('jitsi_usage_daily', ['cmid' => $cm->id]);
 
 // Whether the teacher has explicitly requested a live logstore query.
 $livequery = optional_param('live', 0, PARAM_INT);
