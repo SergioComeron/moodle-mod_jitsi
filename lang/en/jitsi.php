@@ -459,6 +459,7 @@ $string['servermanagement'] = 'Jitsi servers';
 $string['servermanagementdesc'] = 'Click here to manage Jitsi servers';
 $string['serversetasdefault'] = 'Server "{$a}" set as default';
 $string['serverupdated'] = 'Server "{$a}" updated successfully.';
+$string['session'] = 'Session';
 $string['sessiondeleted'] = 'Session shared deleted';
 $string['sessionisbeingrecorded'] = 'Session is being recorded';
 $string['sessionisbeingrecordingby'] = 'Session is being recorded by {$a}';

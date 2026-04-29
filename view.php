@@ -45,7 +45,7 @@ $addrecordlink = optional_param('addrecordlink', 0, PARAM_INT);
 $editrecordid = optional_param('editrecordid', 0, PARAM_INT);
 $saverecordedit = optional_param('saverecordedit', 0, PARAM_INT);
 $selecteddate = optional_param_array('selecteddate', 0, PARAM_INT);
-$tab = optional_param('tab', 'help', PARAM_TEXT);
+$tab = optional_param('tab', 'session', PARAM_TEXT);
 $activetab = $tab;
 
 if (
@@ -314,8 +314,46 @@ if ($errorborrado) {
     echo $OUTPUT->footer();
     die();
 }
-// Metrics and status badges — outside the card.
-echo html_writer::start_div('d-flex gap-4 mb-3');
+$sqlrecords = 'SELECT r.id FROM {jitsi_record} r
+    JOIN {jitsi_source_record} s ON s.id = r.source
+    WHERE r.jitsi = :jitsiid AND r.deleted = 0
+    AND (s.timeexpires = 0 OR s.timeexpires > :now)';
+$recordsparams = ['jitsiid' => $jitsiid, 'now' => time()];
+$records = $DB->record_exists_sql($sqlrecords, $recordsparams);
+$hasvisiblerecords = $DB->record_exists_sql($sqlrecords . ' AND r.visible = 1', $recordsparams);
+
+$bstoggle = ($CFG->branch >= 500) ? 'data-bs-toggle' : 'data-toggle';
+
+echo '<ul class="nav nav-tabs" id="myTab" role="tablist">';
+echo '<li class="nav-item">';
+echo '<a class="nav-link ' . ($activetab == 'session' ? 'active' : '') . '" id="session-tab"'
+    . ' ' . $bstoggle . '="tab" href="#session" role="tab" aria-controls="session"'
+    . ' aria-selected="' . ($activetab == 'session' ? 'true' : 'false') . '">'
+    . get_string('session', 'jitsi') . '</a>';
+echo '</li>';
+
+if (has_capability('mod/jitsi:viewrecords', $PAGE->context) || has_capability('mod/jitsi:record', $PAGE->context)) {
+    if (
+        $hasvisiblerecords ||
+        has_capability('mod/jitsi:record', $PAGE->context) ||
+        get_config('mod_jitsi', 'streamingoption') == 1
+    ) {
+        echo '<li class="nav-item">';
+        echo '<a class="nav-link ' . ($activetab == 'record' ? 'active' : '') . '" id="record-tab"'
+            . ' ' . $bstoggle . '="tab" href="#record" role="tab" aria-controls="record"'
+            . ' aria-selected="' . ($activetab == 'record' ? 'true' : 'false') . '">'
+            . get_string('records', 'jitsi') . '</a>';
+        echo '</li>';
+    }
+}
+echo '</ul>';
+
+echo '<div class="tab-content" id="myTabContent">';
+echo '<div class="tab-pane fade ' . ($activetab == 'session' ? 'show active' : '')
+    . '" id="session" role="tabpanel" aria-labelledby="session-tab">';
+
+// Metrics — centered, above card.
+echo html_writer::start_div('d-flex justify-content-center gap-5 mt-3 mb-3');
 echo html_writer::start_div('text-center');
 echo html_writer::tag('div', (int)$jitsi->numberofparticipants, ['class' => 'h4 mb-0 fw-bold']);
 echo html_writer::tag('div', get_string('connectedattendeesnow', 'jitsi'), ['class' => 'text-muted small']);
@@ -326,6 +364,8 @@ echo html_writer::tag('div', get_string('totaluserminutes', 'jitsi'), ['class' =
 echo html_writer::end_div();
 echo html_writer::end_div();
 
+// Badges — centered, above card.
+echo html_writer::start_div('text-center mb-2');
 if ($jitsi->sessionwithtoken) {
     $sql = "select * from {jitsi} where tokeninterno = '" . $jitsi->tokeninvitacion . "'";
     $jitsimaster = $DB->get_record_sql($sql);
@@ -333,10 +373,9 @@ if ($jitsi->sessionwithtoken) {
     echo html_writer::tag(
         'span',
         '🔗 ' . get_string('sessionshared', 'jitsi', $coursemaster->shortname),
-        ['class' => 'badge bg-secondary me-2 mb-3']
+        ['class' => 'badge bg-secondary me-2']
     );
 }
-
 if ($jitsi->sourcerecord != null) {
     $source = $DB->get_record('jitsi_source_record', ['id' => $jitsi->sourcerecord]);
     if ($source) {
@@ -345,7 +384,7 @@ if ($jitsi->sourcerecord != null) {
             echo html_writer::tag(
                 'span',
                 '🔴 ' . get_string('sessionisbeingrecordingby', 'jitsi', fullname($author)),
-                ['class' => 'badge bg-danger me-2 mb-3']
+                ['class' => 'badge bg-danger']
             );
         } else {
             $jitsi->sourcerecord = null;
@@ -356,6 +395,7 @@ if ($jitsi->sourcerecord != null) {
         $DB->update_record('jitsi', $jitsi);
     }
 }
+echo html_writer::end_div();
 
 if ($CFG->branch <= 311 && $jitsi->intro) {
     echo html_writer::div(
@@ -368,7 +408,6 @@ if ($CFG->branch <= 311 && $jitsi->intro) {
 // Centered card with avatar, name and join button.
 $fechacierre = $jitsi->timeclose;
 $fechainicio = $jitsi->timeopen;
-
 if ($jitsi->sessionwithtoken == 1) {
     $fechacierre = $jitsiinvitado->timeclose;
     $fechainicio = $jitsiinvitado->timeopen;
@@ -377,7 +416,6 @@ if ($jitsi->sessionwithtoken == 1) {
 echo html_writer::start_div('d-flex justify-content-center mb-4');
 echo html_writer::start_div('card shadow-sm', ['style' => 'max-width:420px;width:100%']);
 echo html_writer::start_div('card-body p-4 text-center');
-
 $avatar = $CFG->wwwroot . '/user/pix.php/' . $USER->id . '/f1.jpg';
 echo html_writer::empty_tag('img', [
     'src'   => s($avatar),
@@ -386,7 +424,6 @@ echo html_writer::empty_tag('img', [
     'alt'   => s(fullname($USER)),
 ]);
 echo html_writer::tag('p', s(fullname($USER)), ['class' => 'fw-semibold mb-3']);
-
 if ($today[0] < $fechacierre || $fechacierre == 0) {
     if (
         $today[0] > $fechainicio ||
@@ -404,59 +441,20 @@ if ($today[0] < $fechacierre || $fechacierre == 0) {
 } else {
     echo $OUTPUT->notification(get_string('finish', 'jitsi'), 'warning');
 }
-
 echo html_writer::end_div();
 echo html_writer::end_div();
 echo html_writer::end_div();
-echo '<br>';
 
-$sqlrecords = 'SELECT r.id FROM {jitsi_record} r
-    JOIN {jitsi_source_record} s ON s.id = r.source
-    WHERE r.jitsi = :jitsiid AND r.deleted = 0
-    AND (s.timeexpires = 0 OR s.timeexpires > :now)';
-$recordsparams = ['jitsiid' => $jitsiid, 'now' => time()];
-$records = $DB->record_exists_sql($sqlrecords, $recordsparams);
-$hasvisiblerecords = $DB->record_exists_sql($sqlrecords . ' AND r.visible = 1', $recordsparams);
-
-echo "<ul class=\"nav nav-tabs\" id=\"myTab\" role=\"tablist\">";
-
-    echo "  <li class=\"nav-item\">";
-    echo "    <a class=\"nav-link " . ($activetab == 'help' ? 'active' : '') .
-        "\" id=\"help-tab\" " . ($CFG->branch >= 500 ? 'data-bs-toggle' : 'data-toggle') . "=\"tab\" href=\"#help\"
-         role=\"tab\" aria-controls=\"help\" aria-selected=\"" .
-         ($activetab == 'help' ? 'true' : 'false') . "\">" . get_string('help') . "</a>";
-    echo "  </li>";
-
-if (has_capability('mod/jitsi:viewrecords', $PAGE->context) || has_capability('mod/jitsi:record', $PAGE->context)) {
-    if (
-        $hasvisiblerecords ||
-        has_capability('mod/jitsi:record', $PAGE->context) ||
-        get_config('mod_jitsi', 'streamingoption') == 1
-    ) {
-        echo "  <li class=\"nav-item\">";
-        echo "    <a class=\"nav-link " . ($activetab == 'record' ? 'active' : '') .
-            "\" id=\"record-tab\" " . ($CFG->branch >= 500 ? 'data-bs-toggle' : 'data-toggle') . "=\"tab\" href=\"#record\"
-            role=\"tab\" aria-controls=\"record\" aria-selected=\"" .
-            ($activetab == 'record' ? 'true' : 'false') . "\">" . get_string('records', 'jitsi') . "</a>";
-        echo "  </li>";
-    }
-}
-
-
-echo "</ul>";
-
-echo "<div class=\"tab-content\" id=\"myTabContent\">";
-    echo "  <div class=\"tab-pane fade " .
-    ($activetab == 'help' ? 'show active' : '') .
-    "\" id=\"help\" role=\"tabpanel\" aria-labelledby=\"help-tab\">";
+// Help text below the card.
 if (get_config('mod_jitsi', 'help') != null) {
-    echo "  <br>";
+    echo '<br>';
     echo get_config('mod_jitsi', 'help');
 } else {
-    echo "  <br>";
+    echo '<br>';
     echo $OUTPUT->box(get_string('instruction', 'jitsi'));
 }
-echo "  </div>";
+
+echo '</div>';
 
 if (has_capability('mod/jitsi:viewrecords', $PAGE->context) || has_capability('mod/jitsi:record', $PAGE->context)) {
     echo "  <div class=\"tab-pane fade " . ($activetab == 'record' ? 'show active' : '') .
