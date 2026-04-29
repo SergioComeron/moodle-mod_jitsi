@@ -25,6 +25,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 $string['access'] = 'Access';
+$string['accesssessionlabel'] = 'Enter session: {$a}';
 $string['accessto'] = 'Access to {$a}. Enter the name to be displayed.';
 $string['accesstotitle'] = 'Access to {$a}';
 $string['accesstowithlogin'] = 'Access to {$a}.';

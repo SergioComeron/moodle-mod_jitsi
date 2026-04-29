@@ -433,7 +433,10 @@ if ($today[0] < $fechacierre || $fechacierre == 0) {
         echo html_writer::link(
             $button,
             get_string('access', 'jitsi'),
-            ['class' => 'btn btn-primary btn-lg w-100']
+            [
+                'class'      => 'btn btn-primary btn-lg w-100',
+                'aria-label' => get_string('accesssessionlabel', 'jitsi', $jitsi->name),
+            ]
         );
     } else {
         echo $OUTPUT->notification(get_string('nostart', 'jitsi', userdate($jitsi->timeopen)), 'info');
