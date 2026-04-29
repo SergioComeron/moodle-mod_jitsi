@@ -1292,5 +1292,14 @@ function xmldb_jitsi_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026042901, 'jitsi');
     }
 
+    if ($oldversion < 2026042903) {
+        $table = new xmldb_table('jitsi_usage_daily');
+        $field = new xmldb_field('times', XMLDB_TYPE_TEXT, null, null, null, null, null, 'minutes');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        upgrade_mod_savepoint(true, 2026042903, 'jitsi');
+    }
+
     return true;
 }

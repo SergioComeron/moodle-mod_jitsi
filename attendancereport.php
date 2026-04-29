@@ -203,11 +203,13 @@ $orderby = $sort === 'minutes' ? 'minutes DESC' : 'u.lastname ASC, u.firstname A
 // Check whether jitsi_usage_daily has any data for this activity at all.
 $hasanydata = $DB->record_exists('jitsi_usage_daily', ['cmid' => $cm->id]);
 
-// Dates attended per user — all time, no date filter.
+// Dates (and times if available) attended per user — all time, no date filter.
 $datesperbuser = [];
 if ($hasanydata) {
+    $datefmt = get_string('strftimedate', 'langconfig');
+    $datetimefmt = get_string('strftimedatetimeshort', 'langconfig');
     $daterset = $DB->get_recordset_sql(
-        "SELECT userid, daykey
+        "SELECT userid, daykey, times
            FROM {jitsi_usage_daily}
           WHERE cmid = :cmid
                 AND sessions > 0
@@ -215,10 +217,17 @@ if ($hasanydata) {
         ['cmid' => $cm->id]
     );
     foreach ($daterset as $dr) {
-        $y = (int)substr((string)$dr->daykey, 0, 4);
-        $m = (int)substr((string)$dr->daykey, 4, 2);
-        $d = (int)substr((string)$dr->daykey, 6, 2);
-        $datesperbuser[$dr->userid][] = userdate(mktime(0, 0, 0, $m, $d, $y), get_string('strftimedate', 'langconfig'));
+        $timestamps = !empty($dr->times) ? json_decode($dr->times, true) : [];
+        if (!empty($timestamps)) {
+            foreach ($timestamps as $ts) {
+                $datesperbuser[$dr->userid][] = userdate((int)$ts, $datetimefmt);
+            }
+        } else {
+            $y = (int)substr((string)$dr->daykey, 0, 4);
+            $m = (int)substr((string)$dr->daykey, 4, 2);
+            $d = (int)substr((string)$dr->daykey, 6, 2);
+            $datesperbuser[$dr->userid][] = userdate(mktime(0, 0, 0, $m, $d, $y), $datefmt);
+        }
     }
     $daterset->close();
 }

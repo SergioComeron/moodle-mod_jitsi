@@ -118,8 +118,25 @@ class aggregate_usage_stats extends \core\task\scheduled_task {
             ]));
 
             if (!empty($rows)) {
+                // Collect enter timestamps per (cmid, userid) for the times column.
+                $timesrs = $DB->get_recordset_sql(
+                    "SELECT lsl.contextinstanceid AS cmid, lsl.userid, lsl.timecreated
+                       FROM {logstore_standard_log} lsl
+                      WHERE lsl.component = :component
+                            AND lsl.action = 'enter'
+                            AND lsl.timecreated BETWEEN :daystart AND :dayend
+                      ORDER BY lsl.contextinstanceid, lsl.userid, lsl.timecreated ASC",
+                    ['component' => 'mod_jitsi', 'daystart' => $daystart, 'dayend' => $dayend]
+                );
+                $entertimes = [];
+                foreach ($timesrs as $tr) {
+                    $entertimes[$tr->cmid][$tr->userid][] = (int)$tr->timecreated;
+                }
+                $timesrs->close();
+
                 $records = [];
                 foreach ($rows as $row) {
+                    $times = $entertimes[$row->cmid][$row->userid] ?? [];
                     $records[] = [
                         'daykey'     => $daykeyint,
                         'userid'     => $row->userid,
@@ -128,6 +145,7 @@ class aggregate_usage_stats extends \core\task\scheduled_task {
                         'categoryid' => $row->categoryid,
                         'sessions'   => (int)$row->sessions,
                         'minutes'    => (int)$row->minutes,
+                        'times'      => !empty($times) ? json_encode($times) : null,
                     ];
                 }
                 $DB->insert_records('jitsi_usage_daily', $records);
