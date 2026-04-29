@@ -451,6 +451,25 @@ $string['selectdate'] = 'Select date';
 $string['selectzone'] = '— Select a GCP zone —';
 $string['sendemail'] = 'Send user email to Jitsi';
 $string['sendemailex'] = 'If enabled, the user\'s Moodle email address will be sent to the Jitsi server. This may be required for some server features such as recording delivery by email. Note: enabling this shares personal data with the Jitsi server — ensure this is compliant with your privacy policy.';
+$string['sendinvitation'] = 'Send invitation by email';
+$string['sendinvitationbody'] = 'Hello,
+
+You are invited to join the video conference session "{$a->session}" from the course "{$a->course}".
+
+You can access it via this link:
+{$a->url}
+
+This link has a limited validity period. If you have trouble accessing it, please contact the organiser.
+
+{$a->message}
+
+Best regards,
+{$a->sender}';
+$string['sendinvitationemailplaceholder'] = 'recipient@example.com';
+$string['sendinvitationmessage'] = 'Personal message (optional)';
+$string['sendinvitationrecipient'] = 'Recipient email';
+$string['sendinvitationsent'] = 'Invitation sent to {$a}.';
+$string['sendinvitationsubject'] = 'Invitation to session "{$a}"';
 $string['separator'] = 'Separator';
 $string['separatorex'] = 'Define the field separator for the session name';
 $string['server'] = 'Jitsi server';

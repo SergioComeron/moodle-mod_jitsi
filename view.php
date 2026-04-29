@@ -457,6 +457,17 @@ if (get_config('mod_jitsi', 'help') != null) {
     echo $OUTPUT->box(get_string('instruction', 'jitsi'));
 }
 
+if (get_config('mod_jitsi', 'invitebuttons') == 1 && has_capability('mod/jitsi:createlink', $context)) {
+    $sendinvurl = new moodle_url('/mod/jitsi/sendinvitation.php', ['id' => $id]);
+    echo html_writer::start_div('text-center mt-3');
+    echo html_writer::link(
+        $sendinvurl,
+        '<i class="fa fa-envelope mr-1" aria-hidden="true"></i>' . get_string('sendinvitation', 'jitsi'),
+        ['class' => 'btn btn-outline-secondary btn-sm']
+    );
+    echo html_writer::end_div();
+}
+
 echo '</div>';
 
 if (has_capability('mod/jitsi:viewrecords', $PAGE->context) || has_capability('mod/jitsi:record', $PAGE->context)) {
