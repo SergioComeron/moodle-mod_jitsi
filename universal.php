@@ -25,10 +25,15 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-require_once(dirname(dirname(dirname(__FILE__))) . '/config.php');
+require_once(dirname(dirname(dirname(__FILE__))) . '/config.php'); // phpcs:ignore moodle.Files.RequireLogin.Missing
 require_once(dirname(dirname(dirname(__FILE__))) . '/lib/moodlelib.php');
 require_once(dirname(__FILE__) . '/lib.php');
-require_login(0, true);
+
+// This page is accessible to external guests via invitation link — require_login is intentionally omitted.
+// Logged-in Moodle users are handled normally; unauthenticated guests access directly.
+if (isloggedin() && !isguestuser()) {
+    require_login(0, false);
+}
 
 $sessionid = required_param('ses', PARAM_INT);
 $name = required_param('name', PARAM_TEXT);
