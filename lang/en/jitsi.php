@@ -412,6 +412,7 @@ $string['recordex'] = 'Enable native Jitsi recording options (actually dropbox) 
 $string['recordingaccesslog'] = 'Recording access log';
 $string['recordingbloquedby'] = 'The recording is blocked by ';
 $string['recordingheatmap'] = 'Viewing heatmap';
+$string['recordingheatmapplays'] = 'Total plays (max {$a})';
 $string['recordingheatmapviewers'] = '{$a} viewers';
 $string['recordinglinksaved'] = 'Recording link saved successfully';
 $string['recordingname'] = 'Recording name (optional)';

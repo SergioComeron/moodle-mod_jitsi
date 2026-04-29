@@ -2081,10 +2081,11 @@ class mod_jitsi_external extends external_api {
      */
     public static function save_recording_segments_parameters() {
         return new external_function_parameters([
-            'sourcerecordid' => new external_value(PARAM_INT, 'jitsi_source_record id'),
-            'cmid'           => new external_value(PARAM_INT, 'Course module id'),
-            'segments'       => new external_value(PARAM_TEXT, 'JSON array of [start,end] pairs in seconds'),
-            'duration'       => new external_value(PARAM_FLOAT, 'Video duration in seconds'),
+            'sourcerecordid'  => new external_value(PARAM_INT, 'jitsi_source_record id'),
+            'cmid'            => new external_value(PARAM_INT, 'Course module id'),
+            'segments'        => new external_value(PARAM_TEXT, 'JSON array of [start,end] pairs in seconds'),
+            'duration'        => new external_value(PARAM_FLOAT, 'Video duration in seconds'),
+            'session_segments' => new external_value(PARAM_TEXT, 'JSON segments from current play session', VALUE_DEFAULT, '[]'),
         ]);
     }
 
@@ -2097,7 +2098,7 @@ class mod_jitsi_external extends external_api {
      * @param float  $duration video duration in seconds
      * @return array
      */
-    public static function save_recording_segments($sourcerecordid, $cmid, $segments, $duration) {
+    public static function save_recording_segments($sourcerecordid, $cmid, $segments, $duration, $sessionsegments = '[]') {
         global $DB, $USER;
 
         if (!get_config('mod_jitsi', 'portal_license_key')) {
@@ -2105,10 +2106,11 @@ class mod_jitsi_external extends external_api {
         }
 
         $params = self::validate_parameters(self::save_recording_segments_parameters(), [
-            'sourcerecordid' => $sourcerecordid,
-            'cmid'           => $cmid,
-            'segments'       => $segments,
-            'duration'       => $duration,
+            'sourcerecordid'  => $sourcerecordid,
+            'cmid'            => $cmid,
+            'segments'        => $segments,
+            'duration'        => $duration,
+            'session_segments' => $sessionsegments,
         ]);
 
         $context = context_module::instance($params['cmid']);
@@ -2149,9 +2151,39 @@ class mod_jitsi_external extends external_api {
         $merged     = self::merge_segments($allsegs, (float)$params['duration']);
         $mergedjson = json_encode($merged);
 
+        // Compute updated playcounts from session_segments.
+        $newsessionsegs = json_decode($params['session_segments'], true);
+        $duration       = (float)$params['duration'];
+        $playcountsjson = null;
+        if (is_array($newsessionsegs) && !empty($newsessionsegs) && $duration > 0) {
+            $bucketsize  = 10;
+            $numbuckets  = max(1, (int)ceil($duration / $bucketsize));
+            $existingcounts = [];
+            if ($existing && !empty($existing->playcounts)) {
+                $existingcounts = json_decode($existing->playcounts, true) ?? [];
+            }
+            if (count($existingcounts) < $numbuckets) {
+                $existingcounts = array_pad($existingcounts, $numbuckets, 0);
+            }
+            foreach ($newsessionsegs as $seg) {
+                if (!is_array($seg) || count($seg) < 2) {
+                    continue;
+                }
+                $startbucket = max(0, (int)floor((float)$seg[0] / $bucketsize));
+                $endbucket   = min($numbuckets - 1, (int)floor((float)$seg[1] / $bucketsize));
+                for ($b = $startbucket; $b <= $endbucket; $b++) {
+                    $existingcounts[$b] = ($existingcounts[$b] ?? 0) + 1;
+                }
+            }
+            $playcountsjson = json_encode(array_values($existingcounts));
+        } else if ($existing && !empty($existing->playcounts)) {
+            $playcountsjson = $existing->playcounts;
+        }
+
         if ($existing) {
             $existing->segments     = $mergedjson;
-            $existing->duration     = (float)$params['duration'];
+            $existing->playcounts   = $playcountsjson;
+            $existing->duration     = $duration;
             $existing->timemodified = time();
             $DB->update_record('jitsi_recording_segments', $existing);
         } else {
@@ -2160,7 +2192,8 @@ class mod_jitsi_external extends external_api {
                 'sourcerecordid' => $params['sourcerecordid'],
                 'cmid'           => $params['cmid'],
                 'segments'       => $mergedjson,
-                'duration'       => (float)$params['duration'],
+                'playcounts'     => $playcountsjson,
+                'duration'       => $duration,
                 'timecreated'    => time(),
                 'timemodified'   => time(),
             ]);

@@ -3044,15 +3044,38 @@ function jitsi_render_heatmap_bar(int $sourcerecordid, int $cmid): string {
         }
     }
 
+    // Aggregate playcounts across all users.
+    $playtotals = array_fill(0, $numbuckets, 0);
+    $maxplays   = 0;
+    foreach ($rows as $row) {
+        if (empty($row->playcounts)) {
+            continue;
+        }
+        $counts = json_decode($row->playcounts, true);
+        if (!is_array($counts)) {
+            continue;
+        }
+        foreach ($counts as $b => $c) {
+            if ($b < $numbuckets) {
+                $playtotals[$b] += (int)$c;
+                if ($playtotals[$b] > $maxplays) {
+                    $maxplays = $playtotals[$b];
+                }
+            }
+        }
+    }
+
     $viewerlabel = get_string('recordingheatmapviewers', 'jitsi', $totalviewers);
     $html  = '<div class="mt-3">';
     $html .= '<small class="text-muted d-block mb-1">'
         . get_string('recordingheatmap', 'jitsi') . ' — ' . $viewerlabel
         . '</small>';
-    $html .= '<div class="jitsi-heatmap" style="position:relative;height:8px;'
-        . 'background:#dee2e6;border-radius:4px;overflow:hidden">';
 
     $bucketwidth = 100 / $numbuckets;
+
+    // Bar 1: unique viewers (blue).
+    $html .= '<div class="jitsi-heatmap mb-1" style="position:relative;height:8px;'
+        . 'background:#dee2e6;border-radius:4px;overflow:hidden">';
     foreach ($buckets as $i => $count) {
         if ($count === 0) {
             continue;
@@ -3063,7 +3086,28 @@ function jitsi_render_heatmap_bar(int $sourcerecordid, int $cmid): string {
         $html   .= '<div style="position:absolute;left:' . $left . '%;width:' . $width
             . '%;height:100%;background:rgba(13,110,253,' . $opacity . ')"></div>';
     }
+    $html .= '</div>';
 
-    $html .= '</div></div>';
+    // Bar 2: total plays (orange), only if we have data.
+    if ($maxplays > 0) {
+        $html .= '<small class="text-muted d-block mb-1">'
+            . get_string('recordingheatmapplays', 'jitsi', $maxplays)
+            . '</small>';
+        $html .= '<div class="jitsi-heatmap" style="position:relative;height:8px;'
+            . 'background:#dee2e6;border-radius:4px;overflow:hidden">';
+        foreach ($playtotals as $i => $count) {
+            if ($count === 0) {
+                continue;
+            }
+            $opacity = number_format($count / $maxplays, 3, '.', '');
+            $left    = number_format($i * $bucketwidth, 3, '.', '');
+            $width   = number_format($bucketwidth + 0.1, 3, '.', '');
+            $html   .= '<div style="position:absolute;left:' . $left . '%;width:' . $width
+                . '%;height:100%;background:rgba(253,126,20,' . $opacity . ')"></div>';
+        }
+        $html .= '</div>';
+    }
+
+    $html .= '</div>';
     return $html;
 }
