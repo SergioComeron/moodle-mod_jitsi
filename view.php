@@ -690,7 +690,10 @@ require(['core/ajax'], function(Ajax) {
         var wrap = document.getElementById('jitsi-segbar-wrap-' + video.dataset.sourcerecordid);
         var seedSegs = (wrap && wrap.dataset.segments) ? JSON.parse(wrap.dataset.segments) : [];
         var seedDur  = (wrap && wrap.dataset.duration) ? parseFloat(wrap.dataset.duration) : 0;
-        trackers[key] = {segments: seedSegs, segStart: null, lastTime: 0, saveTimer: null, played: false, duration: seedDur, sessionSegs: [], sessionStart: null};
+        trackers[key] = {
+            segments: seedSegs, segStart: null, lastTime: 0,
+            saveTimer: null, played: false, duration: seedDur, sessionSegs: []
+        };
         var t = trackers[key];
 
         // Capture duration from metadata and update the bar immediately —
