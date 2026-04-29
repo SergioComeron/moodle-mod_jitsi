@@ -30,6 +30,8 @@ Features available in the plugin:
 * **JaaS (8x8) cloud recordings** automatically captured and available for download, expiring after 24 hours
 * **Attendance report** — detailed per-activity report with time-on-session per student, recording view tracking and access log *(requires mod_jitsi Account)*
 * **Recording view tracking** — progress bars showing exactly which parts of each video each student has watched, persisted between sessions *(requires mod_jitsi Account)*
+* **Viewing heatmap** — aggregate bar showing which parts of each recording were watched by what fraction of students, with a second bar tracking replays. Hover to see the viewer list per segment *(requires mod_jitsi Account)*
+* **Course overview** — aggregated dashboard for all Jitsi activities in a course: session stats, student engagement ranking and top recordings by viewers *(requires mod_jitsi Account)*
 * **Session usage statistics** — site-wide aggregated stats (sessions, participants, recordings) with daily breakdown *(requires mod_jitsi Account)*
 
 ## mod_jitsi Account
@@ -42,8 +44,10 @@ Some features require registering your Moodle installation at the **mod_jitsi Ac
 
 | Feature | Description |
 |---------|-------------|
-| Attendance report | Detailed per-activity report: time on session, recording views, access log |
-| Recording view tracking | Progress bars showing which parts of each video each student has watched |
+| Attendance report | Three-tab report: live session attendance with dates, recording views with heatmap, and course overview |
+| Recording view tracking | Progress bars showing which parts of each video each student has watched, persisted between sessions |
+| Viewing heatmap | Aggregate heatmap per recording showing viewer fraction and replay counts per time segment, with hover tooltip listing which students watched each part |
+| Course overview | Aggregated view of all Jitsi activities in the course: sessions, participants, top recordings and student engagement ranking |
 | Session usage statistics | Site-wide aggregated stats with daily breakdown |
 
 ### How to register
@@ -545,18 +549,37 @@ For a full list of data exported and deleted per user, see the Moodle Privacy AP
 
 ## Attendance Report
 
-The attendance report (`mod/jitsi:viewattendance`) provides teachers with a detailed breakdown of student participation in each Jitsi activity. It is accessible from the activity's secondary navigation.
+The attendance report (`mod/jitsi:viewattendance`) provides teachers with a detailed breakdown of student participation in each Jitsi activity. It is accessible from the activity's secondary navigation and is organised into three tabs.
 
-### What the report shows
+### Tab 1 — Live sessions
 
-- **Time on session** — total minutes each student spent in live sessions, aggregated across all sessions in the activity
-- **Recording views** — for GCS and Dropbox recordings: a visual progress bar showing exactly which segments of each recording the student has watched and the percentage watched
+Shows all-time attendance for the activity with no date filter:
+
+- **Student table** — sessions entered, total minutes, average time per session and all dates attended (with exact connection times once the nightly cron has run)
+- **Export** — download the table in CSV, Excel or other formats
+
+### Tab 2 — Recordings
+
+Shows recording engagement for the selected date range:
+
+- **Viewing heatmap** — two aggregate bars per recording: unique viewers (blue) and total replays (orange), with a 10-second bucket resolution. Hover over any blue bucket to see exactly which students watched that segment.
+- **Per-student progress bars** — individual segment bars showing what percentage of each recording each student has watched
 - **Recording access log** — for non-embeddable recordings (8x8, external links): a log of when each student clicked to open the recording
+- **Date filter** — narrow the data to a specific period
+
+### Tab 3 — Course overview
+
+Aggregated view across all Jitsi activities in the course:
+
+- **Activity overview** — sessions, unique participants, total minutes and recordings per activity
+- **Student engagement ranking** — students ranked by total session minutes, with recording starts
+- **Top recordings** — recordings with the most unique viewers across the course
 
 ### Requirements
 
 - The `mod/jitsi:viewattendance` capability (granted to teachers by default)
 - A registered mod_jitsi Account
+- The `aggregate_usage_stats` scheduled task must have run at least once for the live sessions data to be available (data is pre-computed nightly)
 
 ## Session Usage Statistics
 
