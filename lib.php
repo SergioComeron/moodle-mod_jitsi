@@ -3007,6 +3007,15 @@ function jitsi_format_video_seconds(int $seconds): string {
     return sprintf('%d:%02d:%02d', intdiv($seconds, 3600), intdiv($seconds % 3600, 60), $seconds % 60);
 }
 
+/**
+ * Render an aggregate heatmap bar showing which parts of a recording each fraction of viewers watched.
+ * Color intensity is proportional to the share of viewers who watched each time bucket.
+ * Only shown to users with mod/jitsi:viewattendance.
+ *
+ * @param int $sourcerecordid
+ * @param int $cmid
+ * @return string HTML, or empty string if no data
+ */
 function jitsi_render_heatmap_bar(int $sourcerecordid, int $cmid): string {
     global $DB;
 
