@@ -45,7 +45,7 @@ if ($email && confirm_sesskey()) {
     $payload  = json_encode([
         'email'     => $email,
         'site_hash' => $sitehash,
-        'site_name' => $CFG->fullname,
+        'site_name' => $SITE->fullname,
         'site_url'  => $CFG->wwwroot,
     ]);
 
