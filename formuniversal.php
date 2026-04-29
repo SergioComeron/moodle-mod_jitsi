@@ -117,7 +117,6 @@ if (!istimedout($sesion)) {
                 echo $OUTPUT->notification(get_string('finish', 'jitsi'), 'warning');
             }
         } else {
-            echo get_string('accesstowithlogin', 'jitsi', $sesion->name);
             $today = getdate();
             if ($today[0] > (($sesion->timeopen) - ($sesion->minpretime * 60))) {
                 $nom = null;
@@ -132,28 +131,41 @@ if (!istimedout($sesion)) {
                         break;
                 }
                 $avatar = $CFG->wwwroot . '/user/pix.php/' . $USER->id . '/f1.jpg';
-                $mail = '';
                 $urlparams = [
                     'avatar' => $avatar,
-                    'name' => $nom,
-                    'ses' => $sessionid,
-                    'mail' => $mail,
-                    'id' => $id,
+                    'name'   => $nom,
+                    'ses'    => $sessionid,
+                    'mail'   => '',
+                    'id'     => $id,
                 ];
-                echo $OUTPUT->box(get_string('instruction', 'jitsi'));
-                echo $OUTPUT->single_button(
-                    new moodle_url('/mod/jitsi/universal.php', $urlparams),
-                    get_string('access', 'jitsi'),
-                    'post'
-                );
+                $joinurl = (new moodle_url('/mod/jitsi/universal.php', $urlparams))->out(false);
+
+                echo html_writer::start_div('d-flex justify-content-center mt-4');
+                echo html_writer::start_div('card shadow-sm', ['style' => 'max-width:420px;width:100%']);
+                echo html_writer::start_div('card-body p-4 text-center');
+                echo html_writer::tag('h4', s($sesion->name), ['class' => 'card-title mb-1']);
+                echo html_writer::tag('p', s($course->fullname), ['class' => 'text-muted small mb-3']);
+                echo html_writer::empty_tag('img', [
+                    'src'   => s($avatar),
+                    'class' => 'rounded-circle mb-2',
+                    'style' => 'width:56px;height:56px;object-fit:cover',
+                    'alt'   => s($nom),
+                ]);
+                echo html_writer::tag('p', s($nom), ['class' => 'fw-semibold mb-3']);
+                echo html_writer::start_tag('form', ['method' => 'post', 'action' => $joinurl]);
+                $btnattrs = ['type' => 'submit', 'class' => 'btn btn-primary btn-lg w-100'];
+                echo html_writer::tag('button', get_string('guestjoin', 'jitsi'), $btnattrs);
+                echo html_writer::end_tag('form');
+                echo html_writer::end_div();
+                echo html_writer::end_div();
+                echo html_writer::end_div();
             } else {
-                echo $OUTPUT->box(
-                    get_string(
-                        'nostart',
-                        'jitsi',
-                        date("d-m-Y H:i", ($sesion->timeopen - ($sesion->minpretime * 60))),
-                    )
+                $nostart = get_string(
+                    'nostart',
+                    'jitsi',
+                    date("d-m-Y H:i", ($sesion->timeopen - ($sesion->minpretime * 60)))
                 );
+                echo $OUTPUT->notification($nostart, 'info');
             }
         }
     } else {
