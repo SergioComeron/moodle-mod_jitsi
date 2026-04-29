@@ -189,17 +189,16 @@ $toprecordings = $DB->get_records_sql($toprecordingssql, [
     'moduleid' => $moduleid,
 ]);
 
-// Dates attended per user (from precomputed table).
+// Dates attended per user — all time, no date filter.
 $datesperbuser = [];
 if ($hasanydata) {
     $daterows = $DB->get_records_sql(
         "SELECT userid, daykey
            FROM {jitsi_usage_daily}
           WHERE cmid = :cmid
-                AND daykey BETWEEN :fromdaykey AND :todaykey
                 AND sessions > 0
           ORDER BY userid, daykey ASC",
-        ['cmid' => $cm->id, 'fromdaykey' => $fromdaykey, 'todaykey' => $todaykey]
+        ['cmid' => $cm->id]
     );
     foreach ($daterows as $dr) {
         $y = (int)substr((string)$dr->daykey, 0, 4);
@@ -227,7 +226,7 @@ $hasanydata = $DB->record_exists('jitsi_usage_daily', ['cmid' => $cm->id]);
 $livequery = optional_param('live', 0, PARAM_INT);
 
 if ($hasanydata) {
-    // Fast path: read from precomputed table.
+    // Fast path: read from precomputed table — all time, no date filter.
     $rows = $DB->get_records_sql(
         "SELECT jud.userid,
                 u.firstname,
@@ -237,10 +236,9 @@ if ($hasanydata) {
            FROM {jitsi_usage_daily} jud
            JOIN {user} u ON u.id = jud.userid
           WHERE jud.cmid = :cmid
-                AND jud.daykey BETWEEN :fromdaykey AND :todaykey
        GROUP BY jud.userid, u.firstname, u.lastname
        ORDER BY $orderby",
-        ['cmid' => $cm->id, 'fromdaykey' => $fromdaykey, 'todaykey' => $todaykey]
+        ['cmid' => $cm->id]
     );
     $usinglivedata = false;
 } else if ($livequery) {
@@ -301,11 +299,7 @@ if ($isdownload) {
 }
 
 // Build sort toggle URLs.
-$baseurl = new moodle_url('/mod/jitsi/attendancereport.php', [
-    'id'       => $id,
-    'fromdate' => $fromdate,
-    'todate'   => $todate,
-]);
+$baseurl        = new moodle_url('/mod/jitsi/attendancereport.php', ['id' => $id]);
 $urlsortname    = new moodle_url($baseurl, ['sort' => 'name']);
 $urlsortminutes = new moodle_url($baseurl, ['sort' => 'minutes']);
 
@@ -388,21 +382,8 @@ if (!$hasanydata) {
     echo $OUTPUT->notification(get_string('attendancenodatacron', 'jitsi'), 'warning');
 }
 
-// Filter form.
-echo html_writer::start_tag('div', ['class' => 'card mb-4']);
-echo html_writer::start_tag('div', ['class' => 'card-body']);
-$mform->display();
-echo html_writer::end_tag('div');
-echo html_writer::end_tag('div');
-
-// If no precomputed data and live query not yet triggered, show the generate button.
 if (!$hasanydata && !$livequery) {
-    $liveurl = new moodle_url('/mod/jitsi/attendancereport.php', [
-        'id'       => $id,
-        'fromdate' => $fromdate,
-        'todate'   => $todate,
-        'live'     => 1,
-    ]);
+    $liveurl = new moodle_url('/mod/jitsi/attendancereport.php', ['id' => $id, 'live' => 1]);
     echo $OUTPUT->single_button($liveurl, get_string('attendancegeneratereport', 'jitsi'), 'get');
 } else if ($usinglivedata) {
     echo $OUTPUT->notification(get_string('attendancelivedata', 'jitsi'), 'info');
@@ -469,7 +450,7 @@ if ((!$hasanydata && !$livequery) || empty($rows)) {
         get_string('download'),
         'attendancereport.php',
         'dataformat',
-        ['id' => $id, 'fromdate' => $fromdate, 'todate' => $todate, 'sort' => $sort]
+        ['id' => $id, 'sort' => $sort]
     );
 }
 
@@ -477,6 +458,13 @@ echo '</div>'; // End tab-sessions pane.
 
 // Tab 2: Recordings.
 echo '<div class="tab-pane fade" id="tab-recordings" role="tabpanel">';
+
+// Filter form for recording views.
+echo html_writer::start_tag('div', ['class' => 'card mb-4']);
+echo html_writer::start_tag('div', ['class' => 'card-body']);
+$mform->display();
+echo html_writer::end_tag('div');
+echo html_writer::end_tag('div');
 
 // Recording views section — one card per GCS recording in this activity.
 $allrecordings = $DB->get_records_sql(
