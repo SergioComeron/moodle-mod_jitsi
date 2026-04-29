@@ -1,5 +1,23 @@
 # Jitsi Meet Moodle Plugin
 
+## Table of contents
+
+- [mod_jitsi Account](#mod_jitsi-account)
+- [Permissions](#permissions)
+- [Recording configuration](#recording-configuration)
+- [Dropbox and external recording links](#dropbox-and-external-recording-links)
+- [Private Sessions](#private-sessions)
+- [Token based mode](#token-based-mode)
+- [Recommendations when using public Jitsi servers](#recommendations-when-using-public-jitsi-servers)
+- [Using a Jitsi as a Service Account](#using-a-jitsi-as-a-service-account)
+- [Google Cloud Platform (GCP) Integration - BETA](#google-cloud-platform-gcp-integration---beta)
+- [AI Features for GCS Recordings](#ai-features-for-gcs-recordings)
+- [Attendance Report](#attendance-report)
+- [Session Usage Statistics](#session-usage-statistics)
+- [Disclaimer](#disclaimer)
+
+---
+
 **mod_jitsi** integrates Jitsi Meet videoconferencing into Moodle. To use it in production you need a Jitsi server — the plugin supports three options:
 
 - **JaaS (8x8)** — hosted service, free up to 25 monthly active users. The quickest way to get started. More information at https://jaas.8x8.vc/
