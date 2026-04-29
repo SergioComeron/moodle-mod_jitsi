@@ -2984,3 +2984,86 @@ function jitsi_segments_watched_pct(array $segments, float $duration): int {
     }
     return min(100, (int)round(($watched / $duration) * 100));
 }
+
+/**
+ * Render an aggregate heatmap bar showing which parts of a recording each fraction of viewers watched.
+ * Color intensity is proportional to the share of viewers who watched each time bucket.
+ * Only shown to users with mod/jitsi:viewattendance.
+ *
+ * @param int $sourcerecordid
+ * @param int $cmid
+ * @return string HTML, or empty string if no data
+ */
+function jitsi_render_heatmap_bar(int $sourcerecordid, int $cmid): string {
+    global $DB;
+
+    $rows = $DB->get_records('jitsi_recording_segments', [
+        'sourcerecordid' => $sourcerecordid,
+        'cmid'           => $cmid,
+    ]);
+
+    if (empty($rows)) {
+        return '';
+    }
+
+    $duration = 0.0;
+    foreach ($rows as $row) {
+        if ((float)$row->duration > $duration) {
+            $duration = (float)$row->duration;
+        }
+    }
+    if ($duration <= 0) {
+        return '';
+    }
+
+    $totalviewers = count($rows);
+    $bucketsize   = 10;
+    $numbuckets   = max(1, (int)ceil($duration / $bucketsize));
+    $buckets      = array_fill(0, $numbuckets, 0);
+
+    foreach ($rows as $row) {
+        $segments = json_decode($row->segments, true);
+        if (!is_array($segments)) {
+            continue;
+        }
+        $covered = array_fill(0, $numbuckets, false);
+        foreach ($segments as $seg) {
+            if (!is_array($seg) || count($seg) < 2) {
+                continue;
+            }
+            $startbucket = max(0, (int)floor((float)$seg[0] / $bucketsize));
+            $endbucket   = min($numbuckets - 1, (int)floor((float)$seg[1] / $bucketsize));
+            for ($b = $startbucket; $b <= $endbucket; $b++) {
+                $covered[$b] = true;
+            }
+        }
+        foreach ($covered as $b => $iscovered) {
+            if ($iscovered) {
+                $buckets[$b]++;
+            }
+        }
+    }
+
+    $viewerlabel = get_string('recordingheatmapviewers', 'jitsi', $totalviewers);
+    $html  = '<div class="mt-3">';
+    $html .= '<small class="text-muted d-block mb-1">'
+        . get_string('recordingheatmap', 'jitsi') . ' — ' . $viewerlabel
+        . '</small>';
+    $html .= '<div class="jitsi-heatmap" style="position:relative;height:8px;'
+        . 'background:#dee2e6;border-radius:4px;overflow:hidden">';
+
+    $bucketwidth = 100 / $numbuckets;
+    foreach ($buckets as $i => $count) {
+        if ($count === 0) {
+            continue;
+        }
+        $opacity = number_format($count / $totalviewers, 3, '.', '');
+        $left    = number_format($i * $bucketwidth, 3, '.', '');
+        $width   = number_format($bucketwidth + 0.1, 3, '.', '');
+        $html   .= '<div style="position:absolute;left:' . $left . '%;width:' . $width
+            . '%;height:100%;background:rgba(13,110,253,' . $opacity . ')"></div>';
+    }
+
+    $html .= '</div></div>';
+    return $html;
+}

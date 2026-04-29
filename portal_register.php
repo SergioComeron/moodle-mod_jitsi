@@ -85,6 +85,7 @@ if ($email && confirm_sesskey()) {
 
 echo $OUTPUT->header();
 echo html_writer::tag('p', get_string('portalheadingex', 'jitsi'));
+echo html_writer::div(get_string('portalopensourcenote', 'jitsi'), 'alert alert-info');
 
 $actionurl = new moodle_url('/mod/jitsi/portal_register.php');
 echo html_writer::start_tag('form', ['method' => 'post', 'action' => $actionurl->out(false)]);

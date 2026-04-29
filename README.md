@@ -36,6 +36,8 @@ Features available in the plugin:
 
 Some features require registering your Moodle installation at the **mod_jitsi Account** portal ([portal.sergiocomeron.com](https://portal.sergiocomeron.com)). Registration is free and takes less than a minute.
 
+> **A note on open source transparency**: since mod_jitsi is open source, anyone can modify the code and bypass the registration requirement — we know that. Registration is not about locking features for commercial reasons. It exists purely so the developer can see which Moodle versions, server types and features are actually used, and focus development where it matters most.
+
 ### Features that require registration
 
 | Feature | Description |
