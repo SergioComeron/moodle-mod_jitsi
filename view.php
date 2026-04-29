@@ -457,7 +457,7 @@ if (get_config('mod_jitsi', 'help') != null) {
     echo $OUTPUT->box(get_string('instruction', 'jitsi'));
 }
 
-if (get_config('mod_jitsi', 'invitebuttons') == 1 && has_capability('mod/jitsi:createlink', $context)) {
+if (get_config('mod_jitsi', 'inviteemail') == 1 && has_capability('mod/jitsi:createlink', $context)) {
     $sendinvurl = new moodle_url('/mod/jitsi/sendinvitation.php', ['id' => $id]);
     echo html_writer::start_div('text-center mt-3');
     echo html_writer::link(

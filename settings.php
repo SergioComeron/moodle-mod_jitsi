@@ -215,6 +215,15 @@ if ($ADMIN->fulltree) {
 
     $settings->add(
         new admin_setting_configcheckbox(
+            'mod_jitsi/inviteemail',
+            get_string('inviteemail', 'jitsi'),
+            get_string('inviteemailex', 'jitsi'),
+            0,
+        ),
+    );
+
+    $settings->add(
+        new admin_setting_configcheckbox(
             'mod_jitsi/blurbutton',
             get_string('blurbutton', 'jitsi'),
             get_string('blurbuttonex', 'jitsi'),

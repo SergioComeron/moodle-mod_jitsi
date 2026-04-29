@@ -36,6 +36,10 @@ require_login($course, false, $cm);
 $context = context_module::instance($cm->id);
 require_capability('mod/jitsi:createlink', $context);
 
+if (!get_config('mod_jitsi', 'inviteemail')) {
+    throw new moodle_exception('nopermissions', 'error');
+}
+
 $PAGE->set_url(new moodle_url('/mod/jitsi/sendinvitation.php', ['id' => $id]));
 $PAGE->set_context($context);
 $PAGE->set_cm($cm);
