@@ -287,6 +287,55 @@ $baseurl = new moodle_url('/mod/jitsi/attendancereport.php', [
 $urlsortname    = new moodle_url($baseurl, ['sort' => 'name']);
 $urlsortminutes = new moodle_url($baseurl, ['sort' => 'minutes']);
 
+// Heatmap bucket-click JS: load viewer list on click.
+$PAGE->requires->js_amd_inline("
+require(['core/ajax', 'core/str'], function(Ajax, Str) {
+    Str.get_strings([
+        {key: 'heatmapbucketviewers', component: 'jitsi'},
+        {key: 'heatmapbucketnoviewers', component: 'jitsi'},
+        {key: 'loading', component: 'core'},
+    ]).then(function(s) {
+        var strViewers   = s[0];
+        var strNoViewers = s[1];
+        var strLoading   = s[2];
+
+        document.addEventListener('click', function(e) {
+            var bucket = e.target.closest('[data-bucket]');
+            if (!bucket) { return; }
+            var bar = bucket.closest('.jitsi-heatmap[data-sourcerecordid]');
+            if (!bar) { return; }
+            var sourcerecordid = parseInt(bar.dataset.sourcerecordid, 10);
+            var cmid           = parseInt(bar.dataset.cmid, 10);
+            var bucketindex    = parseInt(bucket.dataset.bucket, 10);
+            var panel = document.getElementById('jitsi-bucket-viewers-' + sourcerecordid);
+            if (!panel) { return; }
+            panel.innerHTML = '<small class=\"text-muted\">' + strLoading + '</small>';
+            Ajax.call([{
+                methodname: 'mod_jitsi_get_bucket_viewers',
+                args: {sourcerecordid: sourcerecordid, cmid: cmid, bucketindex: bucketindex}
+            }])[0].then(function(result) {
+                var start = result.bucketstart;
+                var end   = result.bucketend;
+                var label = strViewers
+                    .replace('{start}', start)
+                    .replace('{end}', end);
+                var html = '<small class=\"fw-bold\">' + label + '</small>';
+                if (!result.viewers.length) {
+                    html += ' <small class=\"text-muted\">' + strNoViewers + '</small>';
+                } else {
+                    html += '<ul class=\"list-unstyled mb-0 ms-2\">';
+                    result.viewers.forEach(function(v) {
+                        html += '<li><small>' + v.fullname + '</small></li>';
+                    });
+                    html += '</ul>';
+                }
+                panel.innerHTML = html;
+            });
+        });
+    });
+});
+");
+
 // Begin output.
 echo $OUTPUT->header();
 echo $OUTPUT->heading(get_string('attendancereport', 'jitsi') . ': ' . format_string($jitsi->name), 3);
@@ -527,6 +576,11 @@ if (!empty($gcsrecordings)) {
             'sourcerecordid' => $rec->id,
             'cmid'           => $cm->id,
         ], '', 'userid, segments, duration');
+
+        $heatmap = jitsi_render_heatmap_bar((int)$rec->id, (int)$cm->id);
+        if ($heatmap) {
+            echo $heatmap;
+        }
 
         if (!empty($viewrows)) {
             $viewtable                      = new html_table();

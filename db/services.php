@@ -354,4 +354,13 @@ $functions = [
                 'ajax' => true,
                 'loginrequired' => true,
         ],
+        'mod_jitsi_get_bucket_viewers' => [
+                'classname' => 'mod_jitsi_external',
+                'methodname' => 'get_bucket_viewers',
+                'classpath' => 'mod/jitsi/classes/external.php',
+                'description' => 'Get list of users who watched a specific time bucket of a recording',
+                'type' => 'read',
+                'ajax' => true,
+                'loginrequired' => true,
+        ],
 ];

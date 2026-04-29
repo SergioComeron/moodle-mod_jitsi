@@ -2244,4 +2244,89 @@ class mod_jitsi_external extends external_api {
             'segments' => new external_value(PARAM_TEXT, 'Merged segments as JSON'),
         ]);
     }
+
+    /**
+     * Parameters for get_bucket_viewers.
+     * @return external_function_parameters
+     */
+    public static function get_bucket_viewers_parameters() {
+        return new external_function_parameters([
+            'sourcerecordid' => new external_value(PARAM_INT, 'jitsi_source_record id'),
+            'cmid'           => new external_value(PARAM_INT, 'Course module id'),
+            'bucketindex'    => new external_value(PARAM_INT, 'Zero-based bucket index (10s buckets)'),
+        ]);
+    }
+
+    /**
+     * Get the list of users who watched a specific 10-second bucket of a recording.
+     *
+     * @param int $sourcerecordid
+     * @param int $cmid
+     * @param int $bucketindex
+     * @return array
+     */
+    public static function get_bucket_viewers($sourcerecordid, $cmid, $bucketindex) {
+        global $DB;
+
+        $params = self::validate_parameters(self::get_bucket_viewers_parameters(), [
+            'sourcerecordid' => $sourcerecordid,
+            'cmid'           => $cmid,
+            'bucketindex'    => $bucketindex,
+        ]);
+
+        $context = context_module::instance($params['cmid']);
+        self::validate_context($context);
+        require_capability('mod/jitsi:viewattendance', $context);
+
+        $bucketsize  = 10;
+        $bucketstart = $params['bucketindex'] * $bucketsize;
+        $bucketend   = $bucketstart + $bucketsize;
+
+        $rows = $DB->get_records('jitsi_recording_segments', [
+            'sourcerecordid' => $params['sourcerecordid'],
+            'cmid'           => $params['cmid'],
+        ]);
+
+        $viewers = [];
+        foreach ($rows as $row) {
+            $segments = json_decode($row->segments, true);
+            if (!is_array($segments)) {
+                continue;
+            }
+            foreach ($segments as $seg) {
+                if (!is_array($seg) || count($seg) < 2) {
+                    continue;
+                }
+                if ((float)$seg[0] < $bucketend && (float)$seg[1] > $bucketstart) {
+                    $namefields = 'id, firstname, lastname, firstnamephonetic, lastnamephonetic, middlename, alternatename';
+                    $user = $DB->get_record('user', ['id' => $row->userid], $namefields);
+                    if ($user) {
+                        $viewers[] = ['userid' => (int)$user->id, 'fullname' => fullname($user)];
+                    }
+                    break;
+                }
+            }
+        }
+
+        usort($viewers, fn($a, $b) => strcmp($a['fullname'], $b['fullname']));
+
+        return ['viewers' => $viewers, 'bucketstart' => $bucketstart, 'bucketend' => $bucketend];
+    }
+
+    /**
+     * Returns for get_bucket_viewers.
+     * @return external_description
+     */
+    public static function get_bucket_viewers_returns() {
+        return new external_single_structure([
+            'viewers'     => new external_multiple_structure(
+                new external_single_structure([
+                    'userid'   => new external_value(PARAM_INT, 'User id'),
+                    'fullname' => new external_value(PARAM_TEXT, 'User full name'),
+                ])
+            ),
+            'bucketstart' => new external_value(PARAM_INT, 'Bucket start in seconds'),
+            'bucketend'   => new external_value(PARAM_INT, 'Bucket end in seconds'),
+        ]);
+    }
 }

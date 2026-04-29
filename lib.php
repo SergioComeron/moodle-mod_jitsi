@@ -3073,9 +3073,11 @@ function jitsi_render_heatmap_bar(int $sourcerecordid, int $cmid): string {
 
     $bucketwidth = 100 / $numbuckets;
 
-    // Bar 1: unique viewers (blue).
-    $html .= '<div class="jitsi-heatmap mb-1" style="position:relative;height:8px;'
-        . 'background:#dee2e6;border-radius:4px;overflow:hidden;cursor:help">';
+    // Bar 1: unique viewers (blue) — clickable to show viewer list.
+    $html .= '<div class="jitsi-heatmap mb-1"'
+        . ' data-sourcerecordid="' . (int)$sourcerecordid . '"'
+        . ' data-cmid="' . (int)$cmid . '"'
+        . ' style="position:relative;height:8px;background:#dee2e6;border-radius:4px;overflow:hidden;cursor:pointer">';
     foreach ($buckets as $i => $count) {
         if ($count === 0) {
             continue;
@@ -3086,10 +3088,12 @@ function jitsi_render_heatmap_bar(int $sourcerecordid, int $cmid): string {
         $start    = $i * $bucketsize;
         $end      = $start + $bucketsize;
         $tooltip  = s($count . '/' . $totalviewers . ' viewers · ' . $start . 's–' . $end . 's');
-        $html    .= '<div title="' . $tooltip . '" style="position:absolute;left:' . $left . '%;width:' . $width
+        $html    .= '<div title="' . $tooltip . '" data-bucket="' . $i . '"'
+            . ' style="position:absolute;left:' . $left . '%;width:' . $width
             . '%;height:100%;background:rgba(13,110,253,' . $opacity . ')"></div>';
     }
     $html .= '</div>';
+    $html .= '<div id="jitsi-bucket-viewers-' . (int)$sourcerecordid . '" class="jitsi-bucket-viewers mt-1"></div>';
 
     // Bar 2: total plays (orange), only if we have data.
     if ($maxplays > 0) {
