@@ -314,27 +314,32 @@ if ($errorborrado) {
     echo $OUTPUT->footer();
     die();
 }
-echo " ";
-echo "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" fill=\"currentColor\"
-     class=\"bi bi-person-workspace\" viewBox=\"0 0 16 16\">";
-echo "<path d=\"M4 16s-1 0-1-1 1-4 5-4 5 3 5 4-1 1-1 1H4Zm4-5.95a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z\"/>";
-echo "<path d=\"M2 1a2 2 0 0 0-2 2v9.5A1.5 1.5 0 0 0 1.5 14h.653a5.373 5.373 0 0 1 1.066-2H1V3a1 1 0 0 1 1-1h12a1 1 0 0 1
-     1 1v9h-2.219c.554.654.89 1.373 1.066 2h.653a1.5 1.5 0 0 0 1.5-1.5V3a2 2 0 0 0-2-2H2Z\"/>";
-echo "</svg>";
-echo (" " . $jitsi->numberofparticipants . " " . get_string('connectedattendeesnow', 'jitsi'));
-echo "<p></p>";
+// Session status card.
+echo html_writer::start_div('card shadow-sm mb-4');
+echo html_writer::start_div('card-body');
+
+// Metrics row.
+echo html_writer::start_div('d-flex gap-4 mb-3');
+echo html_writer::start_div('text-center');
+echo html_writer::tag('div', (int)$jitsi->numberofparticipants, ['class' => 'h4 mb-0 fw-bold']);
+echo html_writer::tag('div', get_string('connectedattendeesnow', 'jitsi'), ['class' => 'text-muted small']);
+echo html_writer::end_div();
+echo html_writer::start_div('text-center');
+echo html_writer::tag('div', getminutes($id, $USER->id), ['class' => 'h4 mb-0 fw-bold']);
+echo html_writer::tag('div', get_string('totaluserminutes', 'jitsi'), ['class' => 'text-muted small']);
+echo html_writer::end_div();
+echo html_writer::end_div();
+
+// Status badges.
 if ($jitsi->sessionwithtoken) {
-    echo "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" fill=\"currentColor\"
-        class=\"bi bi-share\" viewBox=\"0 0 16 16\">";
-    echo "<path d=\"M13.5 1a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM11 2.5a2.5 2.5 0 1 1 .603 1.628l-6.718 3.12a2.499 2.499 0 0 1
-        0 1.504l6.718 3.12a2.5 2.5 0 1 1-.488.876l-6.718-3.12a2.5 2.5 0 1 1 0-3.256l6.718-3.12A2.5 2.5 0 0 1 11 2.5zm-8.5 4a1.5
-        1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm11 5.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z\"/>";
-    echo "</svg> ";
     $sql = "select * from {jitsi} where tokeninterno = '" . $jitsi->tokeninvitacion . "'";
     $jitsimaster = $DB->get_record_sql($sql);
     $coursemaster = $DB->get_record('course', ['id' => $jitsimaster->course]);
-    echo get_string('sessionshared', 'jitsi', $coursemaster->shortname);
-    echo "<p></p>";
+    echo html_writer::tag(
+        'span',
+        '🔗 ' . get_string('sessionshared', 'jitsi', $coursemaster->shortname),
+        ['class' => 'badge bg-secondary me-2 mb-3']
+    );
 }
 
 if ($jitsi->sourcerecord != null) {
@@ -342,32 +347,30 @@ if ($jitsi->sourcerecord != null) {
     if ($source) {
         $author = $DB->get_record('user', ['id' => $source->userid]);
         if ($author) {
-            echo "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" fill=\"red\"
-                class=\"bi bi-record-circle\" viewBox=\"0 0 16 16\">";
-            echo "<path d=\"M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z\"/>";
-            echo "<path d=\"M11 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0z\"/>";
-            echo "</svg> ";
-            echo addslashes(get_string('sessionisbeingrecordingby', 'jitsi', $author->firstname . " " . $author->lastname));
+            echo html_writer::tag(
+                'span',
+                '🔴 ' . get_string('sessionisbeingrecordingby', 'jitsi', fullname($author)),
+                ['class' => 'badge bg-danger me-2 mb-3']
+            );
         } else {
-            // Source exists but author doesn't, clean up the reference.
             $jitsi->sourcerecord = null;
             $DB->update_record('jitsi', $jitsi);
         }
     } else {
-        // Source record doesn't exist, clean up the reference.
         $jitsi->sourcerecord = null;
         $DB->update_record('jitsi', $jitsi);
     }
 }
-echo "<p></p>";
-echo get_string('minutesconnected', 'jitsi', getminutes($id, $USER->id));
 
-if ($CFG->branch <= 311) {
-    if ($jitsi->intro) {
-        echo $OUTPUT->box(format_module_intro('jitsi', $jitsi, $cm->id), 'generalbox mod_introbox', 'jitsiintro');
-    }
+if ($CFG->branch <= 311 && $jitsi->intro) {
+    echo html_writer::div(
+        format_module_intro('jitsi', $jitsi, $cm->id),
+        'generalbox mod_introbox mb-3',
+        ['id' => 'jitsiintro']
+    );
 }
 
+// Join button or status message.
 $fechacierre = $jitsi->timeclose;
 $fechainicio = $jitsi->timeopen;
 
@@ -378,25 +381,25 @@ if ($jitsi->sessionwithtoken == 1) {
 
 if ($today[0] < $fechacierre || $fechacierre == 0) {
     if (
-        $today[0] > (($fechainicio)) ||
-        has_capability('mod/jitsi:moderation', $context) && $today[0] > (($jitsi->timeopen) - ($jitsi->minpretime * 60))
+        $today[0] > $fechainicio ||
+        has_capability('mod/jitsi:moderation', $context) && $today[0] > ($jitsi->timeopen - ($jitsi->minpretime * 60))
     ) {
-        echo "<br><br>";
         $button = new moodle_url('/mod/jitsi/session.php', $urlparams);
-        $options = [
-            'class' => 'btn btn-primary',
-            'title' => get_string('access', 'jitsi'),
-        ];
-        $boton = \html_writer::link($button, get_string('access', 'jitsi'), $options);
-        echo $boton;
+        echo html_writer::link(
+            $button,
+            get_string('access', 'jitsi'),
+            ['class' => 'btn btn-primary btn-lg']
+        );
     } else {
-        echo $OUTPUT->box(get_string('nostart', 'jitsi', userdate($jitsi->timeopen)));
+        echo $OUTPUT->notification(get_string('nostart', 'jitsi', userdate($jitsi->timeopen)), 'info');
     }
 } else {
-    echo $OUTPUT->box(get_string('finish', 'jitsi'));
+    echo $OUTPUT->notification(get_string('finish', 'jitsi'), 'warning');
 }
 
-echo "<br><br>";
+echo html_writer::end_div();
+echo html_writer::end_div();
+echo '<br>';
 
 $sqlrecords = 'SELECT r.id FROM {jitsi_record} r
     JOIN {jitsi_source_record} s ON s.id = r.source
