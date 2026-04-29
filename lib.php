@@ -3075,15 +3075,18 @@ function jitsi_render_heatmap_bar(int $sourcerecordid, int $cmid): string {
 
     // Bar 1: unique viewers (blue).
     $html .= '<div class="jitsi-heatmap mb-1" style="position:relative;height:8px;'
-        . 'background:#dee2e6;border-radius:4px;overflow:hidden">';
+        . 'background:#dee2e6;border-radius:4px;overflow:hidden;cursor:help">';
     foreach ($buckets as $i => $count) {
         if ($count === 0) {
             continue;
         }
-        $opacity = number_format($count / $totalviewers, 3, '.', '');
-        $left    = number_format($i * $bucketwidth, 3, '.', '');
-        $width   = number_format($bucketwidth + 0.1, 3, '.', '');
-        $html   .= '<div style="position:absolute;left:' . $left . '%;width:' . $width
+        $opacity  = number_format($count / $totalviewers, 3, '.', '');
+        $left     = number_format($i * $bucketwidth, 3, '.', '');
+        $width    = number_format($bucketwidth + 0.1, 3, '.', '');
+        $start    = $i * $bucketsize;
+        $end      = $start + $bucketsize;
+        $tooltip  = s($count . '/' . $totalviewers . ' viewers · ' . $start . 's–' . $end . 's');
+        $html    .= '<div title="' . $tooltip . '" style="position:absolute;left:' . $left . '%;width:' . $width
             . '%;height:100%;background:rgba(13,110,253,' . $opacity . ')"></div>';
     }
     $html .= '</div>';
@@ -3094,15 +3097,18 @@ function jitsi_render_heatmap_bar(int $sourcerecordid, int $cmid): string {
             . get_string('recordingheatmapplays', 'jitsi', $maxplays)
             . '</small>';
         $html .= '<div class="jitsi-heatmap" style="position:relative;height:8px;'
-            . 'background:#dee2e6;border-radius:4px;overflow:hidden">';
+            . 'background:#dee2e6;border-radius:4px;overflow:hidden;cursor:help">';
         foreach ($playtotals as $i => $count) {
             if ($count === 0) {
                 continue;
             }
-            $opacity = number_format($count / $maxplays, 3, '.', '');
-            $left    = number_format($i * $bucketwidth, 3, '.', '');
-            $width   = number_format($bucketwidth + 0.1, 3, '.', '');
-            $html   .= '<div style="position:absolute;left:' . $left . '%;width:' . $width
+            $opacity  = number_format($count / $maxplays, 3, '.', '');
+            $left     = number_format($i * $bucketwidth, 3, '.', '');
+            $width    = number_format($bucketwidth + 0.1, 3, '.', '');
+            $start    = $i * $bucketsize;
+            $end      = $start + $bucketsize;
+            $tooltip  = s($count . ' plays · ' . $start . 's–' . $end . 's');
+            $html    .= '<div title="' . $tooltip . '" style="position:absolute;left:' . $left . '%;width:' . $width
                 . '%;height:100%;background:rgba(253,126,20,' . $opacity . ')"></div>';
         }
         $html .= '</div>';
