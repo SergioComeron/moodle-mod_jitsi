@@ -344,8 +344,12 @@ $bstoggle = ($CFG->branch >= 500) ? 'data-bs-toggle' : 'data-toggle';
 // Tab navigation.
 echo '<ul class="nav nav-tabs mb-3" id="attendanceTabs" role="tablist">';
 echo '<li class="nav-item">';
-echo '<a class="nav-link active" id="tab-activity-link" ' . $bstoggle . '="tab"'
-    . ' href="#tab-activity" role="tab">' . get_string('attendancereport', 'jitsi') . '</a>';
+echo '<a class="nav-link active" id="tab-sessions-link" ' . $bstoggle . '="tab"'
+    . ' href="#tab-sessions" role="tab">' . get_string('attendancetablive', 'jitsi') . '</a>';
+echo '</li>';
+echo '<li class="nav-item">';
+echo '<a class="nav-link" id="tab-recordings-link" ' . $bstoggle . '="tab"'
+    . ' href="#tab-recordings" role="tab">' . get_string('records', 'jitsi') . '</a>';
 echo '</li>';
 echo '<li class="nav-item">';
 echo '<a class="nav-link" id="tab-course-link" ' . $bstoggle . '="tab"'
@@ -355,8 +359,8 @@ echo '</ul>';
 
 echo '<div class="tab-content">';
 
-// Tab 1: Activity report.
-echo '<div class="tab-pane fade show active" id="tab-activity" role="tabpanel">';
+// Tab 1: Live sessions.
+echo '<div class="tab-pane fade show active" id="tab-sessions" role="tabpanel">';
 
 if (!$hasanydata) {
     echo $OUTPUT->notification(get_string('attendancenodatacron', 'jitsi'), 'warning');
@@ -443,6 +447,11 @@ if ((!$hasanydata && !$livequery) || empty($rows)) {
         ['id' => $id, 'fromdate' => $fromdate, 'todate' => $todate, 'sort' => $sort]
     );
 }
+
+echo '</div>'; // End tab-sessions pane.
+
+// Tab 2: Recordings.
+echo '<div class="tab-pane fade" id="tab-recordings" role="tabpanel">';
 
 // Recording views section — one card per GCS recording in this activity.
 $allrecordings = $DB->get_records_sql(
@@ -696,9 +705,9 @@ if (!empty($linkrecordings)) {
     echo html_writer::end_tag('div');
 }
 
-echo '</div>'; // End tab-activity pane.
+echo '</div>'; // End tab-recordings pane.
 
-// Tab 2: Course overview.
+// Tab 3: Course overview.
 echo '<div class="tab-pane fade" id="tab-course" role="tabpanel">';
 
 echo html_writer::tag('h5', get_string('coursedashboardactivities', 'jitsi'), ['class' => 'mt-2 mb-2']);

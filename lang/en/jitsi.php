@@ -92,6 +92,7 @@ $string['attendancegeneratereport'] = 'Generate report from live data';
 $string['attendancelivedata'] = 'This report was generated directly from the activity log. It may be slower on large sites. Once the nightly aggregation task runs, it will load instantly.';
 $string['attendancenodatacron'] = 'Precomputed data is not yet available for this activity. You can generate the report directly from the activity log using the button below.';
 $string['attendancereport'] = 'Attendance report';
+$string['attendancetablive'] = 'Live sessions';
 $string['attendeesreport'] = 'Attendees report';
 $string['authq'] = 'Login with this account to get credentials and put "in use"?';
 $string['averagetimeperuser'] = 'Avg. time per user';
