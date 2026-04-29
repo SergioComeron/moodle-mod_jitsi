@@ -82,7 +82,6 @@ if (!istimedout($sesion)) {
                     echo html_writer::start_div('d-flex justify-content-center mt-4');
                     echo html_writer::start_div('card shadow-sm', ['style' => 'max-width:420px;width:100%']);
                     echo html_writer::start_div('card-body p-4 text-center');
-                    echo html_writer::tag('div', '📹', ['style' => 'font-size:2.5rem;margin-bottom:.5rem']);
                     echo html_writer::tag('h4', s($sesion->name), ['class' => 'card-title mb-1']);
                     echo html_writer::tag('p', s($course->fullname), ['class' => 'text-muted small mb-4']);
                     echo html_writer::start_tag('form', ['method' => 'post', 'action' => $actionurl]);
