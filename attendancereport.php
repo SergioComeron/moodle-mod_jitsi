@@ -299,90 +299,24 @@ echo html_writer::link(
     ['class' => 'btn btn-secondary mb-4']
 );
 
-// Course overview section.
-echo html_writer::start_tag('div', ['class' => 'card mb-4']);
-echo html_writer::start_tag('div', ['class' => 'card-header d-flex align-items-center justify-content-between']);
-echo html_writer::tag('h4', get_string('coursedashboard', 'jitsi'), ['class' => 'mb-0']);
-echo html_writer::end_tag('div');
-echo html_writer::start_tag('div', ['class' => 'card-body']);
+$bstoggle = ($CFG->branch >= 500) ? 'data-bs-toggle' : 'data-toggle';
 
-echo html_writer::tag('h5', get_string('coursedashboardactivities', 'jitsi'), ['class' => 'mt-2 mb-2']);
-if (empty($courseactivities)) {
-    echo $OUTPUT->notification(get_string('coursedashboardnodata', 'jitsi'), 'info');
-} else {
-    $acttable = new html_table();
-    $acttable->head = [
-        get_string('activity'),
-        get_string('coursedashboardsessions', 'jitsi'),
-        get_string('coursedashboardparticipants', 'jitsi'),
-        get_string('coursedashboardminutes', 'jitsi'),
-        get_string('coursedashboardrecordings', 'jitsi'),
-    ];
-    $acttable->attributes['class'] = 'generaltable table-sm';
-    foreach ($courseactivities as $act) {
-        $acturl = new moodle_url('/mod/jitsi/view.php', ['id' => $act->cmid]);
-        $acttable->data[] = [
-            html_writer::link($acturl, format_string($act->name)),
-            (int)$act->totalsessions,
-            (int)$act->uniqueparticipants,
-            (int)$act->totalminutes . ' min',
-            (int)$act->recordings,
-        ];
-    }
-    echo html_writer::table($acttable);
-}
+// Tab navigation.
+echo '<ul class="nav nav-tabs mb-3" id="attendanceTabs" role="tablist">';
+echo '<li class="nav-item">';
+echo '<a class="nav-link active" id="tab-activity-link" ' . $bstoggle . '="tab"'
+    . ' href="#tab-activity" role="tab">' . get_string('attendancereport', 'jitsi') . '</a>';
+echo '</li>';
+echo '<li class="nav-item">';
+echo '<a class="nav-link" id="tab-course-link" ' . $bstoggle . '="tab"'
+    . ' href="#tab-course" role="tab">' . get_string('coursedashboard', 'jitsi') . '</a>';
+echo '</li>';
+echo '</ul>';
 
-echo html_writer::tag('h5', get_string('coursedashboardstudents', 'jitsi'), ['class' => 'mt-4 mb-2']);
-if (empty($coursestudents)) {
-    echo $OUTPUT->notification(get_string('coursedashboardnodata', 'jitsi'), 'info');
-} else {
-    $stutable = new html_table();
-    $stutable->head = [
-        get_string('user'),
-        get_string('coursedashboardsessions', 'jitsi'),
-        get_string('coursedashboardminutes', 'jitsi'),
-        get_string('coursedashboardrecordingsstarted', 'jitsi'),
-    ];
-    $stutable->attributes['class'] = 'generaltable table-sm';
-    foreach ($coursestudents as $student) {
-        $profileurl = new moodle_url('/user/view.php', ['id' => $student->id, 'course' => $course->id]);
-        $recstarted = isset($courserecviews[$student->id]) ? (int)$courserecviews[$student->id]->recordings_started : 0;
-        $stutable->data[] = [
-            html_writer::link($profileurl, fullname($student)),
-            (int)$student->totalsessions,
-            (int)$student->totalminutes . ' min',
-            $recstarted,
-        ];
-    }
-    echo html_writer::table($stutable);
-}
+echo '<div class="tab-content">';
 
-echo html_writer::tag('h5', get_string('coursedashboardtoprecordings', 'jitsi'), ['class' => 'mt-4 mb-2']);
-if (empty($toprecordings)) {
-    echo $OUTPUT->notification(get_string('coursedashboardnorecordingdata', 'jitsi'), 'info');
-} else {
-    $rectable = new html_table();
-    $rectable->head = [
-        get_string('coursedashboardrecording', 'jitsi'),
-        get_string('activity'),
-        get_string('date'),
-        get_string('coursedashboardviewers', 'jitsi'),
-    ];
-    $rectable->attributes['class'] = 'generaltable table-sm';
-    foreach ($toprecordings as $rec) {
-        $recname = !empty($rec->recordingname) ? format_string($rec->recordingname) : userdate($rec->timecreated);
-        $rectable->data[] = [
-            html_writer::link($rec->link, $recname, ['target' => '_blank']),
-            format_string($rec->activityname),
-            userdate($rec->timecreated),
-            (int)$rec->viewers,
-        ];
-    }
-    echo html_writer::table($rectable);
-}
-
-echo html_writer::end_tag('div');
-echo html_writer::end_tag('div');
+// Tab 1: Activity report.
+echo '<div class="tab-pane fade show active" id="tab-activity" role="tabpanel">';
 
 if (!$hasanydata) {
     echo $OUTPUT->notification(get_string('attendancenodatacron', 'jitsi'), 'warning');
@@ -716,5 +650,88 @@ if (!empty($linkrecordings)) {
     echo html_writer::end_tag('div');
     echo html_writer::end_tag('div');
 }
+
+echo '</div>'; // End tab-activity pane.
+
+// Tab 2: Course overview.
+echo '<div class="tab-pane fade" id="tab-course" role="tabpanel">';
+
+echo html_writer::tag('h5', get_string('coursedashboardactivities', 'jitsi'), ['class' => 'mt-2 mb-2']);
+if (empty($courseactivities)) {
+    echo $OUTPUT->notification(get_string('coursedashboardnodata', 'jitsi'), 'info');
+} else {
+    $acttable = new html_table();
+    $acttable->head = [
+        get_string('activity'),
+        get_string('coursedashboardsessions', 'jitsi'),
+        get_string('coursedashboardparticipants', 'jitsi'),
+        get_string('coursedashboardminutes', 'jitsi'),
+        get_string('coursedashboardrecordings', 'jitsi'),
+    ];
+    $acttable->attributes['class'] = 'generaltable table-sm';
+    foreach ($courseactivities as $act) {
+        $acturl = new moodle_url('/mod/jitsi/view.php', ['id' => $act->cmid]);
+        $acttable->data[] = [
+            html_writer::link($acturl, format_string($act->name)),
+            (int)$act->totalsessions,
+            (int)$act->uniqueparticipants,
+            (int)$act->totalminutes . ' min',
+            (int)$act->recordings,
+        ];
+    }
+    echo html_writer::table($acttable);
+}
+
+echo html_writer::tag('h5', get_string('coursedashboardstudents', 'jitsi'), ['class' => 'mt-4 mb-2']);
+if (empty($coursestudents)) {
+    echo $OUTPUT->notification(get_string('coursedashboardnodata', 'jitsi'), 'info');
+} else {
+    $stutable = new html_table();
+    $stutable->head = [
+        get_string('user'),
+        get_string('coursedashboardsessions', 'jitsi'),
+        get_string('coursedashboardminutes', 'jitsi'),
+        get_string('coursedashboardrecordingsstarted', 'jitsi'),
+    ];
+    $stutable->attributes['class'] = 'generaltable table-sm';
+    foreach ($coursestudents as $student) {
+        $profileurl = new moodle_url('/user/view.php', ['id' => $student->id, 'course' => $course->id]);
+        $recstarted = isset($courserecviews[$student->id]) ? (int)$courserecviews[$student->id]->recordings_started : 0;
+        $stutable->data[] = [
+            html_writer::link($profileurl, fullname($student)),
+            (int)$student->totalsessions,
+            (int)$student->totalminutes . ' min',
+            $recstarted,
+        ];
+    }
+    echo html_writer::table($stutable);
+}
+
+echo html_writer::tag('h5', get_string('coursedashboardtoprecordings', 'jitsi'), ['class' => 'mt-4 mb-2']);
+if (empty($toprecordings)) {
+    echo $OUTPUT->notification(get_string('coursedashboardnorecordingdata', 'jitsi'), 'info');
+} else {
+    $rectable = new html_table();
+    $rectable->head = [
+        get_string('coursedashboardrecording', 'jitsi'),
+        get_string('activity'),
+        get_string('date'),
+        get_string('coursedashboardviewers', 'jitsi'),
+    ];
+    $rectable->attributes['class'] = 'generaltable table-sm';
+    foreach ($toprecordings as $rec) {
+        $recname = !empty($rec->recordingname) ? format_string($rec->recordingname) : userdate($rec->timecreated);
+        $rectable->data[] = [
+            html_writer::link($rec->link, $recname, ['target' => '_blank']),
+            format_string($rec->activityname),
+            userdate($rec->timecreated),
+            (int)$rec->viewers,
+        ];
+    }
+    echo html_writer::table($rectable);
+}
+
+echo '</div>'; // End tab-course pane.
+echo '</div>'; // End tab-content.
 
 echo $OUTPUT->footer();
