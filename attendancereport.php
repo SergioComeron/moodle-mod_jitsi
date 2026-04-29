@@ -189,6 +189,26 @@ $toprecordings = $DB->get_records_sql($toprecordingssql, [
     'moduleid' => $moduleid,
 ]);
 
+// Dates attended per user (from precomputed table).
+$datesperbuser = [];
+if ($hasanydata) {
+    $daterows = $DB->get_records_sql(
+        "SELECT userid, daykey
+           FROM {jitsi_usage_daily}
+          WHERE cmid = :cmid
+                AND daykey BETWEEN :fromdaykey AND :todaykey
+                AND sessions > 0
+          ORDER BY userid, daykey ASC",
+        ['cmid' => $cm->id, 'fromdaykey' => $fromdaykey, 'todaykey' => $todaykey]
+    );
+    foreach ($daterows as $dr) {
+        $y = (int)substr((string)$dr->daykey, 0, 4);
+        $m = (int)substr((string)$dr->daykey, 4, 2);
+        $d = (int)substr((string)$dr->daykey, 6, 2);
+        $datesperbuser[$dr->userid][] = userdate(mktime(0, 0, 0, $m, $d, $y), get_string('strftimedate', 'langconfig'));
+    }
+}
+
 // Handle export before any output.
 $dataformat = optional_param('dataformat', '', PARAM_ALPHA);
 $isdownload = ($dataformat !== '');
@@ -258,6 +278,7 @@ if ($isdownload) {
         'sessions' => get_string('sessionsentered', 'jitsi'),
         'minutes'  => get_string('totaluserminutes', 'jitsi'),
         'avgtime'  => get_string('averagetimeperuser', 'jitsi'),
+        'dates'    => get_string('attendancedates', 'jitsi'),
     ];
     $exportdata = [];
     foreach ($rows as $row) {
@@ -267,6 +288,7 @@ if ($isdownload) {
             'sessions' => (int)$row->sessions,
             'minutes'  => (int)$row->minutes,
             'avgtime'  => $avg,
+            'dates'    => implode(', ', $datesperbuser[$row->userid] ?? []),
         ];
     }
     \core\dataformat::download_data(
@@ -424,16 +446,19 @@ if ((!$hasanydata && !$livequery) || empty($rows)) {
         get_string('sessionsentered', 'jitsi'),
         html_writer::link($urlsortminutes, get_string('totaluserminutes', 'jitsi') . ($sort === 'minutes' ? ' ▼' : '')),
         get_string('averagetimeperuser', 'jitsi'),
+        get_string('attendancedates', 'jitsi'),
     ];
 
     foreach ($rows as $row) {
         $userurl = new moodle_url('/user/view.php', ['id' => $row->userid, 'course' => $course->id]);
         $avg     = $row->sessions > 0 ? round($row->minutes / $row->sessions) : 0;
+        $dates   = implode(' · ', $datesperbuser[$row->userid] ?? []);
         $table->data[] = [
             html_writer::link($userurl, fullname($row)),
             (int)$row->sessions,
             (int)$row->minutes . ' min',
             $avg . ' min',
+            $dates ?: '—',
         ];
     }
 
