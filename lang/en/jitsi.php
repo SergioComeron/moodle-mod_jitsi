@@ -134,6 +134,7 @@ $string['confirmdeleterecordinactivity'] = 'Confirm you want to delete this reco
 $string['connectedattendeesnow'] = 'Connected attendees now';
 $string['copied'] = 'Copied!';
 $string['copytoken'] = 'Copy token';
+$string['copyurl'] = 'Copy URL';
 $string['course'] = 'Course';
 $string['coursedashboard'] = 'Course dashboard';
 $string['coursedashboardactivities'] = 'Activity overview';
