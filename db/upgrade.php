@@ -1320,5 +1320,9 @@ function xmldb_jitsi_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026043001, 'jitsi');
     }
 
+    if ($oldversion < 2026043002) {
+        upgrade_mod_savepoint(true, 2026043002, 'jitsi');
+    }
+
     return true;
 }
