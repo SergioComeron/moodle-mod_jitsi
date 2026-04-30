@@ -511,11 +511,12 @@ function createsession(
     }
     $record = '';
     // Enable the Jitsi recording toolbar button when the record setting is on.
-    // For GCP servers (type 3), only enable it when at least one Jibri is ready in the pool.
+    // For GCP servers (type 3) the Moodle-integrated record button is used instead.
     $jibrienabled = ($servertype == 3 && jitsi_is_jibri_ready($server));
     if (
-        get_config('mod_jitsi', 'record') == 1 && has_capability('mod/jitsi:record', $PAGE->context) &&
-            ($servertype != 3 || $jibrienabled)
+        get_config('mod_jitsi', 'record') == 1 &&
+        has_capability('mod/jitsi:record', $PAGE->context) &&
+        $servertype != 3
     ) {
         $record = 'recording';
     }
