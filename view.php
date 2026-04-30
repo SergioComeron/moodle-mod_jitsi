@@ -442,7 +442,8 @@ require(['core/ajax'], function(ajax) {
                         } else {
                             var a = document.createElement('a');
                             a.className = 'dropdown-item';
-                            a.href = " . json_encode($wwwroot) . " + '/user/view.php?id=' + u.userid + '&course=' + " . $courseid . ";
+                            var base = " . json_encode($wwwroot) . ";
+                            a.href = base + '/user/view.php?id=' + u.userid + '&course=' + " . $courseid . ";
                             a.target = '_blank';
                             a.textContent = u.name;
                             li.appendChild(a);
