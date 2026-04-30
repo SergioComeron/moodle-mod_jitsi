@@ -1005,6 +1005,193 @@ class mod_jitsi_external extends external_api {
     }
 
     /**
+     * Returns description of method parameters.
+     * @return external_function_parameters
+     */
+    public static function presence_join_parameters() {
+        return new external_function_parameters([
+            'jitsiid' => new external_value(PARAM_INT, 'Jitsi session id'),
+            'sessionhash' => new external_value(PARAM_ALPHANUMEXT, 'Unique session hash'),
+            'guestname' => new external_value(PARAM_TEXT, 'Guest display name', VALUE_DEFAULT, ''),
+        ]);
+    }
+
+    /**
+     * Register local participant presence on join.
+     * @param int $jitsiid Jitsi session id.
+     * @param string $sessionhash Unique browser session hash.
+     * @param string $guestname Guest display name (empty for Moodle users).
+     * @return int Total active participants.
+     */
+    public static function presence_join($jitsiid, $sessionhash, $guestname = '') {
+        global $DB, $USER;
+        $params = self::validate_parameters(
+            self::presence_join_parameters(),
+            ['jitsiid' => $jitsiid, 'sessionhash' => $sessionhash, 'guestname' => $guestname]
+        );
+        $now = time();
+        $userid = (isloggedin() && !isguestuser()) ? $USER->id : 0;
+        $existing = $DB->get_record('jitsi_presence', ['jitsiid' => $jitsiid, 'sessionhash' => $sessionhash]);
+        if ($existing) {
+            $existing->timemodified = $now;
+            $DB->update_record('jitsi_presence', $existing);
+        } else {
+            $record = new \stdClass();
+            $record->jitsiid = $jitsiid;
+            $record->userid = $userid;
+            $record->sessionhash = $sessionhash;
+            $record->guestname = $guestname !== '' ? $guestname : null;
+            $record->timecreated = $now;
+            $record->timemodified = $now;
+            $DB->insert_record('jitsi_presence', $record);
+        }
+        $count = self::presence_count($jitsiid);
+        $jitsiob = $DB->get_record('jitsi', ['id' => $jitsiid]);
+        if ($jitsiob && $jitsiob->sourcerecord) {
+            $source = $DB->get_record('jitsi_source_record', ['id' => $jitsiob->sourcerecord]);
+            if ($source && $source->maxparticipants < $count['total']) {
+                $source->maxparticipants = $count['total'];
+                $DB->update_record('jitsi_source_record', $source);
+            }
+        }
+        return $count['total'];
+    }
+
+    /**
+     * Returns description of method result value.
+     * @return external_value
+     */
+    public static function presence_join_returns() {
+        return new external_value(PARAM_INT, 'Total participants now');
+    }
+
+    /**
+     * Returns description of method parameters.
+     * @return external_function_parameters
+     */
+    public static function presence_leave_parameters() {
+        return new external_function_parameters([
+            'jitsiid' => new external_value(PARAM_INT, 'Jitsi session id'),
+            'sessionhash' => new external_value(PARAM_ALPHANUMEXT, 'Unique session hash'),
+        ]);
+    }
+
+    /**
+     * Remove local participant presence on leave.
+     * @param int $jitsiid Jitsi session id.
+     * @param string $sessionhash Unique browser session hash.
+     * @return bool
+     */
+    public static function presence_leave($jitsiid, $sessionhash) {
+        global $DB;
+        $params = self::validate_parameters(
+            self::presence_leave_parameters(),
+            ['jitsiid' => $jitsiid, 'sessionhash' => $sessionhash]
+        );
+        $DB->delete_records('jitsi_presence', ['jitsiid' => $jitsiid, 'sessionhash' => $sessionhash]);
+        return true;
+    }
+
+    /**
+     * Returns description of method result value.
+     * @return external_value
+     */
+    public static function presence_leave_returns() {
+        return new external_value(PARAM_BOOL, 'Success');
+    }
+
+    /**
+     * Returns description of method parameters.
+     * @return external_function_parameters
+     */
+    public static function presence_heartbeat_parameters() {
+        return new external_function_parameters([
+            'jitsiid' => new external_value(PARAM_INT, 'Jitsi session id'),
+            'sessionhash' => new external_value(PARAM_ALPHANUMEXT, 'Unique session hash'),
+        ]);
+    }
+
+    /**
+     * Update presence heartbeat timestamp and clean stale entries.
+     * @param int $jitsiid Jitsi session id.
+     * @param string $sessionhash Unique browser session hash.
+     * @return bool
+     */
+    public static function presence_heartbeat($jitsiid, $sessionhash) {
+        global $DB;
+        $params = self::validate_parameters(
+            self::presence_heartbeat_parameters(),
+            ['jitsiid' => $jitsiid, 'sessionhash' => $sessionhash]
+        );
+        $DB->delete_records_select('jitsi_presence', 'timemodified < :threshold', ['threshold' => time() - 300]);
+        $existing = $DB->get_record('jitsi_presence', ['jitsiid' => $jitsiid, 'sessionhash' => $sessionhash]);
+        if ($existing) {
+            $existing->timemodified = time();
+            $DB->update_record('jitsi_presence', $existing);
+        }
+        return true;
+    }
+
+    /**
+     * Returns description of method result value.
+     * @return external_value
+     */
+    public static function presence_heartbeat_returns() {
+        return new external_value(PARAM_BOOL, 'Success');
+    }
+
+    /**
+     * Returns description of method parameters.
+     * @return external_function_parameters
+     */
+    public static function get_presence_count_parameters() {
+        return new external_function_parameters([
+            'jitsiid' => new external_value(PARAM_INT, 'Jitsi session id'),
+        ]);
+    }
+
+    /**
+     * Get active participant count from presence table.
+     * @param int $jitsiid Jitsi session id.
+     * @return int Total active participants.
+     */
+    public static function get_presence_count($jitsiid) {
+        global $DB;
+        $params = self::validate_parameters(self::get_presence_count_parameters(), ['jitsiid' => $jitsiid]);
+        $count = self::presence_count($jitsiid);
+        return $count['total'];
+    }
+
+    /**
+     * Returns description of method result value.
+     * @return external_value
+     */
+    public static function get_presence_count_returns() {
+        return new external_value(PARAM_INT, 'Total active participants');
+    }
+
+    /**
+     * Count active participants from presence table.
+     * @param int $jitsiid Jitsi session id.
+     * @return array With keys moodle, guests, total.
+     */
+    private static function presence_count($jitsiid) {
+        global $DB;
+        $threshold = time() - 180;
+        $moodle = (int)$DB->count_records_select(
+            'jitsi_presence',
+            'jitsiid = :jitsiid AND userid > 0 AND timemodified > :threshold',
+            ['jitsiid' => $jitsiid, 'threshold' => $threshold]
+        );
+        $guests = (int)$DB->count_records_select(
+            'jitsi_presence',
+            'jitsiid = :jitsiid AND userid = 0 AND timemodified > :threshold',
+            ['jitsiid' => $jitsiid, 'threshold' => $threshold]
+        );
+        return ['moodle' => $moodle, 'guests' => $guests, 'total' => $moodle + $guests];
+    }
+
+    /**
      * Returns description of method parameters
      * @return external_function_parameters
      */

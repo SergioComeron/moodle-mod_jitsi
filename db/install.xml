@@ -212,5 +212,24 @@
         <INDEX NAME="sourcerecordid_cmid" UNIQUE="false" FIELDS="sourcerecordid, cmid"/>
       </INDEXES>
     </TABLE>
+    <TABLE NAME="jitsi_presence" COMMENT="Real-time presence of participants in jitsi sessions">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="jitsiid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="0 for guests"/>
+        <FIELD NAME="sessionhash" TYPE="char" LENGTH="64" NOTNULL="true" SEQUENCE="false" COMMENT="Unique hash per browser session"/>
+        <FIELD NAME="guestname" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false" COMMENT="Display name for guests"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="jitsiid" TYPE="foreign" FIELDS="jitsiid" REFTABLE="jitsi" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="jitsiid_sessionhash" UNIQUE="true" FIELDS="jitsiid, sessionhash"/>
+        <INDEX NAME="timemodified" UNIQUE="false" FIELDS="timemodified"/>
+      </INDEXES>
+    </TABLE>
   </TABLES>
 </XMLDB>

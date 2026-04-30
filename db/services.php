@@ -363,4 +363,40 @@ $functions = [
                 'ajax' => true,
                 'loginrequired' => true,
         ],
+
+        'mod_jitsi_presence_join' => [
+                'classname' => 'mod_jitsi_external',
+                'methodname' => 'presence_join',
+                'description' => 'Register participant presence on join',
+                'type' => 'write',
+                'ajax' => true,
+                'loginrequired' => false,
+        ],
+
+        'mod_jitsi_presence_leave' => [
+                'classname' => 'mod_jitsi_external',
+                'methodname' => 'presence_leave',
+                'description' => 'Remove participant presence on leave',
+                'type' => 'write',
+                'ajax' => true,
+                'loginrequired' => false,
+        ],
+
+        'mod_jitsi_presence_heartbeat' => [
+                'classname' => 'mod_jitsi_external',
+                'methodname' => 'presence_heartbeat',
+                'description' => 'Update presence heartbeat timestamp',
+                'type' => 'write',
+                'ajax' => true,
+                'loginrequired' => false,
+        ],
+
+        'mod_jitsi_get_presence_count' => [
+                'classname' => 'mod_jitsi_external',
+                'methodname' => 'get_presence_count',
+                'description' => 'Get active participant count from presence table',
+                'type' => 'read',
+                'ajax' => true,
+                'loginrequired' => false,
+        ],
 ];

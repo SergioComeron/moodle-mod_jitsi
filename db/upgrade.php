@@ -1301,5 +1301,24 @@ function xmldb_jitsi_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026042903, 'jitsi');
     }
 
+    if ($oldversion < 2026043001) {
+        $table = new xmldb_table('jitsi_presence');
+        $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE);
+        $table->add_field('jitsiid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL);
+        $table->add_field('userid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('sessionhash', XMLDB_TYPE_CHAR, '64', null, XMLDB_NOTNULL);
+        $table->add_field('guestname', XMLDB_TYPE_CHAR, '255');
+        $table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL);
+        $table->add_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL);
+        $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+        $table->add_key('jitsiid', XMLDB_KEY_FOREIGN, ['jitsiid'], 'jitsi', ['id']);
+        $table->add_index('jitsiid_sessionhash', XMLDB_INDEX_UNIQUE, ['jitsiid', 'sessionhash']);
+        $table->add_index('timemodified', XMLDB_INDEX_NOTUNIQUE, ['timemodified']);
+        if (!$dbman->table_exists($table)) {
+            $dbman->create_table($table);
+        }
+        upgrade_mod_savepoint(true, 2026043001, 'jitsi');
+    }
+
     return true;
 }

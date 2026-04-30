@@ -291,21 +291,12 @@ if ($CFG->branch == 311) {
 
 $contextmodule = context_module::instance($cm->id);
 
-$sqllastparticipating = 'select timecreated from {logstore_standard_log} where contextid = '
-    . $contextmodule->id . ' and (action = \'participating\' or action = \'enter\') order by timecreated DESC limit 1';
-$usersconnected = $DB->get_record_sql($sqllastparticipating);
-if ($usersconnected != null) {
-    if ((getdate()[0] - $usersconnected->timecreated) > 72) {
-        $jitsi->numberofparticipants = 0;
-        $DB->update_record('jitsi', $jitsi);
-    }
-}
-if ($usersconnected != null) {
-    if ($jitsi->numberofparticipants == 0 && (getdate()[0] - $usersconnected->timecreated) > 72) {
-        $jitsi->sourcerecord = null;
-        $DB->update_record('jitsi', $jitsi);
-    }
-}
+$presencethreshold = time() - 180;
+$presencecount = (int)$DB->count_records_select(
+    'jitsi_presence',
+    'jitsiid = :jitsiid AND timemodified > :threshold',
+    ['jitsiid' => $jitsi->id, 'threshold' => $presencethreshold]
+);
 if ($errorborrado) {
     echo "<div class=\"alert alert-danger\" role=\"alert\">";
 
@@ -355,7 +346,7 @@ echo '<div class="tab-pane fade ' . ($activetab == 'session' ? 'show active' : '
 // Metrics — centered, above card.
 echo html_writer::start_div('d-flex justify-content-center gap-5 mt-3 mb-3');
 echo html_writer::start_div('text-center');
-echo html_writer::tag('div', (int)$jitsi->numberofparticipants, ['class' => 'h4 mb-0 fw-bold']);
+echo html_writer::tag('div', $presencecount, ['class' => 'h4 mb-0 fw-bold', 'id' => 'jitsi-presence-count']);
 echo html_writer::tag('div', get_string('connectedattendeesnow', 'jitsi'), ['class' => 'text-muted small']);
 echo html_writer::end_div();
 echo html_writer::start_div('text-center');
@@ -363,6 +354,20 @@ echo html_writer::tag('div', getminutes($id, $USER->id), ['class' => 'h4 mb-0 fw
 echo html_writer::tag('div', get_string('totaluserminutes', 'jitsi'), ['class' => 'text-muted small']);
 echo html_writer::end_div();
 echo html_writer::end_div();
+
+$PAGE->requires->js_amd_inline("
+require(['core/ajax'], function(ajax) {
+    setInterval(function() {
+        ajax.call([{
+            methodname: 'mod_jitsi_get_presence_count',
+            args: {jitsiid: " . $jitsi->id . "}
+        }])[0].then(function(count) {
+            var el = document.getElementById('jitsi-presence-count');
+            if (el) { el.textContent = count; }
+        });
+    }, 30000);
+});
+");
 
 // Badges — centered, above card.
 echo html_writer::start_div('text-center mb-2');
