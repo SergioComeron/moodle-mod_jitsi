@@ -408,4 +408,22 @@ $functions = [
                 'ajax' => true,
                 'loginrequired' => false,
         ],
+
+        'mod_jitsi_set_jibri_recording' => [
+                'classname' => 'mod_jitsi_external',
+                'methodname' => 'set_jibri_recording',
+                'description' => 'Set GCP recording status on a jitsi session',
+                'type' => 'write',
+                'ajax' => true,
+                'loginrequired' => false,
+        ],
+
+        'mod_jitsi_get_jibri_recording' => [
+                'classname' => 'mod_jitsi_external',
+                'methodname' => 'get_jibri_recording',
+                'description' => 'Get GCP recording status for a jitsi session',
+                'type' => 'read',
+                'ajax' => true,
+                'loginrequired' => false,
+        ],
 ];

@@ -958,6 +958,14 @@ function createsession(
 
     if ($user == null) {
         echo "api.addEventListener('recordingStatusChanged', function(event) {\n";
+        echo "  if (event['mode'] == 'file') {\n";
+        echo "      require(['core/ajax'], function(ajax) {\n";
+        echo "          ajax.call([{\n";
+        echo "              methodname: 'mod_jitsi_set_jibri_recording',\n";
+        echo "              args: {jitsiid:" . $jitsi->id . ", recording: event['on'] ? 1 : 0},\n";
+        echo "          }]);\n";
+        echo "      });\n";
+        echo "  }\n";
         echo "  if (event['on'] && event['mode'] == 'stream'){\n";
         echo "if (document.getElementById(\"recordSwitch\") != null) {\n";
         echo "    document.getElementById(\"recordSwitch\").checked = true;\n";

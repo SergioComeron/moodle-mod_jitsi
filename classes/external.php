@@ -1244,6 +1244,75 @@ class mod_jitsi_external extends external_api {
     }
 
     /**
+     * Returns description of method parameters.
+     * @return external_function_parameters
+     */
+    public static function set_jibri_recording_parameters() {
+        return new external_function_parameters([
+            'jitsiid' => new external_value(PARAM_INT, 'Jitsi session id'),
+            'recording' => new external_value(PARAM_INT, '1 if recording started, 0 if stopped'),
+        ]);
+    }
+
+    /**
+     * Set GCP recording status on the jitsi record.
+     * @param int $jitsiid Jitsi session id.
+     * @param int $recording 1 to mark as recording, 0 to clear.
+     * @return bool
+     */
+    public static function set_jibri_recording($jitsiid, $recording) {
+        global $DB;
+        $params = self::validate_parameters(
+            self::set_jibri_recording_parameters(),
+            ['jitsiid' => $jitsiid, 'recording' => $recording]
+        );
+        $jitsiob = $DB->get_record('jitsi', ['id' => $jitsiid]);
+        if ($jitsiob) {
+            $jitsiob->status = $recording ? 'recording' : null;
+            $DB->update_record('jitsi', $jitsiob);
+        }
+        return true;
+    }
+
+    /**
+     * Returns description of method result value.
+     * @return external_value
+     */
+    public static function set_jibri_recording_returns() {
+        return new external_value(PARAM_BOOL, 'Success');
+    }
+
+    /**
+     * Returns description of method parameters.
+     * @return external_function_parameters
+     */
+    public static function get_jibri_recording_parameters() {
+        return new external_function_parameters([
+            'jitsiid' => new external_value(PARAM_INT, 'Jitsi session id'),
+        ]);
+    }
+
+    /**
+     * Get GCP recording status for a jitsi session.
+     * @param int $jitsiid Jitsi session id.
+     * @return int 1 if recording, 0 otherwise.
+     */
+    public static function get_jibri_recording($jitsiid) {
+        global $DB;
+        $params = self::validate_parameters(self::get_jibri_recording_parameters(), ['jitsiid' => $jitsiid]);
+        $jitsiob = $DB->get_record('jitsi', ['id' => $jitsiid], 'id,status');
+        return ($jitsiob && $jitsiob->status === 'recording') ? 1 : 0;
+    }
+
+    /**
+     * Returns description of method result value.
+     * @return external_value
+     */
+    public static function get_jibri_recording_returns() {
+        return new external_value(PARAM_INT, '1 if recording, 0 otherwise');
+    }
+
+    /**
      * Returns description of method parameters
      * @return external_function_parameters
      */

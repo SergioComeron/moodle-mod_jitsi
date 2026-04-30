@@ -477,7 +477,7 @@ if ($jitsi->sourcerecord != null) {
             echo html_writer::tag(
                 'span',
                 '🔴 ' . get_string('sessionisbeingrecordingby', 'jitsi', fullname($author)),
-                ['class' => 'badge bg-danger']
+                ['class' => 'badge bg-danger me-1']
             );
         } else {
             $jitsi->sourcerecord = null;
@@ -488,7 +488,34 @@ if ($jitsi->sourcerecord != null) {
         $DB->update_record('jitsi', $jitsi);
     }
 }
+$jibrirecording = ($jitsi->status === 'recording');
+$jibribadgeclass = 'badge bg-danger me-1' . ($jibrirecording ? '' : ' d-none');
+echo html_writer::tag(
+    'span',
+    '🔴 ' . get_string('sessionisbeingrecorded', 'jitsi'),
+    ['class' => $jibribadgeclass, 'id' => 'jitsi-jibri-badge']
+);
 echo html_writer::end_div();
+
+$PAGE->requires->js_amd_inline("
+require(['core/ajax'], function(ajax) {
+    setInterval(function() {
+        ajax.call([{
+            methodname: 'mod_jitsi_get_jibri_recording',
+            args: {jitsiid: " . $jitsi->id . "}
+        }])[0].then(function(recording) {
+            var badge = document.getElementById('jitsi-jibri-badge');
+            if (badge) {
+                if (recording) {
+                    badge.classList.remove('d-none');
+                } else {
+                    badge.classList.add('d-none');
+                }
+            }
+        });
+    }, 15000);
+});
+");
 
 if ($CFG->branch <= 311 && $jitsi->intro) {
     echo html_writer::div(
