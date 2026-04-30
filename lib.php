@@ -586,12 +586,12 @@ function createsession(
             if ($showstreaming) {
                 echo "<button id=\"streamBtn\" class=\"btn btn-sm btn-outline-warning\""
                     . " onclick=\"handleStreamBtn()\" disabled>"
-                    . "📡 " . addslashes(get_string('streambtn', 'jitsi')) . "</button>";
+                    . "<i class=\"fa fa-rss me-1\"></i>" . addslashes(get_string('streambtn', 'jitsi')) . "</button>";
             }
             if ($showrecording) {
                 echo "<button id=\"recordBtn\" class=\"btn btn-sm btn-outline-danger\""
                     . " onclick=\"handleRecordBtn()\" disabled>"
-                    . "🔴 " . addslashes(get_string('recordbtn', 'jitsi')) . "</button>";
+                    . "<i class=\"fa fa-circle me-1\"></i>" . addslashes(get_string('recordbtn', 'jitsi')) . "</button>";
             }
             echo "</div>";
         }

@@ -476,7 +476,7 @@ if ($jitsi->sourcerecord != null) {
         if ($author) {
             echo html_writer::tag(
                 'span',
-                '🔴 ' . get_string('sessionisbeingrecordingby', 'jitsi', fullname($author)),
+                '<i class="fa fa-circle me-1"></i>' . get_string('sessionisbeingrecordingby', 'jitsi', fullname($author)),
                 ['class' => 'badge bg-danger me-1']
             );
         } else {
@@ -492,7 +492,7 @@ $jibrirecording = ($jitsi->status === 'recording');
 $jibribadgeclass = 'badge bg-danger me-1' . ($jibrirecording ? '' : ' d-none');
 echo html_writer::tag(
     'span',
-    '🔴 ' . get_string('sessionisbeingrecorded', 'jitsi'),
+    '<i class="fa fa-circle me-1"></i>' . get_string('sessionisbeingrecorded', 'jitsi'),
     ['class' => $jibribadgeclass, 'id' => 'jitsi-jibri-badge']
 );
 echo html_writer::end_div();
