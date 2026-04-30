@@ -568,35 +568,31 @@ function createsession(
     }
 
     if ($user == null) {
-        // Show integrated streaming switch for GCP servers (type 3) only when Jibri is ready.
-        if (
+        $showstreaming = (
             get_config('mod_jitsi', 'livebutton') == 1 &&
             has_capability('mod/jitsi:record', $PAGE->context) &&
             $account != null && $universal == false &&
-            (get_config('mod_jitsi', 'streamingoption') == 1) && $jitsi->sessionwithtoken == 0 &&
+            get_config('mod_jitsi', 'streamingoption') == 1 &&
+            $jitsi->sessionwithtoken == 0 &&
             ($servertype != 3 || $jibrienabled)
-        ) {
-            if ($CFG->branch >= 500) {
-                echo "<div class=\"text-end\">";
-            } else {
-                echo "<div class=\"text-right\">";
+        );
+        $showrecording = (
+            has_capability('mod/jitsi:record', $PAGE->context) &&
+            $universal == false && $servertype == 3 &&
+            $jibrienabled && $jitsi->sessionwithtoken == 0
+        );
+        if ($showstreaming || $showrecording) {
+            echo "<div class=\"d-flex gap-2 justify-content-end flex-wrap\">";
+            if ($showstreaming) {
+                echo "<button id=\"streamBtn\" class=\"btn btn-sm btn-outline-warning\""
+                    . " onclick=\"handleStreamBtn()\" disabled>"
+                    . "📡 " . addslashes(get_string('streambtn', 'jitsi')) . "</button>";
             }
-
-            if ($CFG->branch >= 500) {
-                echo "<div class=\"form-check form-switch\" style=\"display: flex; align-items: center; gap: 0.5rem;\">";
-                echo "<input type=\"checkbox\" class=\"form-check-input\" id=\"recordSwitch\" onClick=\"activaGrab($(this));\">";
-                echo "<label class=\"form-check-label\" for=\"recordSwitch\" style=\"margin: 0;\">"
-                    . addslashes(get_string('streamingandrecording', 'jitsi')) . "</label>";
-                echo "</div>";
-            } else {
-                echo "<div class=\"custom-control custom-switch\">";
-                echo "<input type=\"checkbox\" class=\"custom-control-input\"
-                  id=\"recordSwitch\" onClick=\"activaGrab($(this));\">";
-                echo "<label class=\"custom-control-label\" for=\"recordSwitch\">"
-                    . addslashes(get_string('streamingandrecording', 'jitsi')) . "</label>";
-                echo "</div>";
+            if ($showrecording) {
+                echo "<button id=\"recordBtn\" class=\"btn btn-sm btn-outline-danger\""
+                    . " onclick=\"handleRecordBtn()\" disabled>"
+                    . "🔴 " . addslashes(get_string('recordbtn', 'jitsi')) . "</button>";
             }
-
             echo "</div>";
         }
     }
@@ -915,35 +911,44 @@ function createsession(
         }
         echo  "});\n";
     }
-    echo "if (document.getElementById(\"recordSwitch\") != null) {\n";
-    echo "setTimeout(function(){ document.getElementById(\"recordSwitch\").disabled = false }, 5000);\n";
+    echo "setTimeout(function() {\n";
+    echo "  var sb = document.getElementById('streamBtn');\n";
+    echo "  var rb = document.getElementById('recordBtn');\n";
+    echo "  if (sb) { sb.disabled = false; }\n";
+    echo "  if (rb) { rb.disabled = false; }\n";
+    echo "}, 5000);\n";
+
+    echo "function handleStreamBtn() {\n";
+    echo "  var btn = document.getElementById('streamBtn');\n";
+    echo "  var recBtn = document.getElementById('recordBtn');\n";
+    echo "  if (!btn) { return; }\n";
+    echo "  btn.disabled = true;\n";
+    echo "  require(['jquery', 'core/ajax', 'core/notification'], function(\$, ajax, notification) {\n";
+    echo "    ajax.call([{\n";
+    echo "      methodname: 'mod_jitsi_press_record_button',\n";
+    echo "      args: {jitsi:'" . $jitsi->id . "', user:'" . $USER->id . "', cmid:'" . $cmid . "'},\n";
+    echo "      fail: notification.exception\n";
+    echo "    }]);\n";
+    echo "  });\n";
+    echo "  if (btn.classList.contains('btn-warning')) {\n";
+    echo "    stopStream();\n";
+    echo "  } else {\n";
+    echo "    document.getElementById('state').innerHTML ="
+        . " '<div class=\"alert alert-light\" role=\"alert\">" . addslashes(get_string('preparing', 'jitsi')) . "</div>';\n";
+    echo "    stream();\n";
+    echo "  }\n";
     echo "}\n";
-    echo "function activaGrab(e){";
-    echo "if (document.getElementById(\"recordSwitch\") != null) {\n";
-    echo "      document.getElementById(\"recordSwitch\").disabled = true;\n";
+
+    echo "function handleRecordBtn() {\n";
+    echo "  var btn = document.getElementById('recordBtn');\n";
+    echo "  if (!btn) { return; }\n";
+    echo "  btn.disabled = true;\n";
+    echo "  if (btn.classList.contains('btn-danger')) {\n";
+    echo "    api.stopRecording('file');\n";
+    echo "  } else {\n";
+    echo "    api.startRecording({mode: 'file'});\n";
+    echo "  }\n";
     echo "}\n";
-    echo "    require(['jquery', 'core/ajax', 'core/notification'], function($, ajax, notification) {\n";
-    echo "       var respuesta = ajax.call([{\n";
-    echo "            methodname: 'mod_jitsi_press_record_button',\n";
-    echo "            args: {jitsi:'" . $jitsi->id . "', user:'" . $USER->id . "', cmid:'" . $cmid . "'},\n";
-    echo "            fail: notification.exception\n";
-    echo "       }]);\n";
-    echo "    ;});";
-
-    echo "    if (e.is(':checked')) {";
-    echo "      console.log(\"Switch cambiado a activado\");";
-    echo "var mensaje = document.getElementById('state').innerHTML\n";
-
-    echo "      document.getElementById('state').innerHTML = ";
-    echo "      '<div class=\"alert alert-light\" role=\"alert\">" . get_string('preparing', 'jitsi') . "</div>';";
-    echo "      stream();";
-    echo "    } else {";
-    echo "      console.log(\"Switch cambiado a desactivado\");";
-    echo "      document.getElementById('state').innerHTML = '';";
-    echo "      stopStream();";
-
-    echo "    }";
-    echo "}";
 
     if (get_config('mod_jitsi', 'password') != null) {
         echo "api.addEventListener('participantRoleChanged', function(event) {\n";
@@ -958,18 +963,26 @@ function createsession(
 
     if ($user == null) {
         echo "api.addEventListener('recordingStatusChanged', function(event) {\n";
+        echo "  var sb = document.getElementById('streamBtn');\n";
+        echo "  var rb = document.getElementById('recordBtn');\n";
         echo "  if (event['mode'] == 'file') {\n";
-        echo "      require(['core/ajax'], function(ajax) {\n";
-        echo "          ajax.call([{\n";
-        echo "              methodname: 'mod_jitsi_set_jibri_recording',\n";
-        echo "              args: {jitsiid:" . $jitsi->id . ", recording: event['on'] ? 1 : 0},\n";
-        echo "          }]);\n";
-        echo "      });\n";
+        echo "    if (event['on']) {\n";
+        echo "      if (rb) { rb.classList.remove('btn-outline-danger'); rb.classList.add('btn-danger'); rb.disabled = false; }\n";
+        echo "      if (sb) { sb.disabled = true; }\n";
+        echo "    } else {\n";
+        echo "      if (rb) { rb.classList.remove('btn-danger'); rb.classList.add('btn-outline-danger'); rb.disabled = false; }\n";
+        echo "      if (sb) { sb.disabled = false; }\n";
+        echo "    }\n";
+        echo "    require(['core/ajax'], function(ajax) {\n";
+        echo "      ajax.call([{\n";
+        echo "        methodname: 'mod_jitsi_set_jibri_recording',\n";
+        echo "        args: {jitsiid:" . $jitsi->id . ", recording: event['on'] ? 1 : 0},\n";
+        echo "      }]);\n";
+        echo "    });\n";
         echo "  }\n";
-        echo "  if (event['on'] && event['mode'] == 'stream'){\n";
-        echo "if (document.getElementById(\"recordSwitch\") != null) {\n";
-        echo "    document.getElementById(\"recordSwitch\").checked = true;\n";
-        echo "}\n";
+        echo "  if (event['on'] && event['mode'] == 'stream') {\n";
+        echo "    if (sb) { sb.classList.remove('btn-outline-warning'); sb.classList.add('btn-warning'); sb.disabled = false; }\n";
+        echo "    if (rb) { rb.disabled = true; }\n";
         echo "    document.getElementById('state').innerHTML = ";
         echo "      '<div class=\"alert alert-primary\" role=\"alert\">";
         echo "      <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" fill=\"currentColor\" ";
@@ -982,32 +995,17 @@ function createsession(
         echo "      </svg>";
         echo "      " . addslashes(get_string('sessionisbeingrecorded', 'jitsi'));
         echo "      </div>';";
-        echo "  } else if (event['on'] == false){\n";
-        echo "    console.log(\"No esta grabando\");\n";
-
-        echo "if (document.getElementById(\"recordSwitch\") != null) {\n";
-        echo "    document.getElementById(\"recordSwitch\").checked = false;\n";
-        echo "}\n";
-        echo "    document.getElementById('state').innerHTML = '';";
-        if (has_capability('mod/jitsi:record', $PAGE->context) && $universal == false) {
-            echo "if (document.getElementById(\"recordSwitch\") != null) {\n";
-            echo "  setTimeout(function(){ document.getElementById(\"recordSwitch\").disabled = false }, 5000);\n";
-            echo "}\n";
-        }
+        echo "  } else if (event['on'] == false && event['mode'] == 'stream') {\n";
+        echo "    if (sb) { sb.classList.remove('btn-warning'); sb.classList.add('btn-outline-warning'); setTimeout(function(){ sb.disabled = false; }, 2000); }\n";
+        echo "    if (rb) { setTimeout(function(){ rb.disabled = false; }, 2000); }\n";
+        echo "    document.getElementById('state').innerHTML = '';\n";
         echo "  }\n";
-        echo "  require(['jquery', 'core/ajax', 'core/notification'], function($, ajax, notification) {\n";
+        echo "  require(['jquery', 'core/ajax', 'core/notification'], function(\$, ajax, notification) {\n";
         echo "    ajax.call([{\n";
         echo "      methodname: 'mod_jitsi_state_record',\n";
         echo "      args: {jitsi:" . $jitsi->id . ", state: event['on']},\n";
-        echo "      done: console.log(\"Cambio grabación\"),\n";
         echo "      fail: notification.exception\n";
         echo "    }]);\n";
-        if (has_capability('mod/jitsi:record', $PAGE->context) && $universal == false) {
-            echo "if (document.getElementById(\"recordSwitch\") != null) {\n";
-            echo "  setTimeout(function(){ document.getElementById(\"recordSwitch\").disabled = false }, 5000);\n";
-            echo "}\n";
-        }
-        echo "    console.log(event['on']);\n";
         echo "  })\n";
         echo "});\n";
 
