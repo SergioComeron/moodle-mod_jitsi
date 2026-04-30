@@ -884,12 +884,17 @@ function createsession(
     echo "          ajax.call([{\n";
     echo "              methodname: 'mod_jitsi_participating_session',\n";
     echo "              args: {jitsi:'" . $jitsi->id . "', user:'" . $USER->id . "', cmid:'" . $cm->id . "'},\n";
-    echo "          }, {\n";
-    echo "              methodname: 'mod_jitsi_presence_heartbeat',\n";
-    echo "              args: {jitsiid:" . $jitsi->id . ", sessionhash: jitsiPresenceHash},\n";
     echo "          }]);\n";
     echo "      })\n";
     echo "}\n";
+    echo "setInterval(function() {\n";
+    echo "  require(['core/ajax'], function(ajax) {\n";
+    echo "      ajax.call([{\n";
+    echo "          methodname: 'mod_jitsi_presence_heartbeat',\n";
+    echo "          args: {jitsiid:" . $jitsi->id . ", sessionhash: jitsiPresenceHash},\n";
+    echo "      }]);\n";
+    echo "  });\n";
+    echo "}, 30000);\n";
 
     if (get_config('mod_jitsi', 'finishandreturn') == 1) {
         echo "api.on('readyToClose', () => {\n";

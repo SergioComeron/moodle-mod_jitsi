@@ -1123,7 +1123,7 @@ class mod_jitsi_external extends external_api {
             self::presence_heartbeat_parameters(),
             ['jitsiid' => $jitsiid, 'sessionhash' => $sessionhash]
         );
-        $DB->delete_records_select('jitsi_presence', 'timemodified < :threshold', ['threshold' => time() - 300]);
+        $DB->delete_records_select('jitsi_presence', 'timemodified < :threshold', ['threshold' => time() - 150]);
         $existing = $DB->get_record('jitsi_presence', ['jitsiid' => $jitsiid, 'sessionhash' => $sessionhash]);
         if ($existing) {
             $existing->timemodified = time();
@@ -1177,7 +1177,7 @@ class mod_jitsi_external extends external_api {
      */
     private static function presence_count($jitsiid) {
         global $DB;
-        $threshold = time() - 180;
+        $threshold = time() - 90;
         $moodle = (int)$DB->count_records_select(
             'jitsi_presence',
             'jitsiid = :jitsiid AND userid > 0 AND timemodified > :threshold',

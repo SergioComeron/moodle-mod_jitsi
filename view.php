@@ -291,7 +291,7 @@ if ($CFG->branch == 311) {
 
 $contextmodule = context_module::instance($cm->id);
 
-$presencethreshold = time() - 180;
+$presencethreshold = time() - 90;
 $presencecount = (int)$DB->count_records_select(
     'jitsi_presence',
     'jitsiid = :jitsiid AND timemodified > :threshold',
@@ -365,7 +365,7 @@ require(['core/ajax'], function(ajax) {
             var el = document.getElementById('jitsi-presence-count');
             if (el) { el.textContent = count; }
         });
-    }, 30000);
+    }, 15000);
 });
 ");
 
