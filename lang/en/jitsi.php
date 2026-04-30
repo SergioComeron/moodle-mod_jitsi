@@ -132,6 +132,7 @@ $string['confignewexpirationtime'] = 'Config new expiration time on settings';
 $string['confirmdelete'] = 'Are you sure you want to delete the server "{$a}"?';
 $string['confirmdeleterecordinactivity'] = 'Confirm you want to delete this recording. This operation can\'t be undone.';
 $string['connectedattendeesnow'] = 'Connected attendees now';
+$string['noconnectedusers'] = 'No users connected';
 $string['copied'] = 'Copied!';
 $string['copytoken'] = 'Copy token';
 $string['copyurl'] = 'Copy URL';

@@ -343,10 +343,43 @@ echo '<div class="tab-content" id="myTabContent">';
 echo '<div class="tab-pane fade ' . ($activetab == 'session' ? 'show active' : '')
     . '" id="session" role="tabpanel" aria-labelledby="session-tab">';
 
+// Build initial presence user list from DB.
+$presenceusers = [];
+if ($presencecount > 0) {
+    $presencerows = $DB->get_records_select(
+        'jitsi_presence',
+        'jitsiid = :jitsiid AND timemodified > :threshold',
+        ['jitsiid' => $jitsi->id, 'threshold' => $presencethreshold],
+        'userid DESC'
+    );
+    foreach ($presencerows as $presencerow) {
+        if ($presencerow->userid > 0) {
+            $presenceuser = $DB->get_record('user', ['id' => $presencerow->userid], 'firstname,lastname');
+            $presenceusers[] = $presenceuser ? fullname($presenceuser) : get_string('unknownuser', 'error');
+        } else {
+            $presenceusers[] = ($presencerow->guestname ?: get_string('guest')) . ' (' . get_string('guest') . ')';
+        }
+    }
+}
+
 // Metrics — centered, above card.
 echo html_writer::start_div('d-flex justify-content-center gap-5 mt-3 mb-3');
 echo html_writer::start_div('text-center');
-echo html_writer::tag('div', $presencecount, ['class' => 'h4 mb-0 fw-bold', 'id' => 'jitsi-presence-count']);
+echo '<div class="dropdown d-inline-block">';
+echo '<button class="border-0 bg-transparent p-0 dropdown-toggle" id="jitsi-presence-btn"'
+    . ' ' . $bstoggle . '="dropdown" aria-expanded="false">';
+echo '<span id="jitsi-presence-count" class="h4 mb-0 fw-bold">' . $presencecount . '</span>';
+echo '</button>';
+echo '<ul class="dropdown-menu" id="jitsi-presence-list" aria-labelledby="jitsi-presence-btn">';
+if (empty($presenceusers)) {
+    echo '<li><span class="dropdown-item-text text-muted">' . get_string('noconnectedusers', 'jitsi') . '</span></li>';
+} else {
+    foreach ($presenceusers as $presencename) {
+        echo '<li><span class="dropdown-item-text">' . s($presencename) . '</span></li>';
+    }
+}
+echo '</ul>';
+echo '</div>';
 echo html_writer::tag('div', get_string('connectedattendeesnow', 'jitsi'), ['class' => 'text-muted small']);
 echo html_writer::end_div();
 echo html_writer::start_div('text-center');
@@ -355,15 +388,38 @@ echo html_writer::tag('div', get_string('totaluserminutes', 'jitsi'), ['class' =
 echo html_writer::end_div();
 echo html_writer::end_div();
 
+$guestlabel = get_string('guest');
+$nousers = get_string('noconnectedusers', 'jitsi');
 $PAGE->requires->js_amd_inline("
 require(['core/ajax'], function(ajax) {
     setInterval(function() {
         ajax.call([{
-            methodname: 'mod_jitsi_get_presence_count',
+            methodname: 'mod_jitsi_get_presence_users',
             args: {jitsiid: " . $jitsi->id . "}
-        }])[0].then(function(count) {
-            var el = document.getElementById('jitsi-presence-count');
-            if (el) { el.textContent = count; }
+        }])[0].then(function(users) {
+            var countEl = document.getElementById('jitsi-presence-count');
+            var listEl = document.getElementById('jitsi-presence-list');
+            if (countEl) { countEl.textContent = users.length; }
+            if (listEl) {
+                listEl.innerHTML = '';
+                if (users.length === 0) {
+                    var empty = document.createElement('li');
+                    var emptySpan = document.createElement('span');
+                    emptySpan.className = 'dropdown-item-text text-muted';
+                    emptySpan.textContent = " . json_encode($nousers) . ";
+                    empty.appendChild(emptySpan);
+                    listEl.appendChild(empty);
+                } else {
+                    users.forEach(function(u) {
+                        var li = document.createElement('li');
+                        var span = document.createElement('span');
+                        span.className = 'dropdown-item-text';
+                        span.textContent = u.isguest ? u.name + ' (" . addslashes($guestlabel) . ")' : u.name;
+                        li.appendChild(span);
+                        listEl.appendChild(li);
+                    });
+                }
+            }
         });
     }, 15000);
 });

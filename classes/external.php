@@ -1192,6 +1192,57 @@ class mod_jitsi_external extends external_api {
     }
 
     /**
+     * Returns description of method parameters.
+     * @return external_function_parameters
+     */
+    public static function get_presence_users_parameters() {
+        return new external_function_parameters([
+            'jitsiid' => new external_value(PARAM_INT, 'Jitsi session id'),
+        ]);
+    }
+
+    /**
+     * Get names of active participants from presence table.
+     * @param int $jitsiid Jitsi session id.
+     * @return array List of participant names.
+     */
+    public static function get_presence_users($jitsiid) {
+        global $DB;
+        $params = self::validate_parameters(self::get_presence_users_parameters(), ['jitsiid' => $jitsiid]);
+        $threshold = time() - 90;
+        $rows = $DB->get_records_select(
+            'jitsi_presence',
+            'jitsiid = :jitsiid AND timemodified > :threshold',
+            ['jitsiid' => $jitsiid, 'threshold' => $threshold],
+            'userid DESC'
+        );
+        $result = [];
+        foreach ($rows as $row) {
+            if ($row->userid > 0) {
+                $user = $DB->get_record('user', ['id' => $row->userid], 'firstname,lastname');
+                $name = $user ? fullname($user) : get_string('unknownuser', 'error');
+            } else {
+                $name = $row->guestname ?: get_string('guest');
+            }
+            $result[] = ['name' => $name, 'isguest' => (int)($row->userid == 0)];
+        }
+        return $result;
+    }
+
+    /**
+     * Returns description of method result value.
+     * @return external_multiple_structure
+     */
+    public static function get_presence_users_returns() {
+        return new external_multiple_structure(
+            new external_single_structure([
+                'name' => new external_value(PARAM_TEXT, 'Display name'),
+                'isguest' => new external_value(PARAM_INT, 'Is guest'),
+            ])
+        );
+    }
+
+    /**
      * Returns description of method parameters
      * @return external_function_parameters
      */

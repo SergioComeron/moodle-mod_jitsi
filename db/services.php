@@ -399,4 +399,13 @@ $functions = [
                 'ajax' => true,
                 'loginrequired' => false,
         ],
+
+        'mod_jitsi_get_presence_users' => [
+                'classname' => 'mod_jitsi_external',
+                'methodname' => 'get_presence_users',
+                'description' => 'Get names of active participants from presence table',
+                'type' => 'read',
+                'ajax' => true,
+                'loginrequired' => false,
+        ],
 ];
