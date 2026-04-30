@@ -996,7 +996,8 @@ function createsession(
         echo "      " . addslashes(get_string('sessionisbeingrecorded', 'jitsi'));
         echo "      </div>';";
         echo "  } else if (event['on'] == false && event['mode'] == 'stream') {\n";
-        echo "    if (sb) { sb.classList.remove('btn-warning'); sb.classList.add('btn-outline-warning'); setTimeout(function(){ sb.disabled = false; }, 2000); }\n";
+        echo "    if (sb) { sb.classList.remove('btn-warning'); sb.classList.add('btn-outline-warning');\n";
+        echo "      setTimeout(function(){ sb.disabled = false; }, 2000); }\n";
         echo "    if (rb) { setTimeout(function(){ rb.disabled = false; }, 2000); }\n";
         echo "    document.getElementById('state').innerHTML = '';\n";
         echo "  }\n";
