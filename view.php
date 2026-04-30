@@ -355,9 +355,17 @@ if ($presencecount > 0) {
     foreach ($presencerows as $presencerow) {
         if ($presencerow->userid > 0) {
             $presenceuser = $DB->get_record('user', ['id' => $presencerow->userid], 'firstname,lastname');
-            $presenceusers[] = $presenceuser ? fullname($presenceuser) : get_string('unknownuser', 'error');
+            $presenceusers[] = [
+                'name' => $presenceuser ? fullname($presenceuser) : get_string('unknownuser', 'error'),
+                'userid' => (int)$presencerow->userid,
+                'isguest' => 0,
+            ];
         } else {
-            $presenceusers[] = ($presencerow->guestname ?: get_string('guest')) . ' (' . get_string('guest') . ')';
+            $presenceusers[] = [
+                'name' => $presencerow->guestname ?: get_string('guest'),
+                'userid' => 0,
+                'isguest' => 1,
+            ];
         }
     }
 }
@@ -374,8 +382,18 @@ echo '<ul class="dropdown-menu" id="jitsi-presence-list" aria-labelledby="jitsi-
 if (empty($presenceusers)) {
     echo '<li><span class="dropdown-item-text text-muted">' . get_string('noconnectedusers', 'jitsi') . '</span></li>';
 } else {
-    foreach ($presenceusers as $presencename) {
-        echo '<li><span class="dropdown-item-text">' . s($presencename) . '</span></li>';
+    foreach ($presenceusers as $presenceitem) {
+        if ($presenceitem['isguest']) {
+            echo '<li><span class="dropdown-item-text">'
+                . '<i class="fa fa-user-secret text-muted me-1"></i>'
+                . s($presenceitem['name'])
+                . '</span></li>';
+        } else {
+            $profileurl = new moodle_url('/user/view.php', ['id' => $presenceitem['userid'], 'course' => $jitsi->course]);
+            echo '<li><a class="dropdown-item" href="' . $profileurl . '" target="_blank">'
+                . s($presenceitem['name'])
+                . '</a></li>';
+        }
     }
 }
 echo '</ul>';
@@ -388,8 +406,9 @@ echo html_writer::tag('div', get_string('totaluserminutes', 'jitsi'), ['class' =
 echo html_writer::end_div();
 echo html_writer::end_div();
 
-$guestlabel = get_string('guest');
 $nousers = get_string('noconnectedusers', 'jitsi');
+$wwwroot = $CFG->wwwroot;
+$courseid = (int)$jitsi->course;
 $PAGE->requires->js_amd_inline("
 require(['core/ajax'], function(ajax) {
     setInterval(function() {
@@ -403,19 +422,31 @@ require(['core/ajax'], function(ajax) {
             if (listEl) {
                 listEl.innerHTML = '';
                 if (users.length === 0) {
-                    var empty = document.createElement('li');
-                    var emptySpan = document.createElement('span');
-                    emptySpan.className = 'dropdown-item-text text-muted';
-                    emptySpan.textContent = " . json_encode($nousers) . ";
-                    empty.appendChild(emptySpan);
-                    listEl.appendChild(empty);
+                    var li = document.createElement('li');
+                    var span = document.createElement('span');
+                    span.className = 'dropdown-item-text text-muted';
+                    span.textContent = " . json_encode($nousers) . ";
+                    li.appendChild(span);
+                    listEl.appendChild(li);
                 } else {
                     users.forEach(function(u) {
                         var li = document.createElement('li');
-                        var span = document.createElement('span');
-                        span.className = 'dropdown-item-text';
-                        span.textContent = u.isguest ? u.name + ' (" . addslashes($guestlabel) . ")' : u.name;
-                        li.appendChild(span);
+                        if (u.isguest) {
+                            var span = document.createElement('span');
+                            span.className = 'dropdown-item-text';
+                            var icon = document.createElement('i');
+                            icon.className = 'fa fa-user-secret text-muted me-1';
+                            span.appendChild(icon);
+                            span.appendChild(document.createTextNode(u.name));
+                            li.appendChild(span);
+                        } else {
+                            var a = document.createElement('a');
+                            a.className = 'dropdown-item';
+                            a.href = " . json_encode($wwwroot) . " + '/user/view.php?id=' + u.userid + '&course=' + " . $courseid . ";
+                            a.target = '_blank';
+                            a.textContent = u.name;
+                            li.appendChild(a);
+                        }
                         listEl.appendChild(li);
                     });
                 }

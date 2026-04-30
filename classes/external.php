@@ -1224,7 +1224,7 @@ class mod_jitsi_external extends external_api {
             } else {
                 $name = $row->guestname ?: get_string('guest');
             }
-            $result[] = ['name' => $name, 'isguest' => (int)($row->userid == 0)];
+            $result[] = ['name' => $name, 'isguest' => (int)($row->userid == 0), 'userid' => (int)$row->userid];
         }
         return $result;
     }
@@ -1238,6 +1238,7 @@ class mod_jitsi_external extends external_api {
             new external_single_structure([
                 'name' => new external_value(PARAM_TEXT, 'Display name'),
                 'isguest' => new external_value(PARAM_INT, 'Is guest'),
+                'userid' => new external_value(PARAM_INT, 'Moodle user id, 0 for guests'),
             ])
         );
     }
