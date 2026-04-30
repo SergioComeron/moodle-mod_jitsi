@@ -911,11 +911,23 @@ function createsession(
         }
         echo  "});\n";
     }
+    $initrecording = ($jitsi->status === 'recording') ? 'true' : 'false';
+    $initstreaming = ($jitsi->sourcerecord !== null) ? 'true' : 'false';
     echo "setTimeout(function() {\n";
     echo "  var sb = document.getElementById('streamBtn');\n";
     echo "  var rb = document.getElementById('recordBtn');\n";
-    echo "  if (sb) { sb.disabled = false; }\n";
-    echo "  if (rb) { rb.disabled = false; }\n";
+    echo "  var isRec = " . $initrecording . ";\n";
+    echo "  var isStream = " . $initstreaming . ";\n";
+    echo "  if (isRec) {\n";
+    echo "    if (rb) { rb.classList.remove('btn-outline-danger'); rb.classList.add('btn-danger'); rb.disabled = false; }\n";
+    echo "    if (sb) { sb.disabled = true; }\n";
+    echo "  } else if (isStream) {\n";
+    echo "    if (sb) { sb.classList.remove('btn-outline-warning'); sb.classList.add('btn-warning'); sb.disabled = false; }\n";
+    echo "    if (rb) { rb.disabled = true; }\n";
+    echo "  } else {\n";
+    echo "    if (sb) { sb.disabled = false; }\n";
+    echo "    if (rb) { rb.disabled = false; }\n";
+    echo "  }\n";
     echo "}, 5000);\n";
 
     echo "function handleStreamBtn() {\n";
