@@ -393,7 +393,7 @@ $string['privacy:metadata:jitsi_source_record'] = 'AI-generated content derived 
 $string['privacy:metadata:jitsi_source_record:ai_quiz_id'] = 'Course module ID of the Moodle quiz automatically generated from the recording content.';
 $string['privacy:metadata:jitsi_source_record:ai_summary'] = 'AI-generated text summary of the recording content.';
 $string['privacy:metadata:jitsi_source_record:ai_transcription'] = 'AI-generated full transcription of the recording audio, including timestamps and chapter headings.';
-$string['privacy:metadata:portal'] = 'When the site administrator registers the installation, anonymous usage statistics are sent weekly to the mod_jitsi Account portal (portal.sergiocomeron.com). No personal user data is included.';
+$string['privacy:metadata:portal'] = 'When the site administrator registers the installation, anonymous usage statistics are sent weekly to the mod_jitsi Account portal (portal.sergiocomeron.com). The data includes only aggregate counts (sessions, minutes, users, recordings) and configuration flags. No names, email addresses, course names, session content, or any other personal information is ever transmitted. Sites are identified by an anonymous hash that cannot be reversed to recover the original URL.';
 $string['privacy:metadata:portal:activity_count'] = 'The total number of Jitsi activities on the site.';
 $string['privacy:metadata:portal:features'] = 'Which optional features are enabled: AI, recording, private sessions, push notifications.';
 $string['privacy:metadata:portal:moodle_branch'] = 'The Moodle major version number.';
@@ -535,14 +535,23 @@ $string['task_aggregate_usage_stats'] = 'Aggregate Jitsi daily usage statistics'
 $string['task_send_telemetry'] = 'Send anonymous usage telemetry (opt-in)';
 $string['telemetryenabled'] = 'Share anonymous usage data';
 $string['telemetryenabledex'] = 'When enabled, a weekly ping is sent to the plugin developer to help improve mod_jitsi.<br><br>
-<strong>What is sent:</strong> server type, Moodle version, plugin version, number of Jitsi activities, and which optional features are enabled (AI, recording, private sessions, push notifications).<br><br>
-<strong>What is NOT sent:</strong> user data, course data, session content, or any other personal information. Your site is identified by an anonymous hash — the original URL cannot be recovered from it.<br><br>
-<strong>Note:</strong> your site name and URL are stored separately when you register your installation in the mod_jitsi Account.<br><br>
+<strong>What is sent (all data is fully anonymous — no personal information of any kind):</strong>
+<ul>
+<li>Server type, Moodle version and plugin version</li>
+<li>Number of Jitsi activities created on the site</li>
+<li>Which optional features are enabled (AI, recording, private sessions, push notifications)</li>
+<li>Aggregated session counts for the past 7 days: number of sessions, total minutes, number of unique users, number of active activities</li>
+<li>Total number of recordings stored</li>
+<li>Peak number of simultaneous participants ever recorded in a single session</li>
+<li>Site timezone</li>
+</ul>
+<strong>What is NOT sent:</strong> names, email addresses, course names, session content, IP addresses, or any other information that could identify a person or institution. All counts are aggregate totals — individual session or user data is never transmitted. Your site is identified only by an anonymous SHA-256 hash of your Moodle URL; the original URL cannot be recovered from this hash.<br><br>
+<strong>Note:</strong> your site name and URL are stored separately when you voluntarily register your installation in the mod_jitsi Account.<br><br>
 Data is sent to <code>https://portal.sergiocomeron.com/collect.php</code>. This feature is disabled by default and can be turned off at any time.';
 $string['telemetryendpoint'] = 'Telemetry endpoint URL';
 $string['telemetryendpointex'] = 'URL of the server that receives the usage pings. Leave as default unless instructed otherwise.';
 $string['telemetryheading'] = 'Usage statistics (opt-in)';
-$string['telemetryheadingex'] = 'Help improve mod_jitsi by sharing anonymous usage data with the developer. All data is anonymised — only aggregate statistics are collected. This feature is disabled by default.';
+$string['telemetryheadingex'] = 'Help improve mod_jitsi by sharing anonymous usage data with the developer. All data is fully anonymised — only aggregate statistics are collected, never personal data. This feature is disabled by default and can be turned off at any time.';
 $string['telemetrykey'] = 'Telemetry secret key';
 $string['telemetrykeyex'] = 'Secret key used to authenticate pings to the telemetry endpoint.';
 $string['telemetrynudge'] = 'Register your installation in under a minute. The developer uses this data to understand which Moodle versions and server types are most used, so development effort goes where it matters most. Your site name and URL will be stored to identify your installation — see the <a href="https://portal.sergiocomeron.com/privacy.php" target="_blank">Privacy Policy</a>.';
