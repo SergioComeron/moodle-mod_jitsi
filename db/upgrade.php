@@ -1422,5 +1422,17 @@ function xmldb_jitsi_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026050101, 'jitsi');
     }
 
+    if ($oldversion < 2026050102) {
+        // Fix jitsi_source_record.embed: old installs may be nullable — set NULLs to 0 first.
+        $table = new xmldb_table('jitsi_source_record');
+        if ($dbman->field_exists($table, new xmldb_field('embed'))) {
+            $DB->execute("UPDATE {jitsi_source_record} SET embed = 0 WHERE embed IS NULL");
+            $field = new xmldb_field('embed', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '0');
+            $dbman->change_field_notnull($table, $field);
+            $dbman->change_field_default($table, $field);
+        }
+        upgrade_mod_savepoint(true, 2026050102, 'jitsi');
+    }
+
     return true;
 }
