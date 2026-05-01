@@ -87,18 +87,41 @@ class send_telemetry extends \core\task\scheduled_task {
             }
         }
 
+        // Weekly session stats from jitsi_usage_daily (pre-aggregated, cheap query).
+        $sevendaykey = (int)date('Ymd', strtotime('-7 days'));
+        $weeklystats = $DB->get_record_sql(
+            "SELECT COALESCE(SUM(sessions), 0) AS sessions_week,
+                    COALESCE(SUM(minutes), 0) AS minutes_week,
+                    COUNT(DISTINCT userid) AS unique_users_week,
+                    COUNT(DISTINCT cmid) AS active_activities_week
+               FROM {jitsi_usage_daily}
+              WHERE daykey >= :daykey",
+            ['daykey' => $sevendaykey]
+        );
+
+        $recordingstotal = (int)$DB->count_records('jitsi_record', ['deleted' => 0]);
+        $maxparticipants = (int)($DB->get_field_sql(
+            'SELECT COALESCE(MAX(maxparticipants), 0) FROM {jitsi_source_record}'
+        ) ?? 0);
+
         $payload = [
-            'site_hash'        => $sitehash,
-            'license_key'      => $config->portal_license_key,
-            'plugin_version'   => (int)($config->version ?? 0),
-            'moodle_branch'    => (int)$CFG->branch,
-            'server_type'      => $servertype,
-            'activity_count'   => (int)$DB->count_records('jitsi'),
-            'ai_enabled'       => !empty($config->aienabled),
-            'jibri_enabled'    => $DB->record_exists_select('jitsi_servers', "jibri_enabled = 1"),
-            'private_sessions' => !empty($config->enableprivatesessions),
-            'push_enabled'     => !empty($config->enablepushnotifications),
-            'site_timezone'    => $CFG->timezone ?? date_default_timezone_get(),
+            'site_hash'              => $sitehash,
+            'license_key'            => $config->portal_license_key,
+            'plugin_version'         => (int)($config->version ?? 0),
+            'moodle_branch'          => (int)$CFG->branch,
+            'server_type'            => $servertype,
+            'activity_count'         => (int)$DB->count_records('jitsi'),
+            'ai_enabled'             => !empty($config->aienabled),
+            'jibri_enabled'          => $DB->record_exists_select('jitsi_servers', "jibri_enabled = 1"),
+            'private_sessions'       => !empty($config->enableprivatesessions),
+            'push_enabled'           => !empty($config->enablepushnotifications),
+            'site_timezone'          => $CFG->timezone ?? date_default_timezone_get(),
+            'sessions_week'          => (int)($weeklystats->sessions_week ?? 0),
+            'minutes_week'           => (int)($weeklystats->minutes_week ?? 0),
+            'unique_users_week'      => (int)($weeklystats->unique_users_week ?? 0),
+            'active_activities_week' => (int)($weeklystats->active_activities_week ?? 0),
+            'recordings_total'       => $recordingstotal,
+            'max_participants_peak'  => $maxparticipants,
         ];
 
         $curl = curl_init($endpoint);
