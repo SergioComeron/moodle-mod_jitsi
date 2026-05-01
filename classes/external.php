@@ -1219,7 +1219,8 @@ class mod_jitsi_external extends external_api {
         $result = [];
         foreach ($rows as $row) {
             if ($row->userid > 0) {
-                $user = $DB->get_record('user', ['id' => $row->userid], 'firstname,lastname');
+                $user = $DB->get_record('user', ['id' => $row->userid],
+    'id,firstname,lastname,firstnamephonetic,lastnamephonetic,middlename,alternatename');
                 $name = $user ? fullname($user) : get_string('unknownuser', 'error');
             } else {
                 $name = $row->guestname ?: get_string('guest');

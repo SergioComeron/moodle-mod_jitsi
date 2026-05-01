@@ -354,7 +354,8 @@ if ($presencecount > 0) {
     );
     foreach ($presencerows as $presencerow) {
         if ($presencerow->userid > 0) {
-            $presenceuser = $DB->get_record('user', ['id' => $presencerow->userid], 'firstname,lastname');
+            $presenceuser = $DB->get_record('user', ['id' => $presencerow->userid],
+    'id,firstname,lastname,firstnamephonetic,lastnamephonetic,middlename,alternatename');
             $presenceusers[] = [
                 'name' => $presenceuser ? fullname($presenceuser) : get_string('unknownuser', 'error'),
                 'userid' => (int)$presencerow->userid,
