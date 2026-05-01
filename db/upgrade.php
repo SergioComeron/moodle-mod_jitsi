@@ -1330,8 +1330,7 @@ function xmldb_jitsi_upgrade($oldversion) {
 
     if ($oldversion < 2026050101) {
 
-        // ── jitsi table ──────────────────────────────────────────────────────
-
+        // Jitsi table fixes.
         $table = new xmldb_table('jitsi');
 
         // Add missing 'status' column (critical: used by GCP recording badge).
@@ -1360,8 +1359,7 @@ function xmldb_jitsi_upgrade($oldversion) {
             $dbman->change_field_default($table, $field);
         }
 
-        // ── jitsi_record table ───────────────────────────────────────────────
-
+        // Jitsi_record table fixes.
         $table = new xmldb_table('jitsi_record');
 
         // Fix visible: old installs may be nullable — set NULLs to 1 first.
@@ -1372,8 +1370,7 @@ function xmldb_jitsi_upgrade($oldversion) {
             $dbman->change_field_default($table, $field);
         }
 
-        // ── jitsi_record_account table ───────────────────────────────────────
-
+        // Jitsi_record_account table fixes.
         $table = new xmldb_table('jitsi_record_account');
 
         // Fix name: old installs may be nullable — set NULLs to '' first.
@@ -1383,8 +1380,7 @@ function xmldb_jitsi_upgrade($oldversion) {
             $dbman->change_field_notnull($table, $field);
         }
 
-        // ── jitsi_source_record table ────────────────────────────────────────
-
+        // Jitsi_source_record table fixes.
         $table = new xmldb_table('jitsi_source_record');
 
         // Fix userid: old installs may be nullable — set NULLs to 0 first.
@@ -1411,8 +1407,7 @@ function xmldb_jitsi_upgrade($oldversion) {
             $dbman->change_field_default($table, $field);
         }
 
-        // ── jitsi_servers table ──────────────────────────────────────────────
-
+        // Jitsi_servers table fixes.
         $table = new xmldb_table('jitsi_servers');
 
         // Remove legacy DEFAULT 0 from timecreated and timemodified.
