@@ -1329,7 +1329,6 @@ function xmldb_jitsi_upgrade($oldversion) {
     }
 
     if ($oldversion < 2026050101) {
-
         // Jitsi table fixes.
         $table = new xmldb_table('jitsi');
 
