@@ -1328,5 +1328,105 @@ function xmldb_jitsi_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026043003, 'jitsi');
     }
 
+    if ($oldversion < 2026050101) {
+
+        // ── jitsi table ──────────────────────────────────────────────────────
+
+        $table = new xmldb_table('jitsi');
+
+        // Add missing 'status' column (critical: used by GCP recording badge).
+        $field = new xmldb_field('status', XMLDB_TYPE_CHAR, '50', null, null, null, null, 'numberofparticipants');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        // Fix completionminutes: old installs may be nullable — set NULLs to 0 first.
+        if ($dbman->field_exists($table, new xmldb_field('completionminutes'))) {
+            $DB->execute("UPDATE {jitsi} SET completionminutes = 0 WHERE completionminutes IS NULL");
+            $field = new xmldb_field('completionminutes', XMLDB_TYPE_INTEGER, '3', null, XMLDB_NOTNULL, null, '0');
+            $dbman->change_field_notnull($table, $field);
+            $dbman->change_field_default($table, $field);
+        }
+
+        // Fix tokeninvitacion: old installs may be NOT NULL — relax to nullable.
+        if ($dbman->field_exists($table, new xmldb_field('tokeninvitacion'))) {
+            $field = new xmldb_field('tokeninvitacion', XMLDB_TYPE_CHAR, '255', null, null, null, '');
+            $dbman->change_field_notnull($table, $field);
+        }
+
+        // Fix validitytime: old installs may have DEFAULT 0 — remove the default.
+        if ($dbman->field_exists($table, new xmldb_field('validitytime'))) {
+            $field = new xmldb_field('validitytime', XMLDB_TYPE_INTEGER, '10', null, null, null, null);
+            $dbman->change_field_default($table, $field);
+        }
+
+        // ── jitsi_record table ───────────────────────────────────────────────
+
+        $table = new xmldb_table('jitsi_record');
+
+        // Fix visible: old installs may be nullable — set NULLs to 1 first.
+        if ($dbman->field_exists($table, new xmldb_field('visible'))) {
+            $DB->execute("UPDATE {jitsi_record} SET visible = 1 WHERE visible IS NULL");
+            $field = new xmldb_field('visible', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '1');
+            $dbman->change_field_notnull($table, $field);
+            $dbman->change_field_default($table, $field);
+        }
+
+        // ── jitsi_record_account table ───────────────────────────────────────
+
+        $table = new xmldb_table('jitsi_record_account');
+
+        // Fix name: old installs may be nullable — set NULLs to '' first.
+        if ($dbman->field_exists($table, new xmldb_field('name'))) {
+            $DB->execute("UPDATE {jitsi_record_account} SET name = '' WHERE name IS NULL");
+            $field = new xmldb_field('name', XMLDB_TYPE_CHAR, '255', null, XMLDB_NOTNULL, null, null);
+            $dbman->change_field_notnull($table, $field);
+        }
+
+        // ── jitsi_source_record table ────────────────────────────────────────
+
+        $table = new xmldb_table('jitsi_source_record');
+
+        // Fix userid: old installs may be nullable — set NULLs to 0 first.
+        if ($dbman->field_exists($table, new xmldb_field('userid'))) {
+            $DB->execute("UPDATE {jitsi_source_record} SET userid = 0 WHERE userid IS NULL");
+            $field = new xmldb_field('userid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $dbman->change_field_notnull($table, $field);
+            $dbman->change_field_default($table, $field);
+        }
+
+        // Fix maxparticipants: old installs may be nullable — set NULLs to 0 first.
+        if ($dbman->field_exists($table, new xmldb_field('maxparticipants'))) {
+            $DB->execute("UPDATE {jitsi_source_record} SET maxparticipants = 0 WHERE maxparticipants IS NULL");
+            $field = new xmldb_field('maxparticipants', XMLDB_TYPE_INTEGER, '3', null, XMLDB_NOTNULL, null, '0');
+            $dbman->change_field_notnull($table, $field);
+            $dbman->change_field_default($table, $field);
+        }
+
+        // Fix timecreated: old installs may be nullable with default 0 — set NULLs first.
+        if ($dbman->field_exists($table, new xmldb_field('timecreated'))) {
+            $DB->execute("UPDATE {jitsi_source_record} SET timecreated = 0 WHERE timecreated IS NULL");
+            $field = new xmldb_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+            $dbman->change_field_notnull($table, $field);
+            $dbman->change_field_default($table, $field);
+        }
+
+        // ── jitsi_servers table ──────────────────────────────────────────────
+
+        $table = new xmldb_table('jitsi_servers');
+
+        // Remove legacy DEFAULT 0 from timecreated and timemodified.
+        if ($dbman->field_exists($table, new xmldb_field('timecreated'))) {
+            $field = new xmldb_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+            $dbman->change_field_default($table, $field);
+        }
+        if ($dbman->field_exists($table, new xmldb_field('timemodified'))) {
+            $field = new xmldb_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+            $dbman->change_field_default($table, $field);
+        }
+
+        upgrade_mod_savepoint(true, 2026050101, 'jitsi');
+    }
+
     return true;
 }
