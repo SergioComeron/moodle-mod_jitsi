@@ -202,7 +202,7 @@ class mod_jitsi_external extends external_api {
      * @param int $user User id
      */
     public static function enter_session($jitsi, $user) {
-        global $DB;
+        global $DB, $PAGE;
         $event = \mod_jitsi\event\jitsi_session_enter::create([
             'objectid' => $PAGE->cm->instance,
             'context' => $PAGE->context,
