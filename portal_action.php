@@ -49,7 +49,10 @@ if ($action === 'resend') {
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_CONNECTTIMEOUT => 5,
             CURLOPT_TIMEOUT        => 10,
-            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+            CURLOPT_HTTPHEADER     => [
+                'Content-Type: application/json',
+                'X-Jitsi-Key: b0c55fbcdb6b43bbbd25535147b5c8ebb708638f8f3d9c75e3f86e7b2659daeb',
+            ],
         ]);
         $resendresponse = curl_exec($ch);
         $resendhttpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -85,7 +88,10 @@ if ($action === 'register') {
         CURLOPT_POSTFIELDS     => $payload,
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT        => 10,
-        CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+        CURLOPT_HTTPHEADER     => [
+            'Content-Type: application/json',
+            'X-Jitsi-Key: b0c55fbcdb6b43bbbd25535147b5c8ebb708638f8f3d9c75e3f86e7b2659daeb',
+        ],
     ]);
     $response = curl_exec($ch);
     $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -115,7 +121,10 @@ if ($action === 'unregister') {
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_CONNECTTIMEOUT => 5,
             CURLOPT_TIMEOUT        => 10,
-            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+            CURLOPT_HTTPHEADER     => [
+                'Content-Type: application/json',
+                'X-Jitsi-Key: b0c55fbcdb6b43bbbd25535147b5c8ebb708638f8f3d9c75e3f86e7b2659daeb',
+            ],
         ]);
         curl_exec($ch);
         curl_close($ch);

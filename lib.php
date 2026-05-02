@@ -854,8 +854,8 @@ function createsession(
     echo "}\n";
     echo "const api = new JitsiMeetExternalAPI(domain, options);\n";
     echo "api.addListener('videoConferenceJoined', () => {\n";
-    echo "api.executeCommand('displayName', '" . $nombre . "');\n";
-    echo "api.executeCommand('avatarUrl', '" . $avatar . "');\n";
+    echo "api.executeCommand('displayName', " . json_encode($nombre) . ");\n";
+    echo "api.executeCommand('avatarUrl', " . json_encode($avatar) . ");\n";
     echo "});\n";
     $navigator = $_SERVER['HTTP_USER_AGENT'] ?? '';
 

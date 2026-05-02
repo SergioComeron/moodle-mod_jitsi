@@ -186,7 +186,10 @@ class mod_jitsi_external extends external_api {
      */
     public static function delete_record_youtube($idsource) {
         global $DB;
-        $record = $DB->get_record('jitsi_record', ['source' => $idsource]);
+        $record = $DB->get_record('jitsi_record', ['source' => $idsource], '*', MUST_EXIST);
+        $cm = get_coursemodule_from_instance('jitsi', $record->jitsi, 0, false, MUST_EXIST);
+        require_login($cm->course, false, $cm);
+        require_capability('mod/jitsi:deleterecord', context_module::instance($cm->id));
         $record->deleted = 1;
         $DB->update_record('jitsi_record', $record);
         return deleterecordyoutube($idsource);
@@ -205,7 +208,7 @@ class mod_jitsi_external extends external_api {
             'context' => $PAGE->context,
           ]);
           $jitsiob = $DB->get_record('jitsi', ['id' => $jitsi]);
-          $event->add_record_snapshot('course', $jitsi->course);
+          $event->add_record_snapshot('course', $jitsiob->course);
           $event->add_record_snapshot('jitsi', $jitsiob);
           $event->trigger();
     }
@@ -220,11 +223,12 @@ class mod_jitsi_external extends external_api {
     public static function press_record_button($jitsi, $user, $cmid) {
           global $DB;
           $context = context_module::instance($cmid);
+          $jitsiob = $DB->get_record('jitsi', ['id' => $jitsi]);
           $event = \mod_jitsi\event\jitsi_press_record_button::create([
               'objectid' => $jitsi,
               'context' => $context,
           ]);
-          $event->add_record_snapshot('course', $jitsi->course);
+          $event->add_record_snapshot('course', $jitsiob->course);
           $event->add_record_snapshot('jitsi', $jitsiob);
           $event->trigger();
     }
@@ -314,11 +318,11 @@ class mod_jitsi_external extends external_api {
         $admins = get_admins();
 
         $jitsiob = $DB->get_record('jitsi', ['id' => $jitsi]);
-        $DB->update_record('jitsi', $jitsiob);
 
         $user = $DB->get_record('user', ['id' => $user]);
+        $safeerror = substr(strip_tags($error), 0, 500);
         $mensaje = "El usuario " . $user->firstname . " " . $user->lastname .
-            " ha tenido un error al intentar grabar la sesión de jitsi con id " . $jitsi . "\nInfo:\n" . $error . "\n
+            " ha tenido un error al intentar grabar la sesión de jitsi con id " . $jitsi . "\nInfo:\n" . $safeerror . "\n
         Para más información, accede a la sesión de jitsi y mira el log.\n
         URL: " . $CFG->wwwroot . "/mod/jitsi/view.php?id=" . $cmid . "\n
         Nombre de la sesión: " . $DB->get_record('jitsi', ['id' => $jitsi])->name . "\n
@@ -350,11 +354,12 @@ class mod_jitsi_external extends external_api {
     public static function press_button_desktop($jitsi, $user, $cmid) {
         global $DB;
         $context = context_module::instance($cmid);
+        $jitsiob = $DB->get_record('jitsi', ['id' => $jitsi]);
         $event = \mod_jitsi\event\jitsi_press_button_desktop::create([
             'objectid' => $jitsi,
             'context' => $context,
         ]);
-        $event->add_record_snapshot('course', $jitsi->course);
+        $event->add_record_snapshot('course', $jitsiob->course);
         $event->add_record_snapshot('jitsi', $jitsiob);
         $event->trigger();
     }
@@ -405,11 +410,12 @@ class mod_jitsi_external extends external_api {
     public static function press_button_end($jitsi, $user, $cmid) {
         global $DB;
         $context = context_module::instance($cmid);
+        $jitsiob = $DB->get_record('jitsi', ['id' => $jitsi]);
         $event = \mod_jitsi\event\jitsi_press_button_end::create([
             'objectid' => $jitsi,
             'context' => $context,
         ]);
-        $event->add_record_snapshot('course', $jitsi->course);
+        $event->add_record_snapshot('course', $jitsiob->course);
         $event->add_record_snapshot('jitsi', $jitsiob);
         $event->trigger();
     }
@@ -424,11 +430,12 @@ class mod_jitsi_external extends external_api {
     public static function log_error($jitsi, $user, $cmid) {
         global $DB;
         $context = context_module::instance($cmid);
+        $jitsiob = $DB->get_record('jitsi', ['id' => $jitsi]);
         $event = \mod_jitsi\event\jitsi_error::create([
             'objectid' => $jitsi,
             'context' => $context,
         ]);
-        $event->add_record_snapshot('course', $jitsi->course);
+        $event->add_record_snapshot('course', $jitsiob->course);
         $event->add_record_snapshot('jitsi', $jitsiob);
         $event->trigger();
     }
@@ -498,11 +505,12 @@ class mod_jitsi_external extends external_api {
     public static function press_button_microphone($jitsi, $user, $cmid) {
         global $DB;
         $context = context_module::instance($cmid);
+        $jitsiob = $DB->get_record('jitsi', ['id' => $jitsi]);
         $event = \mod_jitsi\event\jitsi_press_button_microphone::create([
             'objectid' => $jitsi,
             'context' => $context,
         ]);
-        $event->add_record_snapshot('course', $jitsi->course);
+        $event->add_record_snapshot('course', $jitsiob->course);
         $event->add_record_snapshot('jitsi', $jitsiob);
         $event->trigger();
     }

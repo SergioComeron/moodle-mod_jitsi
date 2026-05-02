@@ -56,7 +56,10 @@ if ($email && confirm_sesskey()) {
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_CONNECTTIMEOUT => 5,
         CURLOPT_TIMEOUT        => 10,
-        CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+        CURLOPT_HTTPHEADER     => [
+            'Content-Type: application/json',
+            'X-Jitsi-Key: b0c55fbcdb6b43bbbd25535147b5c8ebb708638f8f3d9c75e3f86e7b2659daeb',
+        ],
     ]);
     $response = curl_exec($ch);
     $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
