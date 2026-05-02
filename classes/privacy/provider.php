@@ -38,7 +38,10 @@ use core_privacy\local\request\writer;
  * @copyright  2019 Sergio Comerón Sánchez-Paniagua <sergiocomeron@icloud.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class provider implements \core_privacy\local\metadata\provider, \core_privacy\local\request\core_userlist_provider, \core_privacy\local\request\plugin\provider {
+class provider implements
+    \core_privacy\local\metadata\provider,
+    \core_privacy\local\request\core_userlist_provider,
+    \core_privacy\local\request\plugin\provider {
     /**
      * Returns meta data about this system.
      *
@@ -127,7 +130,7 @@ class provider implements \core_privacy\local\metadata\provider, \core_privacy\l
 
         $contextlist = new contextlist();
 
-        // jitsi_usage_daily → CONTEXT_MODULE via cmid.
+        // Table jitsi_usage_daily: CONTEXT_MODULE via cmid.
         $contextlist->add_from_sql(
             'SELECT ctx.id
                FROM {context} ctx
@@ -137,7 +140,7 @@ class provider implements \core_privacy\local\metadata\provider, \core_privacy\l
             ['ctxmodule' => CONTEXT_MODULE, 'userid' => $userid]
         );
 
-        // jitsi_recording_segments → CONTEXT_MODULE via cmid.
+        // Table jitsi_recording_segments: CONTEXT_MODULE via cmid.
         $contextlist->add_from_sql(
             'SELECT ctx.id
                FROM {context} ctx
@@ -147,7 +150,7 @@ class provider implements \core_privacy\local\metadata\provider, \core_privacy\l
             ['ctxmodule' => CONTEXT_MODULE, 'userid' => $userid]
         );
 
-        // jitsi_presence → CONTEXT_MODULE via jitsi instance id.
+        // Table jitsi_presence: CONTEXT_MODULE via jitsi instance id.
         $contextlist->add_from_sql(
             'SELECT ctx.id
                FROM {context} ctx
@@ -157,7 +160,7 @@ class provider implements \core_privacy\local\metadata\provider, \core_privacy\l
             ['ctxmodule' => CONTEXT_MODULE, 'userid' => $userid]
         );
 
-        // jitsi_source_record → CONTEXT_MODULE via jitsi_record → jitsi instance.
+        // Table jitsi_source_record: CONTEXT_MODULE via jitsi_record join.
         $contextlist->add_from_sql(
             'SELECT ctx.id
                FROM {context} ctx
@@ -168,7 +171,7 @@ class provider implements \core_privacy\local\metadata\provider, \core_privacy\l
             ['ctxmodule' => CONTEXT_MODULE, 'userid' => $userid]
         );
 
-        // jitsi_tutoring_schedule → CONTEXT_COURSE via courseid.
+        // Table jitsi_tutoring_schedule: CONTEXT_COURSE via courseid.
         $contextlist->add_from_sql(
             'SELECT ctx.id
                FROM {context} ctx
@@ -177,7 +180,7 @@ class provider implements \core_privacy\local\metadata\provider, \core_privacy\l
             ['ctxcourse' => CONTEXT_COURSE, 'userid' => $userid]
         );
 
-        // jitsi_push_subscriptions → CONTEXT_USER.
+        // Table jitsi_push_subscriptions: CONTEXT_USER.
         if ($DB->record_exists('jitsi_push_subscriptions', ['userid' => $userid])) {
             $contextlist->add_user_context($userid);
         }
@@ -194,21 +197,21 @@ class provider implements \core_privacy\local\metadata\provider, \core_privacy\l
         $context = $userlist->get_context();
 
         if ($context->contextlevel == CONTEXT_MODULE) {
-            // jitsi_usage_daily.
+            // Table jitsi_usage_daily.
             $userlist->add_from_sql(
                 'userid',
                 'SELECT ud.userid FROM {jitsi_usage_daily} ud WHERE ud.cmid = :cmid',
                 ['cmid' => $context->instanceid]
             );
 
-            // jitsi_recording_segments.
+            // Table jitsi_recording_segments.
             $userlist->add_from_sql(
                 'userid',
                 'SELECT rs.userid FROM {jitsi_recording_segments} rs WHERE rs.cmid = :cmid',
                 ['cmid' => $context->instanceid]
             );
 
-            // jitsi_presence (jitsiid = jitsi instance id = cm.instance).
+            // Table jitsi_presence: jitsiid = jitsi instance id.
             $userlist->add_from_sql(
                 'userid',
                 'SELECT jp.userid FROM {jitsi_presence} jp
@@ -217,7 +220,7 @@ class provider implements \core_privacy\local\metadata\provider, \core_privacy\l
                 ['cmid' => $context->instanceid]
             );
 
-            // jitsi_source_record via jitsi_record.
+            // Table jitsi_source_record: joined via jitsi_record.
             $userlist->add_from_sql(
                 'userid',
                 'SELECT sr.userid FROM {jitsi_source_record} sr
@@ -227,14 +230,14 @@ class provider implements \core_privacy\local\metadata\provider, \core_privacy\l
                 ['cmid' => $context->instanceid]
             );
         } else if ($context->contextlevel == CONTEXT_COURSE) {
-            // jitsi_tutoring_schedule.
+            // Table jitsi_tutoring_schedule.
             $userlist->add_from_sql(
                 'userid',
                 'SELECT ts.userid FROM {jitsi_tutoring_schedule} ts WHERE ts.courseid = :courseid',
                 ['courseid' => $context->instanceid]
             );
         } else if ($context->contextlevel == CONTEXT_USER) {
-            // jitsi_push_subscriptions.
+            // Table jitsi_push_subscriptions.
             $userlist->add_from_sql(
                 'userid',
                 'SELECT ps.userid FROM {jitsi_push_subscriptions} ps WHERE ps.userid = :userid',
@@ -255,7 +258,7 @@ class provider implements \core_privacy\local\metadata\provider, \core_privacy\l
 
         foreach ($contextlist->get_contexts() as $context) {
             if ($context->contextlevel == CONTEXT_MODULE) {
-                // jitsi_usage_daily.
+                // Table jitsi_usage_daily.
                 $records = $DB->get_records(
                     'jitsi_usage_daily',
                     ['userid' => $userid, 'cmid' => $context->instanceid]
@@ -267,7 +270,7 @@ class provider implements \core_privacy\local\metadata\provider, \core_privacy\l
                     );
                 }
 
-                // jitsi_recording_segments.
+                // Table jitsi_recording_segments.
                 $records = $DB->get_records(
                     'jitsi_recording_segments',
                     ['userid' => $userid, 'cmid' => $context->instanceid]
@@ -279,7 +282,7 @@ class provider implements \core_privacy\local\metadata\provider, \core_privacy\l
                     );
                 }
 
-                // jitsi_presence.
+                // Table jitsi_presence.
                 $records = $DB->get_records_sql(
                     'SELECT jp.* FROM {jitsi_presence} jp
                        JOIN {course_modules} cm ON cm.instance = jp.jitsiid
@@ -293,7 +296,7 @@ class provider implements \core_privacy\local\metadata\provider, \core_privacy\l
                     );
                 }
 
-                // jitsi_source_record.
+                // Table jitsi_source_record.
                 $records = $DB->get_records_sql(
                     'SELECT sr.id, sr.link, sr.timecreated, sr.userid, sr.type
                        FROM {jitsi_source_record} sr
@@ -309,7 +312,7 @@ class provider implements \core_privacy\local\metadata\provider, \core_privacy\l
                     );
                 }
             } else if ($context->contextlevel == CONTEXT_COURSE) {
-                // jitsi_tutoring_schedule.
+                // Table jitsi_tutoring_schedule.
                 $records = $DB->get_records(
                     'jitsi_tutoring_schedule',
                     ['userid' => $userid, 'courseid' => $context->instanceid]
@@ -321,7 +324,7 @@ class provider implements \core_privacy\local\metadata\provider, \core_privacy\l
                     );
                 }
             } else if ($context->contextlevel == CONTEXT_USER) {
-                // jitsi_push_subscriptions.
+                // Table jitsi_push_subscriptions.
                 $records = $DB->get_records('jitsi_push_subscriptions', ['userid' => $userid]);
                 if ($records) {
                     writer::with_context($context)->export_data(
@@ -350,7 +353,7 @@ class provider implements \core_privacy\local\metadata\provider, \core_privacy\l
                   WHERE jitsiid IN (SELECT cm.instance FROM {course_modules} cm WHERE cm.id = :cmid)',
                 ['cmid' => $cmid]
             );
-            // Anonymise creator rather than delete recordings.
+            // Anonymise creator rather than delete the recording row.
             $DB->execute(
                 'UPDATE {jitsi_source_record} SET userid = 0
                   WHERE id IN (
