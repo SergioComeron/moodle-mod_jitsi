@@ -1434,5 +1434,18 @@ function xmldb_jitsi_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026050102, 'jitsi');
     }
 
+    if ($oldversion < 2026050103) {
+        // Fix ai_transcription_status: old installs have NOT NULL DEFAULT '' — make it nullable.
+        $table = new xmldb_table('jitsi_source_record');
+        $field = new xmldb_field('ai_transcription_status', XMLDB_TYPE_CHAR, '20', null, null, null, null);
+        if ($dbman->field_exists($table, $field)) {
+            $DB->execute("UPDATE {jitsi_source_record} SET ai_transcription_status = NULL
+                           WHERE ai_transcription_status = ''");
+            $dbman->change_field_notnull($table, $field);
+            $dbman->change_field_default($table, $field);
+        }
+        upgrade_mod_savepoint(true, 2026050103, 'jitsi');
+    }
+
     return true;
 }
