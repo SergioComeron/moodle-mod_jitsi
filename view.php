@@ -646,9 +646,19 @@ if (has_capability('mod/jitsi:viewrecords', $PAGE->context) || has_capability('m
                 loadRecordings();
             }
 
-            var tab = document.getElementById('record-tab');
-            if (tab) {
-                tab.addEventListener('shown.bs.tab', loadRecordings);
+            var recordPaneObs = document.getElementById('record');
+            if (recordPaneObs) {
+                var observer = new MutationObserver(function(mutations) {
+                    for (var i = 0; i < mutations.length; i++) {
+                        if (mutations[i].attributeName === 'class' &&
+                                recordPaneObs.classList.contains('active')) {
+                            observer.disconnect();
+                            loadRecordings();
+                            break;
+                        }
+                    }
+                });
+                observer.observe(recordPaneObs, {attributes: true, attributeFilter: ['class']});
             }
         });
     ");
