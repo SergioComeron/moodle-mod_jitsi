@@ -2308,18 +2308,16 @@ function doembedable($idvideo) {
         $listresponse = $youtube->videos->listVideos("status", ['id' => $idvideo]);
         $video = $listresponse[0];
 
-        $videostatus = $video['status'];
+        $videostatus = $video->getStatus();
         if ($videostatus != null) {
-            if ($videostatus['embeddable'] == 0) {
-                $videostatus['embeddable'] = 1;
-                $updateresponse = $youtube->videos->update("status", $video);
-                $source->embed = 1;
-                $DB->update_record('jitsi_source_record', $source);
-            } else if ($videostatus['embeddable'] == 1) {
-                $source->embed = 1;
-                $DB->update_record('jitsi_source_record', $source);
-                $updateresponse = 'Video already embedable';
-            }
+            $updatevideo = new Google_Service_YouTube_Video();
+            $updatevideo->setId($idvideo);
+            $updatestatus = new Google_Service_YouTube_VideoStatus();
+            $updatestatus->setEmbeddable(true);
+            $updatevideo->setStatus($updatestatus);
+            $updateresponse = $youtube->videos->update("status", $updatevideo);
+            $source->embed = 1;
+            $DB->update_record('jitsi_source_record', $source);
         }
     } catch (Google_Service_Exception $e) {
         $record = $DB->get_record('jitsi_record', ['source' => $source->id]);
