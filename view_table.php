@@ -57,6 +57,8 @@ class mod_view_table extends table_sql {
     protected function col_id($values) {
         global $DB, $OUTPUT, $CFG, $USER;
 
+        $rp = 'referrerpolicy="strict-origin-when-cross-origin"';
+
         if ($CFG->branch >= 500) {
             $alignmentclass = 'text-end';
             $videocontainerstart = "<div class=\"ratio ratio-16x9\">";
@@ -416,7 +418,7 @@ class mod_view_table extends table_sql {
                         $alignmentclass . "\"><p>" . $deleteaction .
                         "</p></span>" . $videocontainerstart .
                         "<iframe " . $iframeclass . " src=\"https://youtube.com/embed/" . $values->link . "\"
-                        allowfullscreen referrerpolicy="strict - origin - when - cross - origin"></iframe></div><br>";
+                        allowfullscreen " . $rp . "></iframe></div><br>";
                 }
                 if (has_capability('mod/jitsi:hide', $context) && !has_capability('mod/jitsi:deleterecord', $context)) {
                     if ($record->visible != 0) {
@@ -425,14 +427,14 @@ class mod_view_table extends table_sql {
                             $alignmentclass . "\"><p>" . $hideaction .
                             "</p></span>" . $videocontainerstart .
                             "<iframe " . $iframeclass . " src=\"https://youtube.com/embed/" . $values->link . "\"
-                            allowfullscreen referrerpolicy="strict - origin - when - cross - origin"></iframe></div><br>";
+                            allowfullscreen " . $rp . "></iframe></div><br>";
                     } else {
                         return "<h5>" . $OUTPUT->render($tmpl) . "</h5><h6 class=\"card-subtitle mb-2 text-muted\">" .
                             userdate($values->timecreated) . "</h6><span class=\"align-middle " .
                             $alignmentclass . "\"><p>" . $showaction .
                             "</p></span>" . $videocontainerstart .
                             "<iframe " . $iframeclass . " src=\"https://youtube.com/embed/" . $values->link . "\"
-                            allowfullscreen referrerpolicy="strict - origin - when - cross - origin"></iframe></div><br>";
+                            allowfullscreen " . $rp . "></iframe></div><br>";
                     }
                 }
                 if (has_capability('mod/jitsi:hide', $context) && has_capability('mod/jitsi:deleterecord', $context)) {
@@ -442,31 +444,31 @@ class mod_view_table extends table_sql {
                             $alignmentclass . "\"><p>" . $deleteaction .
                             "" . $hideaction . "</p></span>" . $videocontainerstart .
                             "<iframe " . $iframeclass . " src=\"https://youtube.com/embed/" . $values->link . "\"
-                            allowfullscreen referrerpolicy="strict - origin - when - cross - origin"></iframe></div><br>";
+                            allowfullscreen " . $rp . "></iframe></div><br>";
                     } else {
                         return "<h5>" . $OUTPUT->render($tmpl) . "</h5><h6 class=\"card-subtitle mb-2 text-muted\">" .
                             userdate($values->timecreated) . "</h6><span class=\"align-middle " .
                             $alignmentclass . "\"><p>" . $deleteaction .
                             "" . $showaction . "</p></span>" . $videocontainerstart .
                             "<iframe " . $iframeclass . " src=\"https://youtube.com/embed/" . $values->link . "\"
-                            allowfullscreen referrerpolicy="strict - origin - when - cross - origin"></iframe></div><br>";
+                            allowfullscreen " . $rp . "></iframe></div><br>";
                     }
                 }
                 if (!has_capability('mod/jitsi:hide', $context) && !has_capability('mod/jitsi:deleterecord', $context)) {
                     return "<h5>" . $OUTPUT->render($tmpl) . "</h5><h6 class=\"card-subtitle mb-2 text-muted\">" .
                         userdate($values->timecreated) . "</h6><br>" . $videocontainerstart . "<iframe " . $iframeclass .
                         " src=\"https://youtube.com/embed/" . $values->link . "\"
-                        allowfullscreen referrerpolicy="strict - origin - when - cross - origin"></iframe></div>";
+                        allowfullscreen " . $rp . "></iframe></div>";
                 }
             } else {
                 return "<h5>" . $OUTPUT->render($tmpl) . "</h5><h6 class=\"card-subtitle mb-2 text-muted\">" .
                     userdate($values->timecreated) . "</h6><br>" . $videocontainerstart . "<iframe " . $iframeclass .
                     " src=\"https://youtube.com/embed/" . $values->link . "\"
-                    allowfullscreen referrerpolicy="strict - origin - when - cross - origin"></iframe></div>";
+                    allowfullscreen " . $rp . "></iframe></div>";
             }
         } else {
             return  "<iframe class=\"embed-responsive-item\" src=\"https://youtube.com/embed/\"
-                allowfullscreen referrerpolicy="strict - origin - when - cross - origin"></iframe></div>";
+                allowfullscreen " . $rp . "></iframe></div>";
         }
     }
 }
