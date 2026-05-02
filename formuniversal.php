@@ -31,7 +31,7 @@ require_once(dirname(__FILE__) . '/lib.php');
 require_once("$CFG->libdir/formslib.php");
 global $DB;
 
-$token = required_param('t', PARAM_TEXT);
+$token = required_param('t', PARAM_ALPHANUMEXT);
 
 $jitsi  = $DB->get_record('jitsi', ['token' => $token], '*', MUST_EXIST);
 $module = $DB->get_record('modules', ['name' => 'jitsi']);
