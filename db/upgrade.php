@@ -1439,10 +1439,10 @@ function xmldb_jitsi_upgrade($oldversion) {
         $table = new xmldb_table('jitsi_source_record');
         $field = new xmldb_field('ai_transcription_status', XMLDB_TYPE_CHAR, '20', null, null, null, null);
         if ($dbman->field_exists($table, $field)) {
-            $DB->execute("UPDATE {jitsi_source_record} SET ai_transcription_status = NULL
-                           WHERE ai_transcription_status = ''");
             $dbman->change_field_notnull($table, $field);
             $dbman->change_field_default($table, $field);
+            $DB->execute("UPDATE {jitsi_source_record} SET ai_transcription_status = NULL
+                           WHERE ai_transcription_status = ''");
         }
         upgrade_mod_savepoint(true, 2026050103, 'jitsi');
     }
