@@ -56,10 +56,7 @@ class send_telemetry extends \core\task\scheduled_task {
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_CONNECTTIMEOUT => 5,
                 CURLOPT_TIMEOUT        => 10,
-                CURLOPT_HTTPHEADER     => [
-                    'Content-Type: application/json',
-                    'X-Jitsi-Key: b0c55fbcdb6b43bbbd25535147b5c8ebb708638f8f3d9c75e3f86e7b2659daeb',
-                ],
+                CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
             ]);
             $vresponse = curl_exec($ch);
             curl_close($ch);
@@ -78,7 +75,6 @@ class send_telemetry extends \core\task\scheduled_task {
         }
 
         $endpoint = 'https://portal.sergiocomeron.com/collect.php';
-        $secret   = 'b0c55fbcdb6b43bbbd25535147b5c8ebb708638f8f3d9c75e3f86e7b2659daeb';
 
         // Detect active server type from plugin config.
         $servertype = -1;
@@ -134,10 +130,7 @@ class send_telemetry extends \core\task\scheduled_task {
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_CONNECTTIMEOUT => 5,
             CURLOPT_TIMEOUT        => 10,
-            CURLOPT_HTTPHEADER     => [
-                'Content-Type: application/json',
-                'X-Jitsi-Key: ' . $secret,
-            ],
+            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
         ]);
 
         $response = curl_exec($curl);
