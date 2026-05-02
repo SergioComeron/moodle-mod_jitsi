@@ -38,11 +38,7 @@ use core_privacy\local\request\writer;
  * @copyright  2019 Sergio Comerón Sánchez-Paniagua <sergiocomeron@icloud.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class provider implements
-    \core_privacy\local\metadata\provider,
-    \core_privacy\local\request\plugin\provider,
-    \core_privacy\local\request\core_userlist_provider {
-
+class provider implements \core_privacy\local\metadata\provider, \core_privacy\local\request\core_userlist_provider, \core_privacy\local\request\plugin\provider {
     /**
      * Returns meta data about this system.
      *
@@ -199,41 +195,51 @@ class provider implements
 
         if ($context->contextlevel == CONTEXT_MODULE) {
             // jitsi_usage_daily.
-            $userlist->add_from_sql('userid',
+            $userlist->add_from_sql(
+                'userid',
                 'SELECT ud.userid FROM {jitsi_usage_daily} ud WHERE ud.cmid = :cmid',
-                ['cmid' => $context->instanceid]);
+                ['cmid' => $context->instanceid]
+            );
 
             // jitsi_recording_segments.
-            $userlist->add_from_sql('userid',
+            $userlist->add_from_sql(
+                'userid',
                 'SELECT rs.userid FROM {jitsi_recording_segments} rs WHERE rs.cmid = :cmid',
-                ['cmid' => $context->instanceid]);
+                ['cmid' => $context->instanceid]
+            );
 
             // jitsi_presence (jitsiid = jitsi instance id = cm.instance).
-            $userlist->add_from_sql('userid',
+            $userlist->add_from_sql(
+                'userid',
                 'SELECT jp.userid FROM {jitsi_presence} jp
                    JOIN {course_modules} cm ON cm.instance = jp.jitsiid
                   WHERE cm.id = :cmid AND jp.userid != 0',
-                ['cmid' => $context->instanceid]);
+                ['cmid' => $context->instanceid]
+            );
 
             // jitsi_source_record via jitsi_record.
-            $userlist->add_from_sql('userid',
+            $userlist->add_from_sql(
+                'userid',
                 'SELECT sr.userid FROM {jitsi_source_record} sr
                    JOIN {jitsi_record} jr ON jr.source = sr.id
                    JOIN {course_modules} cm ON cm.instance = jr.jitsi
                   WHERE cm.id = :cmid',
-                ['cmid' => $context->instanceid]);
-
+                ['cmid' => $context->instanceid]
+            );
         } else if ($context->contextlevel == CONTEXT_COURSE) {
             // jitsi_tutoring_schedule.
-            $userlist->add_from_sql('userid',
+            $userlist->add_from_sql(
+                'userid',
                 'SELECT ts.userid FROM {jitsi_tutoring_schedule} ts WHERE ts.courseid = :courseid',
-                ['courseid' => $context->instanceid]);
-
+                ['courseid' => $context->instanceid]
+            );
         } else if ($context->contextlevel == CONTEXT_USER) {
             // jitsi_push_subscriptions.
-            $userlist->add_from_sql('userid',
+            $userlist->add_from_sql(
+                'userid',
                 'SELECT ps.userid FROM {jitsi_push_subscriptions} ps WHERE ps.userid = :userid',
-                ['userid' => $context->instanceid]);
+                ['userid' => $context->instanceid]
+            );
         }
     }
 
@@ -250,8 +256,10 @@ class provider implements
         foreach ($contextlist->get_contexts() as $context) {
             if ($context->contextlevel == CONTEXT_MODULE) {
                 // jitsi_usage_daily.
-                $records = $DB->get_records('jitsi_usage_daily',
-                    ['userid' => $userid, 'cmid' => $context->instanceid]);
+                $records = $DB->get_records(
+                    'jitsi_usage_daily',
+                    ['userid' => $userid, 'cmid' => $context->instanceid]
+                );
                 if ($records) {
                     writer::with_context($context)->export_data(
                         [get_string('privacy:metadata:jitsi_usage_daily', 'jitsi')],
@@ -260,8 +268,10 @@ class provider implements
                 }
 
                 // jitsi_recording_segments.
-                $records = $DB->get_records('jitsi_recording_segments',
-                    ['userid' => $userid, 'cmid' => $context->instanceid]);
+                $records = $DB->get_records(
+                    'jitsi_recording_segments',
+                    ['userid' => $userid, 'cmid' => $context->instanceid]
+                );
                 if ($records) {
                     writer::with_context($context)->export_data(
                         [get_string('privacy:metadata:jitsi_recording_segments', 'jitsi')],
@@ -298,18 +308,18 @@ class provider implements
                         (object)['recordings' => array_values($records)]
                     );
                 }
-
             } else if ($context->contextlevel == CONTEXT_COURSE) {
                 // jitsi_tutoring_schedule.
-                $records = $DB->get_records('jitsi_tutoring_schedule',
-                    ['userid' => $userid, 'courseid' => $context->instanceid]);
+                $records = $DB->get_records(
+                    'jitsi_tutoring_schedule',
+                    ['userid' => $userid, 'courseid' => $context->instanceid]
+                );
                 if ($records) {
                     writer::with_context($context)->export_data(
                         [get_string('privacy:metadata:jitsi_tutoring_schedule', 'jitsi')],
                         (object)['schedule' => array_values($records)]
                     );
                 }
-
             } else if ($context->contextlevel == CONTEXT_USER) {
                 // jitsi_push_subscriptions.
                 $records = $DB->get_records('jitsi_push_subscriptions', ['userid' => $userid]);
@@ -349,10 +359,8 @@ class provider implements
                        WHERE cm.id = :cmid)',
                 ['cmid' => $cmid]
             );
-
         } else if ($context->contextlevel == CONTEXT_COURSE) {
             $DB->delete_records('jitsi_tutoring_schedule', ['courseid' => $context->instanceid]);
-
         } else if ($context->contextlevel == CONTEXT_USER) {
             $DB->delete_records('jitsi_push_subscriptions', ['userid' => $context->instanceid]);
         }
@@ -388,11 +396,11 @@ class provider implements
                              WHERE cm.id = :cmid)',
                     ['userid' => $userid, 'cmid' => $cmid]
                 );
-
             } else if ($context->contextlevel == CONTEXT_COURSE) {
-                $DB->delete_records('jitsi_tutoring_schedule',
-                    ['userid' => $userid, 'courseid' => $context->instanceid]);
-
+                $DB->delete_records(
+                    'jitsi_tutoring_schedule',
+                    ['userid' => $userid, 'courseid' => $context->instanceid]
+                );
             } else if ($context->contextlevel == CONTEXT_USER) {
                 $DB->delete_records('jitsi_push_subscriptions', ['userid' => $userid]);
             }
@@ -417,12 +425,16 @@ class provider implements
 
         if ($context->contextlevel == CONTEXT_MODULE) {
             $cmid = $context->instanceid;
-            $DB->delete_records_select('jitsi_usage_daily',
+            $DB->delete_records_select(
+                'jitsi_usage_daily',
                 "userid $insql AND cmid = :cmid",
-                array_merge($inparams, ['cmid' => $cmid]));
-            $DB->delete_records_select('jitsi_recording_segments',
+                array_merge($inparams, ['cmid' => $cmid])
+            );
+            $DB->delete_records_select(
+                'jitsi_recording_segments',
                 "userid $insql AND cmid = :cmid",
-                array_merge($inparams, ['cmid' => $cmid]));
+                array_merge($inparams, ['cmid' => $cmid])
+            );
             $DB->delete_records_sql(
                 "DELETE FROM {jitsi_presence}
                   WHERE userid $insql
@@ -438,12 +450,12 @@ class provider implements
                          WHERE cm.id = :cmid)",
                 array_merge($inparams, ['cmid' => $cmid])
             );
-
         } else if ($context->contextlevel == CONTEXT_COURSE) {
-            $DB->delete_records_select('jitsi_tutoring_schedule',
+            $DB->delete_records_select(
+                'jitsi_tutoring_schedule',
                 "userid $insql AND courseid = :courseid",
-                array_merge($inparams, ['courseid' => $context->instanceid]));
-
+                array_merge($inparams, ['courseid' => $context->instanceid])
+            );
         } else if ($context->contextlevel == CONTEXT_USER) {
             $DB->delete_records_select('jitsi_push_subscriptions', "userid $insql", $inparams);
         }
