@@ -50,7 +50,9 @@ if ($email && confirm_sesskey()) {
     ]);
 
     $ch = curl_init('https://portal.sergiocomeron.com/register-site.php');
-    curl_setopt_array($ch, [
+    curl_setopt_array(
+        $ch,
+        [
         CURLOPT_POST           => true,
         CURLOPT_POSTFIELDS     => $payload,
         CURLOPT_RETURNTRANSFER => true,
@@ -58,7 +60,8 @@ if ($email && confirm_sesskey()) {
         CURLOPT_TIMEOUT        => 10,
         CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
         ],
-    ]);
+        ]
+    );
     $response = curl_exec($ch);
     $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);

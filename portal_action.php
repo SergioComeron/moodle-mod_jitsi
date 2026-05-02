@@ -43,7 +43,9 @@ if ($action === 'resend') {
             'site_url'  => $CFG->wwwroot,
         ]);
         $ch = curl_init('https://portal.sergiocomeron.com/register-site.php');
-        curl_setopt_array($ch, [
+        curl_setopt_array(
+            $ch,
+            [
             CURLOPT_POST           => true,
             CURLOPT_POSTFIELDS     => $payload,
             CURLOPT_RETURNTRANSFER => true,
@@ -52,7 +54,8 @@ if ($action === 'resend') {
             CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
                 'Content-Type: application/json',
             ],
-        ]);
+            ]
+        );
         $resendresponse = curl_exec($ch);
         $resendhttpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
@@ -111,7 +114,9 @@ if ($action === 'unregister') {
     // Best-effort notification to the portal — do not block if unreachable.
     if ($licensekey) {
         $ch = curl_init('https://portal.sergiocomeron.com/unregister.php');
-        curl_setopt_array($ch, [
+        curl_setopt_array(
+            $ch,
+            [
             CURLOPT_POST           => true,
             CURLOPT_POSTFIELDS     => json_encode(['site_hash' => $sitehash, 'license_key' => $licensekey]),
             CURLOPT_RETURNTRANSFER => true,
@@ -120,7 +125,8 @@ if ($action === 'unregister') {
             CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
                 'Content-Type: application/json',
             ],
-        ]);
+            ]
+        );
         curl_exec($ch);
         curl_close($ch);
     }
