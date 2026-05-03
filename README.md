@@ -20,9 +20,9 @@
 
 **mod_jitsi** integrates Jitsi Meet videoconferencing into Moodle. To use it in production you need a Jitsi server — the plugin supports three options:
 
-- **JaaS (8x8)** — hosted service, free up to 25 monthly active users. The quickest way to get started. More information at https://jaas.8x8.vc/
+- **GCP auto-managed** — the plugin provisions and manages a complete Jitsi server (including Jibri recording and AI features) in Google Cloud Platform automatically. A Google Cloud account with billing enabled is all you need — no manual server setup required. The simplest way to get a fully-featured setup.
+- **JaaS (8x8)** — hosted service, free up to 25 monthly active users. No infrastructure required. More information at https://jaas.8x8.vc/
 - **Self-hosted** — your own Jitsi Meet server with full control and JWT authentication.
-- **GCP auto-managed** — the plugin provisions and manages a Jitsi server in Google Cloud Platform automatically. A Google Cloud account with billing enabled is all you need — no manual server setup required (BETA).
 
 The public server at meet.jit.si can be used for quick testing but restricts sessions to 5 minutes and is not suitable for production.
 
@@ -266,7 +266,7 @@ This plugin is not required for **8x8 JaaS** (Type 2) or **GCP auto-managed** (T
 
 The plugin connects by default with the public server at meet.jit.si. There are many other public Jitsi Meet servers — search Google or look at the [Community-run instances list](https://jitsi.github.io/handbook/docs/community/community-instances/). Testing alternative servers is a good idea in case of service disruption or to find one closer to your users.
 
-Bear in mind that meet.jit.si restricts embed mode to **5 minutes per conference**. For production use, you need either a **JaaS (8x8) account** (free up to 25 monthly active users — [pricing](https://jaas.8x8.vc/#/pricing)), a **self-hosted Jitsi server**, or a **GCP auto-managed server** provisioned by this plugin. 8x8 is the company behind the Jitsi project and using their service is the best way to support its future.
+Bear in mind that meet.jit.si restricts embed mode to **5 minutes per conference**. For production use, you need a **GCP auto-managed server** provisioned by this plugin, a **JaaS (8x8) account** (free up to 25 monthly active users — [pricing](https://jaas.8x8.vc/#/pricing)), or a **self-hosted Jitsi server**. 8x8 is the company behind the Jitsi project and using their service is one way to support its future.
 
 ## Using a Jitsi as a Service Account
 
@@ -296,14 +296,6 @@ This plugin includes **experimental support** for automatically creating and man
 - Automatic Let's Encrypt SSL certificate provisioning
 
 **⚠️ This feature is in BETA testing**. Use it in production environments with caution.
-
-### Current Limitations
-
-**Recording not yet supported**: GCP auto-managed servers do not currently support recording or live streaming functionality. For recording features, please use:
-- Self-hosted servers (Type 1) with Jibri installed
-- 8x8 JaaS servers (Type 2)
-
-Recording support for GCP auto-managed servers is planned for future releases.
 
 ### Prerequisites
 
