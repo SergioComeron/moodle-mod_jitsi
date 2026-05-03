@@ -31,48 +31,14 @@ require_once(dirname(__FILE__) . '/lib.php');
 require_once("$CFG->libdir/formslib.php");
 global $DB;
 
-$token = required_param('t', PARAM_TEXT);
+$token = required_param('t', PARAM_ALPHANUMEXT);
 
-$sql = "select * from {jitsi} where token = '" . $token . "'";
-$jitsi = $DB->get_record_sql($sql);
+$jitsi  = $DB->get_record('jitsi', ['token' => $token], '*', MUST_EXIST);
 $module = $DB->get_record('modules', ['name' => 'jitsi']);
-$cm = $DB->get_record('course_modules', ['instance' => $jitsi->id, 'module' => $module->id]);
-$id = $cm->id;
+$cm     = $DB->get_record('course_modules', ['instance' => $jitsi->id, 'module' => $module->id]);
+$id     = $cm->id;
 
 $sessionid = $cm->instance;
-
-/**
- * Access form for name.
- */
-class name_form extends moodleform {
-    /**
-     * Define the form
-     */
-    public function definition() {
-        global $CFG, $USER;
-
-        $mform = $this->_form;
-        $mform->addElement('text', 'name', get_string('name'));
-        $mform->setType('name', PARAM_TEXT);
-        $mform->addRule('name', get_string('required'), 'required', '', 'client', false, false);
-
-        $buttonarray = [];
-        $buttonarray[] = $mform->createElement('submit', 'submitbutton', get_string('continue'));
-        $mform->addGroup($buttonarray, 'buttonar', '', ' ', false);
-    }
-
-    /**
-     * Validate the form data
-     *
-     * @param array $data array of ("fieldname"=>value) of submitted data
-     * @param array $files array of uploaded files "element_name"=>tmp_file_path
-     * @return array of "element_name"=>"error_description" if there are errors,
-     *         or an empty array if everything is OK (true allowed for backwards compatibility too).
-     */
-    public function validation($data, $files) {
-        return [];
-    }
-}
 
 $PAGE->set_url($CFG->wwwroot . '/mod/jitsi/formuniversal.php');
 $sesion = $DB->get_record('jitsi', ['id' => $sessionid]);
@@ -106,34 +72,51 @@ $event->trigger();
 if (!istimedout($sesion)) {
     if (get_config('mod_jitsi', 'invitebuttons') == 1) {
         if (!isloggedin()) {
-            echo get_string('accessto', 'jitsi', $sesion->name);
             $today = getdate();
             if ($today[0] < $sesion->timeclose || $sesion->timeclose == 0) {
                 if ($today[0] > (($sesion->timeopen) - ($sesion->minpretime * 60))) {
-                    $urlparamsform = ['ses' => $sessionid, 'id' => $id];
-                    $urlform = new moodle_url('/mod/jitsi/universal.php', $urlparamsform);
-                    $mform = new name_form($urlform);
-                    if ($mform->is_cancelled()) {
-                        echo "";
-                    } else if ($fromform = $mform->get_data()) {
-                        echo "";
-                    } else {
-                        $mform->display();
-                    }
+                    $actionurl = (new moodle_url('/mod/jitsi/universal.php', [
+                        'ses' => $sessionid,
+                        'id'  => $id,
+                    ]))->out(false);
+                    echo html_writer::start_div('d-flex justify-content-center mt-4');
+                    echo html_writer::start_div('card shadow-sm', ['style' => 'max-width:420px;width:100%']);
+                    echo html_writer::start_div('card-body p-4 text-center');
+                    echo html_writer::tag('h4', s($sesion->name), ['class' => 'card-title mb-1']);
+                    echo html_writer::tag('p', s($course->fullname), ['class' => 'text-muted small mb-4']);
+                    echo html_writer::start_tag('form', ['method' => 'post', 'action' => $actionurl]);
+                    echo html_writer::start_div('mb-3 text-start');
+                    $labelattrs = ['for' => 'guestname', 'class' => 'form-label fw-semibold'];
+                    echo html_writer::tag('label', get_string('guestname', 'jitsi'), $labelattrs);
+                    $inputattrs = [
+                        'type'        => 'text',
+                        'name'        => 'name',
+                        'id'          => 'guestname',
+                        'class'       => 'form-control form-control-lg',
+                        'placeholder' => get_string('guestnamePlaceholder', 'jitsi'),
+                        'required'    => 'required',
+                        'autofocus'   => 'autofocus',
+                    ];
+                    echo html_writer::empty_tag('input', $inputattrs);
+                    echo html_writer::end_div();
+                    $btnattrs = ['type' => 'submit', 'class' => 'btn btn-primary btn-lg w-100'];
+                    echo html_writer::tag('button', get_string('guestjoin', 'jitsi'), $btnattrs);
+                    echo html_writer::end_tag('form');
+                    echo html_writer::end_div();
+                    echo html_writer::end_div();
+                    echo html_writer::end_div();
                 } else {
-                    echo $OUTPUT->box(
-                        get_string(
-                            'nostart',
-                            'jitsi',
-                            date("d-m-Y H:i", ($sesion->timeopen - ($sesion->minpretime * 60)))
-                        )
+                    $nostart = get_string(
+                        'nostart',
+                        'jitsi',
+                        date("d-m-Y H:i", ($sesion->timeopen - ($sesion->minpretime * 60)))
                     );
+                    echo $OUTPUT->notification($nostart, 'info');
                 }
             } else {
-                echo $OUTPUT->box(get_string('finish', 'jitsi'));
+                echo $OUTPUT->notification(get_string('finish', 'jitsi'), 'warning');
             }
         } else {
-            echo get_string('accesstowithlogin', 'jitsi', $sesion->name);
             $today = getdate();
             if ($today[0] > (($sesion->timeopen) - ($sesion->minpretime * 60))) {
                 $nom = null;
@@ -148,28 +131,41 @@ if (!istimedout($sesion)) {
                         break;
                 }
                 $avatar = $CFG->wwwroot . '/user/pix.php/' . $USER->id . '/f1.jpg';
-                $mail = '';
                 $urlparams = [
                     'avatar' => $avatar,
-                    'name' => $nom,
-                    'ses' => $sessionid,
-                    'mail' => $mail,
-                    'id' => $id,
+                    'name'   => $nom,
+                    'ses'    => $sessionid,
+                    'mail'   => '',
+                    'id'     => $id,
                 ];
-                echo $OUTPUT->box(get_string('instruction', 'jitsi'));
-                echo $OUTPUT->single_button(
-                    new moodle_url('/mod/jitsi/universal.php', $urlparams),
-                    get_string('access', 'jitsi'),
-                    'post'
-                );
+                $joinurl = (new moodle_url('/mod/jitsi/universal.php', $urlparams))->out(false);
+
+                echo html_writer::start_div('d-flex justify-content-center mt-4');
+                echo html_writer::start_div('card shadow-sm', ['style' => 'max-width:420px;width:100%']);
+                echo html_writer::start_div('card-body p-4 text-center');
+                echo html_writer::tag('h4', s($sesion->name), ['class' => 'card-title mb-1']);
+                echo html_writer::tag('p', s($course->fullname), ['class' => 'text-muted small mb-3']);
+                echo html_writer::empty_tag('img', [
+                    'src'   => s($avatar),
+                    'class' => 'rounded-circle mb-2',
+                    'style' => 'width:56px;height:56px;object-fit:cover',
+                    'alt'   => s($nom),
+                ]);
+                echo html_writer::tag('p', s($nom), ['class' => 'fw-semibold mb-3']);
+                echo html_writer::start_tag('form', ['method' => 'post', 'action' => $joinurl]);
+                $btnattrs = ['type' => 'submit', 'class' => 'btn btn-primary btn-lg w-100'];
+                echo html_writer::tag('button', get_string('guestjoin', 'jitsi'), $btnattrs);
+                echo html_writer::end_tag('form');
+                echo html_writer::end_div();
+                echo html_writer::end_div();
+                echo html_writer::end_div();
             } else {
-                echo $OUTPUT->box(
-                    get_string(
-                        'nostart',
-                        'jitsi',
-                        date("d-m-Y H:i", ($sesion->timeopen - ($sesion->minpretime * 60))),
-                    )
+                $nostart = get_string(
+                    'nostart',
+                    'jitsi',
+                    date("d-m-Y H:i", ($sesion->timeopen - ($sesion->minpretime * 60)))
                 );
+                echo $OUTPUT->notification($nostart, 'info');
             }
         }
     } else {

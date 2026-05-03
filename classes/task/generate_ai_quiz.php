@@ -23,7 +23,6 @@
  */
 namespace mod_jitsi\task;
 
-defined('MOODLE_INTERNAL') || die();
 
 /**
  * Ad-hoc task: generate a true/false quiz in Moodle from a GCS recording using Gemini.
@@ -197,7 +196,9 @@ class generate_ai_quiz extends \core\task\adhoc_task {
             }
 
             // Strip markdown code fences if present.
+            // phpcs:ignore moodle.Strings.ForbiddenStrings.Found
             $rawtext = preg_replace('/^```(?:json)?\s*/m', '', $rawtext);
+            // phpcs:ignore moodle.Strings.ForbiddenStrings.Found
             $rawtext = preg_replace('/```\s*$/m', '', $rawtext);
             $questions = json_decode(trim($rawtext), true);
             if (!is_array($questions) || empty($questions)) {
@@ -248,14 +249,14 @@ class generate_ai_quiz extends \core\task\adhoc_task {
                     continue;
                 }
 
-                // question_bank_entry / question_bank_entries.
+                // Question bank entry record.
                 $qbe = new \stdClass();
                 $qbe->questioncategoryid = $category->id;
                 $qbe->idnumber = null;
                 $qbe->ownerid = $adminid;
                 $qbeid = $DB->insert_record($qbetable, $qbe);
 
-                // question.
+                // Question record.
                 $question = new \stdClass();
                 if ($questionhascategory) {
                     $question->category = $category->id;
@@ -276,7 +277,7 @@ class generate_ai_quiz extends \core\task\adhoc_task {
                 $question->modifiedby = $adminid;
                 $questionid = $DB->insert_record('question', $question);
 
-                // question_versions.
+                // Question version record.
                 $qv = new \stdClass();
                 $qv->questionbankentryid = $qbeid;
                 $qv->version = 1;
@@ -303,7 +304,7 @@ class generate_ai_quiz extends \core\task\adhoc_task {
                 $falseans->feedbackformat = FORMAT_HTML;
                 $falseansid = $DB->insert_record('question_answers', $falseans);
 
-                // question_truefalse.
+                // True/false question record.
                 $tf = new \stdClass();
                 $tf->question = $questionid;
                 $tf->trueanswer = $trueansid;
@@ -426,7 +427,7 @@ class generate_ai_quiz extends \core\task\adhoc_task {
                 }
             }
 
-            // quiz_sections is required for Moodle to display questions.
+            // Quiz sections row is required for Moodle to display questions.
             $section = new \stdClass();
             $section->quizid = $quizid;
             $section->firstslot = 1;

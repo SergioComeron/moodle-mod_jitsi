@@ -511,11 +511,12 @@ function createsession(
     }
     $record = '';
     // Enable the Jitsi recording toolbar button when the record setting is on.
-    // For GCP servers (type 3), only enable it when at least one Jibri is ready in the pool.
+    // For GCP servers (type 3) the Moodle-integrated record button is used instead.
     $jibrienabled = ($servertype == 3 && jitsi_is_jibri_ready($server));
     if (
-        get_config('mod_jitsi', 'record') == 1 && has_capability('mod/jitsi:record', $PAGE->context) &&
-            ($servertype != 3 || $jibrienabled)
+        get_config('mod_jitsi', 'record') == 1 &&
+        has_capability('mod/jitsi:record', $PAGE->context) &&
+        $servertype != 3
     ) {
         $record = 'recording';
     }
@@ -568,35 +569,31 @@ function createsession(
     }
 
     if ($user == null) {
-        // Show integrated streaming switch for GCP servers (type 3) only when Jibri is ready.
-        if (
+        $showstreaming = (
             get_config('mod_jitsi', 'livebutton') == 1 &&
             has_capability('mod/jitsi:record', $PAGE->context) &&
             $account != null && $universal == false &&
-            (get_config('mod_jitsi', 'streamingoption') == 1) && $jitsi->sessionwithtoken == 0 &&
+            get_config('mod_jitsi', 'streamingoption') == 1 &&
+            $jitsi->sessionwithtoken == 0 &&
             ($servertype != 3 || $jibrienabled)
-        ) {
-            if ($CFG->branch >= 500) {
-                echo "<div class=\"text-end\">";
-            } else {
-                echo "<div class=\"text-right\">";
+        );
+        $showrecording = (
+            has_capability('mod/jitsi:record', $PAGE->context) &&
+            $universal == false && $servertype == 3 &&
+            $jibrienabled && $jitsi->sessionwithtoken == 0
+        );
+        if ($showstreaming || $showrecording) {
+            echo "<div class=\"d-flex gap-2 justify-content-end flex-wrap\">";
+            if ($showstreaming) {
+                echo "<button id=\"streamBtn\" class=\"btn btn-sm btn-outline-warning\""
+                    . " onclick=\"handleStreamBtn()\" disabled>"
+                    . "<i class=\"fa fa-rss me-1\"></i>" . addslashes(get_string('streambtn', 'jitsi')) . "</button>";
             }
-
-            if ($CFG->branch >= 500) {
-                echo "<div class=\"form-check form-switch\" style=\"display: flex; align-items: center; gap: 0.5rem;\">";
-                echo "<input type=\"checkbox\" class=\"form-check-input\" id=\"recordSwitch\" onClick=\"activaGrab($(this));\">";
-                echo "<label class=\"form-check-label\" for=\"recordSwitch\" style=\"margin: 0;\">"
-                    . addslashes(get_string('streamingandrecording', 'jitsi')) . "</label>";
-                echo "</div>";
-            } else {
-                echo "<div class=\"custom-control custom-switch\">";
-                echo "<input type=\"checkbox\" class=\"custom-control-input\"
-                  id=\"recordSwitch\" onClick=\"activaGrab($(this));\">";
-                echo "<label class=\"custom-control-label\" for=\"recordSwitch\">"
-                    . addslashes(get_string('streamingandrecording', 'jitsi')) . "</label>";
-                echo "</div>";
+            if ($showrecording) {
+                echo "<button id=\"recordBtn\" class=\"btn btn-sm btn-outline-danger\""
+                    . " onclick=\"handleRecordBtn()\" disabled>"
+                    . "<i class=\"fa fa-circle me-1\"></i>" . addslashes(get_string('recordbtn', 'jitsi')) . "</button>";
             }
-
             echo "</div>";
         }
     }
@@ -857,8 +854,8 @@ function createsession(
     echo "}\n";
     echo "const api = new JitsiMeetExternalAPI(domain, options);\n";
     echo "api.addListener('videoConferenceJoined', () => {\n";
-    echo "api.executeCommand('displayName', '" . $nombre . "');\n";
-    echo "api.executeCommand('avatarUrl', '" . $avatar . "');\n";
+    echo "api.executeCommand('displayName', " . json_encode($nombre) . ");\n";
+    echo "api.executeCommand('avatarUrl', " . json_encode($avatar) . ");\n";
     echo "});\n";
     $navigator = $_SERVER['HTTP_USER_AGENT'] ?? '';
 
@@ -872,17 +869,29 @@ function createsession(
     $event->add_record_snapshot($PAGE->cm->modname, $jitsi);
     $event->trigger();
 
+    $isguestjs = (!isloggedin() || isguestuser()) ? 'true' : 'false';
+    echo "var jitsiPresenceHash = (Math.random().toString(36).substr(2,9) + Date.now().toString(36));\n";
+    echo "var jitsiIsGuest = " . $isguestjs . ";\n";
+    echo "var jitsiGuestName = '" . addslashes($nombre) . "';\n";
+
     echo "let intervalo = 60000;";
     echo "setInterval(function(){myTimer(api)}, intervalo);\n";
     echo "function myTimer(_api) {\n";
-    echo "      console.log(\"RUNNING\");";
-    echo "      require(['jquery', 'core/ajax', 'core/notification'], function($, ajax, notification) {\n";
-    echo "          var respuesta = ajax.call([{\n";
+    echo "      require(['core/ajax'], function(ajax) {\n";
+    echo "          ajax.call([{\n";
     echo "              methodname: 'mod_jitsi_participating_session',\n";
     echo "              args: {jitsi:'" . $jitsi->id . "', user:'" . $USER->id . "', cmid:'" . $cm->id . "'},\n";
     echo "          }]);\n";
     echo "      })\n";
     echo "}\n";
+    echo "setInterval(function() {\n";
+    echo "  require(['core/ajax'], function(ajax) {\n";
+    echo "      ajax.call([{\n";
+    echo "          methodname: 'mod_jitsi_presence_heartbeat',\n";
+    echo "          args: {jitsiid:" . $jitsi->id . ", sessionhash: jitsiPresenceHash},\n";
+    echo "      }]);\n";
+    echo "  });\n";
+    echo "}, 30000);\n";
 
     if (get_config('mod_jitsi', 'finishandreturn') == 1) {
         echo "api.on('readyToClose', () => {\n";
@@ -903,35 +912,46 @@ function createsession(
         }
         echo  "});\n";
     }
-    echo "if (document.getElementById(\"recordSwitch\") != null) {\n";
-    echo "setTimeout(function(){ document.getElementById(\"recordSwitch\").disabled = false }, 5000);\n";
+    echo "var jitsiRecordingStateReceived = false;\n";
+    echo "setTimeout(function() {\n";
+    echo "  if (jitsiRecordingStateReceived) { return; }\n";
+    echo "  var sb = document.getElementById('streamBtn');\n";
+    echo "  var rb = document.getElementById('recordBtn');\n";
+    echo "  if (sb) { sb.disabled = false; }\n";
+    echo "  if (rb) { rb.disabled = false; }\n";
+    echo "}, 5000);\n";
+
+    echo "function handleStreamBtn() {\n";
+    echo "  var btn = document.getElementById('streamBtn');\n";
+    echo "  var recBtn = document.getElementById('recordBtn');\n";
+    echo "  if (!btn) { return; }\n";
+    echo "  btn.disabled = true;\n";
+    echo "  require(['jquery', 'core/ajax', 'core/notification'], function(\$, ajax, notification) {\n";
+    echo "    ajax.call([{\n";
+    echo "      methodname: 'mod_jitsi_press_record_button',\n";
+    echo "      args: {jitsi:'" . $jitsi->id . "', user:'" . $USER->id . "', cmid:'" . $cmid . "'},\n";
+    echo "      fail: notification.exception\n";
+    echo "    }]);\n";
+    echo "  });\n";
+    echo "  if (btn.classList.contains('btn-warning')) {\n";
+    echo "    stopStream();\n";
+    echo "  } else {\n";
+    echo "    document.getElementById('state').innerHTML ="
+        . " '<div class=\"alert alert-light\" role=\"alert\">" . addslashes(get_string('preparing', 'jitsi')) . "</div>';\n";
+    echo "    stream();\n";
+    echo "  }\n";
     echo "}\n";
-    echo "function activaGrab(e){";
-    echo "if (document.getElementById(\"recordSwitch\") != null) {\n";
-    echo "      document.getElementById(\"recordSwitch\").disabled = true;\n";
+
+    echo "function handleRecordBtn() {\n";
+    echo "  var btn = document.getElementById('recordBtn');\n";
+    echo "  if (!btn) { return; }\n";
+    echo "  btn.disabled = true;\n";
+    echo "  if (btn.classList.contains('btn-danger')) {\n";
+    echo "    api.stopRecording('file');\n";
+    echo "  } else {\n";
+    echo "    api.startRecording({mode: 'file'});\n";
+    echo "  }\n";
     echo "}\n";
-    echo "    require(['jquery', 'core/ajax', 'core/notification'], function($, ajax, notification) {\n";
-    echo "       var respuesta = ajax.call([{\n";
-    echo "            methodname: 'mod_jitsi_press_record_button',\n";
-    echo "            args: {jitsi:'" . $jitsi->id . "', user:'" . $USER->id . "', cmid:'" . $cmid . "'},\n";
-    echo "            fail: notification.exception\n";
-    echo "       }]);\n";
-    echo "    ;});";
-
-    echo "    if (e.is(':checked')) {";
-    echo "      console.log(\"Switch cambiado a activado\");";
-    echo "var mensaje = document.getElementById('state').innerHTML\n";
-
-    echo "      document.getElementById('state').innerHTML = ";
-    echo "      '<div class=\"alert alert-light\" role=\"alert\">" . get_string('preparing', 'jitsi') . "</div>';";
-    echo "      stream();";
-    echo "    } else {";
-    echo "      console.log(\"Switch cambiado a desactivado\");";
-    echo "      document.getElementById('state').innerHTML = '';";
-    echo "      stopStream();";
-
-    echo "    }";
-    echo "}";
 
     if (get_config('mod_jitsi', 'password') != null) {
         echo "api.addEventListener('participantRoleChanged', function(event) {\n";
@@ -946,10 +966,27 @@ function createsession(
 
     if ($user == null) {
         echo "api.addEventListener('recordingStatusChanged', function(event) {\n";
-        echo "  if (event['on'] && event['mode'] == 'stream'){\n";
-        echo "if (document.getElementById(\"recordSwitch\") != null) {\n";
-        echo "    document.getElementById(\"recordSwitch\").checked = true;\n";
-        echo "}\n";
+        echo "  jitsiRecordingStateReceived = true;\n";
+        echo "  var sb = document.getElementById('streamBtn');\n";
+        echo "  var rb = document.getElementById('recordBtn');\n";
+        echo "  if (event['mode'] == 'file') {\n";
+        echo "    if (event['on']) {\n";
+        echo "      if (rb) { rb.classList.remove('btn-outline-danger'); rb.classList.add('btn-danger'); rb.disabled = false; }\n";
+        echo "      if (sb) { sb.disabled = true; }\n";
+        echo "    } else {\n";
+        echo "      if (rb) { rb.classList.remove('btn-danger'); rb.classList.add('btn-outline-danger'); rb.disabled = false; }\n";
+        echo "      if (sb) { sb.disabled = false; }\n";
+        echo "    }\n";
+        echo "    require(['core/ajax'], function(ajax) {\n";
+        echo "      ajax.call([{\n";
+        echo "        methodname: 'mod_jitsi_set_jibri_recording',\n";
+        echo "        args: {jitsiid:" . $jitsi->id . ", recording: event['on'] ? 1 : 0},\n";
+        echo "      }]);\n";
+        echo "    });\n";
+        echo "  }\n";
+        echo "  if (event['on'] && event['mode'] == 'stream') {\n";
+        echo "    if (sb) { sb.classList.remove('btn-outline-warning'); sb.classList.add('btn-warning'); sb.disabled = false; }\n";
+        echo "    if (rb) { rb.disabled = true; }\n";
         echo "    document.getElementById('state').innerHTML = ";
         echo "      '<div class=\"alert alert-primary\" role=\"alert\">";
         echo "      <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" fill=\"currentColor\" ";
@@ -962,32 +999,18 @@ function createsession(
         echo "      </svg>";
         echo "      " . addslashes(get_string('sessionisbeingrecorded', 'jitsi'));
         echo "      </div>';";
-        echo "  } else if (event['on'] == false){\n";
-        echo "    console.log(\"No esta grabando\");\n";
-
-        echo "if (document.getElementById(\"recordSwitch\") != null) {\n";
-        echo "    document.getElementById(\"recordSwitch\").checked = false;\n";
-        echo "}\n";
-        echo "    document.getElementById('state').innerHTML = '';";
-        if (has_capability('mod/jitsi:record', $PAGE->context) && $universal == false) {
-            echo "if (document.getElementById(\"recordSwitch\") != null) {\n";
-            echo "  setTimeout(function(){ document.getElementById(\"recordSwitch\").disabled = false }, 5000);\n";
-            echo "}\n";
-        }
+        echo "  } else if (event['on'] == false && event['mode'] == 'stream') {\n";
+        echo "    if (sb) { sb.classList.remove('btn-warning'); sb.classList.add('btn-outline-warning');\n";
+        echo "      setTimeout(function(){ sb.disabled = false; }, 2000); }\n";
+        echo "    if (rb) { setTimeout(function(){ rb.disabled = false; }, 2000); }\n";
+        echo "    document.getElementById('state').innerHTML = '';\n";
         echo "  }\n";
-        echo "  require(['jquery', 'core/ajax', 'core/notification'], function($, ajax, notification) {\n";
+        echo "  require(['jquery', 'core/ajax', 'core/notification'], function(\$, ajax, notification) {\n";
         echo "    ajax.call([{\n";
         echo "      methodname: 'mod_jitsi_state_record',\n";
         echo "      args: {jitsi:" . $jitsi->id . ", state: event['on']},\n";
-        echo "      done: console.log(\"Cambio grabación\"),\n";
         echo "      fail: notification.exception\n";
         echo "    }]);\n";
-        if (has_capability('mod/jitsi:record', $PAGE->context) && $universal == false) {
-            echo "if (document.getElementById(\"recordSwitch\") != null) {\n";
-            echo "  setTimeout(function(){ document.getElementById(\"recordSwitch\").disabled = false }, 5000);\n";
-            echo "}\n";
-        }
-        echo "    console.log(event['on']);\n";
         echo "  })\n";
         echo "});\n";
 
@@ -1091,51 +1114,30 @@ function createsession(
         echo "}\n";
         echo "console.log('el link: '+link);\n";
         echo "api.on('participantLeft', function () {\n";
-        echo "console.log('Participant left');\n";
-        echo "  const numberOfParticipants = api.getNumberOfParticipants();\n";
-        echo "  require(['jquery', 'core/ajax', 'core/notification'], function($, ajax, notification) {\n";
-        echo "      var respuesta = ajax.call([{\n";
-        echo "          methodname: 'mod_jitsi_update_participants',\n";
-        echo "          args: {jitsi:'" . $jitsi->id . "', numberofparticipants:api.getNumberOfParticipants()},\n";
-        echo "          fail: notification.exception\n";
-        echo "      }]);\n";
-        echo "   ;});";
+        echo "  console.log('Participant left');\n";
         echo "});\n";
 
         echo "api.on('participantJoined', function () {\n";
-        echo " console.log('Participant joined');\n";
-        echo "  const numberOfParticipants = api.getNumberOfParticipants();\n";
-        echo "  require(['jquery', 'core/ajax', 'core/notification'], function($, ajax, notification) {\n";
-        echo "      var respuesta = ajax.call([{\n";
-        echo "          methodname: 'mod_jitsi_update_participants',\n";
-        echo "          args: {jitsi:'" . $jitsi->id . "', numberofparticipants:api.getNumberOfParticipants()},\n";
-        echo "          fail: notification.exception\n";
-        echo "      }]);\n";
-        echo "   ;});";
+        echo "  console.log('Participant joined');\n";
         echo "});\n";
 
         echo "api.on('videoConferenceJoined', function () {\n";
-        echo " console.log('Local Participant joined');\n";
-        echo "  const numberOfParticipants = api.getNumberOfParticipants();\n";
-        echo "  require(['jquery', 'core/ajax', 'core/notification'], function($, ajax, notification) {\n";
-        echo "      var respuesta = ajax.call([{\n";
-        echo "          methodname: 'mod_jitsi_update_participants',\n";
-        echo "          args: {jitsi:'" . $jitsi->id . "', numberofparticipants:api.getNumberOfParticipants()},\n";
-        echo "          fail: notification.exception\n";
+        echo "  require(['core/ajax'], function(ajax) {\n";
+        echo "      ajax.call([{\n";
+        echo "          methodname: 'mod_jitsi_presence_join',\n";
+        echo "          args: {jitsiid:" . $jitsi->id . ", sessionhash: jitsiPresenceHash,\n";
+        echo "              guestname: jitsiIsGuest ? jitsiGuestName : ''},\n";
         echo "      }]);\n";
-        echo "   ;});";
+        echo "  });\n";
         echo "});\n";
 
         echo "api.on('videoConferenceLeft', function () {\n";
-        echo " console.log('Local Participant left');\n";
-        echo "  const numberOfParticipants = api.getNumberOfParticipants();\n";
-        echo "  require(['jquery', 'core/ajax', 'core/notification'], function($, ajax, notification) {\n";
-        echo "      var respuesta = ajax.call([{\n";
-        echo "          methodname: 'mod_jitsi_update_participants',\n";
-        echo "          args: {jitsi:'" . $jitsi->id . "', numberofparticipants:api.getNumberOfParticipants()},\n";
-        echo "          fail: notification.exception\n";
+        echo "  require(['core/ajax'], function(ajax) {\n";
+        echo "      ajax.call([{\n";
+        echo "          methodname: 'mod_jitsi_presence_leave',\n";
+        echo "          args: {jitsiid:" . $jitsi->id . ", sessionhash: jitsiPresenceHash},\n";
         echo "      }]);\n";
-        echo "   ;});";
+        echo "  });\n";
         if ($universal == false && $user == null) {
             $redirecturl = $CFG->wwwroot . "/mod/jitsi/view.php?id=" . $cmid;
             echo "  setTimeout(function() { location.href=\"" . $redirecturl . "\"; }, 2000);\n";
@@ -2306,18 +2308,16 @@ function doembedable($idvideo) {
         $listresponse = $youtube->videos->listVideos("status", ['id' => $idvideo]);
         $video = $listresponse[0];
 
-        $videostatus = $video['status'];
+        $videostatus = $video->getStatus();
         if ($videostatus != null) {
-            if ($videostatus['embeddable'] == 0) {
-                $videostatus['embeddable'] = 1;
-                $updateresponse = $youtube->videos->update("status", $video);
-                $source->embed = 1;
-                $DB->update_record('jitsi_source_record', $source);
-            } else if ($videostatus['embeddable'] == 1) {
-                $source->embed = 1;
-                $DB->update_record('jitsi_source_record', $source);
-                $updateresponse = 'Video already embedable';
-            }
+            $updatevideo = new Google_Service_YouTube_Video();
+            $updatevideo->setId($idvideo);
+            $updatestatus = new Google_Service_YouTube_VideoStatus();
+            $updatestatus->setEmbeddable(true);
+            $updatevideo->setStatus($updatestatus);
+            $updateresponse = $youtube->videos->update("status", $updatevideo);
+            $source->embed = 1;
+            $DB->update_record('jitsi_source_record', $source);
         }
     } catch (Google_Service_Exception $e) {
         $record = $DB->get_record('jitsi_record', ['source' => $source->id]);
@@ -2936,4 +2936,266 @@ function jitsi_is_jibri_ready(\stdClass $server): bool {
     }
     // Fallback: legacy field (servers not yet migrated to pool).
     return ($server->jibri_provisioningstatus ?? '') === 'ready';
+}
+
+/**
+ * Render an HTML progress bar showing watched segments of a GCS recording.
+ *
+ * @param array  $segments Array of [start, end] pairs in seconds
+ * @param float  $duration Video duration in seconds
+ * @param string $barid    Optional HTML id for the container div
+ * @return string HTML
+ */
+function jitsi_render_segments_bar(array $segments, float $duration, string $barid = ''): string {
+    $idattr = $barid !== '' ? ' id="' . s($barid) . '"' : '';
+    $html = '<div' . $idattr . ' class="jitsi-segbar"'
+        . ' style="position:relative;height:8px;background:#dee2e6;border-radius:4px;overflow:hidden">';
+    if ($duration > 0) {
+        foreach ($segments as $seg) {
+            if (!is_array($seg) || count($seg) < 2) {
+                continue;
+            }
+            $left  = max(0, min(100, ($seg[0] / $duration) * 100));
+            $width = max(0, min(100 - $left, (($seg[1] - $seg[0]) / $duration) * 100));
+            $html .= '<div style="position:absolute;left:' . number_format($left, 2, '.', '') . '%;'
+                . 'width:' . number_format($width, 2, '.', '') . '%;height:100%;background:#0d6efd"></div>';
+        }
+    }
+    $html .= '</div>';
+    return $html;
+}
+
+/**
+ * Compute total watched percentage from segments.
+ *
+ * @param array $segments Array of [start, end] pairs in seconds
+ * @param float $duration Video duration in seconds
+ * @return int  0–100
+ */
+function jitsi_segments_watched_pct(array $segments, float $duration): int {
+    if ($duration <= 0 || empty($segments)) {
+        return 0;
+    }
+    $watched = 0;
+    foreach ($segments as $seg) {
+        if (is_array($seg) && count($seg) >= 2) {
+            $watched += max(0, (float)$seg[1] - (float)$seg[0]);
+        }
+    }
+    return min(100, (int)round(($watched / $duration) * 100));
+}
+
+/**
+ * Render an aggregate heatmap bar showing which parts of a recording each fraction of viewers watched.
+ * Color intensity is proportional to the share of viewers who watched each time bucket.
+ * Only shown to users with mod/jitsi:viewattendance.
+ *
+ * @param int $sourcerecordid
+ * @param int $cmid
+ * @return string HTML, or empty string if no data
+ */
+/**
+ * Format a number of seconds as a video timestamp (MM:SS or H:MM:SS).
+ *
+ * @param int $seconds
+ * @return string
+ */
+function jitsi_format_video_seconds(int $seconds): string {
+    if ($seconds < 60) {
+        return $seconds . 's';
+    }
+    $h   = intdiv($seconds, 3600);
+    $m   = intdiv($seconds % 3600, 60);
+    $s   = $seconds % 60;
+    $out = '';
+    if ($h > 0) {
+        $out .= $h . 'h ';
+    }
+    if ($m > 0 || $h > 0) {
+        $out .= $m . 'min';
+        if ($s > 0) {
+            $out .= ' ' . $s . 's';
+        }
+    } else {
+        $out .= $s . 's';
+    }
+    return trim($out);
+}
+
+/**
+ * Render an aggregate heatmap bar showing which parts of a recording each fraction of viewers watched.
+ * Color intensity is proportional to the share of viewers who watched each time bucket.
+ * Only shown to users with mod/jitsi:viewattendance.
+ *
+ * @param int $sourcerecordid
+ * @param int $cmid
+ * @return string HTML, or empty string if no data
+ */
+function jitsi_render_heatmap_bar(int $sourcerecordid, int $cmid): string {
+    global $DB;
+
+    $rows = $DB->get_records('jitsi_recording_segments', [
+        'sourcerecordid' => $sourcerecordid,
+        'cmid'           => $cmid,
+    ]);
+
+    if (empty($rows)) {
+        return '';
+    }
+
+    $duration = 0.0;
+    foreach ($rows as $row) {
+        if ((float)$row->duration > $duration) {
+            $duration = (float)$row->duration;
+        }
+    }
+    if ($duration <= 0) {
+        return '';
+    }
+
+    $totalviewers = count($rows);
+    $bucketsize   = 10;
+    $numbuckets   = max(1, (int)ceil($duration / $bucketsize));
+    $buckets      = array_fill(0, $numbuckets, 0);
+
+    foreach ($rows as $row) {
+        $segments = json_decode($row->segments, true);
+        if (!is_array($segments)) {
+            continue;
+        }
+        $covered = array_fill(0, $numbuckets, false);
+        foreach ($segments as $seg) {
+            if (!is_array($seg) || count($seg) < 2) {
+                continue;
+            }
+            $startbucket = max(0, (int)floor((float)$seg[0] / $bucketsize));
+            $endbucket   = min($numbuckets - 1, (int)floor((float)$seg[1] / $bucketsize));
+            for ($b = $startbucket; $b <= $endbucket; $b++) {
+                $covered[$b] = true;
+            }
+        }
+        foreach ($covered as $b => $iscovered) {
+            if ($iscovered) {
+                $buckets[$b]++;
+            }
+        }
+    }
+
+    // Aggregate playcounts across all users.
+    $playtotals = array_fill(0, $numbuckets, 0);
+    $maxplays   = 0;
+    foreach ($rows as $row) {
+        if (empty($row->playcounts)) {
+            continue;
+        }
+        $counts = json_decode($row->playcounts, true);
+        if (!is_array($counts)) {
+            continue;
+        }
+        foreach ($counts as $b => $c) {
+            if ($b < $numbuckets) {
+                $playtotals[$b] += (int)$c;
+                if ($playtotals[$b] > $maxplays) {
+                    $maxplays = $playtotals[$b];
+                }
+            }
+        }
+    }
+
+    // Build viewers-per-bucket map for inline tooltip data.
+    $userids = array_unique(array_map(fn($r) => (int)$r->userid, (array)$rows));
+    $usernames = [];
+    if (!empty($userids)) {
+        [$insql, $inparams] = $DB->get_in_or_equal($userids, SQL_PARAMS_NAMED, 'uid');
+        $namefields = 'id, firstname, lastname, firstnamephonetic, lastnamephonetic, middlename, alternatename';
+        $users = $DB->get_records_sql("SELECT $namefields FROM {user} WHERE id $insql", $inparams);
+        foreach ($users as $u) {
+            $usernames[$u->id] = fullname($u);
+        }
+    }
+
+    $viewersperbucket = [];
+    foreach ($rows as $row) {
+        $segments = json_decode($row->segments, true);
+        if (!is_array($segments)) {
+            continue;
+        }
+        $name = $usernames[(int)$row->userid] ?? '';
+        if ($name === '') {
+            continue;
+        }
+        $covered = array_fill(0, $numbuckets, false);
+        foreach ($segments as $seg) {
+            if (!is_array($seg) || count($seg) < 2) {
+                continue;
+            }
+            $sb = max(0, (int)floor((float)$seg[0] / $bucketsize));
+            $eb = min($numbuckets - 1, (int)floor((float)$seg[1] / $bucketsize));
+            for ($b = $sb; $b <= $eb; $b++) {
+                $covered[$b] = true;
+            }
+        }
+        foreach ($covered as $b => $c) {
+            if ($c) {
+                $viewersperbucket[$b][] = $name;
+            }
+        }
+    }
+
+    $viewerlabel  = get_string('recordingheatmapviewers', 'jitsi', $totalviewers);
+    $viewersjson  = htmlspecialchars(json_encode($viewersperbucket), ENT_QUOTES, 'UTF-8');
+    $html  = '<div class="mt-3">';
+    $html .= '<small class="text-muted d-block mb-1">'
+        . get_string('recordingheatmap', 'jitsi') . ' — ' . $viewerlabel
+        . '</small>';
+
+    $bucketwidth = 100 / $numbuckets;
+
+    // Bar 1: unique viewers (blue) — hover tooltip shows viewer names.
+    $html .= '<div class="jitsi-heatmap mb-1"'
+        . ' data-viewers="' . $viewersjson . '"'
+        . ' data-bucketsize="' . $bucketsize . '"'
+        . ' style="position:relative;height:8px;background:#dee2e6;border-radius:4px;overflow:hidden;cursor:crosshair">';
+    foreach ($buckets as $i => $count) {
+        if ($count === 0) {
+            continue;
+        }
+        $opacity   = number_format($count / $totalviewers, 3, '.', '');
+        $left      = number_format($i * $bucketwidth, 3, '.', '');
+        $width     = number_format($bucketwidth + 0.1, 3, '.', '');
+        $start     = $i * $bucketsize;
+        $end       = $start + $bucketsize;
+        $fmtstart  = jitsi_format_video_seconds($start);
+        $fmtend    = jitsi_format_video_seconds($end);
+        $html     .= '<div data-bucket="' . $i . '" data-start="' . s($fmtstart) . '" data-end="' . s($fmtend) . '"'
+            . ' style="position:absolute;left:' . $left . '%;width:' . $width
+            . '%;height:100%;background:rgba(13,110,253,' . $opacity . ')"></div>';
+    }
+    $html .= '</div>';
+
+    // Bar 2: total plays (orange), only if we have data.
+    if ($maxplays > 0) {
+        $html .= '<small class="text-muted d-block mb-1">'
+            . get_string('recordingheatmapplays', 'jitsi', $maxplays)
+            . '</small>';
+        $html .= '<div class="jitsi-heatmap" style="position:relative;height:8px;'
+            . 'background:#dee2e6;border-radius:4px;overflow:hidden;cursor:default">';
+        foreach ($playtotals as $i => $count) {
+            if ($count === 0) {
+                continue;
+            }
+            $opacity  = number_format($count / $maxplays, 3, '.', '');
+            $left     = number_format($i * $bucketwidth, 3, '.', '');
+            $width    = number_format($bucketwidth + 0.1, 3, '.', '');
+            $start    = $i * $bucketsize;
+            $end      = $start + $bucketsize;
+            $tooltip  = s($count . ' plays · ' . jitsi_format_video_seconds($start) . '–' . jitsi_format_video_seconds($end));
+            $html    .= '<div title="' . $tooltip . '" style="position:absolute;left:' . $left . '%;width:' . $width
+                . '%;height:100%;background:rgba(253,126,20,' . $opacity . ')"></div>';
+        }
+        $html .= '</div>';
+    }
+
+    $html .= '</div>';
+    return $html;
 }

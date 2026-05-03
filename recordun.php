@@ -30,10 +30,9 @@ require_once(dirname(dirname(dirname(__FILE__))) . '/lib/moodlelib.php');
 require_once(dirname(__FILE__) . '/lib.php');
 require_login(0, true);
 
-$token = required_param('t', PARAM_TEXT);
+$token = required_param('t', PARAM_ALPHANUMEXT);
 
-$sql = "select * from {jitsi} where token = '" . $token . "'";
-$jitsi = $DB->get_record_sql($sql);
+$jitsi = $DB->get_record('jitsi', ['token' => $token], '*', MUST_EXIST);
 $module = $DB->get_record('modules', ['name' => 'jitsi']);
 $cm = $DB->get_record('course_modules', ['instance' => $jitsi->id, 'module' => $module->id]);
 $id = $cm->id;

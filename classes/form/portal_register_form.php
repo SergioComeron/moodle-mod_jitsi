@@ -15,20 +15,32 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Defines the version and other meta-info about the plugin
- *
- * Setting the $plugin->version to 0 prevents the plugin from being installed.
- * See https://docs.moodle.org/dev/version.php for more info.
+ * Form for mod_jitsi Account registration.
  *
  * @package    mod_jitsi
- * @copyright  2019 Sergio Comerón Sánchez-Paniagua <sergiocomeron@icloud.com>
+ * @copyright  2026 Sergio Comerón Sánchez-Paniagua <sergiocomeron@icloud.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+namespace mod_jitsi\form;
+
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version = 2026050103;
-$plugin->release = '4.6.8';
-$plugin->requires = 2024100700;
-$plugin->maturity = MATURITY_STABLE;
-$plugin->component = 'mod_jitsi';
+require_once($CFG->libdir . '/formslib.php');
+
+/**
+ * Registration form for mod_jitsi Account portal.
+ */
+class portal_register_form extends \moodleform {
+    /**
+     * Form definition.
+     */
+    public function definition() {
+        $mform = $this->_form;
+        $mform->addElement('text', 'email', get_string('portalemail', 'jitsi'), ['size' => 40]);
+        $mform->setType('email', PARAM_EMAIL);
+        $mform->addRule('email', null, 'required', null, 'client');
+        $mform->addRule('email', null, 'email', null, 'client');
+        $this->add_action_buttons(true, get_string('portalregisterbutton', 'jitsi'));
+    }
+}

@@ -170,10 +170,42 @@ class mod_jitsi_mod_form extends moodleform_mod {
             $mform->setDefault('token', $token);
 
             $urlinvitacion = $CFG->wwwroot . '/mod/jitsi/formuniversal.php?t=' . $token;
-            $mform->addElement('static', 'urltoken', get_string('urlinvitacion', 'jitsi'), $urlinvitacion);
+            $copyurljs = 'navigator.clipboard.writeText(this.dataset.url).then(()=>{'
+                . 'var i=this.querySelector("i");'
+                . 'i.className="fa fa-check fa-lg text-success";'
+                . 'setTimeout(()=>{i.className="fa fa-copy fa-lg";},2000)'
+                . '})';
+            $copyurltitle = s(get_string('copyurl', 'jitsi'));
+            $urldisplay = '<div class="form-group row fitem">'
+                . '<div class="col-md-3 col-form-label d-flex pb-0 pr-md-0">'
+                . get_string('urlinvitacion', 'jitsi')
+                . '</div>'
+                . '<div class="col-md-9 form-inline align-items-start felement">'
+                . '<code class="mr-2" style="word-break:break-all">' . s($urlinvitacion) . '</code>'
+                . '<button type="button" class="btn btn-link p-0 ml-2" '
+                . 'title="' . $copyurltitle . '" '
+                . 'data-url="' . s($urlinvitacion) . '" '
+                . 'onclick="' . s($copyurljs) . '">'
+                . '<i class="fa fa-copy fa-lg" aria-hidden="true"></i>'
+                . '</button>'
+                . '</div></div>';
+            $mform->addElement('html', $urldisplay);
             if (get_config('mod_jitsi', 'sharestream')) {
                 $urlinvitacionrecord = $CFG->wwwroot . '/mod/jitsi/recordun.php?t=' . $token;
-                $mform->addElement('static', 'urltokenrecord', get_string('urlinvitacionrecord', 'jitsi'), $urlinvitacionrecord);
+                $urldisplayrecord = '<div class="form-group row fitem">'
+                    . '<div class="col-md-3 col-form-label d-flex pb-0 pr-md-0">'
+                    . get_string('urlinvitacionrecord', 'jitsi')
+                    . '</div>'
+                    . '<div class="col-md-9 form-inline align-items-start felement">'
+                    . '<code class="mr-2" style="word-break:break-all">' . s($urlinvitacionrecord) . '</code>'
+                    . '<button type="button" class="btn btn-link p-0 ml-2" '
+                    . 'title="' . $copyurltitle . '" '
+                    . 'data-url="' . s($urlinvitacionrecord) . '" '
+                    . 'onclick="' . s($copyurljs) . '">'
+                    . '<i class="fa fa-copy fa-lg" aria-hidden="true"></i>'
+                    . '</button>'
+                    . '</div></div>';
+                $mform->addElement('html', $urldisplayrecord);
             }
             $mform->setType('token', PARAM_TEXT);
         } else {

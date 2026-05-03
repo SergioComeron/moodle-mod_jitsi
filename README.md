@@ -1,109 +1,158 @@
-# Jitsi Meet moodle plugin
-This plugin (**mod_jitsi**) allows teachers **create webconference activities** fully integrated **with Jitsi Meet Servers**.
+# Jitsi Meet Moodle Plugin
 
-**Jitsi Meet** is an open-source videoconferencing solution that enables you to easily build and implement secure video conferencing. If you don't know about Jitsi Meet you can try it at https://meet.jit.si/. Many commercial web conference services are deployed using Jitsi Meet because it is extremely scalable. More information about Jitsi can be found at https://jitsi.org/
+## Table of contents
 
-**Out of the box the plugin works** using the public Jitsi Meet Servers (meet.jit.si). **It's free** and that's the best way to test if this plugin satisfies you. Most of the features in this plugin are available using the public server but probably you'll be restricted to 5 minutes per conference (read more below).
+- [mod_jitsi Account](#mod_jitsi-account)
+- [Permissions](#permissions)
+- [Recording configuration](#recording-configuration)
+- [Dropbox and external recording links](#dropbox-and-external-recording-links)
+- [Private Sessions](#private-sessions)
+- [Token based mode](#token-based-mode)
+- [Recommendations when using public Jitsi servers](#recommendations-when-using-public-jitsi-servers)
+- [Using a Jitsi as a Service Account](#using-a-jitsi-as-a-service-account)
+- [Google Cloud Platform (GCP) Integration - BETA](#google-cloud-platform-gcp-integration---beta)
+- [AI Features for GCS Recordings](#ai-features-for-gcs-recordings)
+- [Attendance Report](#attendance-report)
+- [Session Usage Statistics](#session-usage-statistics)
+- [Disclaimer](#disclaimer)
 
-Stop reading here... try the plugin now in your test Moodle environment and return later to continue reading.
+---
+
+**mod_jitsi** integrates Jitsi Meet videoconferencing into Moodle. To use it in production you need a Jitsi server — the plugin supports three options:
+
+- **GCP auto-managed** — the plugin provisions and manages a complete Jitsi server (including Jibri recording and AI features) in Google Cloud Platform automatically. A Google Cloud account with billing enabled is all you need — no manual server setup required. The simplest way to get a fully-featured setup.
+- **JaaS (8x8)** — hosted service, free up to 25 monthly active users. No infrastructure required. More information at https://jaas.8x8.vc/
+- **Self-hosted** — your own Jitsi Meet server with full control and JWT authentication.
+
+The public server at meet.jit.si can be used for quick testing but restricts sessions to 5 minutes and is not suitable for production.
+
+More information about Jitsi Meet at https://jitsi.org/
 
 ![jitsi-moodle](doc/pix/jitsi-moodle.png)
 
-Glad to see you here again. These are some of the Jitsi features inside Moodle you was able to try:
+Features available in the plugin:
 
 * Schedule webconferences in your course
-* Attendees report accounting minutes
 * Activity completion tracking (conditions related with time attendance)
 * Unlimited participants (limits are imposed mainly by bandwidth in your Jitsi servers)
 * Moodle profile pictures used as avatar in webconference
-* Guest URLs for users in other courses or out of Moodle
+* Guest URLs for users in other courses or outside Moodle
 * **Private 1-on-1 sessions** — call any coursemate directly from their Moodle profile, with call history and instant notification
-* HD Audio Video
-* Multiple participants can share their screen simultaneusly
-* Tile view
-* Break out rooms
-* Chat with emojis
-* Polls
-* Virtual Backgrounds
-* YouTube video sharing... pause, rewind and comment videos with all your students (cool)
-* Full moderation control in order to silence or kickoff students (token based mode recomended... see below)
-* YouTube streaming and **automatic recordings publishing** in your course...  really cool (requires the streaming configuration... see below)
+* HD Audio/Video
+* Multiple participants can share their screen simultaneously
+* Tile view, break-out rooms, chat, polls, virtual backgrounds
+* YouTube video sharing — pause, rewind and comment videos with all your students
+* Full moderation control to silence or remove students (token-based mode recommended — see below)
+* YouTube streaming and **automatic recordings publishing** in your course (requires streaming configuration — see below)
 * **Dropbox recording** with automatic or manual link publishing in the recordings tab
 * **JaaS (8x8) cloud recordings** automatically captured and available for download, expiring after 24 hours
-* and others...
+* **Attendance report** — detailed per-activity report with time-on-session per student, recording view tracking and access log *(requires mod_jitsi Account)*
+* **Recording view tracking** — progress bars showing exactly which parts of each video each student has watched, persisted between sessions *(requires mod_jitsi Account)*
+* **Viewing heatmap** — aggregate bar showing which parts of each recording were watched by what fraction of students, with a second bar tracking replays. Hover to see the viewer list per segment *(requires mod_jitsi Account)*
+* **Course overview** — aggregated dashboard for all Jitsi activities in a course: session stats, student engagement ranking and top recordings by viewers *(requires mod_jitsi Account)*
+* **Session usage statistics** — site-wide aggregated stats (sessions, participants, recordings) with daily breakdown *(requires mod_jitsi Account)*
+
+## mod_jitsi Account
+
+Some features require registering your Moodle installation at the **mod_jitsi Account** portal ([portal.sergiocomeron.com](https://portal.sergiocomeron.com)). Registration is free and takes less than a minute.
+
+> **A note on open source transparency**: since mod_jitsi is open source, anyone can modify the code and bypass the registration requirement — we know that. Registration is not about locking features for commercial reasons. It exists purely so the developer can see which Moodle versions, server types and features are actually used, and focus development where it matters most.
+
+### Features that require registration
+
+| Feature | Description |
+|---------|-------------|
+| Attendance report | Three-tab report: live session attendance with dates, recording views with heatmap, and course overview |
+| Recording view tracking | Progress bars showing which parts of each video each student has watched, persisted between sessions |
+| Viewing heatmap | Aggregate heatmap per recording showing viewer fraction and replay counts per time segment, with hover tooltip listing which students watched each part |
+| Course overview | Aggregated view of all Jitsi activities in the course: sessions, participants, top recordings and student engagement ranking |
+| Session usage statistics | Site-wide aggregated stats with daily breakdown |
+
+### How to register
+
+1. Go to **Site administration > Plugins > Activity modules > Jitsi**
+2. In the **mod_jitsi Account** section at the top, click **Register & enable**
+3. Enter your email address and submit the form
+4. Check your email and complete registration at the portal
+5. Return to the settings page — it will automatically detect your registration and activate the features
+
+### What data is collected
+
+When you register, the following information is stored:
+- Your email address
+- Your Moodle site name and URL
+- An anonymous hash of your site URL (for telemetry)
+
+Once registered, a weekly anonymous ping is automatically sent containing: server type, Moodle version, plugin version, activity count, and which optional features are enabled. No user data, course data or session content is ever sent.
+
+See the [Privacy Policy](https://portal.sergiocomeron.com/privacy.php) for full details.
 
 ## Permissions
 
-These are the permissions populated by default with the plugin.
-
-![](doc/pix/permissions.png)
-
-Most of them are available at the activity level so a teachers can override some default restrictions.
+These are the permissions populated by default with the plugin. Most of them are available at the activity level so teachers can override some default restrictions.
 
 - **Add a new Jitsi** (mod/jitsi:addinstance): allow to create Jitsi activities.
 - **View and copy invite links for guest users** (mod/jitsi:createlink): a teacher could allow students to share the invitation links for guest users.
-- **Delete record** (mod/jitsi:deleterecord): allow to mark a recording as deleted. The recording will be set as private in YouTube.  Recordings marked as deleted will be deleted in YouTube with the scheduled task (\mod_jitsi\task\cron_task_delete) or by the admin from a list. You may want to prevent non-editing teachers from deleting recordings.
+- **Delete record** (mod/jitsi:deleterecord): allow to mark a recording as deleted. The recording will be set as private in YouTube. Recordings marked as deleted will be deleted in YouTube with the scheduled task (\mod_jitsi\task\cron_task_delete) or by the admin from a list. You may want to prevent non-editing teachers from deleting recordings.
 - **Edit record name** (mod/jitsi:editrecordname): allow to rename the title in a recording. You may want to prevent non-editing teachers from renaming recordings.
 - **Hide recordings** (mod/jitsi:hide): allow to hide recordings. You may want to prevent non-editing teachers from hiding recordings.
-- **Jitsi Moderation** (mod/jitsi:moderation): determine who is moderator in sessions. When "Token configuration" is set only users with this rol are promoted as Jitsi moderators and this icon ![image-20220309175303324](doc/pix/moderator_icon.png)is displayed with these users. When "Token configuration" is missing some buttons and features like "mute-everyone" or "kick off participant" are hidden to non moderator user but you must be careful because we are not able to hide all moderation options in scenarios without token configuration and experienced users may be able to bypass these restrictions.
+- **Jitsi Moderation** (mod/jitsi:moderation): determines who is moderator in sessions. When "Token configuration" is set, only users with this capability are promoted as Jitsi moderators and a moderator indicator is displayed next to their name. When "Token configuration" is missing, some buttons and features like "mute-everyone" or "kick off participant" are hidden to non-moderator users, but experienced users may be able to bypass these restrictions.
 - **Record session** (mod/jitsi:record): allow to start recordings. You could create Jitsi Sessions where students could record themselves.
 - **View Jitsi** (mod/jitsi:view): set the users who can see and access Jitsi activities in the course view.
-- **Access to the attendees reports** (mod/jitsi:viewuseronsession): you may want to allow students from access to attendees reports.
+- **Access to the attendees reports** (mod/jitsi:viewusersonsession): allows seeing who is currently in a session. You may want to allow students access to attendees reports.
+- **View recordings** (mod/jitsi:viewrecords): allows access to the Recordings tab. Disable this to hide recordings from specific roles.
+- **View external recording links** (mod/jitsi:viewexternallink): allows viewing externally-linked recordings (Dropbox, 8x8, manual links).
+- **Generate AI summary** (mod/jitsi:generateaisummary): allows generating AI-powered summaries for GCS recordings. Requires AI features to be enabled.
+- **Generate AI quiz** (mod/jitsi:generateaiquiz): allows generating AI-powered quizzes from GCS recordings. Requires AI features to be enabled.
+- **Generate AI transcription** (mod/jitsi:generateaitranscription): allows generating AI transcriptions for GCS recordings. Requires AI features to be enabled.
+- **Access to the attendance report** (mod/jitsi:viewattendance): allows teachers to access the detailed attendance report with recording view tracking. Requires mod_jitsi Account.
 
-## Streaming configuration
+## Recording configuration
 
-"Out of the box" teachers can stream and record sessions using their own YouTube accounts. They just need to create a "Go Live" streaming in YouTube and copy the "stream key"  in the "Start  live stream" Jitsi interface and later the teacher can publish the link to the recording in his YouTube channel. That's easy but maybe your teachers haven't YouTube accounts or these are not allowed to stream (YouTube must approve this feature).
+The plugin supports several recording methods. Choose the one that best fits your infrastructure.
 
-For a better experience you can configure the plugin to stream and record in corporate YouTube accounts that previously you prepare to work in that way and your teachers just need to click in the "Record and Streaming" switch.
+### GCP auto-managed with Jibri (recommended)
 
-![record-switch](doc/pix/record-switch.png)
+The most integrated recording option. When using a **GCP auto-managed server** (Type 3), the plugin automatically provisions a dedicated **Jibri** recording VM alongside the Jitsi server. Recordings are saved directly to **Google Cloud Storage (GCS)** and published automatically in the activity's Recordings tab — no YouTube account or manual intervention required.
 
-With this advance configuration, recordings will be automatically published to students and teacher can edit the title of every recording. One Jitsi activity can have many recordings.
+This method also unlocks **AI features** (summary, quiz, transcription) powered by Google Vertex AI (Gemini), since recordings are stored in GCS.
 
-Recordings will remain on "unlisted" mode in the YouTube accounts so nobody will find them searching in YouTube but there is no way to stop your students from posting the url somewhere unwanted. Your teachers should be warned about it.
+To use this method, set up a GCP auto-managed server (see the GCP section below). Recording and AI features are enabled automatically once Jibri is provisioned.
 
-![recordings](doc/pix/recordings.png)
+### YouTube Moodle-integrated
 
-Teachers can hide or deleted the recordings in the Jitsi activities but only administrators can order to completely delete the recording in YouTube. This is because backup and restore tasks with user data could cause a recording to be available in different courses (or different Moodle environments). Now an scheduled task is configured by default in order to  remove recordings in YouTube. You can set the retention period for this automatic deletion task.
+Configure the plugin to record sessions to corporate YouTube accounts. Teachers just need to click the **Record and Streaming** switch — recordings are automatically published as unlisted videos and embedded in the activity's Recordings tab. One Jitsi activity can have many recordings.
 
-All the magic works using **YouTube v3 APIs** in order to:
+Recordings are stored as unlisted videos in YouTube. Teachers can hide or delete recordings from the activity; only administrators can permanently delete them from YouTube. A scheduled task handles automatic deletion based on a configurable retention period.
 
+This method uses **YouTube v3 APIs** to:
 - create live streaming sessions on the fly
-- set recordings with "embed" properties to display inside Moodle
-- delete recordings when they are no longer needed
+- embed recordings inside Moodle
+- delete recordings when no longer needed
 
-So you need to configure your own OAuth 2.0 Client IDs in the Google Cloud Platform and connect one or more YouTube accounts. 
+**Note**: recordings remain unlisted on YouTube but there is no way to prevent students from sharing the URL externally. Teachers should be aware of this.
 
-Only ONE YouTube account can be set as "in use", and all the streamings in your Moodle will be saved there. 
+Multiple YouTube accounts can be configured — only one is active at a time, but having extras available is useful if YouTube restricts a specific account.
 
-Why it's allowed to set up several YouTube accounts? YouTube is unpredictable and we don't know if in the future they could establish quotas for "unlisted" videos or if in some moment they decide to restrict your Live Stream permission caused for reputation problems in some teacher recording (a teacher doesn't should stream Rolling Stones concerts). If  this happens, it is a good idea to have some extra accounts set up... just in case.
+#### Set up your OAuth 2.0 Client ID in Google Cloud
 
-### Set up your OAuth 2.0 Client ID in Google Cloud
+1. Prepare one or more YouTube accounts with live streaming enabled (requires phone verification and a 24-hour wait)
+2. Create a project in [Google Cloud Console](https://console.cloud.google.com) and enable the **YouTube Data API v3**
+3. Create OAuth 2.0 credentials for a **Web application**, adding the redirect URI shown in the Jitsi plugin settings (e.g. `https://your_moodle_domain/mod/jitsi/auth.php`)
+4. In the OAuth consent screen, add the Google accounts associated with your YouTube channels as **authorised users**. Google calls these "Test users" — despite the name, this is the correct setup for production use when you only need a limited set of known accounts. You do not need to publish the app publicly.
+5. Copy the **Client ID** and **Client Secret** to the Jitsi plugin settings in Moodle
+6. In Moodle, add and authorise your Streaming/Recording Accounts
+7. Enable **Live stream** and select **Moodle Integrated** as the Live Streaming Method
 
-We recommend to use different Google accounts for your OAuth2 client and for your YouTube accounts. If you are just testing you can use the same account.
+**Note on app status**: Google's "Testing" status means only the accounts you explicitly added can authorise the app, and tokens expire every 7 days — requiring periodic re-authorisation in Moodle. To avoid token expiry, either publish the app (Google may require verification depending on scopes) or use the Google Workspace internal mode described below.
 
-On few steps... you must
+**Google Workspace users**: set the "User type" in the OAuth consent screen to **INTERNAL** — no authorised users need to be added and tokens never expire. This is the recommended setup if your institution uses Google Workspace.
 
-- prepare one or two YouTube accounts with live streaming features enabled (requires register a phone and wait for 24 hours)
-- create a new project in Google Console (https://console.cloud.google.com)
-- access to "APIs and services" and enable "youtube data api v3"
-- create OAuth2 credentials for a "Web application" adding the "Authorized redirect URIs" you will find in the Jitsi configuration plugin in the "OAuth2 id" instructions... (something like this **`https://your_moodle_domain/mod/jitsi/auth.php`** )
-- add your YouTube accounts as "Test users" in the "OAuth2 consent screen"
-- Copy "Your Client ID" and "Your Client Secret" to Jitsi config in Moodle
-- In Moodle add and authorize your Streaming/Recording Accounts (YouTube accounts)
-- In Moodle enable "Live stream" and select "Moodle Integrated" as "Live Streaming Method"
+**Important**: never delete the OAuth credentials in Google Cloud — doing so will remove all recordings from the associated YouTube accounts.
 
-At this moment you have set up an EXTERNAL app in "Testing" and now you can try if everything is working as expected.
+### YouTube manual (teacher's own account)
 
-We have recorded a screencast with the "how to":
-
-https://youtu.be/BFHMsQYDprA
-
-You should consider to get the status of "Publish App"  because in "Testing", authorizations expire in 7 days and the integrated switch to start recordings will disappear. In that case, as an administrator you should re-authorize your  Streaming/Recording YouTube account. You should read about the limitations when "Testing" status. https://support.google.com/cloud/answer/10311615#publishing-status&zippy=%2Ctesting.
-
-**IMPORTANT**: if your institution has **Google Workspace the "User type" in the "OAuth consent screen" can be "INTERNAL"**. In this way, none "Test users" are required to be added and tokens will never expire. **Probably that's the easiest and fastest way to set up this and you don't need to request the "Publish App"**.
-
-**WARNING**: the credentials should never been deleted in the Google console because all the recordings done will be removed in all the YouTube accounts.
+Teachers can also stream using their own personal YouTube accounts by creating a "Go Live" stream and copying the stream key into the Jitsi interface. The recording link must then be published manually. This requires no plugin configuration but each teacher needs their own YouTube account with live streaming enabled.
 
 ## Dropbox and external recording links
 
@@ -129,7 +178,7 @@ If Dropbox is configured in the plugin settings (**App Key** and **Redirect URI*
 - After the session, the teacher gets the share link from their Dropbox account.
 - In the activity's Recordings tab, the teacher pastes the link using the **"Add recording link"** form.
 
-> Jitsi events (`recordingLinkAvailable`, `recordingStatusChanged`) always fire with the JaaS CDN link (`8x8.vc`), never with the Dropbox URL — so Dropbox links cannot be captured automatically.
+> When using Dropbox recording, Jitsi fires `recordingStatusChanged` when the recording stops, but the Dropbox URL is not included — it is generated asynchronously by Dropbox after the upload completes. This is why Dropbox links cannot be captured automatically and must be published manually.
 
 #### Dropbox configuration
 
@@ -199,13 +248,11 @@ Go to **Site administration > Plugins > Activity modules > Jitsi** and enable th
 
 If you decide to deploy this plugin in production you may would like to install your private Jitsi Meet server with "Token based" mode. This configuration will give you extra control with the moderation privileges.
 
-Jitsi Meet deployment servers can be complex and is beyond the scope of this article but you can review our ansible playbook ([ansible-jitsi-meet](https://github.com/udima-university/ansible-jitsi-meet)).
-
-Alternatively you could explore on buying Jitsi Meet as a service with some provider (ie: https://jaas.8x8.vc) with an important discount for Moodle users (read more below).
+Jitsi Meet deployment servers can be complex and is beyond the scope of this article. You could explore buying Jitsi Meet as a service with some provider (ie: https://jaas.8x8.vc) with an important discount for Moodle users (read more below).
 
 Many Governmental Education Institutions deploy their own Jitsi servers to be used by their schools or universities... you could ask them if they provide Jitsi token credentials for this configuration.
 
-Basically the token configuration send your teachers (or roles with the mod/jitsi:moderation enabled) as moderators in a Jitsi session in a secure mode and only they are allowed to mute participants, disable cameras or kick-off participants.
+The token configuration sends users with the `mod/jitsi:moderation` capability as moderators in a Jitsi session — only they are allowed to mute participants, disable cameras or remove participants.
 
 ### Required plugin for JWT moderation on self-hosted servers
 
@@ -217,13 +264,9 @@ This plugin is not required for **8x8 JaaS** (Type 2) or **GCP auto-managed** (T
 
 ## Recommendations when using public Jitsi servers
 
-As we said "out of the box", the plugin connects with the public servers at meet.jit.si but there many other public Jitsi Meet servers... just make some search with Google or look at the [Community-run instances list](https://jitsi.github.io/handbook/docs/community/community-instances/).  You should test other servers in order to be able change in case of a disruption service or maybe because you find a public server nearest to your users and with less latency.
+The plugin connects by default with the public server at meet.jit.si. There are many other public Jitsi Meet servers — search Google or look at the [Community-run instances list](https://jitsi.github.io/handbook/docs/community/community-instances/). Testing alternative servers is a good idea in case of service disruption or to find one closer to your users.
 
-## Important announcement from meet.jit.si team
-
-The **meet.jit.si** team recently announced that the embed mode, required by our plugin, **is now restricted and they only allow to use it for 5 minutes on every conference**, but this is enough in order to test if this fits to you. You can [read about this announcement here](https://community.jitsi.org/t/important-embedding-meet-jit-si-in-your-web-app-will-no-longer-be-supported-please-use-jaas/). We would like to thank them for providing such a good service for so many years without restrictions, which helped many schools to continue their activities during the Covid pandemic.
-
-**Jitsi is Open Source** and you can **install your own Jitsi Server** or **rent the service from https://jaas.8x8.vc/**, which is **free up to 25 unique monthly active users**. Read more about it [here](https://jaas.8x8.vc/#/pricing). Probably you could find other unofficial sites providing professional hosting for Jitsi, but 8x8 is the company which supports the Jitsi project and buying their services is the best way to support the project in order to guarantee its future.
+Bear in mind that meet.jit.si restricts embed mode to **5 minutes per conference**. For production use, you need a **GCP auto-managed server** provisioned by this plugin, a **JaaS (8x8) account** (free up to 25 monthly active users — [pricing](https://jaas.8x8.vc/#/pricing)), or a **self-hosted Jitsi server**. 8x8 is the company behind the Jitsi project and using their service is one way to support its future.
 
 ## Using a Jitsi as a Service Account
 
@@ -253,14 +296,6 @@ This plugin includes **experimental support** for automatically creating and man
 - Automatic Let's Encrypt SSL certificate provisioning
 
 **⚠️ This feature is in BETA testing**. Use it in production environments with caution.
-
-### Current Limitations
-
-**Recording not yet supported**: GCP auto-managed servers do not currently support recording or live streaming functionality. For recording features, please use:
-- Self-hosted servers (Type 1) with Jibri installed
-- 8x8 JaaS servers (Type 2)
-
-Recording support for GCP auto-managed servers is planned for future releases.
 
 ### Prerequisites
 
@@ -521,6 +556,48 @@ The plugin's `privacy/provider.php` declares:
 - The `jitsi_source_record` database table storing AI-generated outputs.
 
 For a full list of data exported and deleted per user, see the Moodle Privacy API integration in `classes/privacy/provider.php`.
+
+## Attendance Report
+
+The attendance report (`mod/jitsi:viewattendance`) provides teachers with a detailed breakdown of student participation in each Jitsi activity. It is accessible from the activity's secondary navigation and is organised into three tabs.
+
+### Tab 1 — Live sessions
+
+Shows all-time attendance for the activity with no date filter:
+
+- **Student table** — sessions entered, total minutes, average time per session and all dates attended (with exact connection times once the nightly cron has run)
+- **Export** — download the table in CSV, Excel or other formats
+
+### Tab 2 — Recordings
+
+Shows recording engagement for the selected date range:
+
+- **Viewing heatmap** — two aggregate bars per recording: unique viewers (blue) and total replays (orange), with a 10-second bucket resolution. Hover over any blue bucket to see exactly which students watched that segment.
+- **Per-student progress bars** — individual segment bars showing what percentage of each recording each student has watched
+- **Recording access log** — for non-embeddable recordings (8x8, external links): a log of when each student clicked to open the recording
+- **Date filter** — narrow the data to a specific period
+
+### Tab 3 — Course overview
+
+Aggregated view across all Jitsi activities in the course:
+
+- **Activity overview** — sessions, unique participants, total minutes and recordings per activity
+- **Student engagement ranking** — students ranked by total session minutes, with recording starts
+- **Top recordings** — recordings with the most unique viewers across the course
+
+### Requirements
+
+- The `mod/jitsi:viewattendance` capability (granted to teachers by default)
+- A registered mod_jitsi Account
+- The `aggregate_usage_stats` scheduled task must have run at least once for the live sessions data to be available (data is pre-computed nightly)
+
+## Session Usage Statistics
+
+The session usage statistics page (`/mod/jitsi/sessionusagestats.php`) provides site administrators with an aggregated view of Jitsi usage across the entire Moodle site.
+
+Stats are pre-computed nightly by the `aggregate_usage_stats` scheduled task and include daily breakdowns of sessions, unique participants, total minutes and recordings. A live report can also be generated directly from the activity log.
+
+Requires a registered mod_jitsi Account.
 
 ## Disclaimer
 

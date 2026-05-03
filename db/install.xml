@@ -154,6 +154,26 @@
         <INDEX NAME="userid" UNIQUE="false" FIELDS="userid"/>
       </INDEXES>
     </TABLE>
+    <TABLE NAME="jitsi_usage_daily" COMMENT="Precomputed daily usage aggregates for statistics page">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="daykey" TYPE="int" LENGTH="8" NOTNULL="true" SEQUENCE="false" COMMENT="Date as YYYYMMDD integer"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="cmid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Course module ID of the jitsi activity"/>
+        <FIELD NAME="courseid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="categoryid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="sessions" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="minutes" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="times" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="JSON array of enter timestamps for this user on this day"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="daykey_userid_cmid" UNIQUE="true" FIELDS="daykey, userid, cmid"/>
+        <INDEX NAME="daykey" UNIQUE="false" FIELDS="daykey"/>
+      </INDEXES>
+    </TABLE>
     <TABLE NAME="jitsi_tutoring_schedule" COMMENT="Tutoring availability schedule for private sessions">
       <FIELDS>
         <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
@@ -170,6 +190,45 @@
       </KEYS>
       <INDEXES>
         <INDEX NAME="userid_courseid" UNIQUE="false" FIELDS="userid, courseid"/>
+      </INDEXES>
+    </TABLE>
+    <TABLE NAME="jitsi_recording_segments" COMMENT="Watched video segments per user per GCS recording">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="sourcerecordid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="cmid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="segments" TYPE="text" NOTNULL="true" SEQUENCE="false" COMMENT="JSON array of [start,end] pairs in seconds"/>
+        <FIELD NAME="playcounts" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="JSON array of int play counts per 10s bucket"/>
+        <FIELD NAME="duration" TYPE="number" LENGTH="10" DECIMALS="3" NOTNULL="false" SEQUENCE="false" COMMENT="Video duration in seconds"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="userid_sourcerecordid_cmid" UNIQUE="true" FIELDS="userid, sourcerecordid, cmid"/>
+        <INDEX NAME="sourcerecordid_cmid" UNIQUE="false" FIELDS="sourcerecordid, cmid"/>
+      </INDEXES>
+    </TABLE>
+    <TABLE NAME="jitsi_presence" COMMENT="Real-time presence of participants in jitsi sessions">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="jitsiid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="0 for guests"/>
+        <FIELD NAME="sessionhash" TYPE="char" LENGTH="64" NOTNULL="true" SEQUENCE="false" COMMENT="Unique hash per browser session"/>
+        <FIELD NAME="guestname" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false" COMMENT="Display name for guests"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="jitsiid" TYPE="foreign" FIELDS="jitsiid" REFTABLE="jitsi" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="jitsiid_sessionhash" UNIQUE="true" FIELDS="jitsiid, sessionhash"/>
+        <INDEX NAME="timemodified" UNIQUE="false" FIELDS="timemodified"/>
       </INDEXES>
     </TABLE>
   </TABLES>

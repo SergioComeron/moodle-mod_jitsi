@@ -1,3 +1,19 @@
+{{!
+    @template mod_jitsi/mobile_session_view_page_ionic5
+
+    Session view for Moodle Mobile app (Ionic 5).
+
+    Example context (exported from linting):
+    {
+        "jitsi_domain": "meet.jit.si",
+        "room": "course-session",
+        "jwt": "",
+        "displayName": "userInfo.displayName=\"John Doe\"",
+        "config": "&config.startWithAudioMuted=true",
+        "interface_config": "",
+        "is_desktop": false
+    }
+}}
 {{=<% %>=}}
 <div style="height: 85vh; width: 100%;">
     <iframe allow="camera; microphone; fullscreen; display-capture; autoplay" src="https://<%jitsi_domain%>/<%room%>?<%jwt%>#<%displayName%>&jitsi_meet_external_api_id=0<%config%><%interface_config%>" style="height: 100%; width: 100%;"></iframe>

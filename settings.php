@@ -28,12 +28,15 @@ global $DB, $CFG, $PAGE;
 if ($ADMIN->fulltree) {
     require_once($CFG->dirroot . '/mod/jitsi/lib.php');
 
-    $link = new moodle_url('/mod/jitsi/servermanagement.php');
+    $link          = new moodle_url('/mod/jitsi/servermanagement.php');
+    $linkusagestats = new moodle_url('/mod/jitsi/sessionusagestats.php');
     $settings->add(
         new admin_setting_heading(
             'mod_jitsi/servermanagementlink',
             get_string('servermanagement', 'jitsi'),
             html_writer::link($link, get_string('servermanagementdesc', 'jitsi'))
+            . ' &nbsp;·&nbsp; '
+            . html_writer::link($linkusagestats, get_string('sessionusagestats', 'jitsi'))
         )
     );
 
@@ -58,13 +61,102 @@ if ($ADMIN->fulltree) {
         }
     }
 
-    $linkusagestats = new moodle_url('/mod/jitsi/sessionusagestats.php');
+    // Portal registration (mod_jitsi Account) shown at top of settings.
+    $portalstatus  = get_config('mod_jitsi', 'portal_status');
+    $portalemail   = get_config('mod_jitsi', 'portal_email');
+    $licensekey    = get_config('mod_jitsi', 'portal_license_key');
+
+    // If pending, try to fetch license key from portal now (avoid waiting for cron).
+    if (!$licensekey && $portalstatus === 'pending') {
+        $sitehash = hash('sha256', $CFG->wwwroot);
+        $ch = curl_init('https://portal.sergiocomeron.com/validate.php');
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => json_encode(['site_hash' => $sitehash]),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 3,
+            CURLOPT_TIMEOUT        => 5,
+            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+        ]);
+        $vresp = curl_exec($ch);
+        curl_close($ch);
+        $vdata = json_decode($vresp, true);
+        if (!empty($vdata['ok']) && !empty($vdata['license_key'])) {
+            set_config('portal_license_key', $vdata['license_key'], 'mod_jitsi');
+            set_config('portal_status', 'active', 'mod_jitsi');
+            $licensekey   = $vdata['license_key'];
+            $portalstatus = 'active';
+        }
+    }
+    $unregisterurl = new moodle_url(
+        '/mod/jitsi/portal_action.php',
+        ['action' => 'unregister', 'sesskey' => sesskey()]
+    );
+
+    $unregisterconfirm = get_string('portalunregisterconfirm', 'jitsi');
+
+    if ($licensekey) {
+        $statushtml = html_writer::div(
+            html_writer::tag('strong', '✅ ' . get_string('portalstatusactive', 'jitsi')) .
+            html_writer::empty_tag('br') .
+            get_string('portalstatusactivedesc', 'jitsi', $portalemail) .
+            html_writer::empty_tag('br') . html_writer::empty_tag('br') .
+            html_writer::link(
+                $unregisterurl,
+                get_string('portalunregisterlink', 'jitsi'),
+                [
+                    'class'   => 'btn btn-sm btn-outline-secondary',
+                    'onclick' => 'return confirm(' . json_encode($unregisterconfirm) . ')',
+                ]
+            ),
+            'alert alert-success mt-2'
+        );
+    } else if ($portalstatus === 'pending') {
+        $resendurl  = new moodle_url(
+            '/mod/jitsi/portal_action.php',
+            ['action' => 'resend', 'sesskey' => sesskey()]
+        );
+        $statushtml = html_writer::div(
+            html_writer::tag('strong', '⏳ ' . get_string('portalstatuspending', 'jitsi')) .
+            html_writer::empty_tag('br') .
+            get_string('portalstatuspendingdesc', 'jitsi', $portalemail) .
+            html_writer::empty_tag('br') . html_writer::empty_tag('br') .
+            html_writer::link(
+                $resendurl,
+                get_string('portalresendemail', 'jitsi'),
+                ['class' => 'btn btn-sm btn-outline-primary']
+            ) . ' ' .
+            html_writer::link(
+                $unregisterurl,
+                get_string('portalunregisterlink', 'jitsi'),
+                [
+                    'class'   => 'btn btn-sm btn-outline-secondary',
+                    'onclick' => 'return confirm(' . json_encode($unregisterconfirm) . ')',
+                ]
+            ),
+            'alert alert-warning mt-2'
+        );
+    } else {
+        $registerurl = new moodle_url('/mod/jitsi/portal_register.php');
+        $statushtml  = html_writer::div(
+            html_writer::tag('strong', '💡 ' . get_string('telemetrynudgetitle', 'jitsi')) .
+            html_writer::empty_tag('br') .
+            get_string('telemetrynudge', 'jitsi') .
+            html_writer::empty_tag('br') . html_writer::empty_tag('br') .
+            html_writer::link(
+                $registerurl,
+                get_string('portalregisterbutton', 'jitsi'),
+                ['class' => 'btn btn-primary']
+            ),
+            'alert alert-info mt-2'
+        );
+    }
+
     $settings->add(
         new admin_setting_heading(
-            'mod_jitsi/sessionusagestats',
-            '',
-            '<a href=' . $linkusagestats . ' >' . get_string('sessionusagestats', 'jitsi') . '</a>'
-            . ' <span class="text-muted small">(' . get_string('sessionusagestatsslow', 'jitsi') . ')</span>'
+            'jitsitelemetryheading',
+            get_string('portalheading', 'jitsi'),
+            get_string('portalheadingex', 'jitsi') . $statushtml
         )
     );
 
@@ -118,6 +210,15 @@ if ($ADMIN->fulltree) {
             get_string('invitebutton', 'jitsi'),
             get_string('invitebuttonex', 'jitsi'),
             1,
+        ),
+    );
+
+    $settings->add(
+        new admin_setting_configcheckbox(
+            'mod_jitsi/inviteemail',
+            get_string('inviteemail', 'jitsi'),
+            get_string('inviteemailex', 'jitsi'),
+            0,
         ),
     );
 

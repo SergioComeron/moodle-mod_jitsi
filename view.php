@@ -30,59 +30,6 @@ require_once(dirname(__FILE__) . '/lib.php');
 require_once('view_table.php');
 require_once($CFG->libdir . '/formslib.php');
 
-/**
- * Form to Search for an Attendee’s Minutes on a Specific Day .
- *
- * @package   mod_jitsi
- * @copyright  2024 Sergio Comerón Sánchez-Paniagua <info@sergiocomeron.com>
- * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
-class datesearchattendees_form extends moodleform {
-    /**
-     * Defines forms elements
-     */
-    public function definition() {
-        $mform = $this->_form;
-
-        // Campo oculto para el ID del curso.
-        $mform->addElement('hidden', 'id', $this->_customdata['id']);
-        $mform->setType('id', PARAM_INT);
-        $mform->addElement('hidden', 'sesskey', sesskey());
-        $mform->setType('sesskey', PARAM_RAW);
-        $mform->addElement('hidden', 'generateusersconnected', 1);
-        $mform->setType('generateusersconnected', PARAM_BOOL);
-        $mform->addElement('hidden', 'tab', 'attendees');
-        $mform->setType('tab', PARAM_TEXT);
-
-        // Selector de fecha (solo día) para la búsqueda.
-        $defaultdate = [
-            'year' => date('Y'),
-            'month' => date('n'),
-            'day' => date('j'),
-        ];
-        $mform->addElement('date_selector', 'selecteddate', get_string('selectdate', 'jitsi'), [
-            'defaulttime' => $defaultdate,
-        ]);
-        $mform->setType('selecteddate', PARAM_INT);
-
-        // Botón de envío.
-        $buttonarray = [];
-        $buttonarray[] = $mform->createElement('submit', 'submitbutton', get_string('search', 'jitsi'));
-        $mform->addGroup($buttonarray, 'buttonar', '', ' ', false);
-    }
-
-    /**
-     * Validate data
-     *
-     * @param array $data Data to validate
-     * @param array $files Array of files
-     * @return array Errors found
-     */
-    public function validation($data, $files) {
-        // Validación personalizada si se necesita.
-        return [];
-    }
-}
 // Allow CORS requests.
 header('Access-Control-Allow-Origin: *');
 
@@ -98,7 +45,7 @@ $addrecordlink = optional_param('addrecordlink', 0, PARAM_INT);
 $editrecordid = optional_param('editrecordid', 0, PARAM_INT);
 $saverecordedit = optional_param('saverecordedit', 0, PARAM_INT);
 $selecteddate = optional_param_array('selecteddate', 0, PARAM_INT);
-$tab = optional_param('tab', 'help', PARAM_TEXT);
+$tab = optional_param('tab', 'session', PARAM_TEXT);
 $activetab = $tab;
 
 if (
@@ -318,6 +265,15 @@ if ($saverecordedit && !$errorborrado && confirm_sesskey()) {
     }
 }
 
+if (has_capability('mod/jitsi:viewattendance', $PAGE->context)) {
+    $reporturl = new moodle_url('/mod/jitsi/attendancereport.php', ['id' => $id]);
+    $PAGE->secondarynav->add(
+        get_string('attendancereport', 'jitsi'),
+        $reporturl,
+        \core\navigation\views\secondary::TYPE_SETTING
+    );
+}
+
 if (!$deletejitsirecordid) {
     echo $OUTPUT->header();
 }
@@ -335,21 +291,12 @@ if ($CFG->branch == 311) {
 
 $contextmodule = context_module::instance($cm->id);
 
-$sqllastparticipating = 'select timecreated from {logstore_standard_log} where contextid = '
-    . $contextmodule->id . ' and (action = \'participating\' or action = \'enter\') order by timecreated DESC limit 1';
-$usersconnected = $DB->get_record_sql($sqllastparticipating);
-if ($usersconnected != null) {
-    if ((getdate()[0] - $usersconnected->timecreated) > 72) {
-        $jitsi->numberofparticipants = 0;
-        $DB->update_record('jitsi', $jitsi);
-    }
-}
-if ($usersconnected != null) {
-    if ($jitsi->numberofparticipants == 0 && (getdate()[0] - $usersconnected->timecreated) > 72) {
-        $jitsi->sourcerecord = null;
-        $DB->update_record('jitsi', $jitsi);
-    }
-}
+$presencethreshold = time() - 90;
+$presencecount = (int)$DB->count_records_select(
+    'jitsi_presence',
+    'jitsiid = :jitsiid AND timemodified > :threshold',
+    ['jitsiid' => $jitsi->id, 'threshold' => $presencethreshold]
+);
 if ($errorborrado) {
     echo "<div class=\"alert alert-danger\" role=\"alert\">";
 
@@ -358,371 +305,450 @@ if ($errorborrado) {
     echo $OUTPUT->footer();
     die();
 }
-echo " ";
-echo "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" fill=\"currentColor\"
-     class=\"bi bi-person-workspace\" viewBox=\"0 0 16 16\">";
-echo "<path d=\"M4 16s-1 0-1-1 1-4 5-4 5 3 5 4-1 1-1 1H4Zm4-5.95a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z\"/>";
-echo "<path d=\"M2 1a2 2 0 0 0-2 2v9.5A1.5 1.5 0 0 0 1.5 14h.653a5.373 5.373 0 0 1 1.066-2H1V3a1 1 0 0 1 1-1h12a1 1 0 0 1
-     1 1v9h-2.219c.554.654.89 1.373 1.066 2h.653a1.5 1.5 0 0 0 1.5-1.5V3a2 2 0 0 0-2-2H2Z\"/>";
-echo "</svg>";
-echo (" " . $jitsi->numberofparticipants . " " . get_string('connectedattendeesnow', 'jitsi'));
-echo "<p></p>";
+$sqlrecords = 'SELECT r.id FROM {jitsi_record} r
+    JOIN {jitsi_source_record} s ON s.id = r.source
+    WHERE r.jitsi = :jitsiid AND r.deleted = 0
+    AND (s.timeexpires = 0 OR s.timeexpires > :now)';
+$recordsparams = ['jitsiid' => $jitsiid, 'now' => time()];
+$records = $DB->record_exists_sql($sqlrecords, $recordsparams);
+$hasvisiblerecords = $DB->record_exists_sql($sqlrecords . ' AND r.visible = 1', $recordsparams);
+
+$bstoggle = ($CFG->branch >= 500) ? 'data-bs-toggle' : 'data-toggle';
+
+echo '<ul class="nav nav-tabs" id="myTab" role="tablist">';
+echo '<li class="nav-item">';
+echo '<a class="nav-link ' . ($activetab == 'session' ? 'active' : '') . '" id="session-tab"'
+    . ' ' . $bstoggle . '="tab" href="#session" role="tab" aria-controls="session"'
+    . ' aria-selected="' . ($activetab == 'session' ? 'true' : 'false') . '">'
+    . get_string('session', 'jitsi') . '</a>';
+echo '</li>';
+
+if (has_capability('mod/jitsi:viewrecords', $PAGE->context) || has_capability('mod/jitsi:record', $PAGE->context)) {
+    if (
+        $hasvisiblerecords ||
+        has_capability('mod/jitsi:record', $PAGE->context) ||
+        get_config('mod_jitsi', 'streamingoption') == 1
+    ) {
+        echo '<li class="nav-item">';
+        echo '<a class="nav-link ' . ($activetab == 'record' ? 'active' : '') . '" id="record-tab"'
+            . ' ' . $bstoggle . '="tab" href="#record" role="tab" aria-controls="record"'
+            . ' aria-selected="' . ($activetab == 'record' ? 'true' : 'false') . '">'
+            . get_string('records', 'jitsi') . '</a>';
+        echo '</li>';
+    }
+}
+echo '</ul>';
+
+echo '<div class="tab-content" id="myTabContent">';
+echo '<div class="tab-pane fade ' . ($activetab == 'session' ? 'show active' : '')
+    . '" id="session" role="tabpanel" aria-labelledby="session-tab">';
+
+// Build initial presence user list from DB.
+$presenceusers = [];
+if ($presencecount > 0) {
+    $presencerows = $DB->get_records_select(
+        'jitsi_presence',
+        'jitsiid = :jitsiid AND timemodified > :threshold',
+        ['jitsiid' => $jitsi->id, 'threshold' => $presencethreshold],
+        'userid DESC'
+    );
+    foreach ($presencerows as $presencerow) {
+        if ($presencerow->userid > 0) {
+            $userfields = 'id,firstname,lastname,firstnamephonetic,lastnamephonetic,middlename,alternatename';
+            $presenceuser = $DB->get_record('user', ['id' => $presencerow->userid], $userfields);
+            $presenceusers[] = [
+                'name' => $presenceuser ? fullname($presenceuser) : get_string('unknownuser', 'error'),
+                'userid' => (int)$presencerow->userid,
+                'isguest' => 0,
+            ];
+        } else {
+            $presenceusers[] = [
+                'name' => $presencerow->guestname ?: get_string('guest'),
+                'userid' => 0,
+                'isguest' => 1,
+            ];
+        }
+    }
+}
+
+// Metrics — centered, above card.
+echo html_writer::start_div('d-flex justify-content-center gap-5 mt-3 mb-3');
+echo html_writer::start_div('text-center');
+echo '<div class="dropdown d-inline-block">';
+echo '<button class="border-0 bg-transparent p-0 dropdown-toggle" id="jitsi-presence-btn"'
+    . ' ' . $bstoggle . '="dropdown" aria-expanded="false">';
+echo '<span id="jitsi-presence-count" class="h4 mb-0 fw-bold">' . $presencecount . '</span>';
+echo '</button>';
+echo '<ul class="dropdown-menu" id="jitsi-presence-list" aria-labelledby="jitsi-presence-btn">';
+if (empty($presenceusers)) {
+    echo '<li><span class="dropdown-item-text text-muted">' . get_string('noconnectedusers', 'jitsi') . '</span></li>';
+} else {
+    foreach ($presenceusers as $presenceitem) {
+        if ($presenceitem['isguest']) {
+            echo '<li><span class="dropdown-item-text">'
+                . '<i class="fa fa-user-secret text-muted me-1"></i>'
+                . s($presenceitem['name'])
+                . '</span></li>';
+        } else {
+            $profileurl = new moodle_url('/user/view.php', ['id' => $presenceitem['userid'], 'course' => $jitsi->course]);
+            echo '<li><a class="dropdown-item" href="' . $profileurl . '" target="_blank">'
+                . s($presenceitem['name'])
+                . '</a></li>';
+        }
+    }
+}
+echo '</ul>';
+echo '</div>';
+echo html_writer::tag('div', get_string('connectedattendeesnow', 'jitsi'), ['class' => 'text-muted small']);
+echo html_writer::end_div();
+echo html_writer::start_div('text-center');
+echo html_writer::tag('div', getminutes($id, $USER->id), ['class' => 'h4 mb-0 fw-bold']);
+echo html_writer::tag('div', get_string('totaluserminutes', 'jitsi'), ['class' => 'text-muted small']);
+echo html_writer::end_div();
+echo html_writer::end_div();
+
+$nousers = get_string('noconnectedusers', 'jitsi');
+$wwwroot = $CFG->wwwroot;
+$courseid = (int)$jitsi->course;
+$PAGE->requires->js_amd_inline("
+require(['core/ajax'], function(ajax) {
+    setInterval(function() {
+        ajax.call([{
+            methodname: 'mod_jitsi_get_presence_users',
+            args: {jitsiid: " . $jitsi->id . "}
+        }])[0].then(function(users) {
+            var countEl = document.getElementById('jitsi-presence-count');
+            var listEl = document.getElementById('jitsi-presence-list');
+            if (countEl) { countEl.textContent = users.length; }
+            if (listEl) {
+                listEl.innerHTML = '';
+                if (users.length === 0) {
+                    var li = document.createElement('li');
+                    var span = document.createElement('span');
+                    span.className = 'dropdown-item-text text-muted';
+                    span.textContent = " . json_encode($nousers) . ";
+                    li.appendChild(span);
+                    listEl.appendChild(li);
+                } else {
+                    users.forEach(function(u) {
+                        var li = document.createElement('li');
+                        if (u.isguest) {
+                            var span = document.createElement('span');
+                            span.className = 'dropdown-item-text';
+                            var icon = document.createElement('i');
+                            icon.className = 'fa fa-user-secret text-muted me-1';
+                            span.appendChild(icon);
+                            span.appendChild(document.createTextNode(u.name));
+                            li.appendChild(span);
+                        } else {
+                            var a = document.createElement('a');
+                            a.className = 'dropdown-item';
+                            var base = " . json_encode($wwwroot) . ";
+                            a.href = base + '/user/view.php?id=' + u.userid + '&course=' + " . $courseid . ";
+                            a.target = '_blank';
+                            a.textContent = u.name;
+                            li.appendChild(a);
+                        }
+                        listEl.appendChild(li);
+                    });
+                }
+            }
+        });
+    }, 15000);
+});
+");
+
+// Badges — centered, above card.
+echo html_writer::start_div('text-center mb-2');
 if ($jitsi->sessionwithtoken) {
-    echo "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" fill=\"currentColor\"
-        class=\"bi bi-share\" viewBox=\"0 0 16 16\">";
-    echo "<path d=\"M13.5 1a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM11 2.5a2.5 2.5 0 1 1 .603 1.628l-6.718 3.12a2.499 2.499 0 0 1
-        0 1.504l6.718 3.12a2.5 2.5 0 1 1-.488.876l-6.718-3.12a2.5 2.5 0 1 1 0-3.256l6.718-3.12A2.5 2.5 0 0 1 11 2.5zm-8.5 4a1.5
-        1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm11 5.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z\"/>";
-    echo "</svg> ";
     $sql = "select * from {jitsi} where tokeninterno = '" . $jitsi->tokeninvitacion . "'";
     $jitsimaster = $DB->get_record_sql($sql);
     $coursemaster = $DB->get_record('course', ['id' => $jitsimaster->course]);
-    echo get_string('sessionshared', 'jitsi', $coursemaster->shortname);
-    echo "<p></p>";
+    echo html_writer::tag(
+        'span',
+        '🔗 ' . get_string('sessionshared', 'jitsi', $coursemaster->shortname),
+        ['class' => 'badge bg-secondary me-2']
+    );
 }
-
 if ($jitsi->sourcerecord != null) {
     $source = $DB->get_record('jitsi_source_record', ['id' => $jitsi->sourcerecord]);
     if ($source) {
         $author = $DB->get_record('user', ['id' => $source->userid]);
         if ($author) {
-            echo "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" fill=\"red\"
-                class=\"bi bi-record-circle\" viewBox=\"0 0 16 16\">";
-            echo "<path d=\"M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z\"/>";
-            echo "<path d=\"M11 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0z\"/>";
-            echo "</svg> ";
-            echo addslashes(get_string('sessionisbeingrecordingby', 'jitsi', $author->firstname . " " . $author->lastname));
+            echo html_writer::tag(
+                'span',
+                '<i class="fa fa-circle me-1"></i>' . get_string('sessionisbeingrecordingby', 'jitsi', fullname($author)),
+                ['class' => 'badge bg-danger me-1']
+            );
         } else {
-            // Source exists but author doesn't, clean up the reference.
             $jitsi->sourcerecord = null;
             $DB->update_record('jitsi', $jitsi);
         }
     } else {
-        // Source record doesn't exist, clean up the reference.
         $jitsi->sourcerecord = null;
         $DB->update_record('jitsi', $jitsi);
     }
 }
-echo "<p></p>";
-echo get_string('minutesconnected', 'jitsi', getminutes($id, $USER->id));
+$jibrirecording = ($jitsi->status === 'recording');
+$jibribadgeclass = 'badge bg-danger me-1' . ($jibrirecording ? '' : ' d-none');
+echo html_writer::tag(
+    'span',
+    '<i class="fa fa-circle me-1"></i>' . get_string('sessionisbeingrecorded', 'jitsi'),
+    ['class' => $jibribadgeclass, 'id' => 'jitsi-jibri-badge']
+);
+echo html_writer::end_div();
 
-if ($CFG->branch <= 311) {
-    if ($jitsi->intro) {
-        echo $OUTPUT->box(format_module_intro('jitsi', $jitsi, $cm->id), 'generalbox mod_introbox', 'jitsiintro');
-    }
+$PAGE->requires->js_amd_inline("
+require(['core/ajax'], function(ajax) {
+    setInterval(function() {
+        ajax.call([{
+            methodname: 'mod_jitsi_get_jibri_recording',
+            args: {jitsiid: " . $jitsi->id . "}
+        }])[0].then(function(recording) {
+            var badge = document.getElementById('jitsi-jibri-badge');
+            if (badge) {
+                if (recording) {
+                    badge.classList.remove('d-none');
+                } else {
+                    badge.classList.add('d-none');
+                }
+            }
+        });
+    }, 15000);
+});
+");
+
+if ($CFG->branch <= 311 && $jitsi->intro) {
+    echo html_writer::div(
+        format_module_intro('jitsi', $jitsi, $cm->id),
+        'generalbox mod_introbox mb-3',
+        ['id' => 'jitsiintro']
+    );
 }
 
+// Centered card with avatar, name and join button.
 $fechacierre = $jitsi->timeclose;
 $fechainicio = $jitsi->timeopen;
-
 if ($jitsi->sessionwithtoken == 1) {
     $fechacierre = $jitsiinvitado->timeclose;
     $fechainicio = $jitsiinvitado->timeopen;
 }
 
+echo html_writer::start_div('d-flex justify-content-center mb-4');
+echo html_writer::start_div('card shadow-sm', ['style' => 'max-width:420px;width:100%']);
+echo html_writer::start_div('card-body p-4 text-center');
+$avatar = $CFG->wwwroot . '/user/pix.php/' . $USER->id . '/f1.jpg';
+echo html_writer::empty_tag('img', [
+    'src'   => s($avatar),
+    'class' => 'rounded-circle mb-2',
+    'style' => 'width:64px;height:64px;object-fit:cover',
+    'alt'   => s(fullname($USER)),
+]);
+echo html_writer::tag('p', s(fullname($USER)), ['class' => 'fw-semibold mb-3']);
 if ($today[0] < $fechacierre || $fechacierre == 0) {
     if (
-        $today[0] > (($fechainicio)) ||
-        has_capability('mod/jitsi:moderation', $context) && $today[0] > (($jitsi->timeopen) - ($jitsi->minpretime * 60))
+        $today[0] > $fechainicio ||
+        has_capability('mod/jitsi:moderation', $context) && $today[0] > ($jitsi->timeopen - ($jitsi->minpretime * 60))
     ) {
-        echo "<br><br>";
         $button = new moodle_url('/mod/jitsi/session.php', $urlparams);
-        $options = [
-            'class' => 'btn btn-primary',
-            'title' => get_string('access', 'jitsi'),
-        ];
-        $boton = \html_writer::link($button, get_string('access', 'jitsi'), $options);
-        echo $boton;
+        echo html_writer::link(
+            $button,
+            get_string('access', 'jitsi'),
+            [
+                'class'      => 'btn btn-primary btn-lg w-100',
+                'aria-label' => get_string('accesssessionlabel', 'jitsi', $jitsi->name),
+            ]
+        );
     } else {
-        echo $OUTPUT->box(get_string('nostart', 'jitsi', userdate($jitsi->timeopen)));
+        echo $OUTPUT->notification(get_string('nostart', 'jitsi', userdate($jitsi->timeopen)), 'info');
     }
 } else {
-    echo $OUTPUT->box(get_string('finish', 'jitsi'));
+    echo $OUTPUT->notification(get_string('finish', 'jitsi'), 'warning');
 }
+echo html_writer::end_div();
+echo html_writer::end_div();
+echo html_writer::end_div();
 
-echo "<br><br>";
-
-$sql = 'SELECT r.* FROM {jitsi_record} r
-        JOIN {jitsi_source_record} s ON s.id = r.source
-        WHERE r.jitsi = ' . $jitsiid . ' AND r.deleted = 0
-        AND (s.timeexpires = 0 OR s.timeexpires > ' . time() . ')
-        ORDER BY r.id DESC';
-$records = $DB->get_records_sql($sql);
-
-if (has_capability('mod/jitsi:viewusersonsession', $PAGE->context)) {
-    $sqlusersconnected = 'SELECT DISTINCT userid FROM {logstore_standard_log}
-    WHERE contextid = :contextid AND action = \'participating\'';
-    $params = ['contextid' => $contextmodule->id];
-    $usersconnected = $DB->get_records_sql($sqlusersconnected, $params);
-}
-
-echo "<ul class=\"nav nav-tabs\" id=\"myTab\" role=\"tablist\">";
-
-    echo "  <li class=\"nav-item\">";
-    echo "    <a class=\"nav-link " . ($activetab == 'help' ? 'active' : '') .
-        "\" id=\"help-tab\" " . ($CFG->branch >= 500 ? 'data-bs-toggle' : 'data-toggle') . "=\"tab\" href=\"#help\"
-         role=\"tab\" aria-controls=\"help\" aria-selected=\"" .
-         ($activetab == 'help' ? 'true' : 'false') . "\">" . get_string('help') . "</a>";
-    echo "  </li>";
-
-if (has_capability('mod/jitsi:viewrecords', $PAGE->context) || has_capability('mod/jitsi:record', $PAGE->context)) {
-    if (
-        ($records && isallvisible($records)) ||
-        has_capability('mod/jitsi:record', $PAGE->context) ||
-        get_config('mod_jitsi', 'streamingoption') == 1
-    ) {
-        echo "  <li class=\"nav-item\">";
-        echo "    <a class=\"nav-link " . ($activetab == 'record' ? 'active' : '') .
-            "\" id=\"record-tab\" " . ($CFG->branch >= 500 ? 'data-bs-toggle' : 'data-toggle') . "=\"tab\" href=\"#record\"
-            role=\"tab\" aria-controls=\"record\" aria-selected=\"" .
-            ($activetab == 'record' ? 'true' : 'false') . "\">" . get_string('records', 'jitsi') . "</a>";
-        echo "  </li>";
-    }
-}
-
-if (has_capability('mod/jitsi:viewusersonsession', $PAGE->context)) {
-    if ($usersconnected) {
-        echo "  <li class=\"nav-item\">";
-        echo "    <a class=\"nav-link " . ($activetab == 'attendees' ? 'active' : '') .
-            "\" id=\"attendees-tab\" " . ($CFG->branch >= 500 ? 'data-bs-toggle' : 'data-toggle') . "=\"tab\" href=\"#attendees\"
-            role=\"tab\" aria-controls=\"attendees\" aria-selected=\"" .
-            ($activetab == 'attendees' ? 'true' : 'false') . "\">" .
-            get_string('attendeesreport', 'jitsi') . "</a>";
-        echo "  </li>";
-    }
-}
-
-echo "</ul>";
-
-echo "<div class=\"tab-content\" id=\"myTabContent\">";
-    echo "  <div class=\"tab-pane fade " .
-    ($activetab == 'help' ? 'show active' : '') .
-    "\" id=\"help\" role=\"tabpanel\" aria-labelledby=\"help-tab\">";
+// Help text below the card.
 if (get_config('mod_jitsi', 'help') != null) {
-    echo "  <br>";
+    echo '<br>';
     echo get_config('mod_jitsi', 'help');
 } else {
-    echo "  <br>";
+    echo '<br>';
     echo $OUTPUT->box(get_string('instruction', 'jitsi'));
 }
-echo "  </div>";
+
+if (get_config('mod_jitsi', 'inviteemail') == 1 && has_capability('mod/jitsi:createlink', $context)) {
+    $sendinvurl = new moodle_url('/mod/jitsi/sendinvitation.php', ['id' => $id]);
+    echo html_writer::start_div('text-center mt-3');
+    echo html_writer::link(
+        $sendinvurl,
+        '<i class="fa fa-envelope mr-1" aria-hidden="true"></i>' . get_string('sendinvitation', 'jitsi'),
+        ['class' => 'btn btn-outline-secondary btn-sm']
+    );
+    echo html_writer::end_div();
+}
+
+echo '</div>';
 
 if (has_capability('mod/jitsi:viewrecords', $PAGE->context) || has_capability('mod/jitsi:record', $PAGE->context)) {
     echo "  <div class=\"tab-pane fade " . ($activetab == 'record' ? 'show active' : '') .
         "\" id=\"record\" role=\"tabpanel\" aria-labelledby=\"record-tab\">";
-    if (has_capability('mod/jitsi:viewrecords', $PAGE->context)) {
-        if ($records) {
-            $table = new mod_view_table('search');
-            $fields = '{jitsi_record}.id,
-                       {jitsi_source_record}.link,
-                       {jitsi_source_record}.type,
-                       {jitsi_record}.jitsi,
-                       {jitsi_record}.name,
-                       {jitsi_source_record}.timecreated';
-            $from = '{jitsi_record}, {jitsi_source_record}';
-            $where = '{jitsi_record}.source = {jitsi_source_record}.id AND
-                      {jitsi_record}.jitsi = ' . $jitsiid . ' and
-                      {jitsi_record}.deleted = 0';
-            if (!has_capability('mod/jitsi:hide', $context)) {
-                $where .= ' AND {jitsi_record}.visible = 1';
+    echo "<div id=\"jitsi-recordings-content\"></div>";
+    echo "  </div>";
+
+    $recordingstaburl = (new moodle_url('/mod/jitsi/recordingstab.php', [
+        'id'           => $id,
+        'editrecordid' => $editrecordid,
+    ]))->out(false);
+
+    $PAGE->requires->js_amd_inline("
+        require(['core/first'], function() {
+            var container = document.getElementById('jitsi-recordings-content');
+            var loaded = false;
+
+            function initDropboxToggle() {
+                var urlInput = document.getElementById('recordingurl');
+                if (!urlInput) { return; }
+                urlInput.addEventListener('input', function() {
+                    var isDropbox = this.value.indexOf('dropbox.com') !== -1;
+                    var embedOpt = document.getElementById('dropboxembedoption');
+                    if (embedOpt) { embedOpt.style.display = isDropbox ? 'block' : 'none'; }
+                    var embedChk = document.getElementById('embedrecording');
+                    if (embedChk && !isDropbox) { embedChk.checked = false; }
+                });
             }
-            $params = ['jitsiid' => $jitsi->id];
-            $table->set_sql($fields, $from, $where, $params);
-            $table->sortable(true, 'id', SORT_DESC);
-            $table->define_baseurl('/mod/jitsi/view.php?id=' . $id . '&tab=record');
-            $table->out(5, true);
-        } else {
-            echo "<br>";
-            echo get_string('norecords', 'jitsi');
-        }
-    }
-    if (has_capability('mod/jitsi:record', $PAGE->context)) {
-        echo "<br><hr>";
-        if ($editrecordid) {
-            $editrecord = $DB->get_record('jitsi_record', ['id' => $editrecordid]);
-            $editsource = $editrecord ? $DB->get_record('jitsi_source_record', ['id' => $editrecord->source]) : null;
-        }
-        if ($editrecordid && !empty($editrecord) && !empty($editsource) && $editsource->type == 1) {
-            echo "<h5>" . get_string('editrecordinglink', 'jitsi') . "</h5>";
-            echo "<form method=\"post\" action=\"" . (new moodle_url('/mod/jitsi/view.php', ['id' => $id]))->out(false) . "\">";
-            echo "<input type=\"hidden\" name=\"sesskey\" value=\"" . sesskey() . "\">";
-            echo "<input type=\"hidden\" name=\"tab\" value=\"record\">";
-            echo "<input type=\"hidden\" name=\"editingrecordid\" value=\"" . $editrecordid . "\">";
-            echo "<div class=\"mb-3\">";
-            echo "<label for=\"recordingurl\" class=\"form-label\">" . get_string('recordingurl', 'jitsi') . "</label>";
-            echo "<input type=\"url\" class=\"form-control\" id=\"recordingurl\" name=\"recordingurl\""
-                . " value=\"" . s($editsource->link) . "\" required>";
-            echo "</div>";
-            echo "<div class=\"mb-3\" id=\"dropboxembedoption\""
-                . (strpos($editsource->link, 'dropbox.com') !== false ? '' : ' style="display:none"') . ">";
-            echo "<div class=\"form-check\">";
-            echo "<input class=\"form-check-input\" type=\"checkbox\" id=\"embedrecording\" name=\"embedrecording\" value=\"1\""
-                . (!empty($editsource->embed) ? ' checked' : '') . ">";
-            echo "<label class=\"form-check-label\" for=\"embedrecording\">"
-                . get_string('dropboxembedrecording', 'jitsi') . "</label>";
-            echo "</div>";
-            echo "<div class=\"form-text text-warning mt-1\">" . get_string('dropboxembedwarning', 'jitsi') . "</div>";
-            echo "</div>";
-            echo "<div class=\"mb-3\">";
-            echo "<label for=\"recordingname\" class=\"form-label\">" . get_string('recordingname', 'jitsi') . "</label>";
-            echo "<input type=\"text\" class=\"form-control\" id=\"recordingname\" name=\"recordingname\""
-                . " value=\"" . s($editrecord->name) . "\">";
-            echo "</div>";
-            echo "<button type=\"submit\" name=\"saverecordedit\" value=\"1\" class=\"btn btn-primary\">";
-            echo get_string('savechanges');
-            echo "</button> ";
-            $cancelurl = new moodle_url('/mod/jitsi/view.php', ['id' => $id, 'tab' => 'record']);
-            echo "<a href=\"" . $cancelurl->out(false) . "\" class=\"btn btn-secondary\">" . get_string('cancel') . "</a>";
-            echo "</form><br>";
-        } else {
-            echo "<h5>" . get_string('addrecordinglink', 'jitsi') . "</h5>";
-            echo "<form method=\"post\" action=\"" . (new moodle_url('/mod/jitsi/view.php', ['id' => $id]))->out(false) . "\">";
-            echo "<input type=\"hidden\" name=\"sesskey\" value=\"" . sesskey() . "\">";
-            echo "<input type=\"hidden\" name=\"tab\" value=\"record\">";
-            echo "<div class=\"mb-3\">";
-            echo "<label for=\"recordingurl\" class=\"form-label\">" . get_string('recordingurl', 'jitsi') . "</label>";
-            echo "<input type=\"url\" class=\"form-control\" id=\"recordingurl\" name=\"recordingurl\" required>";
-            echo "</div>";
-            echo "<div class=\"mb-3\" id=\"dropboxembedoption\" style=\"display:none\">";
-            echo "<div class=\"form-check\">";
-            echo "<input class=\"form-check-input\" type=\"checkbox\" id=\"embedrecording\" name=\"embedrecording\" value=\"1\">";
-            echo "<label class=\"form-check-label\" for=\"embedrecording\">"
-                . get_string('dropboxembedrecording', 'jitsi') . "</label>";
-            echo "</div>";
-            echo "<div class=\"form-text text-warning mt-1\">" . get_string('dropboxembedwarning', 'jitsi') . "</div>";
-            echo "</div>";
-            echo "<div class=\"mb-3\">";
-            echo "<label for=\"recordingname\" class=\"form-label\">" . get_string('recordingname', 'jitsi') . "</label>";
-            echo "<input type=\"text\" class=\"form-control\" id=\"recordingname\" name=\"recordingname\">";
-            echo "</div>";
-            echo "<button type=\"submit\" name=\"addrecordlink\" value=\"1\" class=\"btn btn-secondary\">";
-            echo get_string('addrecordinglink', 'jitsi');
-            echo "</button>";
-            echo "</form><br>";
-        }
-        echo "<script>
-        document.getElementById('recordingurl').addEventListener('input', function() {
-            var isDropbox = this.value.indexOf('dropbox.com') !== -1;
-            document.getElementById('dropboxembedoption').style.display = isDropbox ? 'block' : 'none';
-            if (!isDropbox) {
-                document.getElementById('embedrecording').checked = false;
+
+            function loadRecordings() {
+                if (loaded) { return; }
+                loaded = true;
+                container.innerHTML = '<div class=\"text-center p-3\">' +
+                    '<div class=\"spinner-border\" role=\"status\"></div></div>';
+                var params = new URLSearchParams(window.location.search);
+                params.delete('tab');
+                var url = " . json_encode($recordingstaburl) . ";
+                var sep = url.indexOf('?') === -1 ? '?' : '&';
+                var extra = params.toString();
+                if (extra) { url += sep + extra; }
+                fetch(url, {credentials: 'same-origin'})
+                    .then(function(r) { return r.text(); })
+                    .then(function(html) {
+                        container.innerHTML = html;
+                        initDropboxToggle();
+                        // Notify Moodle that new content has been added so
+                        // components like inplace_editable can re-initialise.
+                        require(['core/inplace_editable'], function() {});
+                    });
+            }
+
+            var recordPane = document.getElementById('record');
+            if (recordPane && recordPane.classList.contains('active')) {
+                loadRecordings();
+            }
+
+            var recordPaneObs = document.getElementById('record');
+            if (recordPaneObs) {
+                var observer = new MutationObserver(function(mutations) {
+                    for (var i = 0; i < mutations.length; i++) {
+                        if (mutations[i].attributeName === 'class' &&
+                                recordPaneObs.classList.contains('active')) {
+                            observer.disconnect();
+                            loadRecordings();
+                            break;
+                        }
+                    }
+                });
+                observer.observe(recordPaneObs, {attributes: true, attributeFilter: ['class']});
             }
         });
-        </script>";
-    }
-    echo "  </div>";
+    ");
 }
 
-    echo "  <div class=\"tab-pane fade " . ($activetab == 'attendees' ? 'show active' : '') .
-        "\" id=\"attendees\" role=\"tabpanel\" aria-labelledby=\"attendees-tab\">";
-    echo "<br>";
-
-    $form = new datesearchattendees_form(null, ['id' => $id]);
-    $form->display();
-
-if (has_capability('mod/jitsi:viewusersonsession', $PAGE->context)) {
-    $generateusersconnected = optional_param('generateusersconnected', 0, PARAM_BOOL);
-    if ($generateusersconnected && confirm_sesskey()) {
-        require_sesskey();
-        $sqlusersconnected = 'SELECT DISTINCT userid FROM {logstore_standard_log}
-                              WHERE contextid = :contextid AND action = \'participating\'';
-        $params = ['contextid' => $contextmodule->id];
-        $usersconnected = $DB->get_records_sql($sqlusersconnected, $params);
-
-        $table = new html_table();
-        $table->head = [
-            get_string('name'),
-            get_string('minutesday', 'jitsi') . ': ' . userdate($selecteddate, '%A %d %B %Y'),
-            get_string('totalminutes', 'jitsi'),
-        ];
-        $table->data = [];
-
-        if ($usersconnected) {
-            $userids = [];
-            foreach ($usersconnected as $userconnected) {
-                if ($userconnected->userid != 0) {
-                    $userids[] = $userconnected->userid;
-                }
-            }
-
-            $users = $DB->get_records_list('user', 'id', $userids);
-            foreach ($users as $user) {
-                $urluser = new moodle_url('/user/profile.php', ['id' => $user->id]);
-                $table->data[] = [
-                    html_writer::link(
-                        $urluser,
-                        fullname($user),
-                        [
-                            'data-toggle' => 'tooltip',
-                            'data-placement' => 'top',
-                            'title' => $user->username,
-                        ]
-                    ),
-                        getminutesdates($id, $user->id, $selecteddate, $selecteddate + DAYSECS),
-                        getminutes($id, $user->id),
-                ];
-            }
-
-            echo html_writer::table($table);
-        }
-    }
-}
-
-    echo "  </div>";
 
 echo "</div>";
 
 echo "<hr>";
 
-// JS for AI buttons (summary + quiz).
+// JS for AI dropdown + transcript timestamps.
 $PAGE->requires->strings_for_js(
-    ['aisummarygenerating', 'aisummaryqueued', 'aisummaryerror', 'aiquizgenerating', 'aiquizqueued', 'aiquizerror'],
-    'jitsi'
+    ['aisummaryqueued', 'aiquizqueued', 'aitranscriptionqueued', 'aigdprnoticetitle'],
+    'mod_jitsi'
 );
-$PAGE->requires->js_amd_inline("
+if (get_config('mod_jitsi', 'aienabled')) {
+    $gdprregion = get_config('mod_jitsi', 'vertexairegion') ?: 'us-central1';
+    $gdprbody   = json_encode('<p>' . get_string('aigdprnotice', 'jitsi', s($gdprregion)) . '</p>');
+    $PAGE->requires->js_amd_inline("
 require(['core/ajax', 'core/notification'], function(Ajax, Notification) {
-    function handleAiBtn(btn, methodname, statusClass, generatingStr, failStr) {
-        var sourcerecordid = parseInt(btn.dataset.sourcerecordid, 10);
-        var cmid = parseInt(btn.dataset.cmid, 10);
-        var status = btn.parentNode.querySelector('.' + statusClass);
-        btn.disabled = true;
-        if (status) { status.style.display = ''; status.textContent = M.util.get_string(generatingStr, 'mod_jitsi'); }
+
+    var gdprBody = $gdprbody;
+    var queuedMap = {
+        'mod_jitsi_queue_ai_summary':       'aisummaryqueued',
+        'mod_jitsi_queue_ai_quiz':          'aiquizqueued',
+        'mod_jitsi_queue_ai_transcription': 'aitranscriptionqueued'
+    };
+
+    function executeAction(action) {
+        action.el.classList.add('disabled');
         Ajax.call([{
-            methodname: methodname,
-            args: {sourcerecordid: sourcerecordid, cmid: cmid},
+            methodname: action.methodname,
+            args: {sourcerecordid: action.sourcerecordid, cmid: action.cmid},
             done: function(result) {
-                if (status) { status.textContent = result.message; }
-                if (!result.success) { btn.disabled = false; }
+                if (result.success) {
+                    action.el.textContent =
+                        M.util.get_string(queuedMap[action.methodname], 'mod_jitsi');
+                } else {
+                    action.el.classList.remove('disabled');
+                }
             },
             fail: function(ex) {
                 Notification.exception(ex);
-                btn.disabled = false;
-                if (status) { status.textContent = ''; }
+                action.el.classList.remove('disabled');
             }
         }]);
     }
+
+    function showGdprModal(action) {
+        // Load modal modules lazily so a load error doesn't break the click handler.
+        require(['core/modal_factory', 'core/modal_events'],
+            function(ModalFactory, ModalEvents) {
+                ModalFactory.create({
+                    type:  ModalFactory.types.SAVE_CANCEL,
+                    title: M.util.get_string('aigdprnoticetitle', 'mod_jitsi'),
+                    body:  gdprBody
+                }).done(function(modal) {
+                    modal.setSaveButtonText(M.util.get_string('confirm', 'core'));
+                    var root = modal.getRoot();
+                    root.on(ModalEvents.save, function() {
+                        modal.destroy();
+                        executeAction(action);
+                    });
+                    root.on(ModalEvents.cancel, function() { modal.destroy(); });
+                    modal.show();
+                });
+            },
+            function() {
+                // Fallback: native browser confirm if modal modules unavailable.
+                var plainText = gdprBody.replace(/<[^>]+>/g, '');
+                if (window.confirm(plainText)) {
+                    executeAction(action);
+                }
+            }
+        );
+    }
+
     document.addEventListener('click', function(e) {
-        var summaryBtn = e.target.closest('.jitsi-ai-summary-btn');
-        if (summaryBtn) {
+        var generateItem = e.target.closest('.jitsi-ai-generate');
+        if (generateItem) {
             e.preventDefault();
-            handleAiBtn(summaryBtn, 'mod_jitsi_queue_ai_summary',
-                'jitsi-ai-summary-status', 'aisummarygenerating', 'aisummaryerror');
+            showGdprModal({
+                methodname:     generateItem.dataset.method,
+                sourcerecordid: parseInt(generateItem.dataset.sourcerecordid, 10),
+                cmid:           parseInt(generateItem.dataset.cmid, 10),
+                el:             generateItem
+            });
             return;
         }
-        var quizBtn = e.target.closest('.jitsi-ai-quiz-btn');
-        if (quizBtn) {
-            e.preventDefault();
-            handleAiBtn(quizBtn, 'mod_jitsi_queue_ai_quiz',
-                'jitsi-ai-quiz-status', 'aiquizgenerating', 'aiquizerror');
-            return;
-        }
-        var transcriptionBtn = e.target.closest('.jitsi-ai-transcription-btn');
-        if (transcriptionBtn) {
-            e.preventDefault();
-            handleAiBtn(transcriptionBtn, 'mod_jitsi_queue_ai_transcription',
-                'jitsi-ai-transcription-status', 'aitranscriptiongenerating', 'aitranscriptionerror');
-            return;
-        }
+
         var tsLink = e.target.closest('.jitsi-transcript-ts');
         if (tsLink) {
             e.preventDefault();
@@ -735,6 +761,209 @@ require(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                 video.scrollIntoView({behavior: 'smooth', block: 'center'});
             }
         }
+    });
+});
+");
+}
+
+// Track GCS recording views with real segment tracking.
+$PAGE->requires->js_amd_inline("
+require(['core/ajax'], function(Ajax) {
+    var trackers     = {};
+    var linkClicked  = {};
+
+    function mergeSegments(segs) {
+        if (!segs.length) { return []; }
+        var sorted = segs.slice().sort(function(a, b) { return a[0] - b[0]; });
+        var merged = [sorted[0].slice()];
+        for (var i = 1; i < sorted.length; i++) {
+            var last = merged[merged.length - 1];
+            if (sorted[i][0] <= last[1]) {
+                last[1] = Math.max(last[1], sorted[i][1]);
+            } else {
+                merged.push(sorted[i].slice());
+            }
+        }
+        return merged;
+    }
+
+    function updateBar(sourcerecordid, segments, duration) {
+        var bar   = document.getElementById('jitsi-segbar-' + sourcerecordid);
+        var label = document.getElementById('jitsi-segbar-pct-' + sourcerecordid);
+        if (!bar || !duration) { return; }
+        var html = '';
+        var watched = 0;
+        segments.forEach(function(seg) {
+            var left  = (seg[0] / duration) * 100;
+            var width = ((seg[1] - seg[0]) / duration) * 100;
+            watched  += seg[1] - seg[0];
+            html += '<div style=\"position:absolute;left:' + left.toFixed(2)
+                + '%;width:' + width.toFixed(2)
+                + '%;height:100%;background:#0d6efd\"></div>';
+        });
+        bar.innerHTML = html;
+        if (label) {
+            label.textContent = Math.min(100, Math.round((watched / duration) * 100)) + '%';
+        }
+    }
+
+    function getDuration(video, t) {
+        var d = video.duration;
+        return (d && isFinite(d)) ? d : (t.duration || 0);
+    }
+
+    function saveSegments(video) {
+        var key = video.dataset.sourcerecordid + '_' + video.dataset.cmid;
+        var t = trackers[key];
+        var dur = getDuration(video, t);
+        if (!t || !t.segments.length || !dur) { return; }
+        var merged        = mergeSegments(t.segments.slice());
+        var sessionMerged = mergeSegments(t.sessionSegs.slice());
+        t.sessionSegs = [];
+        Ajax.call([{
+            methodname: 'mod_jitsi_save_recording_segments',
+            args: {
+                sourcerecordid:  parseInt(video.dataset.sourcerecordid, 10),
+                cmid:            parseInt(video.dataset.cmid, 10),
+                segments:        JSON.stringify(merged),
+                duration:        dur,
+                session_segments: JSON.stringify(sessionMerged)
+            }
+        }])[0].then(function(result) {
+            if (result.success && result.segments) {
+                t.segments = JSON.parse(result.segments);
+                updateBar(video.dataset.sourcerecordid, t.segments, getDuration(video, t));
+            }
+        });
+    }
+
+    function setupTracking(video) {
+        var key = video.dataset.sourcerecordid + '_' + video.dataset.cmid;
+        if (trackers[key]) { return; }
+        // Seed existing segments from the server-rendered bar so the bar
+        // stays accurate during playback without waiting for the next save.
+        var wrap = document.getElementById('jitsi-segbar-wrap-' + video.dataset.sourcerecordid);
+        var seedSegs = (wrap && wrap.dataset.segments) ? JSON.parse(wrap.dataset.segments) : [];
+        var seedDur  = (wrap && wrap.dataset.duration) ? parseFloat(wrap.dataset.duration) : 0;
+        trackers[key] = {
+            segments: seedSegs, segStart: null, lastTime: 0,
+            saveTimer: null, played: false, duration: seedDur, sessionSegs: []
+        };
+        var t = trackers[key];
+
+        // Capture duration from metadata and update the bar immediately —
+        // this fixes the case where duration was stored as 0 in the DB.
+        video.addEventListener('loadedmetadata', function() {
+            if (video.duration && isFinite(video.duration)) {
+                t.duration = video.duration;
+                if (t.segments.length) {
+                    updateBar(video.dataset.sourcerecordid, mergeSegments(t.segments), t.duration);
+                }
+            }
+        });
+        // If metadata is already loaded (video cached), trigger the update now.
+        if (video.readyState >= 1 && video.duration && isFinite(video.duration)) {
+            t.duration = video.duration;
+            if (seedSegs.length) {
+                updateBar(video.dataset.sourcerecordid, mergeSegments(seedSegs), t.duration);
+            }
+        } else if (seedSegs.length && seedDur) {
+            updateBar(video.dataset.sourcerecordid, seedSegs, seedDur);
+        }
+
+        // Detect seeks via delta in timeupdate instead of seeking/seeked events,
+        // which have a timing race where timeupdate can update lastTime to the
+        // new seek position before seeking fires.
+        video.addEventListener('timeupdate', function() {
+            if (video.paused || video.ended || t.segStart === null) { return; }
+            var ct    = video.currentTime;
+            var delta = ct - t.lastTime;
+            var dur   = getDuration(video, t);
+            if (delta > 0 && delta < 2) {
+                t.lastTime = ct;
+                updateBar(video.dataset.sourcerecordid,
+                    mergeSegments(t.segments.concat([[t.segStart, ct]])), dur);
+            } else if (delta >= 2 || delta < 0) {
+                if (t.lastTime > t.segStart) {
+                    t.segments.push([t.segStart, t.lastTime]);
+                    t.sessionSegs.push([t.segStart, t.lastTime]);
+                }
+                t.segStart = ct;
+                t.lastTime = ct;
+            }
+        });
+
+        video.addEventListener('pause', function() {
+            if (t.segStart !== null) {
+                if (t.lastTime > t.segStart) {
+                    t.segments.push([t.segStart, t.lastTime]);
+                    t.sessionSegs.push([t.segStart, t.lastTime]);
+                }
+                t.segStart = null;
+            }
+            clearInterval(t.saveTimer);
+            t.saveTimer = null;
+            updateBar(video.dataset.sourcerecordid, mergeSegments(t.segments), getDuration(video, t));
+            saveSegments(video);
+        });
+
+        video.addEventListener('ended', function() {
+            var dur = getDuration(video, t);
+            if (t.segStart !== null) {
+                t.segments.push([t.segStart, dur || t.lastTime]);
+                t.sessionSegs.push([t.segStart, dur || t.lastTime]);
+                t.segStart = null;
+            }
+            clearInterval(t.saveTimer);
+            t.saveTimer = null;
+            updateBar(video.dataset.sourcerecordid, mergeSegments(t.segments), dur);
+            saveSegments(video);
+        });
+    }
+
+    // Capture-phase delegation: handles play for lazy-loaded videos.
+    document.addEventListener('play', function(e) {
+        var video = e.target;
+        if (video.tagName !== 'VIDEO' || !video.dataset.sourcerecordid) { return; }
+        setupTracking(video);
+        var key = video.dataset.sourcerecordid + '_' + video.dataset.cmid;
+        var t = trackers[key];
+        t.segStart    = video.currentTime;
+        t.lastTime    = video.currentTime;
+        t.sessionSegs = [];
+        if (!t.saveTimer) {
+            t.saveTimer = setInterval(function() { saveSegments(video); }, 30000);
+        }
+        if (!t.played) {
+            t.played = true;
+            Ajax.call([{
+                methodname: 'mod_jitsi_log_recording_view',
+                args: {
+                    sourcerecordid: parseInt(video.dataset.sourcerecordid, 10),
+                    cmid:           parseInt(video.dataset.cmid, 10),
+                    milestone:      0
+                }
+            }]);
+        }
+    }, true);
+
+    document.querySelectorAll('video[data-sourcerecordid]').forEach(setupTracking);
+
+    // Track clicks on non-embeddable recording links (8x8, external, Jibri).
+    document.addEventListener('click', function(e) {
+        var link = e.target.closest('.jitsi-recording-link');
+        if (!link || !link.dataset.sourcerecordid) { return; }
+        var key = link.dataset.sourcerecordid + '_' + link.dataset.cmid;
+        if (linkClicked[key]) { return; }
+        linkClicked[key] = true;
+        Ajax.call([{
+            methodname: 'mod_jitsi_log_recording_view',
+            args: {
+                sourcerecordid: parseInt(link.dataset.sourcerecordid, 10),
+                cmid:           parseInt(link.dataset.cmid, 10),
+                milestone:      0
+            }
+        }]);
     });
 });
 ");

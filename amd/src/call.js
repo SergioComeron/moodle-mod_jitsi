@@ -211,7 +211,9 @@ const initPush = async(swUrl, vapidKey) => {
             getString('pushnotificationsblocked', 'mod_jitsi').then(str => {
                 setStatus(str);
                 return;
-            }).catch(function() { return; });
+            }).catch(function() {
+                return;
+            });
             return;
         }
 
@@ -222,19 +224,25 @@ const initPush = async(swUrl, vapidKey) => {
                 getString('disablepushnotifications', 'mod_jitsi').then(str => {
                     btn.textContent = str;
                     return;
-                }).catch(function() { return; });
+                }).catch(function() {
+                    return;
+                });
             }
             getString('pushnotificationsenabled', 'mod_jitsi').then(str => {
                 setStatus('✓ ' + str);
                 return;
-            }).catch(function() { return; });
+            }).catch(function() {
+                return;
+            });
         } else {
             if (btn) {
                 btn.disabled = false;
                 getString('enablepushnotifications', 'mod_jitsi').then(str => {
                     btn.textContent = str;
                     return;
-                }).catch(function() { return; });
+                }).catch(function() {
+                    return;
+                });
             }
             setStatus('');
         }
@@ -331,6 +339,7 @@ export const init = (sessionPrivUrl, swUrl, vapidKey) => {
                     results.innerHTML = '';
 
                     if (!response.users.length) {
+                        // eslint-disable-next-line promise/no-nesting
                         return getString('callnoresults', 'mod_jitsi').then((str) => {
                             const item = document.createElement('div');
                             item.className = 'list-group-item text-muted';
@@ -344,17 +353,22 @@ export const init = (sessionPrivUrl, swUrl, vapidKey) => {
                         .filter(u => u.hasschedule)
                         .map(u => {
                             if (u.available) {
+                                // eslint-disable-next-line promise/no-nesting
                                 return getString('tutoringavailable', 'mod_jitsi')
                                     .then(str => ({id: u.id, str, cls: 'badge-success'}));
                             }
                             const key = u.nextslot ? 'tutoringnextslot' : 'tutoringnotavailable';
+                            // eslint-disable-next-line promise/no-nesting
                             return getString(key, 'mod_jitsi', u.nextslot || null)
                                 .then(str => ({id: u.id, str, cls: 'badge-warning'}));
                         });
 
+                    // eslint-disable-next-line promise/no-nesting
                     return Promise.all(badgePromises).then(badgeData => {
                         const badgeMap = {};
-                        badgeData.forEach(b => { badgeMap[b.id] = b; });
+                        badgeData.forEach(b => {
+                            badgeMap[b.id] = b;
+                        });
 
                         response.users.forEach((user) => {
                             const item = document.createElement('a');
@@ -384,6 +398,7 @@ export const init = (sessionPrivUrl, swUrl, vapidKey) => {
 
                             results.appendChild(item);
                         });
+                        return;
                     });
                 }).catch(() => {
                     results.innerHTML = '';
@@ -397,6 +412,8 @@ export const init = (sessionPrivUrl, swUrl, vapidKey) => {
 
     // Initialise Web Push.
     if (swUrl && vapidKey) {
-        initPush(swUrl, vapidKey).catch(function() { return; });
+        initPush(swUrl, vapidKey).catch(function() {
+            return;
+        });
     }
 };

@@ -336,4 +336,94 @@ $functions = [
                 'ajax' => true,
                 'loginrequired' => true,
         ],
+        'mod_jitsi_log_recording_view' => [
+                'classname' => 'mod_jitsi_external',
+                'methodname' => 'log_recording_view',
+                'classpath' => 'mod/jitsi/classes/external.php',
+                'description' => 'Log that the current user played a GCS recording',
+                'type' => 'write',
+                'ajax' => true,
+                'loginrequired' => true,
+        ],
+        'mod_jitsi_save_recording_segments' => [
+                'classname' => 'mod_jitsi_external',
+                'methodname' => 'save_recording_segments',
+                'classpath' => 'mod/jitsi/classes/external.php',
+                'description' => 'Save and merge watched segments for a GCS recording',
+                'type' => 'write',
+                'ajax' => true,
+                'loginrequired' => true,
+        ],
+        'mod_jitsi_get_bucket_viewers' => [
+                'classname' => 'mod_jitsi_external',
+                'methodname' => 'get_bucket_viewers',
+                'classpath' => 'mod/jitsi/classes/external.php',
+                'description' => 'Get list of users who watched a specific time bucket of a recording',
+                'type' => 'read',
+                'ajax' => true,
+                'loginrequired' => true,
+        ],
+
+        'mod_jitsi_presence_join' => [
+                'classname' => 'mod_jitsi_external',
+                'methodname' => 'presence_join',
+                'description' => 'Register participant presence on join',
+                'type' => 'write',
+                'ajax' => true,
+                'loginrequired' => false,
+        ],
+
+        'mod_jitsi_presence_leave' => [
+                'classname' => 'mod_jitsi_external',
+                'methodname' => 'presence_leave',
+                'description' => 'Remove participant presence on leave',
+                'type' => 'write',
+                'ajax' => true,
+                'loginrequired' => false,
+        ],
+
+        'mod_jitsi_presence_heartbeat' => [
+                'classname' => 'mod_jitsi_external',
+                'methodname' => 'presence_heartbeat',
+                'description' => 'Update presence heartbeat timestamp',
+                'type' => 'write',
+                'ajax' => true,
+                'loginrequired' => false,
+        ],
+
+        'mod_jitsi_get_presence_count' => [
+                'classname' => 'mod_jitsi_external',
+                'methodname' => 'get_presence_count',
+                'description' => 'Get active participant count from presence table',
+                'type' => 'read',
+                'ajax' => true,
+                'loginrequired' => false,
+        ],
+
+        'mod_jitsi_get_presence_users' => [
+                'classname' => 'mod_jitsi_external',
+                'methodname' => 'get_presence_users',
+                'description' => 'Get names of active participants from presence table',
+                'type' => 'read',
+                'ajax' => true,
+                'loginrequired' => false,
+        ],
+
+        'mod_jitsi_set_jibri_recording' => [
+                'classname' => 'mod_jitsi_external',
+                'methodname' => 'set_jibri_recording',
+                'description' => 'Set GCP recording status on a jitsi session',
+                'type' => 'write',
+                'ajax' => true,
+                'loginrequired' => false,
+        ],
+
+        'mod_jitsi_get_jibri_recording' => [
+                'classname' => 'mod_jitsi_external',
+                'methodname' => 'get_jibri_recording',
+                'description' => 'Get GCP recording status for a jitsi session',
+                'type' => 'read',
+                'ajax' => true,
+                'loginrequired' => false,
+        ],
 ];

@@ -186,7 +186,10 @@ class mod_jitsi_external extends external_api {
      */
     public static function delete_record_youtube($idsource) {
         global $DB;
-        $record = $DB->get_record('jitsi_record', ['source' => $idsource]);
+        $record = $DB->get_record('jitsi_record', ['source' => $idsource], '*', MUST_EXIST);
+        $cm = get_coursemodule_from_instance('jitsi', $record->jitsi, 0, false, MUST_EXIST);
+        require_login($cm->course, false, $cm);
+        require_capability('mod/jitsi:deleterecord', context_module::instance($cm->id));
         $record->deleted = 1;
         $DB->update_record('jitsi_record', $record);
         return deleterecordyoutube($idsource);
@@ -199,13 +202,13 @@ class mod_jitsi_external extends external_api {
      * @param int $user User id
      */
     public static function enter_session($jitsi, $user) {
-        global $DB;
+        global $DB, $PAGE;
         $event = \mod_jitsi\event\jitsi_session_enter::create([
             'objectid' => $PAGE->cm->instance,
             'context' => $PAGE->context,
           ]);
           $jitsiob = $DB->get_record('jitsi', ['id' => $jitsi]);
-          $event->add_record_snapshot('course', $jitsi->course);
+          $event->add_record_snapshot('course', $jitsiob->course);
           $event->add_record_snapshot('jitsi', $jitsiob);
           $event->trigger();
     }
@@ -220,11 +223,12 @@ class mod_jitsi_external extends external_api {
     public static function press_record_button($jitsi, $user, $cmid) {
           global $DB;
           $context = context_module::instance($cmid);
+          $jitsiob = $DB->get_record('jitsi', ['id' => $jitsi]);
           $event = \mod_jitsi\event\jitsi_press_record_button::create([
               'objectid' => $jitsi,
               'context' => $context,
           ]);
-          $event->add_record_snapshot('course', $jitsi->course);
+          $event->add_record_snapshot('course', $jitsiob->course);
           $event->add_record_snapshot('jitsi', $jitsiob);
           $event->trigger();
     }
@@ -314,11 +318,11 @@ class mod_jitsi_external extends external_api {
         $admins = get_admins();
 
         $jitsiob = $DB->get_record('jitsi', ['id' => $jitsi]);
-        $DB->update_record('jitsi', $jitsiob);
 
         $user = $DB->get_record('user', ['id' => $user]);
+        $safeerror = substr(strip_tags($error), 0, 500);
         $mensaje = "El usuario " . $user->firstname . " " . $user->lastname .
-            " ha tenido un error al intentar grabar la sesión de jitsi con id " . $jitsi . "\nInfo:\n" . $error . "\n
+            " ha tenido un error al intentar grabar la sesión de jitsi con id " . $jitsi . "\nInfo:\n" . $safeerror . "\n
         Para más información, accede a la sesión de jitsi y mira el log.\n
         URL: " . $CFG->wwwroot . "/mod/jitsi/view.php?id=" . $cmid . "\n
         Nombre de la sesión: " . $DB->get_record('jitsi', ['id' => $jitsi])->name . "\n
@@ -350,11 +354,12 @@ class mod_jitsi_external extends external_api {
     public static function press_button_desktop($jitsi, $user, $cmid) {
         global $DB;
         $context = context_module::instance($cmid);
+        $jitsiob = $DB->get_record('jitsi', ['id' => $jitsi]);
         $event = \mod_jitsi\event\jitsi_press_button_desktop::create([
             'objectid' => $jitsi,
             'context' => $context,
         ]);
-        $event->add_record_snapshot('course', $jitsi->course);
+        $event->add_record_snapshot('course', $jitsiob->course);
         $event->add_record_snapshot('jitsi', $jitsiob);
         $event->trigger();
     }
@@ -405,11 +410,12 @@ class mod_jitsi_external extends external_api {
     public static function press_button_end($jitsi, $user, $cmid) {
         global $DB;
         $context = context_module::instance($cmid);
+        $jitsiob = $DB->get_record('jitsi', ['id' => $jitsi]);
         $event = \mod_jitsi\event\jitsi_press_button_end::create([
             'objectid' => $jitsi,
             'context' => $context,
         ]);
-        $event->add_record_snapshot('course', $jitsi->course);
+        $event->add_record_snapshot('course', $jitsiob->course);
         $event->add_record_snapshot('jitsi', $jitsiob);
         $event->trigger();
     }
@@ -424,11 +430,12 @@ class mod_jitsi_external extends external_api {
     public static function log_error($jitsi, $user, $cmid) {
         global $DB;
         $context = context_module::instance($cmid);
+        $jitsiob = $DB->get_record('jitsi', ['id' => $jitsi]);
         $event = \mod_jitsi\event\jitsi_error::create([
             'objectid' => $jitsi,
             'context' => $context,
         ]);
-        $event->add_record_snapshot('course', $jitsi->course);
+        $event->add_record_snapshot('course', $jitsiob->course);
         $event->add_record_snapshot('jitsi', $jitsiob);
         $event->trigger();
     }
@@ -498,11 +505,12 @@ class mod_jitsi_external extends external_api {
     public static function press_button_microphone($jitsi, $user, $cmid) {
         global $DB;
         $context = context_module::instance($cmid);
+        $jitsiob = $DB->get_record('jitsi', ['id' => $jitsi]);
         $event = \mod_jitsi\event\jitsi_press_button_microphone::create([
             'objectid' => $jitsi,
             'context' => $context,
         ]);
-        $event->add_record_snapshot('course', $jitsi->course);
+        $event->add_record_snapshot('course', $jitsiob->course);
         $event->add_record_snapshot('jitsi', $jitsiob);
         $event->trigger();
     }
@@ -1002,6 +1010,315 @@ class mod_jitsi_external extends external_api {
      */
     public static function get_participants_returns() {
         return new external_value(PARAM_INT, 'Number of partipants');
+    }
+
+    /**
+     * Returns description of method parameters.
+     * @return external_function_parameters
+     */
+    public static function presence_join_parameters() {
+        return new external_function_parameters([
+            'jitsiid' => new external_value(PARAM_INT, 'Jitsi session id'),
+            'sessionhash' => new external_value(PARAM_ALPHANUMEXT, 'Unique session hash'),
+            'guestname' => new external_value(PARAM_TEXT, 'Guest display name', VALUE_DEFAULT, ''),
+        ]);
+    }
+
+    /**
+     * Register local participant presence on join.
+     * @param int $jitsiid Jitsi session id.
+     * @param string $sessionhash Unique browser session hash.
+     * @param string $guestname Guest display name (empty for Moodle users).
+     * @return int Total active participants.
+     */
+    public static function presence_join($jitsiid, $sessionhash, $guestname = '') {
+        global $DB, $USER;
+        $params = self::validate_parameters(
+            self::presence_join_parameters(),
+            ['jitsiid' => $jitsiid, 'sessionhash' => $sessionhash, 'guestname' => $guestname]
+        );
+        $now = time();
+        $userid = (isloggedin() && !isguestuser()) ? $USER->id : 0;
+        $existing = $DB->get_record('jitsi_presence', ['jitsiid' => $jitsiid, 'sessionhash' => $sessionhash]);
+        if ($existing) {
+            $existing->timemodified = $now;
+            $DB->update_record('jitsi_presence', $existing);
+        } else {
+            $record = new \stdClass();
+            $record->jitsiid = $jitsiid;
+            $record->userid = $userid;
+            $record->sessionhash = $sessionhash;
+            $record->guestname = $guestname !== '' ? $guestname : null;
+            $record->timecreated = $now;
+            $record->timemodified = $now;
+            $DB->insert_record('jitsi_presence', $record);
+        }
+        $count = self::presence_count($jitsiid);
+        $jitsiob = $DB->get_record('jitsi', ['id' => $jitsiid]);
+        if ($jitsiob && $jitsiob->sourcerecord) {
+            $source = $DB->get_record('jitsi_source_record', ['id' => $jitsiob->sourcerecord]);
+            if ($source && $source->maxparticipants < $count['total']) {
+                $source->maxparticipants = $count['total'];
+                $DB->update_record('jitsi_source_record', $source);
+            }
+        }
+        return $count['total'];
+    }
+
+    /**
+     * Returns description of method result value.
+     * @return external_value
+     */
+    public static function presence_join_returns() {
+        return new external_value(PARAM_INT, 'Total participants now');
+    }
+
+    /**
+     * Returns description of method parameters.
+     * @return external_function_parameters
+     */
+    public static function presence_leave_parameters() {
+        return new external_function_parameters([
+            'jitsiid' => new external_value(PARAM_INT, 'Jitsi session id'),
+            'sessionhash' => new external_value(PARAM_ALPHANUMEXT, 'Unique session hash'),
+        ]);
+    }
+
+    /**
+     * Remove local participant presence on leave.
+     * @param int $jitsiid Jitsi session id.
+     * @param string $sessionhash Unique browser session hash.
+     * @return bool
+     */
+    public static function presence_leave($jitsiid, $sessionhash) {
+        global $DB;
+        $params = self::validate_parameters(
+            self::presence_leave_parameters(),
+            ['jitsiid' => $jitsiid, 'sessionhash' => $sessionhash]
+        );
+        $DB->delete_records('jitsi_presence', ['jitsiid' => $jitsiid, 'sessionhash' => $sessionhash]);
+        return true;
+    }
+
+    /**
+     * Returns description of method result value.
+     * @return external_value
+     */
+    public static function presence_leave_returns() {
+        return new external_value(PARAM_BOOL, 'Success');
+    }
+
+    /**
+     * Returns description of method parameters.
+     * @return external_function_parameters
+     */
+    public static function presence_heartbeat_parameters() {
+        return new external_function_parameters([
+            'jitsiid' => new external_value(PARAM_INT, 'Jitsi session id'),
+            'sessionhash' => new external_value(PARAM_ALPHANUMEXT, 'Unique session hash'),
+        ]);
+    }
+
+    /**
+     * Update presence heartbeat timestamp and clean stale entries.
+     * @param int $jitsiid Jitsi session id.
+     * @param string $sessionhash Unique browser session hash.
+     * @return bool
+     */
+    public static function presence_heartbeat($jitsiid, $sessionhash) {
+        global $DB;
+        $params = self::validate_parameters(
+            self::presence_heartbeat_parameters(),
+            ['jitsiid' => $jitsiid, 'sessionhash' => $sessionhash]
+        );
+        $DB->delete_records_select('jitsi_presence', 'timemodified < :threshold', ['threshold' => time() - 150]);
+        $existing = $DB->get_record('jitsi_presence', ['jitsiid' => $jitsiid, 'sessionhash' => $sessionhash]);
+        if ($existing) {
+            $existing->timemodified = time();
+            $DB->update_record('jitsi_presence', $existing);
+        }
+        return true;
+    }
+
+    /**
+     * Returns description of method result value.
+     * @return external_value
+     */
+    public static function presence_heartbeat_returns() {
+        return new external_value(PARAM_BOOL, 'Success');
+    }
+
+    /**
+     * Returns description of method parameters.
+     * @return external_function_parameters
+     */
+    public static function get_presence_count_parameters() {
+        return new external_function_parameters([
+            'jitsiid' => new external_value(PARAM_INT, 'Jitsi session id'),
+        ]);
+    }
+
+    /**
+     * Get active participant count from presence table.
+     * @param int $jitsiid Jitsi session id.
+     * @return int Total active participants.
+     */
+    public static function get_presence_count($jitsiid) {
+        global $DB;
+        $params = self::validate_parameters(self::get_presence_count_parameters(), ['jitsiid' => $jitsiid]);
+        $count = self::presence_count($jitsiid);
+        return $count['total'];
+    }
+
+    /**
+     * Returns description of method result value.
+     * @return external_value
+     */
+    public static function get_presence_count_returns() {
+        return new external_value(PARAM_INT, 'Total active participants');
+    }
+
+    /**
+     * Count active participants from presence table.
+     * @param int $jitsiid Jitsi session id.
+     * @return array With keys moodle, guests, total.
+     */
+    private static function presence_count($jitsiid) {
+        global $DB;
+        $threshold = time() - 90;
+        $moodle = (int)$DB->count_records_select(
+            'jitsi_presence',
+            'jitsiid = :jitsiid AND userid > 0 AND timemodified > :threshold',
+            ['jitsiid' => $jitsiid, 'threshold' => $threshold]
+        );
+        $guests = (int)$DB->count_records_select(
+            'jitsi_presence',
+            'jitsiid = :jitsiid AND userid = 0 AND timemodified > :threshold',
+            ['jitsiid' => $jitsiid, 'threshold' => $threshold]
+        );
+        return ['moodle' => $moodle, 'guests' => $guests, 'total' => $moodle + $guests];
+    }
+
+    /**
+     * Returns description of method parameters.
+     * @return external_function_parameters
+     */
+    public static function get_presence_users_parameters() {
+        return new external_function_parameters([
+            'jitsiid' => new external_value(PARAM_INT, 'Jitsi session id'),
+        ]);
+    }
+
+    /**
+     * Get names of active participants from presence table.
+     * @param int $jitsiid Jitsi session id.
+     * @return array List of participant names.
+     */
+    public static function get_presence_users($jitsiid) {
+        global $DB;
+        $params = self::validate_parameters(self::get_presence_users_parameters(), ['jitsiid' => $jitsiid]);
+        $threshold = time() - 90;
+        $rows = $DB->get_records_select(
+            'jitsi_presence',
+            'jitsiid = :jitsiid AND timemodified > :threshold',
+            ['jitsiid' => $jitsiid, 'threshold' => $threshold],
+            'userid DESC'
+        );
+        $result = [];
+        foreach ($rows as $row) {
+            if ($row->userid > 0) {
+                $fields = 'id,firstname,lastname,firstnamephonetic,lastnamephonetic,middlename,alternatename';
+                $user = $DB->get_record('user', ['id' => $row->userid], $fields);
+                $name = $user ? fullname($user) : get_string('unknownuser', 'error');
+            } else {
+                $name = $row->guestname ?: get_string('guest');
+            }
+            $result[] = ['name' => $name, 'isguest' => (int)($row->userid == 0), 'userid' => (int)$row->userid];
+        }
+        return $result;
+    }
+
+    /**
+     * Returns description of method result value.
+     * @return external_multiple_structure
+     */
+    public static function get_presence_users_returns() {
+        return new external_multiple_structure(
+            new external_single_structure([
+                'name' => new external_value(PARAM_TEXT, 'Display name'),
+                'isguest' => new external_value(PARAM_INT, 'Is guest'),
+                'userid' => new external_value(PARAM_INT, 'Moodle user id, 0 for guests'),
+            ])
+        );
+    }
+
+    /**
+     * Returns description of method parameters.
+     * @return external_function_parameters
+     */
+    public static function set_jibri_recording_parameters() {
+        return new external_function_parameters([
+            'jitsiid' => new external_value(PARAM_INT, 'Jitsi session id'),
+            'recording' => new external_value(PARAM_INT, '1 if recording started, 0 if stopped'),
+        ]);
+    }
+
+    /**
+     * Set GCP recording status on the jitsi record.
+     * @param int $jitsiid Jitsi session id.
+     * @param int $recording 1 to mark as recording, 0 to clear.
+     * @return bool
+     */
+    public static function set_jibri_recording($jitsiid, $recording) {
+        global $DB;
+        $params = self::validate_parameters(
+            self::set_jibri_recording_parameters(),
+            ['jitsiid' => $jitsiid, 'recording' => $recording]
+        );
+        $jitsiob = $DB->get_record('jitsi', ['id' => $jitsiid]);
+        if ($jitsiob) {
+            $jitsiob->status = $recording ? 'recording' : null;
+            $DB->update_record('jitsi', $jitsiob);
+        }
+        return true;
+    }
+
+    /**
+     * Returns description of method result value.
+     * @return external_value
+     */
+    public static function set_jibri_recording_returns() {
+        return new external_value(PARAM_BOOL, 'Success');
+    }
+
+    /**
+     * Returns description of method parameters.
+     * @return external_function_parameters
+     */
+    public static function get_jibri_recording_parameters() {
+        return new external_function_parameters([
+            'jitsiid' => new external_value(PARAM_INT, 'Jitsi session id'),
+        ]);
+    }
+
+    /**
+     * Get GCP recording status for a jitsi session.
+     * @param int $jitsiid Jitsi session id.
+     * @return int 1 if recording, 0 otherwise.
+     */
+    public static function get_jibri_recording($jitsiid) {
+        global $DB;
+        $params = self::validate_parameters(self::get_jibri_recording_parameters(), ['jitsiid' => $jitsiid]);
+        $jitsiob = $DB->get_record('jitsi', ['id' => $jitsiid], 'id,status');
+        return ($jitsiob && $jitsiob->status === 'recording') ? 1 : 0;
+    }
+
+    /**
+     * Returns description of method result value.
+     * @return external_value
+     */
+    public static function get_jibri_recording_returns() {
+        return new external_value(PARAM_INT, '1 if recording, 0 otherwise');
     }
 
     /**
@@ -1998,6 +2315,335 @@ class mod_jitsi_external extends external_api {
                     'timeend'   => new external_value(PARAM_TEXT, 'End HH:MM'),
                 ])
             ),
+        ]);
+    }
+
+    /**
+     * Parameters for log_recording_view.
+     * @return external_function_parameters
+     */
+    public static function log_recording_view_parameters() {
+        return new external_function_parameters([
+            'sourcerecordid' => new external_value(PARAM_INT, 'jitsi_source_record id'),
+            'cmid'           => new external_value(PARAM_INT, 'Course module id'),
+            'milestone'      => new external_value(PARAM_INT, 'Percentage milestone: 0=play, 25, 50, 75, 100', VALUE_DEFAULT, 0),
+        ]);
+    }
+
+    /**
+     * Log that the current user played or reached a milestone in a GCS recording.
+     *
+     * @param int $sourcerecordid
+     * @param int $cmid
+     * @param int $milestone 0=play start, 25/50/75/100=percentage reached
+     * @return array
+     */
+    public static function log_recording_view($sourcerecordid, $cmid, $milestone = 0) {
+        global $DB;
+
+        if (!get_config('mod_jitsi', 'portal_license_key')) {
+            return ['success' => true];
+        }
+
+        $params = self::validate_parameters(self::log_recording_view_parameters(), [
+            'sourcerecordid' => $sourcerecordid,
+            'cmid'           => $cmid,
+            'milestone'      => $milestone,
+        ]);
+
+        if (!in_array($params['milestone'], [0, 25, 50, 75, 100])) {
+            return ['success' => false];
+        }
+
+        $context = context_module::instance($params['cmid']);
+        self::validate_context($context);
+        require_capability('mod/jitsi:view', $context);
+
+        $exists = $DB->record_exists_sql(
+            "SELECT 1 FROM {jitsi_source_record} sr
+               JOIN {jitsi_record} r ON r.source = sr.id
+               JOIN {jitsi} j ON j.id = r.jitsi
+               JOIN {course_modules} cm ON cm.instance = j.id
+              WHERE sr.id = :srid AND cm.id = :cmid",
+            ['srid' => $params['sourcerecordid'], 'cmid' => $params['cmid']]
+        );
+
+        if (!$exists) {
+            return ['success' => false];
+        }
+
+        $event = \mod_jitsi\event\recording_viewed::create([
+            'context'  => $context,
+            'objectid' => $params['sourcerecordid'],
+            'other'    => ['milestone' => $params['milestone']],
+        ]);
+        $event->trigger();
+
+        return ['success' => true];
+    }
+
+    /**
+     * Returns for log_recording_view.
+     * @return external_description
+     */
+    public static function log_recording_view_returns() {
+        return new external_single_structure([
+            'success' => new external_value(PARAM_BOOL, 'Whether the event was logged'),
+        ]);
+    }
+
+    /**
+     * Parameters for save_recording_segments.
+     * @return external_function_parameters
+     */
+    public static function save_recording_segments_parameters() {
+        return new external_function_parameters([
+            'sourcerecordid'  => new external_value(PARAM_INT, 'jitsi_source_record id'),
+            'cmid'            => new external_value(PARAM_INT, 'Course module id'),
+            'segments'        => new external_value(PARAM_TEXT, 'JSON array of [start,end] pairs in seconds'),
+            'duration'        => new external_value(PARAM_FLOAT, 'Video duration in seconds'),
+            'session_segments' => new external_value(PARAM_TEXT, 'JSON segments from current play session', VALUE_DEFAULT, '[]'),
+        ]);
+    }
+
+    /**
+     * Save and merge watched segments for a GCS recording.
+     *
+     * @param int    $sourcerecordid
+     * @param int    $cmid
+     * @param string $segments JSON [[start,end],...]
+     * @param float  $duration video duration in seconds
+     * @return array
+     */
+    public static function save_recording_segments($sourcerecordid, $cmid, $segments, $duration, $sessionsegments = '[]') {
+        global $DB, $USER;
+
+        if (!get_config('mod_jitsi', 'portal_license_key')) {
+            return ['success' => true];
+        }
+
+        $params = self::validate_parameters(self::save_recording_segments_parameters(), [
+            'sourcerecordid'  => $sourcerecordid,
+            'cmid'            => $cmid,
+            'segments'        => $segments,
+            'duration'        => $duration,
+            'session_segments' => $sessionsegments,
+        ]);
+
+        $context = context_module::instance($params['cmid']);
+        self::validate_context($context);
+        require_capability('mod/jitsi:view', $context);
+
+        $exists = $DB->record_exists_sql(
+            "SELECT 1 FROM {jitsi_source_record} sr
+               JOIN {jitsi_record} r ON r.source = sr.id
+               JOIN {jitsi} j ON j.id = r.jitsi
+               JOIN {course_modules} cm ON cm.instance = j.id
+              WHERE sr.id = :srid AND cm.id = :cmid",
+            ['srid' => $params['sourcerecordid'], 'cmid' => $params['cmid']]
+        );
+        if (!$exists) {
+            return ['success' => false, 'segments' => '[]'];
+        }
+
+        $newsegments = json_decode($params['segments'], true);
+        if (!is_array($newsegments)) {
+            return ['success' => false, 'segments' => '[]'];
+        }
+
+        $existing = $DB->get_record('jitsi_recording_segments', [
+            'userid'         => $USER->id,
+            'sourcerecordid' => $params['sourcerecordid'],
+            'cmid'           => $params['cmid'],
+        ]);
+
+        $allsegs = $newsegments;
+        if ($existing) {
+            $stored = json_decode($existing->segments, true);
+            if (is_array($stored)) {
+                $allsegs = array_merge($stored, $newsegments);
+            }
+        }
+
+        $merged     = self::merge_segments($allsegs, (float)$params['duration']);
+        $mergedjson = json_encode($merged);
+
+        // Compute updated playcounts from session_segments.
+        $newsessionsegs = json_decode($params['session_segments'], true);
+        $duration       = (float)$params['duration'];
+        $playcountsjson = null;
+        if (is_array($newsessionsegs) && !empty($newsessionsegs) && $duration > 0) {
+            $bucketsize  = 10;
+            $numbuckets  = max(1, (int)ceil($duration / $bucketsize));
+            $existingcounts = [];
+            if ($existing && !empty($existing->playcounts)) {
+                $existingcounts = json_decode($existing->playcounts, true) ?? [];
+            }
+            if (count($existingcounts) < $numbuckets) {
+                $existingcounts = array_pad($existingcounts, $numbuckets, 0);
+            }
+            foreach ($newsessionsegs as $seg) {
+                if (!is_array($seg) || count($seg) < 2) {
+                    continue;
+                }
+                $startbucket = max(0, (int)floor((float)$seg[0] / $bucketsize));
+                $endbucket   = min($numbuckets - 1, (int)floor((float)$seg[1] / $bucketsize));
+                for ($b = $startbucket; $b <= $endbucket; $b++) {
+                    $existingcounts[$b] = ($existingcounts[$b] ?? 0) + 1;
+                }
+            }
+            $playcountsjson = json_encode(array_values($existingcounts));
+        } else if ($existing && !empty($existing->playcounts)) {
+            $playcountsjson = $existing->playcounts;
+        }
+
+        if ($existing) {
+            $existing->segments     = $mergedjson;
+            $existing->playcounts   = $playcountsjson;
+            $existing->duration     = $duration;
+            $existing->timemodified = time();
+            $DB->update_record('jitsi_recording_segments', $existing);
+        } else {
+            $DB->insert_record('jitsi_recording_segments', (object)[
+                'userid'         => $USER->id,
+                'sourcerecordid' => $params['sourcerecordid'],
+                'cmid'           => $params['cmid'],
+                'segments'       => $mergedjson,
+                'playcounts'     => $playcountsjson,
+                'duration'       => $duration,
+                'timecreated'    => time(),
+                'timemodified'   => time(),
+            ]);
+        }
+
+        return ['success' => true, 'segments' => $mergedjson];
+    }
+
+    /**
+     * Merge and clamp an array of [start,end] segments.
+     *
+     * @param array $segments
+     * @param float $duration
+     * @return array
+     */
+    private static function merge_segments(array $segments, float $duration): array {
+        $segments = array_values(array_filter($segments, function ($s) use ($duration) {
+            return is_array($s) && count($s) === 2
+                && is_numeric($s[0]) && is_numeric($s[1])
+                && $s[1] > $s[0] && $s[0] >= 0
+                && ($duration <= 0 || $s[1] <= $duration + 2);
+        }));
+        if (empty($segments)) {
+            return [];
+        }
+        usort($segments, fn($a, $b) => $a[0] <=> $b[0]);
+        $merged = [[(float)$segments[0][0], (float)$segments[0][1]]];
+        for ($i = 1; $i < count($segments); $i++) {
+            $last = &$merged[count($merged) - 1];
+            $s0 = (float)$segments[$i][0];
+            $s1 = (float)$segments[$i][1];
+            if ($s0 <= $last[1]) {
+                $last[1] = max($last[1], $s1);
+            } else {
+                $merged[] = [$s0, $s1];
+            }
+        }
+        return $merged;
+    }
+
+    /**
+     * Returns for save_recording_segments.
+     * @return external_description
+     */
+    public static function save_recording_segments_returns() {
+        return new external_single_structure([
+            'success'  => new external_value(PARAM_BOOL, 'Whether segments were saved'),
+            'segments' => new external_value(PARAM_TEXT, 'Merged segments as JSON'),
+        ]);
+    }
+
+    /**
+     * Parameters for get_bucket_viewers.
+     * @return external_function_parameters
+     */
+    public static function get_bucket_viewers_parameters() {
+        return new external_function_parameters([
+            'sourcerecordid' => new external_value(PARAM_INT, 'jitsi_source_record id'),
+            'cmid'           => new external_value(PARAM_INT, 'Course module id'),
+            'bucketindex'    => new external_value(PARAM_INT, 'Zero-based bucket index (10s buckets)'),
+        ]);
+    }
+
+    /**
+     * Get the list of users who watched a specific 10-second bucket of a recording.
+     *
+     * @param int $sourcerecordid
+     * @param int $cmid
+     * @param int $bucketindex
+     * @return array
+     */
+    public static function get_bucket_viewers($sourcerecordid, $cmid, $bucketindex) {
+        global $DB;
+
+        $params = self::validate_parameters(self::get_bucket_viewers_parameters(), [
+            'sourcerecordid' => $sourcerecordid,
+            'cmid'           => $cmid,
+            'bucketindex'    => $bucketindex,
+        ]);
+
+        $context = context_module::instance($params['cmid']);
+        self::validate_context($context);
+        require_capability('mod/jitsi:viewattendance', $context);
+
+        $bucketsize  = 10;
+        $bucketstart = $params['bucketindex'] * $bucketsize;
+        $bucketend   = $bucketstart + $bucketsize;
+
+        $rows = $DB->get_records('jitsi_recording_segments', [
+            'sourcerecordid' => $params['sourcerecordid'],
+            'cmid'           => $params['cmid'],
+        ]);
+
+        $viewers = [];
+        foreach ($rows as $row) {
+            $segments = json_decode($row->segments, true);
+            if (!is_array($segments)) {
+                continue;
+            }
+            foreach ($segments as $seg) {
+                if (!is_array($seg) || count($seg) < 2) {
+                    continue;
+                }
+                if ((float)$seg[0] < $bucketend && (float)$seg[1] > $bucketstart) {
+                    $namefields = 'id, firstname, lastname, firstnamephonetic, lastnamephonetic, middlename, alternatename';
+                    $user = $DB->get_record('user', ['id' => $row->userid], $namefields);
+                    if ($user) {
+                        $viewers[] = ['userid' => (int)$user->id, 'fullname' => fullname($user)];
+                    }
+                    break;
+                }
+            }
+        }
+
+        usort($viewers, fn($a, $b) => strcmp($a['fullname'], $b['fullname']));
+
+        return ['viewers' => $viewers, 'bucketstart' => $bucketstart, 'bucketend' => $bucketend];
+    }
+
+    /**
+     * Returns for get_bucket_viewers.
+     * @return external_description
+     */
+    public static function get_bucket_viewers_returns() {
+        return new external_single_structure([
+            'viewers'     => new external_multiple_structure(
+                new external_single_structure([
+                    'userid'   => new external_value(PARAM_INT, 'User id'),
+                    'fullname' => new external_value(PARAM_TEXT, 'User full name'),
+                ])
+            ),
+            'bucketstart' => new external_value(PARAM_INT, 'Bucket start in seconds'),
+            'bucketend'   => new external_value(PARAM_INT, 'Bucket end in seconds'),
         ]);
     }
 }

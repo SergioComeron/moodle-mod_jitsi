@@ -43,4 +43,22 @@ $tasks = [
         'month' => '*',
         'dayofweek' => '*',
     ],
+    [
+        'classname' => 'mod_jitsi\task\aggregate_usage_stats',
+        'blocking' => 0,
+        'minute' => '0',
+        'hour' => '3',
+        'day' => '*',
+        'month' => '*',
+        'dayofweek' => '*',
+    ],
+    [
+        'classname' => 'mod_jitsi\task\send_telemetry',
+        'blocking' => 0,
+        'minute' => '0',
+        'hour' => '6',
+        'day' => '*',
+        'month' => '*',
+        'dayofweek' => '1',
+    ],
 ];
