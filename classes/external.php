@@ -2413,6 +2413,7 @@ class mod_jitsi_external extends external_api {
      * @param int    $cmid
      * @param string $segments JSON [[start,end],...]
      * @param float  $duration video duration in seconds
+     * @param string $sessionsegments JSON segments from current play session
      * @return array
      */
     public static function save_recording_segments($sourcerecordid, $cmid, $segments, $duration, $sessionsegments = '[]') {

@@ -46,14 +46,12 @@ if ($action === 'resend') {
         curl_setopt_array(
             $ch,
             [
-            CURLOPT_POST           => true,
-            CURLOPT_POSTFIELDS     => $payload,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_CONNECTTIMEOUT => 5,
-            CURLOPT_TIMEOUT        => 10,
-            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
-                'Content-Type: application/json',
-            ],
+                CURLOPT_POST           => true,
+                CURLOPT_POSTFIELDS     => $payload,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_CONNECTTIMEOUT => 5,
+                CURLOPT_TIMEOUT        => 10,
+                CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
             ]
         );
         $resendresponse = curl_exec($ch);
