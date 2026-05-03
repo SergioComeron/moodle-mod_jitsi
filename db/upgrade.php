@@ -1447,5 +1447,18 @@ function xmldb_jitsi_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026050103, 'jitsi');
     }
 
+    if ($oldversion < 2026050302) {
+        // Fix jitsi_record.deleted: sites that had an intermediate version where the column
+        // was already nullable caused field_exists() to skip the original NOT NULL add.
+        $table = new xmldb_table('jitsi_record');
+        if ($dbman->field_exists($table, new xmldb_field('deleted'))) {
+            $DB->execute("UPDATE {jitsi_record} SET deleted = 0 WHERE deleted IS NULL");
+            $field = new xmldb_field('deleted', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '0');
+            $dbman->change_field_notnull($table, $field);
+            $dbman->change_field_default($table, $field);
+        }
+        upgrade_mod_savepoint(true, 2026050302, 'jitsi');
+    }
+
     return true;
 }
