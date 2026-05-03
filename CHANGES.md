@@ -1,4 +1,207 @@
 # Changelog
+## v5.0.0
+# Added
+
+ * feat!: mod_jitsi Account portal, attendance report, recording view tracking, presence and security hardening
+ * add session stats to weekly telemetry ping
+ * hide native Jitsi recording button on GCP servers (type 3)
+ * replace streaming switch with two toggle buttons (Streaming + Record)
+ * show recording badge for GCP/Jibri using recordingStatusChanged API
+ * make user names in presence dropdown link to Moodle profile
+ * add dropdown with connected user names in view.php
+ * decouple presence heartbeat to 30s interval, tighten staleness to 90s
+ * replace single-counter participant tracking with presence table
+ * add inviteemail setting to enable/disable email invitation feature
+ * add send invitation by email page
+ * add copy button to invitation URLs in activity settings
+ * add aria-label to session join button for screen readers
+ * reorganize view.php with Session tab (metrics+badges+card+help) and Recordings tab
+ * move metrics outside card, center card with avatar/name/button only
+ * add user avatar and name to session card in view.php
+ * redesign session status block in view.php with card layout
+ * redesign logged-in user view on guest join page with card and avatar
+ * redesign guest join page with card layout, fix SQL injection in token lookup
+ * store enter timestamps in jitsi_usage_daily.times, show in attendance report
+ * remove date filter from live sessions — show all-time data, move filter to recordings tab
+ * add dates attended column to live sessions table
+ * split attendance report into 3 tabs — live sessions, recordings, course overview
+ * format heatmap timestamps as MM:SS or H:MM:SS
+ * replace click panel with instant hover tooltip for heatmap viewers
+ * interactive heatmap — click segment to see which students watched it
+ * add tooltips to heatmap bars showing exact counts per bucket
+ * track replay counts per segment bucket in heatmap
+ * split attendance report into activity/course tabs
+ * recording analytics — heatmap and course dashboard
+ * include license_key in telemetry ping for migration resilience
+ * detect portal deactivation flag and clear local config
+ * declare mod_jitsi portal telemetry in privacy provider
+ * collect site name and URL at registration; update privacy texts
+ * gate recording views tracking and segment bars behind portal registration
+ * gate attendance report and usage stats behind portal registration
+ * auto-fetch license key on settings page load when pending
+ * replace telemetry checkbox with portal registration flow
+ * add nudge notice in settings to encourage telemetry opt-in
+ * opt-in usage telemetry system (#184)
+ * expand telemetry opt-in description to clearly state what is and is not collected
+ * opt-in weekly telemetry ping to developer stats endpoint (#184)
+ * move AI generation to dropdown above video; show GDPR modal on generate; accordion shows only generated content
+ * remove direct link button from GCS recordings to enforce in-Moodle playback tracking
+ * GCS recording view tracking with segment progress bar (#183)
+ * track and report link clicks for non-embeddable recordings (8x8, external, Jibri)
+ * show recording name in teacher view instead of generic numbering
+ * track real watched segments with progress bar for students and teachers
+ * track video milestones at 25/50/75/100% and show in report
+ * add recording views section to attendancereport.php
+ * track GCS recording views via play event (#183)
+ * fallback to live logstore query when precomputed data not available
+ * attendance report per activity (#182)
+ * validate start date is before end date in stats form
+ * functional improvements to session usage statistics
+ * show available date range on stats page
+ * precompute daily usage stats and add top-users section
+ * lazy-load recordings tab via AJAX
+ * extend XMLDB schema lint tests with additional validations (#178)
+# Fixed
+
+ * use MutationObserver for recordings tab to support Bootstrap 4 and 5
+ * use variable for referrerpolicy to avoid phpcs mangling
+ * phpcs style fix in view_table.php
+ * add referrerpolicy to YouTube iframes to prevent Error 153
+ * correctly enable YouTube embedding after stream ends
+ * replace SQL injection in recordun.php with parameterised query
+ * phpcs style fixes in portal_action and portal_register
+ * replace shared COLLECT_SECRET with per-install license_key auth
+ * declare global $PAGE in enter_session()
+ * change_field_notnull before UPDATE NULL in ai_transcription_status upgrade
+ * make ai_transcription_status nullable in existing installs
+ * fix phpcs warnings in provider (line length and comment capitalisation)
+ * apply phpcs style fixes to provider and lang file
+ * security hardening across plugin and portal
+ * extract user fields string to variable to satisfy phpcs line length
+ * include all name fields required by fullname() in presence user queries
+ * add missing embed NOT NULL fix in jitsi_source_record (#137)
+ * remove blank line at start of control structure
+ * replace non-standard separators in upgrade comments
+ * correct schema inconsistencies reported in issue #137
+ * replace emoji icons with Font Awesome fa-rss and fa-circle
+ * use event flag to avoid timeout overriding API-set button states
+ * initialize stream/record button states on session load
+ * move recordbtn and streambtn strings to correct alphabetical positions
+ * split long line in recordingStatusChanged handler
+ * split long line in presence dropdown JS
+ * bump version to register mod_jitsi_get_presence_users web service
+ * correct alphabetical order of noconnectedusers string
+ * move noconnectedusers string to correct alphabetical position
+ * remove camera emoji from guest join page
+ * allow guest access to universal.php without requiring Moodle login
+ * use $SITE->fullname instead of $CFG->fullname in portal registration
+ * move $hasanydata definition before dates query — was always false
+ * use get_recordset_sql for dates query to avoid userid key deduplication
+ * correct alphabetical order for attendancedates string
+ * remove duplicate unit suffix in heatmap tooltip JS
+ * format heatmap timestamps with explicit units (min, h) instead of MM:SS
+ * restore missing docblock for jitsi_render_heatmap_bar
+ * set cursor:default on orange heatmap bar — not clickable
+ * bump version to register get_bucket_viewers external service
+ * pass strings from PHP to avoid async str loading in heatmap JS
+ * wrap long tracker init line to stay within 132 chars
+ * show course dashboard nav link regardless of portal registration
+ * add confirm dialog and portal notification on unregister
+ * handle portal unavailability gracefully in all curl calls
+ * alphabetical order for portal privacy strings
+ * show contact admin message to non-admins on gated features
+ * alphabetical order for portalrequired string
+ * remove duplicate heading in portal_register.php
+ * simplify portal_register.php form; move session stats link to top
+ * phpcs formatting
+ * replace embedded form with standalone portal_register.php page
+ * capitalize inline comment
+ * phpcs comment style
+ * phpcs settings.php
+ * move mod_jitsi Account section to top of settings page
+ * rename to mod_jitsi Account throughout
+ * remove duplicate telemetrynudge string
+ * update portal section title, description and button spacing
+ * phpcs formatting in settings.php and lang string order
+ * rename stats subdomain to portal.sergiocomeron.com
+ * move telemetrynudge strings to correct alphabetical position
+ * rotate telemetry secret key
+ * update telemetry endpoint URL in settings description
+ * update telemetry endpoint to stats.sergiocomeron.com
+ * detect active server via mod_jitsi/server config instead of inuse field
+ * remove blank line after opening brace
+ * remove stopPropagation from AI handler; re-init inplace_editable after AJAX content load
+ * monochrome FA icons in AI dropdown; remove accordion wrapper, show tabs directly
+ * register JS strings with mod_jitsi component to match M.util.get_string calls
+ * register click handler with only core/ajax+notification; load modal_factory lazily with native confirm fallback
+ * use core/modal_factory for GDPR confirmation instead of Bootstrap modal directly
+ * use monochrome FA icon in AI dropdown button to match accordion header
+ * use flex row for actions area so AI dropdown stays on same line as delete/hide icons
+ * use monochrome FA icon for AI Tools accordion header; reduce header size
+ * use loadedmetadata to capture duration and render seeded bar immediately on page load
+ * declare global $USER in col_id so segment bar loads on page entry
+ * seed JS tracker with existing DB segments so bar persists across sessions
+ * split long line for name fields query
+ * include all name fields in user queries to avoid fullname() debugging notice
+ * move recordingaccesslog string before recordingbloquedby alphabetically
+ * move recordingaccesslog string to correct alphabetical position
+ * detect seeks via timeupdate delta instead of seeking/seeked events to avoid timing race
+ * move watchprogress string to correct alphabetical position
+ * code style - space after function keyword, watchprogress string ordering
+ * track milestones via cumulative playback seconds instead of scrubber position
+ * default todate includes end of today instead of yesterday midnight
+ * prevent $cm overwrite in transcription parser; log milestone 0 directly from delegation handler
+ * use event delegation for recording view tracking to support lazy-loaded recordings
+ * correct jitsi_record column name from sourcerecord to source
+ * replace sql_like with PHP strpos for GCS filter; use get_recordset_sql for milestone events
+ * replace sql_like CASE WHEN with PHP aggregation for recording milestones
+ * use existing uniqueusers string instead of missing totaluniqueusers
+ * add attendance report to secondary navigation instead of header action
+ * move add_header_action before header() output
+ * use Moodle header action icon for attendance report link
+ * correct 3 bugs in sessionusagestats page
+ * phpcs lang string key order
+ * phpcs style fixes in lang file
+ * phpcs style fixes in sessionusagestats.php
+ * phpcs style fixes in aggregate_usage_stats task
+ * remove duplicate page heading in sessionusagestats
+ * improve sessionusagestats.php performance and remove dead code (#180)
+ * resolve moodle.org prechecker warnings
+ * bump version to 2026042102 for server compatibility [skip ci]
+ * avoid loading all recordings into memory on view.php
+ * resolve ESLint warnings in call.js and remaining prechecker leftovers
+# Changed
+
+ * Merge branch 'origin/master' into master — keep version 4.6.8 from dev
+ * Merge branch 'dev' into master
+ * update README to reflect GCP recording support and simplicity
+ * update telemetry strings to list new session stats fields
+ * add table of contents to README
+ * update README with heatmap, course overview and 3-tab attendance report
+ * Merge pull request #185 from SergioComeron/feat/recording-analytics
+ * merge course dashboard into attendance report, remove standalone page
+ * clarify why Dropbox links cannot be captured automatically
+ * clarify OAuth Testing mode and test users terminology
+ * clarify OAuth test users are Google accounts, not YouTube accounts
+ * rewrite streaming/recording section with GCP/Jibri as recommended method
+ * clarify telemetry is automatic on registration, no separate toggle
+ * fix registration flow description
+ * remove basic attendees report from features list
+ * clarify GCP only requires a Google Cloud account with billing
+ * rewrite intro to focus on server options instead of meet.jit.si
+ * restructure README — move mod_jitsi Account to top, fix grammar, remove outdated announcement
+ * remove outdated ansible playbook reference
+ * remove outdated permissions screenshot and moderator icon reference
+ * add missing capabilities to permissions section; fix viewusersonsession typo
+ * update README with mod_jitsi Account, attendance report and recording views
+ * restore original telemetry secret (rotation not viable in open-source plugin)
+ * hardcode telemetry endpoint/key; show URL in setting description instead of editable fields
+ * remove old attendees tab, replaced by attendancereport.php
+ * Merge master into dev
+ * Merge branch 'master' into dev
+
+---
+
 ## v4.6.3
 # Fixed
 
