@@ -115,14 +115,12 @@ if ($action === 'unregister') {
         curl_setopt_array(
             $ch,
             [
-            CURLOPT_POST           => true,
-            CURLOPT_POSTFIELDS     => json_encode(['site_hash' => $sitehash, 'license_key' => $licensekey]),
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_CONNECTTIMEOUT => 5,
-            CURLOPT_TIMEOUT        => 10,
-            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
-                'Content-Type: application/json',
-            ],
+                CURLOPT_POST           => true,
+                CURLOPT_POSTFIELDS     => json_encode(['site_hash' => $sitehash, 'license_key' => $licensekey]),
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_CONNECTTIMEOUT => 5,
+                CURLOPT_TIMEOUT        => 10,
+                CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
             ]
         );
         curl_exec($ch);
