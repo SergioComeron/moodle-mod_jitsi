@@ -1,4 +1,11 @@
 # Changelog
+## v5.0.2
+# Fixed
+
+ * remove duplicate Content-Type and extra bracket in portal_action unregister curl call
+
+---
+
 ## v5.0.1
 # Fixed
 
