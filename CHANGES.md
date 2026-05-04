@@ -1,4 +1,12 @@
 # Changelog
+## v5.0.1
+# Fixed
+
+ * resolve moodle.org prechecker errors in v5.0.0
+ * enforce NOT NULL on jitsi_record.deleted for upgraded sites
+
+---
+
 ## v5.0.0
 # Added
 
