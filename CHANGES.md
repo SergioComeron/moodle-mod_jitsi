@@ -1,4 +1,11 @@
 # Changelog
+## v5.0.3
+# Changed
+
+ * bump phpseclib/phpseclib from 3.0.51 to 3.0.52 in /api (#189)
+
+---
+
 ## v5.0.2
 # Fixed
 
