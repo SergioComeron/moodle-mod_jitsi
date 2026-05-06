@@ -103,9 +103,14 @@ class send_telemetry extends \core\task\scheduled_task {
             'SELECT COALESCE(MAX(maxparticipants), 0) FROM {jitsi_source_record}'
         ) ?? 0);
 
+        $taskrecord = $DB->get_record('task_scheduled',
+            ['classname' => '\mod_jitsi\task\send_telemetry'], 'nextruntime');
+        $nextrunat = $taskrecord ? (int)$taskrecord->nextruntime : 0;
+
         $payload = [
             'site_hash'              => $sitehash,
             'license_key'            => $config->portal_license_key,
+            'next_run_at'            => $nextrunat,
             'plugin_version'         => (int)($config->version ?? 0),
             'moodle_branch'          => (int)$CFG->branch,
             'server_type'            => $servertype,
