@@ -45,6 +45,15 @@ if (!has_capability('mod/jitsi:viewrecords', $context) && !has_capability('mod/j
 }
 
 $jitsiid = $jitsi->id;
+if (!empty($jitsi->sessionwithtoken) && !empty($jitsi->tokeninvitacion)) {
+    $master = $DB->get_record_sql(
+        "SELECT id FROM {jitsi} WHERE tokeninterno = :token",
+        ['token' => $jitsi->tokeninvitacion]
+    );
+    if ($master) {
+        $jitsiid = $master->id;
+    }
+}
 
 if (has_capability('mod/jitsi:viewrecords', $context)) {
     $sqlrecords = 'SELECT r.id FROM {jitsi_record} r
