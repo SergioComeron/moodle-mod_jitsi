@@ -27,7 +27,6 @@ namespace mod_jitsi;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class lang_strings_test extends \advanced_testcase {
-
     /**
      * Every capability in db/access.php must have a matching lang string.
      *
