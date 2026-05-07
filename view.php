@@ -600,7 +600,6 @@ if (has_capability('mod/jitsi:viewrecords', $PAGE->context) || has_capability('m
     $recordingstaburl = (new moodle_url('/mod/jitsi/recordingstab.php', [
         'id'           => $id,
         'editrecordid' => $editrecordid,
-        'jitsiid'      => $jitsiid,
     ]))->out(false);
 
     $PAGE->requires->js_amd_inline("
