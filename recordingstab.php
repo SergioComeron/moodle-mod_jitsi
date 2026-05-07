@@ -48,7 +48,7 @@ $jitsiid = $jitsi->id;
 if (!empty($jitsi->sessionwithtoken) && !empty($jitsi->tokeninvitacion)) {
     $master = $DB->get_record_sql(
         "SELECT id FROM {jitsi} WHERE tokeninterno = :token",
-        ['token' => $jitsi->tokeninvitacion]
+        ['token' => trim($jitsi->tokeninvitacion)]
     );
     if ($master) {
         $jitsiid = $master->id;
