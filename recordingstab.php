@@ -45,7 +45,7 @@ if (!has_capability('mod/jitsi:viewrecords', $context) && !has_capability('mod/j
     die();
 }
 
-// view.php resolves $jitsiid to the master activity for shared sessions and passes it here.
+// View.php resolves $jitsiid to the master activity for shared sessions and passes it here.
 // This avoids re-doing the lookup and sidesteps CHAR-type comparison issues in PostgreSQL.
 $jitsiid = ($passedjitsiid > 0) ? $passedjitsiid : $jitsi->id;
 
