@@ -17,10 +17,11 @@
 namespace mod_jitsi;
 
 /**
- * Ensures every capability defined in db/access.php has a lang string in lang/en/jitsi.php.
+ * Ensures lang strings referenced from code exist in lang/en/jitsi.php.
  *
- * Moodle's Capability overview page calls get_string('jitsi:<name>', 'mod_jitsi') for
- * every capability. A missing string triggers a debugging notice on that page.
+ * Covers capabilities, scheduled/ad-hoc task names, event names, and the
+ * plugin strings required by Moodle core. A missing string causes a debugging
+ * notice or a broken UI — these tests catch regressions before release.
  *
  * @package    mod_jitsi
  * @copyright  2026 Sergio Comerón Sánchez-Paniagua <sergiocomeron@icloud.com>
@@ -52,6 +53,104 @@ final class lang_strings_test extends \advanced_testcase {
         $this->assertEmpty(
             $missing,
             'Missing lang strings for capabilities: ' . implode(', ', $missing)
+            . '. Add them to lang/en/jitsi.php.'
+        );
+    }
+
+    /**
+     * Every task class must return a non-empty name without triggering a debugging notice.
+     *
+     * @covers \mod_jitsi
+     */
+    public function test_task_get_name_strings_exist(): void {
+        global $CFG;
+
+        $this->resetAfterTest();
+
+        $taskdir = $CFG->dirroot . '/mod/jitsi/classes/task';
+        $failed = [];
+
+        foreach (glob($taskdir . '/*.php') as $file) {
+            $classname = '\\mod_jitsi\\task\\' . basename($file, '.php');
+            require_once($file);
+
+            if (!class_exists($classname)) {
+                continue;
+            }
+
+            $task = new $classname();
+            $this->resetDebugging();
+            $name = $task->get_name();
+            $debugs = $this->getDebuggingMessages();
+
+            if (!empty($debugs) || $name === '') {
+                $failed[] = $classname;
+            }
+        }
+
+        $this->assertEmpty(
+            $failed,
+            'Tasks with missing or empty lang strings for get_name(): ' . implode(', ', $failed)
+            . '. Add the required strings to lang/en/jitsi.php.'
+        );
+    }
+
+    /**
+     * Every event class must return a non-empty name without triggering a debugging notice.
+     *
+     * @covers \mod_jitsi
+     */
+    public function test_event_get_name_strings_exist(): void {
+        global $CFG;
+
+        $this->resetAfterTest();
+
+        $eventdir = $CFG->dirroot . '/mod/jitsi/classes/event';
+        $failed = [];
+
+        foreach (glob($eventdir . '/*.php') as $file) {
+            $classname = '\\mod_jitsi\\event\\' . basename($file, '.php');
+            require_once($file);
+
+            if (!class_exists($classname)) {
+                continue;
+            }
+
+            $this->resetDebugging();
+            $name = $classname::get_name();
+            $debugs = $this->getDebuggingMessages();
+
+            if (!empty($debugs) || $name === '') {
+                $failed[] = $classname;
+            }
+        }
+
+        $this->assertEmpty(
+            $failed,
+            'Events with missing or empty lang strings for get_name(): ' . implode(', ', $failed)
+            . '. Add the required strings to lang/en/jitsi.php.'
+        );
+    }
+
+    /**
+     * Moodle core requires certain plugin strings to exist for every activity module.
+     *
+     * @covers \mod_jitsi
+     */
+    public function test_required_module_strings_exist(): void {
+        $sm = get_string_manager();
+        $required = ['modulename', 'modulenameplural', 'pluginadministration', 'pluginname'];
+        $missing = [];
+
+        foreach ($required as $key) {
+            if (!$sm->string_exists($key, 'mod_jitsi')) {
+                $missing[] = $key;
+            }
+        }
+
+        $this->assertEmpty(
+            $missing,
+            'Missing required module lang strings: ' . implode(', ', $missing)
             . '. Add them to lang/en/jitsi.php.'
         );
     }
