@@ -66,6 +66,6 @@ jobs:
             ---
             [google-api-php-client releases](https://github.com/googleapis/google-api-php-client/releases)
           branch: chore/update-google-apiclient
-          base: master
+          base: dev
           delete-branch: true
           labels: dependencies
