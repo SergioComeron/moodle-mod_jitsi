@@ -50,7 +50,7 @@ jobs:
         if: steps.changes.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v6
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT_TOKEN }}
           commit-message: "chore: update google/apiclient from ${{ steps.before.outputs.version }} to ${{ steps.after.outputs.version }}"
           title: "chore: update google/apiclient ${{ steps.before.outputs.version }} → ${{ steps.after.outputs.version }}"
           body: |
