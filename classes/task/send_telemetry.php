@@ -108,6 +108,13 @@ class send_telemetry extends \core\task\scheduled_task {
             ['classname' => '\mod_jitsi\task\send_telemetry'],
             'nextruntime'
         );
+        if (!$taskrecord) {
+            $taskrecord = $DB->get_record(
+                'task_scheduled',
+                ['classname' => 'mod_jitsi\task\send_telemetry'],
+                'nextruntime'
+            );
+        }
         $nextrunat = $taskrecord ? (int)$taskrecord->nextruntime : 0;
 
         $payload = [
