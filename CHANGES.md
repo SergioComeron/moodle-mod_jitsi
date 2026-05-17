@@ -1,4 +1,33 @@
 # Changelog
+## v5.1.0
+# Added
+
+ * include next scheduled run time in registration payload
+ * include next scheduled run time in telemetry ping payload
+# Fixed
+
+ * fallback classname lookup in send_telemetry for Moodle 4.x compatibility
+ * resolve master jitsi ID in recordingstab.php for shared sessions
+ * pass resolved jitsiid from view.php to recordingstab.php for shared sessions
+ * trim tokeninvitacion before lookup in recordingstab for shared sessions
+ * resolve master jitsi ID in recordingstab.php for shared sessions
+ * add missing lang strings for capabilities on Capability overview page
+# Changed
+
+ * Merge pull request #192 from SergioComeron/chore/update-google-apiclient
+ * update google/apiclient from v2.19.2 to v2.19.3
+ * target dev branch in update-google-apiclient workflow
+ * use PAT_TOKEN in update-google-apiclient workflow to trigger CI on PRs
+ * undo all shared session recording fixes
+ * fix phpcs comment capitalisation in recordingstab
+ * extend lang string checks to tasks, events and required module strings
+ * fix phpcs in lang_strings_test
+ * verify every capability has a lang string in lang/en/jitsi.php
+ * Merge remote-tracking branch 'origin/master' into dev
+ * fix phpcs formatting in send_telemetry
+
+---
+
 ## v5.0.3
 # Changed
 
