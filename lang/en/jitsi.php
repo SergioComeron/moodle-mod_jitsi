@@ -168,6 +168,7 @@ $string['desktopaccessinfo'] = 'If you want to join the meeting, click on the bu
 $string['disablegcs'] = 'Disable GCS';
 $string['disablepushnotifications'] = 'Disable notifications';
 $string['dismisscall'] = 'Dismiss';
+$string['documentation'] = 'Documentation';
 $string['domain'] = 'Domain';
 $string['domainex'] = 'Domain Jitsi Server to use. Default server (<b>meet.jit.si</b>) have a time limit of 5 minutes per conference.
  You can search in Google for alternative public Jitsi servers that could be nearest to your users and with less latency.
@@ -507,7 +508,6 @@ $string['server'] = 'Jitsi server';
 $string['serveradded'] = 'Server created successfully.';
 $string['serverdeleted'] = 'Server "{$a}" deleted successfully.';
 $string['serverdesc'] = 'Choose which Jitsi server will be used.';
-$string['documentation'] = 'Documentation';
 $string['servermanagement'] = 'Jitsi servers';
 $string['servermanagementdesc'] = 'Click here to manage Jitsi servers';
 $string['serversetasdefault'] = 'Server "{$a}" set as default';
