@@ -1,5 +1,7 @@
 # Jitsi Meet Moodle Plugin
 
+**[Documentation](https://sergiocomeron.com/jitsi/docs/)** — tutorials, configuration guides, and reference for all features.
+
 ## Table of contents
 
 - [mod_jitsi Account](#mod_jitsi-account)

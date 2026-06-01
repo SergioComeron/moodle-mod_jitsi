@@ -37,6 +37,12 @@ if ($ADMIN->fulltree) {
             html_writer::link($link, get_string('servermanagementdesc', 'jitsi'))
             . ' &nbsp;·&nbsp; '
             . html_writer::link($linkusagestats, get_string('sessionusagestats', 'jitsi'))
+            . ' &nbsp;·&nbsp; '
+            . html_writer::link(
+                'https://sergiocomeron.com/jitsi/docs/',
+                get_string('documentation', 'jitsi'),
+                ['target' => '_blank']
+            )
         )
     );
 

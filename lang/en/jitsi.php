@@ -507,6 +507,7 @@ $string['server'] = 'Jitsi server';
 $string['serveradded'] = 'Server created successfully.';
 $string['serverdeleted'] = 'Server "{$a}" deleted successfully.';
 $string['serverdesc'] = 'Choose which Jitsi server will be used.';
+$string['documentation'] = 'Documentation';
 $string['servermanagement'] = 'Jitsi servers';
 $string['servermanagementdesc'] = 'Click here to manage Jitsi servers';
 $string['serversetasdefault'] = 'Server "{$a}" set as default';
