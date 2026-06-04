@@ -761,15 +761,59 @@ class mod_jitsi_external extends external_api {
             }
         }
 
-        $client = getclientgoogleapi();
+        // Validate there is an active streaming account before creating any record.
+        $account = $DB->get_record('jitsi_record_account', ['inuse' => 1]);
+        if (empty($account)) {
+            return [
+                'stream' => 'nodata',
+                'idsource' => 0,
+                'error' => 'erroraccount',
+                'user' => $userid,
+                'usercomplete' => $author->firstname . ' ' . $author->lastname,
+                'errorinfo' => 'No active YouTube streaming account is configured. '
+                    . 'Add or re-authorise an account in Site administration > Plugins > '
+                    . 'Activity modules > Jitsi > Streaming/Recording accounts.',
+                'link' => '',
+            ];
+        }
+
+        // Obtain the Google client. getclientgoogleapi() returns false (or throws)
+        // when the account token expired and could not be refreshed, i.e. the
+        // account needs to be re-authorised. Handle it cleanly instead of letting
+        // a fatal error surface to the user as a generic "Internal error".
+        try {
+            $client = getclientgoogleapi();
+        } catch (\Exception $e) {
+            return [
+                'stream' => 'nodata',
+                'idsource' => 0,
+                'error' => 'erroraccount',
+                'user' => $userid,
+                'usercomplete' => $author->firstname . ' ' . $author->lastname,
+                'errorinfo' => $e->getMessage(),
+                'link' => '',
+            ];
+        }
+        if ($client === false) {
+            return [
+                'stream' => 'nodata',
+                'idsource' => 0,
+                'error' => 'erroraccount',
+                'user' => $userid,
+                'usercomplete' => $author->firstname . ' ' . $author->lastname,
+                'errorinfo' => 'The YouTube account "' . $account->name . '" needs to be '
+                    . 're-authorised. Delete and re-add it in Site administration > Plugins > '
+                    . 'Activity modules > Jitsi > Streaming/Recording accounts.',
+                'link' => '',
+            ];
+        }
         $youtube = new Google_Service_YouTube($client);
 
-        $account = $DB->get_record('jitsi_record_account', ['inuse' => 1]);
         $source = new stdClass();
         $source->account = $account->id;
         $source->timecreated = time();
         $source->userid = $userid;
-        $source->link = $broadcastsresponse['id'];
+        $source->link = '';
 
         $record = new stdClass();
         $record->jitsi = $jitsi;
@@ -842,7 +886,9 @@ class mod_jitsi_external extends external_api {
             );
         } catch (Google_Service_Exception $e) {
             $result = [];
-            $result['stream'] = $streamsresponse['cdn']['ingestionInfo']['streamName'];
+            $result['stream'] = isset($streamsresponse['cdn']['ingestionInfo']['streamName'])
+                ? $streamsresponse['cdn']['ingestionInfo']['streamName']
+                : 'nodata';
             $result['idsource'] = $record->source;
             $result['error'] = 'erroryoutube';
             $result['user'] = $jitsiob->sourcerecord;
@@ -854,7 +900,9 @@ class mod_jitsi_external extends external_api {
             return $result;
         } catch (Google_Exception $e) {
             $result = [];
-            $result['stream'] = $streamsresponse['cdn']['ingestionInfo']['streamName'];
+            $result['stream'] = isset($streamsresponse['cdn']['ingestionInfo']['streamName'])
+                ? $streamsresponse['cdn']['ingestionInfo']['streamName']
+                : 'nodata';
             $result['idsource'] = $record->source;
             $result['error'] = 'erroryoutube';
             $result['user'] = $jitsiob->sourcerecord;
