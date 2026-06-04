@@ -48,7 +48,7 @@ jobs:
       - name: Create plugin ZIP
         run: |
           mkdir -p /tmp/zip_build/jitsi
-          rsync -av --exclude='.git' --exclude='.github' --exclude='CLAUDE.md' . /tmp/zip_build/jitsi/
+          rsync -av --exclude='.git' --exclude='.github' --exclude='.gitignore' --exclude='CLAUDE.md' . /tmp/zip_build/jitsi/
           cd /tmp/zip_build
           zip -r mod_jitsi.zip jitsi
           mv mod_jitsi.zip "$GITHUB_WORKSPACE/mod_jitsi.zip"
