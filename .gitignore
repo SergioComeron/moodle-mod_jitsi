@@ -1,4 +1,7 @@
 .claude
 claude.md
 CLAUDE.md
-vendor/
+# Dev-only tools (phpcs/moodle-cs) from the root composer.json.
+# Anchored to the plugin root so it does NOT exclude api/vendor/ (runtime
+# deps, which are committed and must be deployed).
+/vendor/
