@@ -169,6 +169,19 @@ class mobile {
             $data['finish_show'] = true;
         }
 
+        // Trigger the course module viewed event here in PHP instead of from a
+        // core-site-plugins-call-ws-on-load directive in the template: the
+        // mustache linter flags those custom attributes as invalid HTML, and
+        // this is the same pattern core activity modules use for the app.
+        $modulecontext = \context_module::instance($cm->id);
+        $event = \mod_jitsi\event\course_module_viewed::create([
+            'objectid' => $jitsi->id,
+            'context' => $modulecontext,
+        ]);
+        $event->add_record_snapshot('course', $course);
+        $event->add_record_snapshot('jitsi', $jitsi);
+        $event->trigger();
+
         return [
             'templates' => [
                 [
