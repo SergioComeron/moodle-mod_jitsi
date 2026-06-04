@@ -1,0 +1,209 @@
+<p>
+  <strong>mod_jitsi</strong> integrates Jitsi Meet videoconferencing directly
+  into Moodle courses. Teachers schedule sessions as standard activities;
+  students join in one click — no app to install, no account required.
+</p>
+
+<p>
+  The plugin works out of the box using the public server at
+  <a href="https://meet.jit.si/">meet.jit.si</a> (5-minute embed limit —
+  enough to evaluate). For production you need your own server: GCP
+  auto-managed is the easiest full-featured option; JaaS (8x8) is the
+  quickest no-infrastructure option.
+</p>
+
+<p>
+  <img class="img-fluid" style="margin: 1em 0;"
+    src="https://raw.githubusercontent.com/SergioComeron/moodle-mod_jitsi/master/doc/pix/jitsi-moodle.png"
+    alt="Jitsi Meet inside Moodle">
+</p>
+
+<h3>Key features</h3>
+<ul>
+  <li>Schedule webconferences as standard Moodle activities</li>
+  <li>Activity completion based on time attended</li>
+  <li>Unlimited participants (limited by server bandwidth)</li>
+  <li>Moodle profile pictures as avatars</li>
+  <li>Guest URLs for users outside Moodle (with optional email invitation)</li>
+  <li>Private 1-on-1 sessions — call any coursemate directly from their profile</li>
+  <li>Real-time participant list with names linked to Moodle profiles</li>
+  <li>HD audio and video, tile view, breakout rooms, chat, polls, virtual backgrounds</li>
+  <li>YouTube video sharing with synchronised playback</li>
+  <li>Full moderation control (token-based mode recommended)</li>
+  <li>YouTube live streaming with automatic recording publishing</li>
+  <li>GCP/Jibri recording directly to Google Cloud Storage with AI processing</li>
+  <li>Dropbox recording with manual or automatic link publishing</li>
+  <li>JaaS (8x8) cloud recordings automatically captured</li>
+  <li>Detailed attendance report with recording view tracking and heatmap</li>
+  <li>Site-wide session usage statistics</li>
+</ul>
+
+<h3>mod_jitsi Account</h3>
+<p>
+  Some features require a free registration at
+  <a href="https://portal.sergiocomeron.com">portal.sergiocomeron.com</a>.
+  Registration takes less than a minute and is completely free.
+</p>
+<p>
+  Features that require registration:
+</p>
+<ul>
+  <li><strong>Attendance report</strong> — detailed per-activity report with live session data, recording view tracking and course overview</li>
+  <li><strong>Recording view tracking</strong> — per-student progress bars showing which parts of each video were watched, persisted between sessions</li>
+  <li><strong>Viewing heatmap</strong> — aggregate bar showing which parts of each recording were watched by what fraction of students, with replay tracking and hover tooltip listing which students watched each segment</li>
+  <li><strong>Course overview</strong> — aggregated dashboard for all Jitsi activities in a course: sessions, participants, top recordings and student engagement ranking</li>
+  <li><strong>Session usage statistics</strong> — site-wide stats with daily breakdown</li>
+</ul>
+<p>
+  <em>A note on open source transparency: registration is not about locking
+  features for commercial reasons. It exists so the developer can see which
+  Moodle versions, server types and features are actually used — and focus
+  development where it matters most. Anyone can modify the open-source code and
+  bypass it.</em>
+</p>
+
+<h3>Supported server types</h3>
+<ul>
+  <li>
+    <strong>GCP auto-managed</strong> (BETA) — the plugin automatically
+    provisions a complete Jitsi + Jibri server in Google Cloud Platform. JWT
+    authentication, SSL certificates, recording to GCS and AI features are all
+    configured automatically. A Google Cloud account with billing is all you
+    need — the simplest way to get a fully-featured setup.
+  </li>
+  <li>
+    <strong>8x8 JaaS</strong> — Jitsi as a Service, free up to 25 monthly
+    active users. No infrastructure required. Cloud recordings captured
+    automatically (expire after 24 hours).
+    <a href="https://jaas.8x8.vc/">jaas.8x8.vc</a>
+  </li>
+  <li>
+    <strong>Self-hosted Jitsi</strong> — your own Jitsi server with full
+    control and optional JWT token authentication for moderation. Requires the
+    <a href="https://github.com/nvonahsen/jitsi-token-moderation-plugin">jitsi-token-moderation-plugin</a>
+    for JWT moderation to work correctly.
+  </li>
+  <li>
+    <strong>Public server</strong> (meet.jit.si or other public instances) —
+    no configuration required; limited to 5 minutes in embed mode.
+  </li>
+</ul>
+
+<h3>Recordings</h3>
+<p>
+  <img class="img-fluid" style="margin: 1em 0;"
+    src="https://raw.githubusercontent.com/SergioComeron/moodle-mod_jitsi/master/doc/pix/recordings.png"
+    alt="Recordings tab">
+</p>
+<p>The plugin supports multiple recording methods:</p>
+<ul>
+  <li>
+    <strong>GCP/Jibri to Google Cloud Storage</strong> — the recommended
+    method when using a GCP auto-managed server. Recordings are saved directly
+    to GCS and published automatically in the Recordings tab. Unlocks AI
+    features (summary, quiz, transcription).
+  </li>
+  <li>
+    <strong>YouTube streaming</strong> — recordings are automatically published
+    in the Recordings tab using the YouTube Data API v3. Requires OAuth 2.0
+    setup in Google Cloud Platform. Multiple YouTube accounts supported with
+    round-robin distribution.
+  </li>
+  <li>
+    <strong>Dropbox</strong> — teachers record to their Dropbox account and
+    publish the link manually. The plugin can embed the video directly with an
+    HTML5 player.
+  </li>
+  <li>
+    <strong>JaaS (8x8) cloud recordings</strong> — links captured automatically
+    when the session ends. Links expire after 24 hours and are automatically
+    hidden.
+  </li>
+  <li>
+    <strong>External links</strong> — any recording link can be added manually
+    to the Recordings tab.
+  </li>
+</ul>
+
+<h3>AI features for GCS recordings</h3>
+<p>
+  When recordings are stored in Google Cloud Storage (GCP/Jibri setup), they
+  can be processed by <strong>Google Vertex AI (Gemini 2.5 Flash)</strong> to
+  generate:
+</p>
+<ul>
+  <li><strong>AI Summary</strong> — a structured educational summary of the recording</li>
+  <li><strong>AI Quiz</strong> — a set of true/false questions automatically created as a Moodle quiz in the course</li>
+  <li><strong>AI Transcription</strong> — a timestamped transcript with chapter headings and clickable timestamps</li>
+</ul>
+<p>
+  AI features are disabled by default. Enabling them sends video recordings to
+  Google Vertex AI — review GDPR implications before enabling. A confirmation
+  modal is shown to teachers before each generation.
+</p>
+
+<h3>Attendance report</h3>
+<p>
+  A detailed per-activity report accessible from the activity's navigation,
+  organised into three tabs:
+</p>
+<ul>
+  <li><strong>Live sessions</strong> — all-time attendance per student: sessions entered, total minutes, average per session and exact connection dates</li>
+  <li><strong>Recordings</strong> — per-student segment progress bars, aggregate viewing heatmap (unique viewers + replays per 10-second bucket with hover tooltip), and access log for non-embeddable recordings</li>
+  <li><strong>Course overview</strong> — aggregated stats for all Jitsi activities: sessions, participants, top recordings and student engagement ranking</li>
+</ul>
+<p><em>Requires mod_jitsi Account registration.</em></p>
+
+<h3>Private sessions</h3>
+<p>
+  When enabled, any user can start a private 1-on-1 video call with a coursemate
+  directly from their Moodle profile page — without needing a scheduled Jitsi
+  activity. Call history is shown in a dedicated hub page. Instant Moodle
+  notification sent to the other participant when a session is started.
+</p>
+
+<h3>Token-based moderation</h3>
+<p>
+  Configuring JWT token authentication gives full moderation control: only users
+  with the <em>Jitsi Moderation</em> capability are promoted as Jitsi moderators
+  <img class="img-fluid"
+    src="https://raw.githubusercontent.com/SergioComeron/moodle-mod_jitsi/master/doc/pix/moderator_icon.png"
+    alt="moderator icon">
+  and can mute, disable cameras or remove participants. For self-hosted servers,
+  the
+  <a href="https://github.com/nvonahsen/jitsi-token-moderation-plugin">jitsi-token-moderation-plugin</a>
+  is required on the Jitsi server.
+</p>
+
+<h3>Session usage statistics</h3>
+<p>
+  Administrators can access a site-wide statistics page with date range
+  filtering showing sessions, unique participants, total minutes, recordings and
+  daily breakdown charts. Stats are pre-computed nightly for performance.
+  <em>Requires mod_jitsi Account registration.</em>
+</p>
+
+<h3>Permissions</h3>
+<ul>
+  <li><strong>mod/jitsi:addinstance</strong> — create Jitsi activities</li>
+  <li><strong>mod/jitsi:view</strong> — access Jitsi activities</li>
+  <li><strong>mod/jitsi:moderation</strong> — act as moderator in sessions</li>
+  <li><strong>mod/jitsi:record</strong> — start recordings and manage recording links</li>
+  <li><strong>mod/jitsi:deleterecord</strong> — mark recordings as deleted</li>
+  <li><strong>mod/jitsi:editrecordname</strong> — rename recordings</li>
+  <li><strong>mod/jitsi:hide</strong> — hide recordings from students</li>
+  <li><strong>mod/jitsi:createlink</strong> — view and share guest invite links</li>
+  <li><strong>mod/jitsi:viewrecords</strong> — access the Recordings tab</li>
+  <li><strong>mod/jitsi:viewexternallink</strong> — view externally-linked recordings (Dropbox, 8x8, manual links)</li>
+  <li><strong>mod/jitsi:viewusersonsession</strong> — access attendees reports</li>
+  <li><strong>mod/jitsi:viewattendance</strong> — access the detailed attendance report with recording view tracking</li>
+  <li><strong>mod/jitsi:generateaisummary</strong> — generate AI summaries for GCS recordings</li>
+  <li><strong>mod/jitsi:generateaiquiz</strong> — generate AI quizzes from GCS recordings</li>
+  <li><strong>mod/jitsi:generateaitranscription</strong> — generate AI transcriptions for GCS recordings</li>
+</ul>
+
+<h3>Disclaimer</h3>
+<p>
+  This plugin is not related to or partnered with 8x8 Inc. nor with Jitsi as a
+  Service (JaaS).
+</p>
