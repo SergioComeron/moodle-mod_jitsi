@@ -44,11 +44,8 @@ class mobile {
 
         $id = $args['cmid'];
 
-        if ($args['appversioncode'] >= 3950) {
-            $foldername = 'ionic5';
-        } else {
-            $foldername = 'ionic3';
-        }
+        // Ionic 3 (Moodle app appversioncode < 3950, ~2020) is no longer supported.
+        $foldername = 'ionic5';
 
         $courseid = $args['courseid'];
 
@@ -209,11 +206,8 @@ class mobile {
             }
         }
 
-        if ($args['appversioncode'] >= 3950) {
-            $foldername = 'ionic5';
-        } else {
-            $foldername = 'ionic3';
-        }
+        // Ionic 3 (Moodle app appversioncode < 3950, ~2020) is no longer supported.
+        $foldername = 'ionic5';
 
         $courseid = $args['courseid'];
         $cmid = $args['cmid'];
