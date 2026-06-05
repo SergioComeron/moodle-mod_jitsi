@@ -741,4 +741,41 @@ final class external_test extends \advanced_testcase {
         $this->assertEquals(0, $users[0]['isguest']);
         $this->assertStringContainsString('Ada', $users[0]['name']);
     }
+
+    // Participants / session state tests.
+
+    /**
+     * Test that update_participants stores the participant count.
+     *
+     * @covers \mod_jitsi\external\update_participants::execute
+     */
+    public function test_update_participants_stores_count(): void {
+        global $DB;
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+        [$jitsi, $cm] = $this->create_jitsi_activity();
+
+        $result = \mod_jitsi\external\update_participants::execute($jitsi->id, 5);
+
+        $this->assertEquals(5, $result);
+        $this->assertEquals(5, $DB->get_field('jitsi', 'numberofparticipants', ['id' => $jitsi->id]));
+    }
+
+    /**
+     * Test that participating_session triggers the participating event.
+     *
+     * @covers \mod_jitsi\external\participating_session::execute
+     */
+    public function test_participating_session_triggers_event(): void {
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+        [$jitsi, $cm] = $this->create_jitsi_activity();
+
+        $sink = $this->redirectEvents();
+        \mod_jitsi\external\participating_session::execute($jitsi->id, 0, $cm->id);
+        $events = $sink->get_events();
+
+        $this->assertCount(1, $events);
+        $this->assertInstanceOf(\mod_jitsi\event\jitsi_session_participating::class, $events[0]);
+    }
 }

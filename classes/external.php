@@ -55,19 +55,6 @@ class mod_jitsi_external extends external_api {
      *
      * @return external_function_parameters
      */
-    public static function state_record_parameters() {
-        return new external_function_parameters(
-            ['jitsi' => new external_value(PARAM_INT, 'Jitsi session id', VALUE_REQUIRED, '', NULL_NOT_ALLOWED),
-                  'state' => new external_value(PARAM_TEXT, 'State', VALUE_REQUIRED, '', NULL_NOT_ALLOWED),
-            ]
-        );
-    }
-
-    /**
-     * Returns description of method parameters
-     *
-     * @return external_function_parameters
-     */
     public static function create_stream_parameters() {
         return new external_function_parameters(
             ['session' => new external_value(PARAM_TEXT, 'Session object from google', VALUE_REQUIRED, '', NULL_NOT_ALLOWED),
@@ -298,76 +285,11 @@ class mod_jitsi_external extends external_api {
     }
 
     /**
-     * Returns description of method parameters
-     *
-     * @return external_function_parameters
-     */
-    public static function update_participants_parameters() {
-        return new external_function_parameters(
-            ['jitsi' => new external_value(PARAM_INT, 'Jitsi session id', VALUE_REQUIRED, '', NULL_NOT_ALLOWED),
-                    'numberofparticipants' =>
-                        new external_value(PARAM_INT, 'Number of participants', VALUE_REQUIRED, '', NULL_NOT_ALLOWED),
-            ]
-        );
-    }
-
-    /**
-     * Returns description of method parameters
-     *
-     * @return external_function_parameters
-     */
-    public static function get_participants_parameters() {
-        return new external_function_parameters(
-            ['jitsi' => new external_value(PARAM_INT, 'Jitsi session id', VALUE_REQUIRED, '', NULL_NOT_ALLOWED)]
-        );
-    }
-
-    /**
      * Returns description of method result value
      * @return external_description
      */
     public static function enter_session_returns() {
         return new external_value(PARAM_TEXT, 'Enter session');
-    }
-
-    /**
-     * Returns description of method result value
-     * @return external_description
-     */
-    public static function participating_session_parameters() {
-        return new external_function_parameters(
-            ['jitsi' => new external_value(PARAM_INT, 'Jitsi session id', VALUE_REQUIRED, '', NULL_NOT_ALLOWED),
-                    'user' => new external_value(PARAM_INT, 'User id', VALUE_REQUIRED, '', NULL_NOT_ALLOWED),
-                    'cmid' => new external_value(PARAM_INT, 'Course Module id', VALUE_REQUIRED, '', NULL_NOT_ALLOWED),
-            ]
-        );
-    }
-
-    /**
-     * Register a participation in a Jitsi session
-     * @param int $jitsi Jitsi session id
-     * @param int $user User id
-     * @param int $cmid Course Module id
-     */
-    public static function participating_session($jitsi, $user, $cmid) {
-        global $DB;
-        $context = context_module::instance($cmid);
-        $event = \mod_jitsi\event\jitsi_session_participating::create([
-            'objectid' => $jitsi,
-            'context' => $context,
-        ]);
-        $event->add_record_snapshot('course', $jitsi->course);
-        $event->add_record_snapshot('jitsi', $jitsiob);
-        $event->trigger();
-        update_completition(get_coursemodule_from_id('jitsi', $cmid, 0, false, MUST_EXIST));
-    }
-
-    /**
-     * Returns description of method result value
-     * @return external_description
-     */
-    public static function participating_session_returns() {
-        return new external_value(PARAM_TEXT, 'Participating session');
     }
 
     /**
@@ -420,24 +342,6 @@ class mod_jitsi_external extends external_api {
         $result['status'] = true;
         $result['warnings'] = $warnings;
         return $result;
-    }
-
-    /**
-     * Returns record state
-     * @param int $jitsi Jitsi session id
-     * @param string $state State
-     * @return array
-     */
-    public static function state_record($jitsi, $state) {
-        global $USER, $DB;
-
-        $params = self::validate_parameters(
-            self::state_record_parameters(),
-            ['jitsi' => $jitsi, 'state' => $state]
-        );
-        $jitsiob = $DB->get_record('jitsi', ['id' => $jitsi]);
-        $DB->update_record('jitsi', $jitsiob);
-        return 'recording' . $jitsiob->recording;
     }
 
     /**
@@ -723,62 +627,6 @@ class mod_jitsi_external extends external_api {
     }
 
     /**
-     * Update Number of Participants
-     * @param int $jitsi Jitsi session id
-     * @param int $numberofparticipants Number of participants
-     * @return array result
-     */
-    public static function update_participants($jitsi, $numberofparticipants) {
-        global $CFG, $DB;
-
-        $params = self::validate_parameters(
-            self::update_participants_parameters(),
-            ['jitsi' => $jitsi, 'numberofparticipants' => $numberofparticipants],
-        );
-        if ($numberofparticipants >= 0) {
-            $jitsiob = $DB->get_record('jitsi', ['id' => $jitsi]);
-            if ($numberofparticipants != $jitsiob->numberofparticipants) {
-                $jitsiob->numberofparticipants = $numberofparticipants;
-                $DB->update_record('jitsi', $jitsiob);
-                if ($jitsiob->sourcerecord != null) {
-                    $source = $DB->get_record('jitsi_source_record', ['id' => $jitsiob->sourcerecord]);
-                    if ($source && $source->maxparticipants < $numberofparticipants) {
-                        $source->maxparticipants = $numberofparticipants;
-                        $DB->update_record('jitsi_source_record', $source);
-                    }
-                }
-            }
-        }
-        return $jitsiob->numberofparticipants;
-    }
-
-    /**
-     * Get Number of Participants
-     * @param int $jitsi Jitsi session id
-     * @return array result
-     */
-    public static function get_participants($jitsi) {
-        global $CFG, $DB;
-
-        $params = self::validate_parameters(
-            self::update_participants_parameters(),
-            ['jitsi' => $jitsi],
-        );
-        $jitsiob = $DB->get_record('jitsi', ['id' => $jitsi]);
-        $jitsiob->name = 'modificado';
-        $DB->update_record('jitsi', $jitsiob);
-        return $jitsiob->numberofparticipants;
-    }
-
-    /**
-     * Returns description of method result value
-     * @return external_description
-     */
-    public static function state_record_returns() {
-        return new external_value(PARAM_TEXT, 'State record session');
-    }
-
-    /**
      * Returns description of method result value
      * @return external_description
      */
@@ -833,22 +681,6 @@ class mod_jitsi_external extends external_api {
                 'errorinfo' => new external_value(PARAM_TEXT, 'error info'),
                 'link' => new external_value(PARAM_TEXT, 'link'),
             ]);
-    }
-
-    /**
-     * Returns description of method result value
-     * @return external_description
-     */
-    public static function update_participants_returns() {
-        return new external_value(PARAM_INT, 'Number of partipants');
-    }
-
-    /**
-     * Returns description of method result value
-     * @return external_description
-     */
-    public static function get_participants_returns() {
-        return new external_value(PARAM_INT, 'Number of partipants');
     }
 
     /**

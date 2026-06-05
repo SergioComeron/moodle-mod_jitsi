@@ -27,9 +27,8 @@ defined('MOODLE_INTERNAL') || die();
 
 $functions = [
         'mod_jitsi_state_record' => [
-                'classname' => 'mod_jitsi_external',
-                'methodname' => 'state_record',
-                'classpath' => 'mod/jitsi/externallib.php',
+                'classname' => 'mod_jitsi\external\state_record',
+                'methodname' => 'execute',
                 'description' => 'State session recording',
                 'type' => 'write',
                 'ajax' => true,
@@ -38,9 +37,8 @@ $functions = [
         ],
 
         'mod_jitsi_participating_session' => [
-                'classname' => 'mod_jitsi_external',
-                'methodname' => 'participating_session',
-                'classpath' => 'mod/jitsi/classes/external.php',
+                'classname' => 'mod_jitsi\external\participating_session',
+                'methodname' => 'execute',
                 'description' => 'State session recording',
                 'type' => 'write',
                 'ajax' => true,
@@ -159,19 +157,9 @@ $functions = [
         ],
 
         'mod_jitsi_update_participants' => [
-                'classname' => 'mod_jitsi_external',
-                'methodname' => 'update_participants',
+                'classname' => 'mod_jitsi\external\update_participants',
+                'methodname' => 'execute',
                 'description' => 'Update Participatns',
-                'type' => 'write',
-                'ajax' => true,
-                'loginrequired' => false,
-                'services' => [MOODLE_OFFICIAL_MOBILE_SERVICE, 'local_mobile'],
-        ],
-
-        'mod_jitsi_get_participants' => [
-                'classname' => 'mod_jitsi_external',
-                'methodname' => 'get_participants',
-                'description' => 'Get Participatns',
                 'type' => 'write',
                 'ajax' => true,
                 'loginrequired' => false,
