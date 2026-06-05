@@ -354,8 +354,8 @@ $functions = [
         ],
 
         'mod_jitsi_presence_join' => [
-                'classname' => 'mod_jitsi_external',
-                'methodname' => 'presence_join',
+                'classname' => 'mod_jitsi\external\presence_join',
+                'methodname' => 'execute',
                 'description' => 'Register participant presence on join',
                 'type' => 'write',
                 'ajax' => true,
@@ -363,8 +363,8 @@ $functions = [
         ],
 
         'mod_jitsi_presence_leave' => [
-                'classname' => 'mod_jitsi_external',
-                'methodname' => 'presence_leave',
+                'classname' => 'mod_jitsi\external\presence_leave',
+                'methodname' => 'execute',
                 'description' => 'Remove participant presence on leave',
                 'type' => 'write',
                 'ajax' => true,
@@ -372,8 +372,8 @@ $functions = [
         ],
 
         'mod_jitsi_presence_heartbeat' => [
-                'classname' => 'mod_jitsi_external',
-                'methodname' => 'presence_heartbeat',
+                'classname' => 'mod_jitsi\external\presence_heartbeat',
+                'methodname' => 'execute',
                 'description' => 'Update presence heartbeat timestamp',
                 'type' => 'write',
                 'ajax' => true,
@@ -381,8 +381,8 @@ $functions = [
         ],
 
         'mod_jitsi_get_presence_count' => [
-                'classname' => 'mod_jitsi_external',
-                'methodname' => 'get_presence_count',
+                'classname' => 'mod_jitsi\external\get_presence_count',
+                'methodname' => 'execute',
                 'description' => 'Get active participant count from presence table',
                 'type' => 'read',
                 'ajax' => true,
@@ -390,8 +390,8 @@ $functions = [
         ],
 
         'mod_jitsi_get_presence_users' => [
-                'classname' => 'mod_jitsi_external',
-                'methodname' => 'get_presence_users',
+                'classname' => 'mod_jitsi\external\get_presence_users',
+                'methodname' => 'execute',
                 'description' => 'Get names of active participants from presence table',
                 'type' => 'read',
                 'ajax' => true,

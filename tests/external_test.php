@@ -611,4 +611,134 @@ final class external_test extends \advanced_testcase {
         $this->assertCount(1, $events);
         $this->assertInstanceOf(\mod_jitsi\event\jitsi_press_record_button::class, $events[0]);
     }
+
+    // Presence tests.
+
+    /**
+     * Test that presence_join creates a presence record and returns the count.
+     *
+     * @covers \mod_jitsi\external\presence_join::execute
+     */
+    public function test_presence_join_creates_record(): void {
+        global $DB;
+        $this->resetAfterTest(true);
+        $user = $this->getDataGenerator()->create_user();
+        $this->setUser($user);
+        [$jitsi, $cm] = $this->create_jitsi_activity();
+
+        $total = \mod_jitsi\external\presence_join::execute($jitsi->id, 'hashaaa1');
+
+        $this->assertEquals(1, $total);
+        $records = $DB->get_records('jitsi_presence', ['jitsiid' => $jitsi->id]);
+        $this->assertCount(1, $records);
+        $record = reset($records);
+        $this->assertEquals($user->id, $record->userid);
+    }
+
+    /**
+     * Test that joining twice with the same hash updates instead of duplicating.
+     *
+     * @covers \mod_jitsi\external\presence_join::execute
+     */
+    public function test_presence_join_updates_existing(): void {
+        global $DB;
+        $this->resetAfterTest(true);
+        $user = $this->getDataGenerator()->create_user();
+        $this->setUser($user);
+        [$jitsi, $cm] = $this->create_jitsi_activity();
+
+        \mod_jitsi\external\presence_join::execute($jitsi->id, 'hashaaa1');
+        $total = \mod_jitsi\external\presence_join::execute($jitsi->id, 'hashaaa1');
+
+        $this->assertEquals(1, $total);
+        $this->assertCount(1, $DB->get_records('jitsi_presence', ['jitsiid' => $jitsi->id]));
+    }
+
+    /**
+     * Test that presence_leave removes the presence record.
+     *
+     * @covers \mod_jitsi\external\presence_leave::execute
+     */
+    public function test_presence_leave_removes_record(): void {
+        global $DB;
+        $this->resetAfterTest(true);
+        $user = $this->getDataGenerator()->create_user();
+        $this->setUser($user);
+        [$jitsi, $cm] = $this->create_jitsi_activity();
+
+        \mod_jitsi\external\presence_join::execute($jitsi->id, 'hashaaa1');
+        $result = \mod_jitsi\external\presence_leave::execute($jitsi->id, 'hashaaa1');
+
+        $this->assertTrue($result);
+        $this->assertCount(0, $DB->get_records('jitsi_presence', ['jitsiid' => $jitsi->id]));
+    }
+
+    /**
+     * Test that presence_heartbeat keeps the entry and clears stale ones.
+     *
+     * @covers \mod_jitsi\external\presence_heartbeat::execute
+     */
+    public function test_presence_heartbeat_clears_stale(): void {
+        global $DB;
+        $this->resetAfterTest(true);
+        $user = $this->getDataGenerator()->create_user();
+        $this->setUser($user);
+        [$jitsi, $cm] = $this->create_jitsi_activity();
+
+        // Insert a stale entry (older than the 150s threshold).
+        $stale = (object)[
+            'jitsiid' => $jitsi->id,
+            'userid' => $user->id,
+            'sessionhash' => 'stalehash',
+            'guestname' => null,
+            'timecreated' => time() - 1000,
+            'timemodified' => time() - 1000,
+        ];
+        $DB->insert_record('jitsi_presence', $stale);
+
+        \mod_jitsi\external\presence_join::execute($jitsi->id, 'freshhash');
+        $result = \mod_jitsi\external\presence_heartbeat::execute($jitsi->id, 'freshhash');
+
+        $this->assertTrue($result);
+        $hashes = $DB->get_fieldset_select('jitsi_presence', 'sessionhash', 'jitsiid = ?', [$jitsi->id]);
+        $this->assertContains('freshhash', $hashes);
+        $this->assertNotContains('stalehash', $hashes);
+    }
+
+    /**
+     * Test that get_presence_count returns the number of active participants.
+     *
+     * @covers \mod_jitsi\external\get_presence_count::execute
+     */
+    public function test_get_presence_count_returns_active(): void {
+        $this->resetAfterTest(true);
+        $user = $this->getDataGenerator()->create_user();
+        $this->setUser($user);
+        [$jitsi, $cm] = $this->create_jitsi_activity();
+
+        \mod_jitsi\external\presence_join::execute($jitsi->id, 'hashaaa1');
+        \mod_jitsi\external\presence_join::execute($jitsi->id, 'hashaaa2');
+
+        $this->assertEquals(2, \mod_jitsi\external\get_presence_count::execute($jitsi->id));
+    }
+
+    /**
+     * Test that get_presence_users returns the participant names.
+     *
+     * @covers \mod_jitsi\external\get_presence_users::execute
+     */
+    public function test_get_presence_users_returns_names(): void {
+        $this->resetAfterTest(true);
+        $user = $this->getDataGenerator()->create_user(['firstname' => 'Ada', 'lastname' => 'Lovelace']);
+        $this->setUser($user);
+        [$jitsi, $cm] = $this->create_jitsi_activity();
+
+        \mod_jitsi\external\presence_join::execute($jitsi->id, 'hashaaa1');
+        $users = \mod_jitsi\external\get_presence_users::execute($jitsi->id);
+
+        $this->assertCount(1, $users);
+        $this->assertEquals($user->id, $users[0]['userid']);
+        $this->assertEquals(0, $users[0]['isguest']);
+        $this->assertStringContainsString('Ada', $users[0]['name']);
+    }
 }
