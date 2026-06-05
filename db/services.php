@@ -127,8 +127,8 @@ $functions = [
         ],
 
         'mod_jitsi_send_error' => [
-                'classname' => 'mod_jitsi_external',
-                'methodname' => 'send_error',
+                'classname' => 'mod_jitsi\external\send_error',
+                'methodname' => 'execute',
                 'description' => 'Send error to admin',
                 'type' => 'read',
                 'ajax' => true,
@@ -167,8 +167,8 @@ $functions = [
         ],
 
         'mod_jitsi_log_error' => [
-                'classname' => 'mod_jitsi_external',
-                'methodname' => 'log_error',
+                'classname' => 'mod_jitsi\external\log_error',
+                'methodname' => 'execute',
                 'description' => 'Log error',
                 'type' => 'read',
                 'ajax' => true,

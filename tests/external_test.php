@@ -930,4 +930,47 @@ final class external_test extends \advanced_testcase {
         $this->assertCount(1, $result['viewers']);
         $this->assertEquals($user->id, $result['viewers'][0]['userid']);
     }
+
+    // Error logging tests.
+
+    /**
+     * Test that log_error triggers the jitsi_error event.
+     *
+     * @covers \mod_jitsi\external\log_error::execute
+     */
+    public function test_log_error_triggers_event(): void {
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+        [$jitsi, $cm] = $this->create_jitsi_activity();
+
+        $sink = $this->redirectEvents();
+        \mod_jitsi\external\log_error::execute($jitsi->id, 0, $cm->id);
+        $events = $sink->get_events();
+
+        $this->assertCount(1, $events);
+        $this->assertInstanceOf(\mod_jitsi\event\jitsi_error::class, $events[0]);
+    }
+
+    /**
+     * Test that send_error emails the admins and triggers the error event.
+     *
+     * @covers \mod_jitsi\external\send_error::execute
+     */
+    public function test_send_error_emails_admins_and_triggers_event(): void {
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+        [$jitsi, $cm] = $this->create_jitsi_activity();
+        $user = $this->getDataGenerator()->create_user();
+
+        $eventsink = $this->redirectEvents();
+        $mailsink = $this->redirectEmails();
+        \mod_jitsi\external\send_error::execute($jitsi->id, $user->id, 'something broke', $cm->id);
+        $messages = $mailsink->get_messages();
+        $events = $eventsink->get_events();
+
+        $this->assertGreaterThanOrEqual(1, count($messages));
+        $this->assertCount(1, $events);
+        $this->assertInstanceOf(\mod_jitsi\event\jitsi_error::class, $events[0]);
+        $this->assertEquals($cm->instance, $events[0]->objectid);
+    }
 }

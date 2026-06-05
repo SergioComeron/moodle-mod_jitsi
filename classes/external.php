@@ -69,19 +69,6 @@ class mod_jitsi_external extends external_api {
      *
      * @return external_function_parameters
      */
-    public static function enter_session_parameters() {
-        return new external_function_parameters(
-            ['jitsi' => new external_value(PARAM_INT, 'Jitsi session id', VALUE_REQUIRED, '', NULL_NOT_ALLOWED),
-                    'user' => new external_value(PARAM_INT, 'User id', VALUE_REQUIRED, '', NULL_NOT_ALLOWED),
-            ]
-        );
-    }
-
-    /**
-     * Returns description of method parameters
-     *
-     * @return external_function_parameters
-     */
     public static function delete_record_youtube_parameters() {
         return new external_function_parameters(
             ['idsource' => new external_value(PARAM_INT, 'Record session id', VALUE_REQUIRED, '', NULL_NOT_ALLOWED)]
@@ -169,143 +156,11 @@ class mod_jitsi_external extends external_api {
     }
 
     /**
-     * Returns description of method parameters
-     *
-     * @param int $jitsi Jitsi session id
-     * @param int $user User id
-     */
-    public static function enter_session($jitsi, $user) {
-        global $DB, $PAGE;
-        $event = \mod_jitsi\event\jitsi_session_enter::create([
-            'objectid' => $PAGE->cm->instance,
-            'context' => $PAGE->context,
-          ]);
-          $jitsiob = $DB->get_record('jitsi', ['id' => $jitsi]);
-          $event->add_record_snapshot('course', $jitsiob->course);
-          $event->add_record_snapshot('jitsi', $jitsiob);
-          $event->trigger();
-    }
-
-    /**
-     * Returns description of method parameters
-     *
-     * @return send_error_parameters
-     */
-    public static function send_error_parameters() {
-        return new external_function_parameters(
-            ['jitsi' => new external_value(PARAM_INT, 'Jitsi session id', VALUE_REQUIRED, '', NULL_NOT_ALLOWED),
-                    'user' => new external_value(PARAM_INT, 'User id', VALUE_REQUIRED, '', NULL_NOT_ALLOWED),
-                    'error' => new external_value(PARAM_TEXT, 'Error', VALUE_REQUIRED, '', NULL_NOT_ALLOWED),
-                    'cmid' => new external_value(PARAM_INT, 'Course Module id', VALUE_REQUIRED, '', NULL_NOT_ALLOWED),
-            ]
-        );
-    }
-
-    /**
-     * Returns description of method parameters
-     *
-     * @param int $jitsi Jitsi session id
-     * @param int $user User id
-     * @param string $error Error message
-     * @param int $cmid Course Module id
-     */
-    public static function send_error($jitsi, $user, $error, $cmid) {
-        global $PAGE, $DB, $CFG;
-
-        $PAGE->set_context(context_module::instance($cmid));
-        $admins = get_admins();
-
-        $jitsiob = $DB->get_record('jitsi', ['id' => $jitsi]);
-
-        $user = $DB->get_record('user', ['id' => $user]);
-        $safeerror = substr(strip_tags($error), 0, 500);
-        $mensaje = "El usuario " . $user->firstname . " " . $user->lastname .
-            " ha tenido un error al intentar grabar la sesión de jitsi con id " . $jitsi . "\nInfo:\n" . $safeerror . "\n
-        Para más información, accede a la sesión de jitsi y mira el log.\n
-        URL: " . $CFG->wwwroot . "/mod/jitsi/view.php?id=" . $cmid . "\n
-        Nombre de la sesión: " . $DB->get_record('jitsi', ['id' => $jitsi])->name . "\n
-        Curso: " . $DB->get_record('course', ['id' => $DB->get_record('jitsi', ['id' => $jitsi])->course])->fullname . "\n
-        Usuario: " . $user->username . "\n";
-        foreach ($admins as $admin) {
-            email_to_user($admin, $admin, "ERROR JITSI! el usuario: "
-                . $user->username . " ha tenido un error en el jitsi: " . $jitsi, $mensaje);
-        }
-
-        $cm = get_coursemodule_from_id('jitsi', $cmid, 0, false, MUST_EXIST);
-        $event = \mod_jitsi\event\jitsi_error::create([
-            'objectid' => $PAGE->cm->instance,
-            'context' => $PAGE->context,
-            'other' => ['error' => $error, 'account' => '-'],
-        ]);
-        $event->add_record_snapshot('course', $PAGE->course);
-        $event->add_record_snapshot('jitsi', $jitsi);
-        $event->trigger();
-    }
-
-    /**
-     * Returns description of method parameters
-     *
-     * @return external_function_parameters
-     */
-    public static function log_error_parameters() {
-        return new external_function_parameters(
-            ['jitsi' => new external_value(PARAM_INT, 'Jitsi session id', VALUE_REQUIRED, '', NULL_NOT_ALLOWED),
-                    'user' => new external_value(PARAM_INT, 'User id', VALUE_REQUIRED, '', NULL_NOT_ALLOWED),
-                    'cmid' => new external_value(PARAM_INT, 'Course Module id', VALUE_REQUIRED, '', NULL_NOT_ALLOWED),
-            ]
-        );
-    }
-
-    /**
-     * Returns description of method parameters
-     *
-     * @param int $jitsi Jitsi session id
-     * @param int $user User id
-     * @param int $cmid Course Module id
-     */
-    public static function log_error($jitsi, $user, $cmid) {
-        global $DB;
-        $context = context_module::instance($cmid);
-        $jitsiob = $DB->get_record('jitsi', ['id' => $jitsi]);
-        $event = \mod_jitsi\event\jitsi_error::create([
-            'objectid' => $jitsi,
-            'context' => $context,
-        ]);
-        $event->add_record_snapshot('course', $jitsiob->course);
-        $event->add_record_snapshot('jitsi', $jitsiob);
-        $event->trigger();
-    }
-
-    /**
-     * Returns description of method result value
-     * @return external_description
-     */
-    public static function log_error_returns() {
-        return new external_value(PARAM_TEXT, 'Log error');
-    }
-
-    /**
-     * Returns description of method result value
-     * @return external_description
-     */
-    public static function enter_session_returns() {
-        return new external_value(PARAM_TEXT, 'Enter session');
-    }
-
-    /**
      * Returns description of method result value
      * @return external_description
      */
     public static function delete_record_youtube_returns() {
         return new external_value(PARAM_TEXT, 'Video deleted');
-    }
-
-    /**
-     * Returns description of method result value
-     * @return external_description
-     */
-    public static function send_error_returns() {
-        return new external_value(PARAM_TEXT, 'Error sent');
     }
 
     /**
