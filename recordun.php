@@ -67,19 +67,20 @@ $optionsseparator = ['.', '-', '_', ''];
 for ($i = 0; $i < $max; $i++) {
     if ($i != $max - 1) {
         if ($allowed[$i] == 0) {
-            $sesparam .= string_sanitize($course->shortname) . $optionsseparator[get_config('mod_jitsi', 'separator')];
+            $sesparam .= \mod_jitsi\local\room::sanitize($course->shortname)
+                . $optionsseparator[get_config('mod_jitsi', 'separator')];
         } else if ($allowed[$i] == 1) {
             $sesparam .= $jitsi->id . $optionsseparator[get_config('mod_jitsi', 'separator')];
         } else if ($allowed[$i] == 2) {
-            $sesparam .= string_sanitize($jitsi->name) . $optionsseparator[get_config('mod_jitsi', 'separator')];
+            $sesparam .= \mod_jitsi\local\room::sanitize($jitsi->name) . $optionsseparator[get_config('mod_jitsi', 'separator')];
         }
     } else {
         if ($allowed[$i] == 0) {
-            $sesparam .= string_sanitize($course->shortname);
+            $sesparam .= \mod_jitsi\local\room::sanitize($course->shortname);
         } else if ($allowed[$i] == 1) {
             $sesparam .= $sessionid;
         } else if ($allowed[$i] == 2) {
-            $sesparam .= string_sanitize($jitsi->name);
+            $sesparam .= \mod_jitsi\local\room::sanitize($jitsi->name);
         }
     }
 }

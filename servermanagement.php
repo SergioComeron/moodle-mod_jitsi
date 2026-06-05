@@ -297,7 +297,7 @@ if ($rawaction === 'jibrirecording') {
             $sepchar = $separatormap[(int)$separator] ?? '';
             $roomnamelc = strtolower($roomname);
             foreach ($alljitsis as $candidate) {
-                $sesparam = jitsi_build_room_name(
+                $sesparam = \mod_jitsi\local\room::build_name(
                     $candidate->courseshortname,
                     $candidate->id,
                     $candidate->name,

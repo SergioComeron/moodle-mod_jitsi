@@ -196,7 +196,7 @@ if ($jitsi->sessionwithtoken == 0) {
 }
 
 if ($errorborrado == false) {
-    $sesparam = jitsi_build_room_name(
+    $sesparam = \mod_jitsi\local\room::build_name(
         $courseshortname,
         $jitsiid,
         $jitsiname,

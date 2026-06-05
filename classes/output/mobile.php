@@ -113,19 +113,21 @@ class mobile {
         for ($i = 0; $i < $max; $i++) {
             if ($i != $max - 1) {
                 if ($allowed[$i] == 0) {
-                    $sesparam .= string_sanitize($course->shortname) . $optionsseparator[get_config('mod_jitsi', 'separator')];
+                    $sesparam .= \mod_jitsi\local\room::sanitize($course->shortname)
+                        . $optionsseparator[get_config('mod_jitsi', 'separator')];
                 } else if ($allowed[$i] == 1) {
                     $sesparam .= $jitsi->id . $optionsseparator[get_config('mod_jitsi', 'separator')];
                 } else if ($allowed[$i] == 2) {
-                    $sesparam .= string_sanitize($jitsi->name) . $optionsseparator[get_config('mod_jitsi', 'separator')];
+                    $sesparam .= \mod_jitsi\local\room::sanitize($jitsi->name)
+                        . $optionsseparator[get_config('mod_jitsi', 'separator')];
                 }
             } else {
                 if ($allowed[$i] == 0) {
-                    $sesparam .= string_sanitize($course->shortname);
+                    $sesparam .= \mod_jitsi\local\room::sanitize($course->shortname);
                 } else if ($allowed[$i] == 1) {
                     $sesparam .= $jitsi->id;
                 } else if ($allowed[$i] == 2) {
-                    $sesparam .= string_sanitize($jitsi->name);
+                    $sesparam .= \mod_jitsi\local\room::sanitize($jitsi->name);
                 }
             }
         }
@@ -349,26 +351,4 @@ class mobile {
             'otherdata' => json_encode($data),
         ];
     }
-}
-
-/**
- * Sanitize strings
- * @param string $string - The string to sanitize.
- * @param boolean $forcelowercase - Force the string to lowercase?
- * @param boolean $anal - If set to *true*, will remove all non-alphanumeric characters.
- */
-function string_sanitize($string, $forcelowercase = true, $anal = false) {
-    $strip = ['~', chr(96), '!', '@', '#', '$', '%', '^', '&', '*', '(', ')',
-            '_', '=', '+', '[', '{', ']', '}', '\\', '|', ';', ':', '"',
-            "'", '&#8216;', '&#8217;', '&#8220;', '&#8221;', '&#8211;', '&#8212;',
-            'â€"', 'â€"', ',', '<', '.', '>', '/', '?',
-        ];
-    $clean = trim(str_replace($strip, "", strip_tags($string)));
-    $clean = preg_replace('/\s+/', "-", $clean);
-    $clean = ($anal) ? preg_replace("/[^a-zA-Z0-9]/", "", $clean) : $clean;
-    return ($forcelowercase) ?
-        (function_exists('mb_strtolower')) ?
-            mb_strtolower($clean, 'UTF-8') :
-            strtolower($clean) :
-        $clean;
 }

@@ -349,69 +349,6 @@ function base64urldecode($inputstr) {
 }
 
 /**
- * Sanitize strings
- * @param string $string - The string to sanitize.
- * @param boolean $forcelowercase - Force the string to lowercase?
- * @param boolean $anal - If set to *true*, will remove all non-alphanumeric characters.
- */
-function string_sanitize($string, $forcelowercase = true, $anal = false) {
-    $strip = ['~', chr(96), '!', '@', '#', '$', '%', '^', '&', '*', '(', ')',
-            '_', '=', '+', '[', '{', ']', '}', '\\', '|', ';', ':', '"',
-            "'", '&#8216;', '&#8217;', '&#8220;', '&#8221;', '&#8211;', '&#8212;',
-            'â€"', 'â€"', ',', '<', '.', '>', '/', '?',
-        ];
-    $clean = trim(str_replace($strip, "", strip_tags($string)));
-    $clean = preg_replace('/\s+/', "-", $clean);
-    $clean = ($anal) ? preg_replace("/[^a-zA-Z0-9]/", "", $clean) : $clean;
-    return ($forcelowercase) ?
-        (function_exists('mb_strtolower')) ?
-            mb_strtolower($clean, 'UTF-8') :
-            strtolower($clean) :
-        $clean;
-}
-
-/**
- * Build the Jitsi room name for a given activity using the same algorithm as view.php.
- *
- * Extracted here so that servermanagement.php callbacks and view.php always use
- * identical logic and cannot diverge.
- *
- * @param string $shortname Course shortname
- * @param int $jitsiid Jitsi activity ID
- * @param string $jitsiname Jitsi activity name
- * @param string|false $sesionname Comma-separated field indices (0=shortname,1=id,2=name).
- *                                 Defaults to '0,1,2' when empty/false.
- * @param int|string|false $separator Index into ['.', '-', '_', '']. Defaults to 0 ('.').
- * @return string The room name
- */
-function jitsi_build_room_name($shortname, $jitsiid, $jitsiname, $sesionname = false, $separator = false) {
-    $separatormap = ['.', '-', '_', ''];
-    if ($sesionname === false || $sesionname === '' || $sesionname === null) {
-        $sesionname = '0,1,2';
-    }
-    $separatorindex = ($separator === false || $separator === '' || $separator === null) ? 0 : (int)$separator;
-    $sep = $separatormap[$separatorindex] ?? '';
-    $allowed = explode(',', $sesionname);
-    $max = count($allowed);
-    $sesparam = '';
-    for ($i = 0; $i < $max; $i++) {
-        $part = '';
-        if ($allowed[$i] == 0) {
-            $part = string_sanitize($shortname);
-        } else if ($allowed[$i] == 1) {
-            $part = (string)$jitsiid;
-        } else if ($allowed[$i] == 2) {
-            $part = string_sanitize($jitsiname);
-        }
-        $sesparam .= $part;
-        if ($i < $max - 1) {
-            $sesparam .= $sep;
-        }
-    }
-    return $sesparam;
-}
-
-/**
  * Create session
  * @param int $teacher - Moderation
  * @param int $cmid - Course module
@@ -463,7 +400,7 @@ function createsession(
     $eightbyeightapikeyid = $server->eightbyeightapikeyid;
     $privatykey = $server->privatekey;
 
-    $sessionnorm = normalizesessionname($session);
+    $sessionnorm = \mod_jitsi\local\room::normalize_session_name($session);
     if ($teacher == 1) {
         $teacher = true;
         $affiliation = "owner";
@@ -1400,7 +1337,7 @@ function createsessionpriv(
     $eightbyeightapikeyid = $server->eightbyeightapikeyid;
     $privatykey = $server->privatekey;
 
-    $sessionnorm = normalizesessionname($session);
+    $sessionnorm = \mod_jitsi\local\room::normalize_session_name($session);
     if ($teacher == 1) {
         $teacher = true;
         $affiliation = "owner";
@@ -2706,18 +2643,6 @@ function senderror($jitsi, $user, $error, $source) {
     $event->add_record_snapshot('course', $PAGE->course);
     $event->add_record_snapshot('jitsi', $jitsiob);
     $event->trigger();
-}
-
-
-/**
- * Normalizes the session name by removing any special characters or spaces.
- *
- * @param string $session The session name to be normalized.
- * @return string The normalized session name.
- */
-function normalizesessionname($session) {
-    $normalized = preg_replace('/[^a-zA-Z0-9\-_]/', '', $session);
-    return $normalized;
 }
 
 /**
