@@ -183,7 +183,7 @@ final class external_test extends \advanced_testcase {
     /**
      * Test that check_incoming_call returns incoming=false when no log entries exist.
      *
-     * @covers \mod_jitsi_external::check_incoming_call
+     * @covers \mod_jitsi\external\check_incoming_call::execute
      */
     public function test_check_incoming_call_no_call(): void {
         $this->resetAfterTest(true);
@@ -191,7 +191,7 @@ final class external_test extends \advanced_testcase {
         $user = $this->getDataGenerator()->create_user();
         $this->setUser($user);
 
-        $result = \mod_jitsi_external::check_incoming_call(time() - 60);
+        $result = \mod_jitsi\external\check_incoming_call::execute(time() - 60);
 
         $this->assertFalse($result['incoming']);
         $this->assertEquals(0, $result['callerid']);
@@ -200,7 +200,7 @@ final class external_test extends \advanced_testcase {
     /**
      * Test that check_incoming_call detects a matching log entry.
      *
-     * @covers \mod_jitsi_external::check_incoming_call
+     * @covers \mod_jitsi\external\check_incoming_call::execute
      */
     public function test_check_incoming_call_detects_call(): void {
         global $DB;
@@ -237,7 +237,7 @@ final class external_test extends \advanced_testcase {
             'realuserid'  => $caller->id,
         ]);
 
-        $result = \mod_jitsi_external::check_incoming_call($since);
+        $result = \mod_jitsi\external\check_incoming_call::execute($since);
 
         $this->assertTrue($result['incoming']);
         $this->assertEquals($caller->id, $result['callerid']);
@@ -247,7 +247,7 @@ final class external_test extends \advanced_testcase {
     /**
      * Test that check_incoming_call ignores entries before the 'since' timestamp.
      *
-     * @covers \mod_jitsi_external::check_incoming_call
+     * @covers \mod_jitsi\external\check_incoming_call::execute
      */
     public function test_check_incoming_call_ignores_old_entries(): void {
         global $DB;
@@ -283,7 +283,7 @@ final class external_test extends \advanced_testcase {
         ]);
 
         // Poll from 30 seconds ago — should not find the old entry.
-        $result = \mod_jitsi_external::check_incoming_call(time() - 30);
+        $result = \mod_jitsi\external\check_incoming_call::execute(time() - 30);
 
         $this->assertFalse($result['incoming']);
     }
@@ -291,7 +291,7 @@ final class external_test extends \advanced_testcase {
     /**
      * Test that check_incoming_call ignores entries where peerid does not match.
      *
-     * @covers \mod_jitsi_external::check_incoming_call
+     * @covers \mod_jitsi\external\check_incoming_call::execute
      */
     public function test_check_incoming_call_ignores_wrong_peer(): void {
         global $DB;
@@ -327,7 +327,7 @@ final class external_test extends \advanced_testcase {
             'realuserid'  => $caller->id,
         ]);
 
-        $result = \mod_jitsi_external::check_incoming_call(time() - 60);
+        $result = \mod_jitsi\external\check_incoming_call::execute(time() - 60);
 
         $this->assertFalse($result['incoming']);
     }

@@ -290,9 +290,8 @@ $functions = [
                 'loginrequired' => true,
         ],
         'mod_jitsi_check_incoming_call' => [
-                'classname' => 'mod_jitsi_external',
-                'methodname' => 'check_incoming_call',
-                'classpath' => 'mod/jitsi/classes/external.php',
+                'classname' => 'mod_jitsi\external\check_incoming_call',
+                'methodname' => 'execute',
                 'description' => 'Check for incoming private session calls',
                 'type' => 'read',
                 'ajax' => true,
