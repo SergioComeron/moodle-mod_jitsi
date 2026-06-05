@@ -47,15 +47,14 @@ class delete_record_youtube extends external_api {
      * @return string
      */
     public static function execute($idsource) {
-        global $DB, $CFG;
-        require_once($CFG->dirroot . '/mod/jitsi/lib.php');
+        global $DB;
         $record = $DB->get_record('jitsi_record', ['source' => $idsource], '*', MUST_EXIST);
         $cm = get_coursemodule_from_instance('jitsi', $record->jitsi, 0, false, MUST_EXIST);
         require_login($cm->course, false, $cm);
         require_capability('mod/jitsi:deleterecord', \context_module::instance($cm->id));
         $record->deleted = 1;
         $DB->update_record('jitsi_record', $record);
-        return deleterecordyoutube($idsource);
+        return \mod_jitsi\local\youtube::delete_record($idsource);
     }
 
     /**

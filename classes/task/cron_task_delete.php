@@ -81,7 +81,7 @@ class cron_task_delete extends \core\task\scheduled_task {
                     $DB->delete_records('jitsi_source_record', ['id' => $recordtodelete->source]);
                     mtrace("Deleting record: " . $recordtodelete->name);
                     $DB->delete_records('jitsi_record', ['id' => $recordtodelete->id]);
-                } else if (deleterecordyoutube($source->id)) {
+                } else if (\mod_jitsi\local\youtube::delete_record($source->id)) {
                     mtrace("Deleting source: " . $source->link . " from " . userdate($source->timecreated));
                     $DB->delete_records('jitsi_source_record', ['id' => $recordtodelete->source]);
                     mtrace("Deleting record: " . $recordtodelete->name);

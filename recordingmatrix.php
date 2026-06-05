@@ -46,7 +46,7 @@ $PAGE->set_url('/mod/jitsi/recordingmatrix.php');
 require_login();
 
 if ($deletejitsisourceid && confirm_sesskey($sesskey)) {
-    if (deleterecordyoutube($deletejitsisourceid) == true) {
+    if (\mod_jitsi\local\youtube::delete_record($deletejitsisourceid) == true) {
         redirect($PAGE->url, get_string('deleted'));
     } else {
         redirect($PAGE->url, get_string('errordeleting', 'jitsi'));
@@ -120,7 +120,7 @@ if (is_siteadmin()) {
                         $course->shortname . "</a></h6>";
                     echo "<h6 class=\"card-subtitle mb-2 text-muted\">" . userdate($sourcelive->timecreated) . "</h6>";
                     if ($sourcelive->embed == 0) {
-                        doembedable($sourcelive->link);
+                        \mod_jitsi\local\youtube::make_embeddable($sourcelive->link);
                         sleep(1);
                     }
                     echo "<div class=\"embed-responsive embed-responsive-16by9\">";

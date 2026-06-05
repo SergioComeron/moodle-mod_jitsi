@@ -53,7 +53,7 @@ if ($deletejitsisourceid && confirm_sesskey($sesskey)) {
         $DB->delete_records('jitsi_record', ['source' => $source->id]);
         $DB->delete_records('jitsi_source_record', ['id' => $source->id]);
         redirect($PAGE->url, get_string('deleted'));
-    } else if (deleterecordyoutube($deletejitsisourceid) == true) {
+    } else if (\mod_jitsi\local\youtube::delete_record($deletejitsisourceid) == true) {
         redirect($PAGE->url, get_string('deleted'));
     } else {
         redirect($PAGE->url, get_string('errordeleting', 'jitsi'));

@@ -50,8 +50,7 @@ class stop_stream extends external_api {
      * @return array result
      */
     public static function execute($jitsi, $userid) {
-        global $CFG, $DB;
-        require_once($CFG->dirroot . '/mod/jitsi/lib.php');
+        global $DB;
 
         $params = self::validate_parameters(
             self::execute_parameters(),
@@ -75,7 +74,7 @@ class stop_stream extends external_api {
         $result['error'] = '';
         $result['user'] = $author->id;
         $result['usercomplete'] = $author->firstname . ' ' . $author->lastname;
-        doembedable($sourcealmacenada->link);
+        \mod_jitsi\local\youtube::make_embeddable($sourcealmacenada->link);
         return $result;
     }
 
