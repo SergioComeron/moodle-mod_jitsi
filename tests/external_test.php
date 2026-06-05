@@ -30,15 +30,6 @@ require_once($CFG->dirroot . '/mod/jitsi/lib.php');
  * @runTestsInSeparateProcesses
  */
 final class external_test extends \advanced_testcase {
-    /**
-     * Load the external API class (requires isolated process due to externallib.php).
-     */
-    protected function setUp(): void {
-        global $CFG;
-        parent::setUp();
-        require_once($CFG->dirroot . '/mod/jitsi/classes/external.php');
-    }
-
     // Push subscription tests.
 
     /**

@@ -14,209 +14,49 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
+namespace mod_jitsi\external;
+
+use core_external\external_api;
+use core_external\external_function_parameters;
+use core_external\external_single_structure;
+use core_external\external_value;
+
 /**
- * Jitsi module external API
+ * External API: start a YouTube live stream for a Jitsi session.
  *
  * @package    mod_jitsi
  * @category   external
  * @copyright  2021 Sergio Comerón Sánchez-Paniagua <sergiocomeron@icloud.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
-defined('MOODLE_INTERNAL') || die;
-
-require_once($CFG->libdir . '/externallib.php');
-require_once($CFG->dirroot . '/mod/jitsi/lib.php');
-
-/**
- * Jitsi module external API
- *
- * @package    mod_jitsi
- * @category   external
- * @copyright  2021 Sergio Comerón Sánchez-Paniagua <sergiocomeron@icloud.com>
- * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
-class mod_jitsi_external extends external_api {
+class create_stream extends external_api {
     /**
-     * Returns description of method parameters
+     * Returns description of method parameters.
      *
      * @return external_function_parameters
      */
-    public static function create_stream_parameters() {
-        return new external_function_parameters(
-            ['session' => new external_value(PARAM_TEXT, 'Session object from google', VALUE_REQUIRED, '', NULL_NOT_ALLOWED),
-                  'jitsi' => new external_value(PARAM_INT, 'Jitsi session id', VALUE_REQUIRED, '', NULL_NOT_ALLOWED),
-                  'userid' => new external_value(PARAM_INT, 'User id', VALUE_REQUIRED, '', NULL_NOT_ALLOWED),
-            ]
-        );
+    public static function execute_parameters() {
+        return new external_function_parameters([
+            'session' => new external_value(PARAM_TEXT, 'Session object from google', VALUE_REQUIRED, '', NULL_NOT_ALLOWED),
+            'jitsi' => new external_value(PARAM_INT, 'Jitsi session id', VALUE_REQUIRED, '', NULL_NOT_ALLOWED),
+            'userid' => new external_value(PARAM_INT, 'User id', VALUE_REQUIRED, '', NULL_NOT_ALLOWED),
+        ]);
     }
 
     /**
-     * Returns description of method parameters
+     * Start a YouTube live stream.
      *
-     * @return external_function_parameters
-     */
-    public static function delete_record_youtube_parameters() {
-        return new external_function_parameters(
-            ['idsource' => new external_value(PARAM_INT, 'Record session id', VALUE_REQUIRED, '', NULL_NOT_ALLOWED)]
-        );
-    }
-
-    /**
-     * Returns description of method parameters
-     *
-     * @return external_function_parameters
-     */
-    public static function stop_stream_parameters() {
-        return new external_function_parameters(
-            ['jitsi' => new external_value(PARAM_TEXT, 'Jitsi session id', VALUE_REQUIRED, '', NULL_NOT_ALLOWED),
-                  'userid' => new external_value(PARAM_INT, 'User id', VALUE_REQUIRED, '', NULL_NOT_ALLOWED),
-            ]
-        );
-    }
-
-    /**
-     * Returns description of method parameters
-     *
-     * @return external_function_parameters
-     */
-    public static function stop_stream_byerror_parameters() {
-        return new external_function_parameters(
-            ['jitsi' => new external_value(PARAM_INT, 'Jitsi session id', VALUE_REQUIRED, '', NULL_NOT_ALLOWED),
-                  'userid' => new external_value(PARAM_INT, 'User id', VALUE_REQUIRED, '', NULL_NOT_ALLOWED),
-            ]
-        );
-    }
-
-    /**
-     * Returns description of method parameters
-     *
-     * @return external_function_parameters
-     */
-    public static function stop_stream_noauthor_parameters() {
-        return new external_function_parameters(
-            ['jitsi' => new external_value(PARAM_INT, 'Jitsi session id', VALUE_REQUIRED, '', NULL_NOT_ALLOWED),
-                  'userid' => new external_value(PARAM_INT, 'User id', VALUE_REQUIRED, '', NULL_NOT_ALLOWED),
-            ]
-        );
-    }
-
-    /**
-     * Delete Video from youtube when jitsi get an error
-     *
-     * @param int $idsource Source record id
-     * @return external_function_parameters
-     */
-    public static function delete_record_youtube($idsource) {
-        global $DB;
-        $record = $DB->get_record('jitsi_record', ['source' => $idsource], '*', MUST_EXIST);
-        $cm = get_coursemodule_from_instance('jitsi', $record->jitsi, 0, false, MUST_EXIST);
-        require_login($cm->course, false, $cm);
-        require_capability('mod/jitsi:deleterecord', context_module::instance($cm->id));
-        $record->deleted = 1;
-        $DB->update_record('jitsi_record', $record);
-        return deleterecordyoutube($idsource);
-    }
-
-    /**
-     * Returns description of method result value
-     * @return external_description
-     */
-    public static function delete_record_youtube_returns() {
-        return new external_value(PARAM_TEXT, 'Video deleted');
-    }
-
-    /**
-     * Stop stream with youtube
+     * @param string $session session
      * @param int $jitsi Jitsi session id
      * @param int $userid User id
      * @return array result
      */
-    public static function stop_stream($jitsi, $userid) {
+    public static function execute($session, $jitsi, $userid) {
         global $CFG, $DB;
+        require_once($CFG->dirroot . '/mod/jitsi/lib.php');
 
         $params = self::validate_parameters(
-            self::stop_stream_parameters(),
-            ['jitsi' => $jitsi, 'userid' => $userid]
-        );
-        $jitsiob = $DB->get_record('jitsi', ['id' => $jitsi]);
-        $sourcealmacenada = $DB->get_record('jitsi_source_record', ['id' => $jitsiob->sourcerecord]);
-        $author = $DB->get_record('user', ['id' => $sourcealmacenada->userid]);
-
-        if ($sourcealmacenada->userid != $userid && $jitsiob->sourcerecord != null) {
-            $result = [];
-            $result['error'] = 'errorauthor';
-            $result['user'] = $author->id;
-            $result['usercomplete'] = $author->firstname . ' ' . $author->lastname;
-            return $result;
-        }
-        $jitsiob->sourcerecord = null;
-        $DB->update_record('jitsi', $jitsiob);
-        $result = [];
-
-        $result['error'] = '';
-        $result['user'] = $author->id;
-        $result['usercomplete'] = $author->firstname . ' ' . $author->lastname;
-        doembedable($sourcealmacenada->link);
-        return $result;
-    }
-
-    /**
-     * Stop stream with youtube by error
-     * @param int $jitsi Jitsi session id
-     * @param int $userid User id
-     * @return array result
-     */
-    public static function stop_stream_byerror($jitsi, $userid) {
-        global $CFG, $DB;
-
-        $params = self::validate_parameters(
-            self::stop_stream_byerror_parameters(),
-            ['jitsi' => $jitsi, 'userid' => $userid]
-        );
-        $jitsiob = $DB->get_record('jitsi', ['id' => $jitsi]);
-        if ($userid != $jitsiob->sourcerecord) {
-            $jitsiob->sourcerecord = null;
-            $DB->update_record('jitsi', $jitsiob);
-            return 'authordeleted';
-        }
-        return 'authornotdeleted';
-    }
-
-    /**
-     * Stop stream with youtube by error
-     * @param int $jitsi Jitsi session id
-     * @param int $userid User id
-     * @return array result
-     */
-    public static function stop_stream_noauthor($jitsi, $userid) {
-        global $CFG, $DB;
-
-        $params = self::validate_parameters(
-            self::stop_stream_byerror_parameters(),
-            ['jitsi' => $jitsi, 'userid' => $userid]
-        );
-        $jitsiob = $DB->get_record('jitsi', ['id' => $jitsi]);
-        if ($userid != $jitsiob->sourcerecord) {
-            $jitsiob->sourcerecord = null;
-            $DB->update_record('jitsi', $jitsiob);
-            return 'authordeleted';
-        }
-        return 'authornotdeleted';
-    }
-
-    /**
-     * Start stream with youtube
-     * @param int $session session
-     * @param int $jitsi Jitsi session id
-     * @param int $userid User id
-     * @return array result
-     */
-    public static function create_stream($session, $jitsi, $userid) {
-        global $CFG, $DB;
-
-        $params = self::validate_parameters(
-            self::create_stream_parameters(),
+            self::execute_parameters(),
             ['session' => $session, 'jitsi' => $jitsi, 'userid' => $userid]
         );
 
@@ -284,15 +124,15 @@ class mod_jitsi_external extends external_api {
                 'link' => '',
             ];
         }
-        $youtube = new Google_Service_YouTube($client);
+        $youtube = new \Google_Service_YouTube($client);
 
-        $source = new stdClass();
+        $source = new \stdClass();
         $source->account = $account->id;
         $source->timecreated = time();
         $source->userid = $userid;
         $source->link = '';
 
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->jitsi = $jitsi;
         $record->source = $DB->insert_record('jitsi_source_record', $source);
         $record->deleted = 0;
@@ -305,20 +145,20 @@ class mod_jitsi_external extends external_api {
         $DB->update_record('jitsi', $jitsiob);
 
         try {
-            $broadcastsnippet = new Google_Service_YouTube_LiveBroadcastSnippet();
+            $broadcastsnippet = new \Google_Service_YouTube_LiveBroadcastSnippet();
             $testdate = time();
 
             $broadcastsnippet->setTitle("Record " . date('Y-m-d\T H:i A', $testdate));
             $broadcastsnippet->setScheduledStartTime(date('Y-m-d\TH:i:s', $testdate));
 
-            $status = new Google_Service_YouTube_LiveBroadcastStatus();
+            $status = new \Google_Service_YouTube_LiveBroadcastStatus();
             $status->setPrivacyStatus('unlisted');
             if (get_config('mod_jitsi', 'selfdeclaredmadeforkids') == 0) {
                 $status->setSelfDeclaredMadeForKids('false');
             } else {
                 $status->setSelfDeclaredMadeForKids('true');
             }
-            $contentdetails = new Google_Service_YouTube_LiveBroadcastContentDetails();
+            $contentdetails = new \Google_Service_YouTube_LiveBroadcastContentDetails();
             $contentdetails->setEnableAutoStart(true);
             $contentdetails->setEnableAutoStop(true);
             if (get_config('mod_jitsi', 'latency') == 0) {
@@ -329,7 +169,7 @@ class mod_jitsi_external extends external_api {
                 $contentdetails->setLatencyPreference("ultralow");
             }
 
-            $broadcastinsert = new Google_Service_YouTube_LiveBroadcast();
+            $broadcastinsert = new \Google_Service_YouTube_LiveBroadcast();
             $broadcastinsert->setSnippet($broadcastsnippet);
             $broadcastinsert->setStatus($status);
             $broadcastinsert->setKind('youtube#liveBroadcast');
@@ -341,15 +181,15 @@ class mod_jitsi_external extends external_api {
                 [],
             );
 
-            $streamsnippet = new Google_Service_YouTube_LiveStreamSnippet();
+            $streamsnippet = new \Google_Service_YouTube_LiveStreamSnippet();
             $streamsnippet->setTitle("Record " . date('l jS \of F', $testdate));
 
-            $cdn = new Google_Service_YouTube_CdnSettings();
+            $cdn = new \Google_Service_YouTube_CdnSettings();
             $cdn->setIngestionType('rtmp');
             $cdn->setResolution("variable");
             $cdn->setFrameRate("variable");
 
-            $streaminsert = new Google_Service_YouTube_LiveStream();
+            $streaminsert = new \Google_Service_YouTube_LiveStream();
             $streaminsert->setSnippet($streamsnippet);
             $streaminsert->setCdn($cdn);
             $streaminsert->setKind('youtube#liveStream');
@@ -361,7 +201,7 @@ class mod_jitsi_external extends external_api {
                 'id,contentDetails',
                 ['streamId' => $streamsresponse['id']],
             );
-        } catch (Google_Service_Exception $e) {
+        } catch (\Google_Service_Exception $e) {
             $result = [];
             $result['stream'] = isset($streamsresponse['cdn']['ingestionInfo']['streamName'])
                 ? $streamsresponse['cdn']['ingestionInfo']['streamName']
@@ -375,7 +215,7 @@ class mod_jitsi_external extends external_api {
             senderror($jitsi, $userid, 'ERROR DE YOUTUBE: ' . $e->getMessage(), $source);
             changeaccount();
             return $result;
-        } catch (Google_Exception $e) {
+        } catch (\Google_Exception $e) {
             $result = [];
             $result['stream'] = isset($streamsresponse['cdn']['ingestionInfo']['streamName'])
                 ? $streamsresponse['cdn']['ingestionInfo']['streamName']
@@ -409,39 +249,11 @@ class mod_jitsi_external extends external_api {
     }
 
     /**
-     * Returns description of method result value
-     * @return external_description
-     */
-    public static function stop_stream_returns() {
-        return new external_single_structure([
-                'error' => new external_value(PARAM_TEXT, 'error'),
-                'user' => new external_value(PARAM_INT, 'user id'),
-                'usercomplete' => new external_value(PARAM_TEXT, 'user complete name'),
-            ]);
-    }
-
-    /**
-     * Returns description of method result value
-     * @return external_description
-     */
-    public static function stop_stream_byerror_returns() {
-        return new external_value(PARAM_TEXT, 'State');
-    }
-
-    /**
-     * Returns description of method result value
-     * @return external_description
-     */
-    public static function stop_stream_noauthor_returns() {
-        return new external_value(PARAM_TEXT, 'State');
-    }
-
-    /**
-     * Returns description of method result value
+     * Returns description of method return value.
      *
-     * @return external_description
+     * @return external_single_structure
      */
-    public static function create_stream_returns() {
+    public static function execute_returns() {
         return new external_single_structure([
                 'stream' => new external_value(PARAM_TEXT, 'stream'),
                 'idsource' => new external_value(PARAM_INT, 'source instance id'),

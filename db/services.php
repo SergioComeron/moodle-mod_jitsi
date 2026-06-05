@@ -97,9 +97,8 @@ $functions = [
         ],
 
         'mod_jitsi_create_stream' => [
-                'classname' => 'mod_jitsi_external',
-                'methodname' => 'create_stream',
-                'classpath' => 'mod/jitsi/classes/external.php',
+                'classname' => 'mod_jitsi\external\create_stream',
+                'methodname' => 'execute',
                 'description' => 'Create a stream',
                 'type' => 'write',
                 'ajax' => true,
@@ -117,8 +116,8 @@ $functions = [
         ],
 
         'mod_jitsi_delete_record_youtube' => [
-                'classname' => 'mod_jitsi_external',
-                'methodname' => 'delete_record_youtube',
+                'classname' => 'mod_jitsi\external\delete_record_youtube',
+                'methodname' => 'execute',
                 'description' => 'Delete video from youtube when problem',
                 'type' => 'read',
                 'ajax' => true,
@@ -137,8 +136,8 @@ $functions = [
         ],
 
         'mod_jitsi_stop_stream' => [
-                'classname' => 'mod_jitsi_external',
-                'methodname' => 'stop_stream',
+                'classname' => 'mod_jitsi\external\stop_stream',
+                'methodname' => 'execute',
                 'description' => 'Stop stream',
                 'type' => 'write',
                 'ajax' => true,
@@ -147,8 +146,8 @@ $functions = [
         ],
 
         'mod_jitsi_stop_stream_byerror' => [
-                'classname' => 'mod_jitsi_external',
-                'methodname' => 'stop_stream_byerror',
+                'classname' => 'mod_jitsi\external\stop_stream_byerror',
+                'methodname' => 'execute',
                 'description' => 'Stop stream by error',
                 'type' => 'write',
                 'ajax' => true,
@@ -187,8 +186,8 @@ $functions = [
         ],
 
         'mod_jitsi_stop_stream_noauthor' => [
-                'classname' => 'mod_jitsi_external',
-                'methodname' => 'stop_stream_byerror',
+                'classname' => 'mod_jitsi\external\stop_stream_noauthor',
+                'methodname' => 'execute',
                 'description' => 'Stop stream by error',
                 'type' => 'write',
                 'ajax' => true,
