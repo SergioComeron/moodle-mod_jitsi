@@ -744,6 +744,147 @@ final class lib_test extends \advanced_testcase {
     }
 
     /**
+     * Run createsession() against a freshly inserted server and return its echoed output.
+     *
+     * @param array $serverfields Fields overriding the jitsi_servers defaults
+     * @param array $configs mod_jitsi config overrides
+     * @return string Captured output
+     */
+    protected function createsession_output(array $serverfields, array $configs = []): string {
+        global $DB, $PAGE;
+
+        $baseconfig = [
+            'livebutton' => '0', 'shareyoutube' => '0', 'blurbutton' => '0',
+            'securitybutton' => '0', 'record' => '0', 'participantspane' => '0',
+            'raisehand' => '0', 'whiteboard' => '0', 'allowbreakoutrooms' => '0',
+            'startwithaudiomuted' => '0', 'startwithvideomuted' => '0',
+            'reactions' => '1', 'chat' => '1', 'polls' => '1', 'transcription' => '1',
+            'channellastcam' => '-1', 'tokentype' => '0', 'dropbox_appkey' => '',
+        ];
+        foreach (array_merge($baseconfig, $configs) as $k => $v) {
+            set_config($k, $v, 'mod_jitsi');
+        }
+
+        $serverdefaults = [
+            'name' => 'Test server', 'type' => 0, 'domain' => 'meet.jit.si',
+            'appid' => '', 'secret' => '', 'eightbyeightappid' => '',
+            'eightbyeightapikeyid' => '', 'privatekey' => '', 'gcpproject' => '',
+            'gcpzone' => '', 'gcpinstancename' => '', 'gcpstaticipname' => '',
+            'gcpstaticipaddress' => '', 'provisioningstatus' => '',
+            'provisioningtoken' => '', 'provisioningerror' => '',
+            'timecreated' => time(), 'timemodified' => time(),
+        ];
+        $server = (object)array_merge($serverdefaults, $serverfields);
+        $serverid = $DB->insert_record('jitsi_servers', $server);
+        set_config('server', $serverid, 'mod_jitsi');
+
+        $course = $this->getDataGenerator()->create_course();
+        $jitsirecord = $this->getDataGenerator()->create_module('jitsi', [
+            'course'           => $course->id,
+            'name'             => 'Test session',
+            'sessionwithtoken' => 0,
+            'token'            => sha1(uniqid('', true)),
+            'tokeninterno'     => sha1(uniqid('', true)),
+            'tokeninvitacion'  => '',
+        ]);
+        $cm = get_coursemodule_from_instance('jitsi', $jitsirecord->id, $course->id);
+        $PAGE->set_url('/mod/jitsi/view.php', ['id' => $cm->id]);
+        $PAGE->set_cm($cm);
+        $PAGE->set_context(\context_module::instance($cm->id));
+
+        ob_start();
+        createsession(
+            0,
+            $cm->id,
+            'https://example.com/avatar.png',
+            'Test User',
+            'TestRoom-1',
+            'test@example.com',
+            $jitsirecord
+        );
+        return ob_get_clean();
+    }
+
+    /**
+     * Type-1 (self-hosted JWT) servers must emit roomName and a valid HS256 JWT.
+     *
+     * @covers ::createsession
+     */
+    public function test_type1_server_emits_signed_jwt(): void {
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+
+        $output = $this->createsession_output([
+            'type'   => 1,
+            'domain' => 'jitsi.example.com',
+            'appid'  => 'myappid',
+            'secret' => 'mysecret',
+        ]);
+
+        $this->assertStringContainsString('roomName: "TestRoom-1"', $output);
+        $this->assertStringContainsString('jwt:', $output);
+
+        // Extract the JWT and verify it is signed with the server secret (HS256).
+        $this->assertSame(1, preg_match('/jwt: "([^"]+)"/', $output, $m));
+        [$h, $p, $s] = explode('.', $m[1]);
+        $header = json_decode(base64_decode(strtr($h, '-_', '+/')), true);
+        $this->assertEquals('HS256', $header['alg']);
+        $expectedsig = str_replace(
+            ['+', '/', '='],
+            ['-', '_', ''],
+            base64_encode(hash_hmac('sha256', $h . '.' . $p, 'mysecret', true))
+        );
+        $this->assertEquals($expectedsig, $s, 'JWT signature must match HMAC-SHA256 with the server secret');
+    }
+
+    /**
+     * Type-2 (8x8 JaaS) servers must emit the appid-prefixed roomName and an RS256 JWT.
+     *
+     * @covers ::createsession
+     */
+    public function test_type2_server_emits_jaas_room_and_jwt(): void {
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+
+        $res = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
+        openssl_pkey_export($res, $privatekey);
+
+        $output = $this->createsession_output([
+            'type'                 => 2,
+            'domain'               => '8x8.vc',
+            'eightbyeightappid'    => 'vpaas-magic-cookie-abc',
+            'eightbyeightapikeyid' => 'vpaas-magic-cookie-abc/key1',
+            'privatekey'           => $privatekey,
+        ]);
+
+        $this->assertStringContainsString('roomName: "vpaas-magic-cookie-abc/TestRoom-1"', $output);
+        $this->assertStringContainsString('jwt:', $output);
+        $this->assertSame(1, preg_match('/jwt: "([^"]+)"/', $output, $m));
+        $header = json_decode(base64_decode(strtr(explode('.', $m[1])[0], '-_', '+/')), true);
+        $this->assertEquals('RS256', $header['alg']);
+    }
+
+    /**
+     * Type-3 (GCP) servers with app credentials must emit roomName and a JWT (HS256, as type 1).
+     *
+     * @covers ::createsession
+     */
+    public function test_type3_server_emits_jwt(): void {
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+
+        $output = $this->createsession_output([
+            'type'   => 3,
+            'domain' => 'gcp.example.com',
+            'appid'  => 'gcpapp',
+            'secret' => 'gcpsecret',
+        ]);
+
+        $this->assertStringContainsString('roomName: "TestRoom-1"', $output);
+        $this->assertStringContainsString('jwt:', $output);
+    }
+
+    /**
      * jitsi_build_room_name combines parts with no separator by default.
      *
      * @covers \mod_jitsi\local\room::build_name
