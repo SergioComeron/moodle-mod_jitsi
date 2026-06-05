@@ -44,7 +44,7 @@ final class external_test extends \advanced_testcase {
     /**
      * Test that register_push_subscription creates a new record.
      *
-     * @covers \mod_jitsi_external::register_push_subscription
+     * @covers \mod_jitsi\external\register_push_subscription::execute
      */
     public function test_register_push_subscription_creates_record(): void {
         global $DB;
@@ -57,7 +57,7 @@ final class external_test extends \advanced_testcase {
         $authkey   = 'dGVzdGF1dGhrZXk';
         $p256dhkey = 'dGVzdHAyNTZkaGtleQ';
 
-        $result = \mod_jitsi_external::register_push_subscription($endpoint, $authkey, $p256dhkey);
+        $result = \mod_jitsi\external\register_push_subscription::execute($endpoint, $authkey, $p256dhkey);
 
         $this->assertTrue($result['success']);
         $this->assertTrue($DB->record_exists('jitsi_push_subscriptions', ['userid' => $user->id]));
@@ -72,7 +72,7 @@ final class external_test extends \advanced_testcase {
     /**
      * Test that registering the same endpoint twice updates the existing record.
      *
-     * @covers \mod_jitsi_external::register_push_subscription
+     * @covers \mod_jitsi\external\register_push_subscription::execute
      */
     public function test_register_push_subscription_updates_existing(): void {
         global $DB;
@@ -83,8 +83,8 @@ final class external_test extends \advanced_testcase {
 
         $endpoint = 'https://push.example.com/sub/abc123';
 
-        \mod_jitsi_external::register_push_subscription($endpoint, 'oldauth', 'oldp256');
-        \mod_jitsi_external::register_push_subscription($endpoint, 'newauth', 'newp256');
+        \mod_jitsi\external\register_push_subscription::execute($endpoint, 'oldauth', 'oldp256');
+        \mod_jitsi\external\register_push_subscription::execute($endpoint, 'newauth', 'newp256');
 
         $count = $DB->count_records('jitsi_push_subscriptions', ['userid' => $user->id]);
         $this->assertEquals(1, $count);
@@ -100,7 +100,7 @@ final class external_test extends \advanced_testcase {
     /**
      * Test that unregister_push_subscription removes the record.
      *
-     * @covers \mod_jitsi_external::unregister_push_subscription
+     * @covers \mod_jitsi\external\unregister_push_subscription::execute
      */
     public function test_unregister_push_subscription_removes_record(): void {
         global $DB;
@@ -110,11 +110,11 @@ final class external_test extends \advanced_testcase {
         $this->setUser($user);
 
         $endpoint = 'https://push.example.com/sub/abc123';
-        \mod_jitsi_external::register_push_subscription($endpoint, 'auth', 'p256');
+        \mod_jitsi\external\register_push_subscription::execute($endpoint, 'auth', 'p256');
 
         $this->assertTrue($DB->record_exists('jitsi_push_subscriptions', ['userid' => $user->id]));
 
-        $result = \mod_jitsi_external::unregister_push_subscription($endpoint);
+        $result = \mod_jitsi\external\unregister_push_subscription::execute($endpoint);
 
         $this->assertTrue($result['success']);
         $this->assertFalse($DB->record_exists('jitsi_push_subscriptions', ['userid' => $user->id]));
@@ -123,7 +123,7 @@ final class external_test extends \advanced_testcase {
     /**
      * Test that unregister_push_subscription only removes the current user's record.
      *
-     * @covers \mod_jitsi_external::unregister_push_subscription
+     * @covers \mod_jitsi\external\unregister_push_subscription::execute
      */
     public function test_unregister_push_subscription_does_not_affect_other_users(): void {
         global $DB;
@@ -154,7 +154,7 @@ final class external_test extends \advanced_testcase {
 
         // Unregister as user1.
         $this->setUser($user1);
-        \mod_jitsi_external::unregister_push_subscription($endpoint);
+        \mod_jitsi\external\unregister_push_subscription::execute($endpoint);
 
         $this->assertFalse($DB->record_exists('jitsi_push_subscriptions', ['userid' => $user1->id]));
         $this->assertTrue($DB->record_exists('jitsi_push_subscriptions', ['userid' => $user2->id]));
@@ -163,7 +163,7 @@ final class external_test extends \advanced_testcase {
     /**
      * Test that a user can have multiple subscriptions (different endpoints).
      *
-     * @covers \mod_jitsi_external::register_push_subscription
+     * @covers \mod_jitsi\external\register_push_subscription::execute
      */
     public function test_register_push_subscription_multiple_endpoints(): void {
         global $DB;
@@ -172,8 +172,8 @@ final class external_test extends \advanced_testcase {
         $user = $this->getDataGenerator()->create_user();
         $this->setUser($user);
 
-        \mod_jitsi_external::register_push_subscription('https://push.example.com/a', 'auth1', 'p256_1');
-        \mod_jitsi_external::register_push_subscription('https://push.example.com/b', 'auth2', 'p256_2');
+        \mod_jitsi\external\register_push_subscription::execute('https://push.example.com/a', 'auth1', 'p256_1');
+        \mod_jitsi\external\register_push_subscription::execute('https://push.example.com/b', 'auth2', 'p256_2');
 
         $this->assertEquals(2, $DB->count_records('jitsi_push_subscriptions', ['userid' => $user->id]));
     }
