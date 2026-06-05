@@ -587,12 +587,14 @@ function createsession(
             if ($showstreaming) {
                 echo "<button id=\"streamBtn\" class=\"btn btn-sm btn-outline-warning\""
                     . " onclick=\"handleStreamBtn()\" disabled>"
-                    . "<i class=\"fa fa-rss me-1\"></i>" . addslashes(get_string('streambtn', 'jitsi')) . "</button>";
+                    . "<i class=\"fa fa-rss me-1\" aria-hidden=\"true\"></i>"
+                    . addslashes(get_string('streambtn', 'jitsi')) . "</button>";
             }
             if ($showrecording) {
                 echo "<button id=\"recordBtn\" class=\"btn btn-sm btn-outline-danger\""
                     . " onclick=\"handleRecordBtn()\" disabled>"
-                    . "<i class=\"fa fa-circle me-1\"></i>" . addslashes(get_string('recordbtn', 'jitsi')) . "</button>";
+                    . "<i class=\"fa fa-circle me-1\" aria-hidden=\"true\"></i>"
+                    . addslashes(get_string('recordbtn', 'jitsi')) . "</button>";
             }
             echo "</div>";
         }

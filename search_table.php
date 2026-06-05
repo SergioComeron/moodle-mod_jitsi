@@ -116,7 +116,8 @@ class mod_search_table extends table_sql {
      */
     protected function col_link($values) {
         $thumb = 'https://img.youtube.com/vi/' . $values->link . '/default_live.jpg';
-        return '<a href="https://youtu.be/' . $values->link . '" target="_blank"><img src="' . $thumb . '" /></a>';
+        return '<a href="https://youtu.be/' . $values->link . '" target="_blank" rel="noopener">'
+            . '<img src="' . $thumb . '" alt="' . s(get_string('recordingthumbnail', 'jitsi')) . '" /></a>';
     }
 
     /**

@@ -376,7 +376,8 @@ echo html_writer::start_div('d-flex justify-content-center gap-5 mt-3 mb-3');
 echo html_writer::start_div('text-center');
 echo '<div class="dropdown d-inline-block">';
 echo '<button class="border-0 bg-transparent p-0 dropdown-toggle" id="jitsi-presence-btn"'
-    . ' ' . $bstoggle . '="dropdown" aria-expanded="false">';
+    . ' ' . $bstoggle . '="dropdown" aria-expanded="false"'
+    . ' aria-label="' . s(get_string('connectedattendeesnow', 'jitsi')) . '">';
 echo '<span id="jitsi-presence-count" class="h4 mb-0 fw-bold">' . $presencecount . '</span>';
 echo '</button>';
 echo '<ul class="dropdown-menu" id="jitsi-presence-list" aria-labelledby="jitsi-presence-btn">';
@@ -386,12 +387,12 @@ if (empty($presenceusers)) {
     foreach ($presenceusers as $presenceitem) {
         if ($presenceitem['isguest']) {
             echo '<li><span class="dropdown-item-text">'
-                . '<i class="fa fa-user-secret text-muted me-1"></i>'
+                . '<i class="fa fa-user-secret text-muted me-1" aria-hidden="true"></i>'
                 . s($presenceitem['name'])
                 . '</span></li>';
         } else {
             $profileurl = new moodle_url('/user/view.php', ['id' => $presenceitem['userid'], 'course' => $jitsi->course]);
-            echo '<li><a class="dropdown-item" href="' . $profileurl . '" target="_blank">'
+            echo '<li><a class="dropdown-item" href="' . $profileurl . '" target="_blank" rel="noopener">'
                 . s($presenceitem['name'])
                 . '</a></li>';
         }
@@ -437,6 +438,7 @@ require(['core/ajax'], function(ajax) {
                             span.className = 'dropdown-item-text';
                             var icon = document.createElement('i');
                             icon.className = 'fa fa-user-secret text-muted me-1';
+                            icon.setAttribute('aria-hidden', 'true');
                             span.appendChild(icon);
                             span.appendChild(document.createTextNode(u.name));
                             li.appendChild(span);
@@ -477,7 +479,8 @@ if ($jitsi->sourcerecord != null) {
         if ($author) {
             echo html_writer::tag(
                 'span',
-                '<i class="fa fa-circle me-1"></i>' . get_string('sessionisbeingrecordingby', 'jitsi', fullname($author)),
+                '<i class="fa fa-circle me-1" aria-hidden="true"></i>'
+                    . get_string('sessionisbeingrecordingby', 'jitsi', fullname($author)),
                 ['class' => 'badge bg-danger me-1']
             );
         } else {
@@ -493,7 +496,7 @@ $jibrirecording = ($jitsi->status === 'recording');
 $jibribadgeclass = 'badge bg-danger me-1' . ($jibrirecording ? '' : ' d-none');
 echo html_writer::tag(
     'span',
-    '<i class="fa fa-circle me-1"></i>' . get_string('sessionisbeingrecorded', 'jitsi'),
+    '<i class="fa fa-circle me-1" aria-hidden="true"></i>' . get_string('sessionisbeingrecorded', 'jitsi'),
     ['class' => $jibribadgeclass, 'id' => 'jitsi-jibri-badge']
 );
 echo html_writer::end_div();
