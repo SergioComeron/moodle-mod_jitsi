@@ -94,12 +94,12 @@ class create_stream extends external_api {
             ];
         }
 
-        // Obtain the Google client. getclientgoogleapi() returns false (or throws)
+        // Obtain the Google client. google::get_client() returns false (or throws)
         // when the account token expired and could not be refreshed, i.e. the
         // account needs to be re-authorised. Handle it cleanly instead of letting
         // a fatal error surface to the user as a generic "Internal error".
         try {
-            $client = getclientgoogleapi();
+            $client = \mod_jitsi\local\google::get_client();
         } catch (\Exception $e) {
             return [
                 'stream' => 'nodata',
@@ -213,7 +213,7 @@ class create_stream extends external_api {
             $result['errorinfo'] = $e->getMessage();
             $result['link'] = '';
             senderror($jitsi, $userid, 'ERROR DE YOUTUBE: ' . $e->getMessage(), $source);
-            changeaccount();
+            \mod_jitsi\local\google::change_account();
             return $result;
         } catch (\Google_Exception $e) {
             $result = [];
@@ -227,7 +227,7 @@ class create_stream extends external_api {
             $result['errorinfo'] = $e->getMessage();
             $result['link'] = '';
             senderror($jitsi, $userid, 'ERROR DE YOUTUBE: ' . $e->getMessage(), $source);
-            changeaccount();
+            \mod_jitsi\local\google::change_account();
             return $result;
         }
 
@@ -244,7 +244,7 @@ class create_stream extends external_api {
         $result['usercomplete'] = $author->firstname . ' ' . $author->lastname;
         $result['errorinfo'] = '';
         $result['link'] = $broadcastsresponse['id'];
-        changeaccount();
+        \mod_jitsi\local\google::change_account();
         return $result;
     }
 

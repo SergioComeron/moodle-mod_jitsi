@@ -2101,7 +2101,7 @@ function doembedable($idvideo) {
 
     $source = $DB->get_record('jitsi_source_record', ['link' => $idvideo]);
     $account = $DB->get_record('jitsi_record_account', ['id' => $source->account]);
-    $client = getclientgoogleapibyaccount($account);
+    $client = \mod_jitsi\local\google::get_client_by_account($account);
     $youtube = new Google_Service_YouTube($client);
 
     try {
@@ -2245,152 +2245,6 @@ function togglestate($idvideo) {
 }
 
 /**
- * Get client google api
- * @return Google_Client - Client google api
- */
-function getclientgoogleapi() {
-    global $CFG, $DB;
-    if (!file_exists(__DIR__ . '/api/vendor/autoload.php')) {
-        throw new \Exception('please run "composer require google/apiclient:~2.0" in "' . __DIR__ . '"');
-    }
-    require_once(__DIR__ . '/api/vendor/autoload.php');
-
-    $client = new Google_Client();
-
-    $client->setClientId(get_config('mod_jitsi', 'oauth_id'));
-    $client->setClientSecret(get_config('mod_jitsi', 'oauth_secret'));
-
-    $tokensessionkey = 'token-' . "https://www.googleapis.com/auth/youtube";
-
-    $account = $DB->get_record('jitsi_record_account', ['inuse' => 1]);
-    $_SESSION[$tokensessionkey] = $account->clientaccesstoken;
-    $client->setAccessToken($_SESSION[$tokensessionkey]);
-
-    if ($client->isAccessTokenExpired()) {
-        // Validate refresh token exists before attempting to use it.
-        if (empty($account->clientrefreshtoken)) {
-            if ($account->inuse == 1) {
-                $account->inuse = 0;
-            }
-            $account->clientaccesstoken = null;
-            $account->tokencreated = 0;
-            $DB->update_record('jitsi_record_account', $account);
-            throw new moodle_exception(
-                'error',
-                'mod_jitsi',
-                '',
-                'The YouTube account "' . $account->name . '" is missing a refresh token. ' .
-                'Please delete and re-add this account in Site administration > Plugins > Activity modules > ' .
-                'Jitsi > Streaming/Recording accounts.'
-            );
-        }
-
-        try {
-            $newaccesstoken = $client->fetchAccessTokenWithRefreshToken($account->clientrefreshtoken);
-            $account->clientaccesstoken = $newaccesstoken["access_token"];
-            $newrefreshaccesstoken = $client->getRefreshToken();
-            $newrefreshaccesstoken = $client->getRefreshToken();
-            $account->clientrefreshtoken = $newrefreshaccesstoken;
-            $account->tokencreated = time();
-        } catch (Google_Service_Exception $e) {
-            if ($account->inuse == 1) {
-                $account->inuse = 0;
-            }
-            $account->clientaccesstoken = null;
-            $account->clientrefreshtoken = null;
-            $account->tokencreated = 0;
-            $DB->update_record('jitsi_record_account', $account);
-            $client->revokeToken();
-            return false;
-        } catch (Google_Exception $e) {
-            if ($account->inuse == 1) {
-                $account->inuse = 0;
-            }
-            $account->clientaccesstoken = null;
-            $account->clientrefreshtoken = null;
-            $account->tokencreated = 0;
-            $DB->update_record('jitsi_record_account', $account);
-            $client->revokeToken();
-            return false;
-        }
-    }
-    return $client;
-}
-
-/**
- * Get client google api
- * @param stdClass $account - Account to get client
- * @return Google_Client - Client google api
- */
-function getclientgoogleapibyaccount($account) {
-    global $CFG, $DB;
-    if (!file_exists(__DIR__ . '/api/vendor/autoload.php')) {
-        throw new \Exception('please run "composer require google/apiclient:~2.0" in "' . __DIR__ . '"');
-    }
-    require_once(__DIR__ . '/api/vendor/autoload.php');
-
-    $client = new Google_Client();
-
-    $client->setClientId(get_config('mod_jitsi', 'oauth_id'));
-    $client->setClientSecret(get_config('mod_jitsi', 'oauth_secret'));
-
-    $tokensessionkey = 'token-' . "https://www.googleapis.com/auth/youtube";
-
-    $_SESSION[$tokensessionkey] = $account->clientaccesstoken;
-    $client->setAccessToken($_SESSION[$tokensessionkey]);
-
-    if ($client->isAccessTokenExpired()) {
-        // Validate refresh token exists before attempting to use it.
-        if (empty($account->clientrefreshtoken)) {
-            if ($account->inuse == 1) {
-                $account->inuse = 0;
-            }
-            $account->clientaccesstoken = null;
-            $account->tokencreated = 0;
-            $DB->update_record('jitsi_record_account', $account);
-            throw new moodle_exception(
-                'error',
-                'mod_jitsi',
-                '',
-                'The YouTube account "' . $account->name . '" is missing a refresh token. ' .
-                'Please delete and re-add this account in Site administration > Plugins > Activity modules > ' .
-                'Jitsi > Streaming/Recording accounts.'
-            );
-        }
-
-        try {
-            $newaccesstoken = $client->fetchAccessTokenWithRefreshToken($account->clientrefreshtoken);
-            $account->clientaccesstoken = $newaccesstoken["access_token"];
-            $newrefreshaccesstoken = $client->getRefreshToken();
-            $newrefreshaccesstoken = $client->getRefreshToken();
-            $account->clientrefreshtoken = $newrefreshaccesstoken;
-            $account->tokencreated = time();
-        } catch (Google_Service_Exception $e) {
-            if ($account->inuse == 1) {
-                $account->inuse = 0;
-            }
-            $account->clientaccesstoken = null;
-            $account->clientrefreshtoken = null;
-            $account->tokencreated = 0;
-            $DB->update_record('jitsi_record_account', $account);
-            $client->revokeToken();
-            return false;
-        } catch (Google_Exception $e) {
-            if ($account->inuse == 1) {
-                $account->inuse = 0;
-            }
-            $account->clientaccesstoken = null;
-            $account->clientrefreshtoken = null;
-            $account->tokencreated = 0;
-            $DB->update_record('jitsi_record_account', $account);
-            $client->revokeToken();
-            return false;
-        }
-    }
-    return $client;
-}
-
-/**
  * Get the last time a user was connected to a jitsi activity
  * @param int $cmid - Course module id
  * @param int $user - User id
@@ -2404,33 +2258,6 @@ function getminutesfromlastconexion($cmid, $user) {
          = ' . $user . ' order by timecreated DESC limit 1';
     $usersconnected = $DB->get_record_sql($sqllastparticipating);
     return $usersconnected->timecreated;
-}
-
-/**
- * Change account.
- */
-function changeaccount() {
-    global $DB;
-
-    $sql = 'select * from {jitsi_record_account} where {jitsi_record_account}.inqueue = 1 and
-     {jitsi_record_account}.clientaccesstoken != \'\' and {jitsi_record_account}.clientrefreshtoken != \'\' order by id asc';
-    $accounts = $DB->get_records_sql($sql);
-    $accountinuse = $DB->get_record('jitsi_record_account', ['inuse' => 1]);
-    if ($accounts == null) {
-        return $accountinuse->id;
-    }
-    $arrayparaiterar = array_slice($accounts, array_search($accountinuse->id, array_keys($accounts)) + 1);
-
-    if (count($arrayparaiterar) == 0) {
-        $arrayparaiterar = array_slice($accounts, 0);
-    }
-    $newaccountinuse = current($arrayparaiterar);
-    $accountinuse->inuse = 0;
-    $newaccountinuse->inuse = 1;
-    $DB->update_record('jitsi_record_account', $accountinuse);
-    $DB->update_record('jitsi_record_account', $newaccountinuse);
-
-    return $newaccountinuse->id;
 }
 
 /**
