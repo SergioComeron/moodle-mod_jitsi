@@ -308,25 +308,50 @@ final class lib_test extends \advanced_testcase {
     /**
      * Test that base64urlencode and base64urldecode are inverse operations.
      *
-     * @covers ::base64urlencode
-     * @covers ::base64urldecode
+     * @covers \mod_jitsi\local\util::base64url_encode
+     * @covers \mod_jitsi\local\util::base64url_decode
      */
     public function test_base64url_encode_decode_roundtrip(): void {
         $original = 'Hello World+/=';
-        $encoded = base64urlencode($original);
-        $this->assertEquals($original, base64urldecode($encoded));
+        $encoded = \mod_jitsi\local\util::base64url_encode($original);
+        $this->assertEquals($original, \mod_jitsi\local\util::base64url_decode($encoded));
     }
 
     /**
      * Test that base64urlencode replaces +, / and = with URL-safe characters.
      *
-     * @covers ::base64urlencode
+     * @covers \mod_jitsi\local\util::base64url_encode
      */
     public function test_base64urlencode_uses_url_safe_chars(): void {
-        $encoded = base64urlencode('Hello World+/=');
+        $encoded = \mod_jitsi\local\util::base64url_encode('Hello World+/=');
         $this->assertStringNotContainsString('+', $encoded);
         $this->assertStringNotContainsString('/', $encoded);
         $this->assertStringNotContainsString('=', $encoded);
+    }
+
+    /**
+     * Test that recording_segments::format_seconds renders compact durations.
+     *
+     * @covers \mod_jitsi\local\recording_segments::format_seconds
+     */
+    public function test_recording_segments_format_seconds(): void {
+        $this->assertEquals('45s', \mod_jitsi\local\recording_segments::format_seconds(45));
+        $this->assertEquals('2min', \mod_jitsi\local\recording_segments::format_seconds(120));
+        $this->assertEquals('1min 5s', \mod_jitsi\local\recording_segments::format_seconds(65));
+        $this->assertEquals('1h 1min 1s', \mod_jitsi\local\recording_segments::format_seconds(3661));
+    }
+
+    /**
+     * Test that recording_segments::watched_pct computes the watched percentage.
+     *
+     * @covers \mod_jitsi\local\recording_segments::watched_pct
+     */
+    public function test_recording_segments_watched_pct(): void {
+        $this->assertEquals(0, \mod_jitsi\local\recording_segments::watched_pct([], 100));
+        $this->assertEquals(0, \mod_jitsi\local\recording_segments::watched_pct([[0, 50]], 0));
+        $this->assertEquals(50, \mod_jitsi\local\recording_segments::watched_pct([[0, 50]], 100));
+        // Overlapping/excess coverage is capped at 100.
+        $this->assertEquals(100, \mod_jitsi\local\recording_segments::watched_pct([[0, 80], [40, 120]], 100));
     }
 
     /**

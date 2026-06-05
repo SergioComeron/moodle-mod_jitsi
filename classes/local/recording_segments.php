@@ -25,6 +25,54 @@ namespace mod_jitsi\local;
  */
 class recording_segments {
     /**
+     * Format a number of seconds as a compact human-readable duration (e.g. "1h 5min 3s").
+     *
+     * @param int $seconds
+     * @return string
+     */
+    public static function format_seconds(int $seconds): string {
+        if ($seconds < 60) {
+            return $seconds . 's';
+        }
+        $h   = intdiv($seconds, 3600);
+        $m   = intdiv($seconds % 3600, 60);
+        $s   = $seconds % 60;
+        $out = '';
+        if ($h > 0) {
+            $out .= $h . 'h ';
+        }
+        if ($m > 0 || $h > 0) {
+            $out .= $m . 'min';
+            if ($s > 0) {
+                $out .= ' ' . $s . 's';
+            }
+        } else {
+            $out .= $s . 's';
+        }
+        return trim($out);
+    }
+
+    /**
+     * Compute the watched percentage (0-100) covered by a set of [start,end] segments.
+     *
+     * @param array $segments
+     * @param float $duration
+     * @return int
+     */
+    public static function watched_pct(array $segments, float $duration): int {
+        if ($duration <= 0 || empty($segments)) {
+            return 0;
+        }
+        $watched = 0;
+        foreach ($segments as $seg) {
+            if (is_array($seg) && count($seg) >= 2) {
+                $watched += max(0, (float)$seg[1] - (float)$seg[0]);
+            }
+        }
+        return min(100, (int)round(($watched / $duration) * 100));
+    }
+
+    /**
      * Merge and clamp an array of [start,end] segments.
      *
      * @param array $segments

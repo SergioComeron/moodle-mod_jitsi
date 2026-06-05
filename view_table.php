@@ -323,7 +323,8 @@ class mod_view_table extends table_sql {
                             'jitsi-segbar-' . (int)$sourcerecord->id
                         )
                         . '<small class="text-muted" id="jitsi-segbar-pct-' . (int)$sourcerecord->id . '">'
-                        . ($existingdur > 0 ? jitsi_segments_watched_pct($existingsegs, $existingdur) . '%' : '')
+                        . ($existingdur > 0
+                            ? \mod_jitsi\local\recording_segments::watched_pct($existingsegs, $existingdur) . '%' : '')
                         . '</small>'
                         . '</div>';
                 }

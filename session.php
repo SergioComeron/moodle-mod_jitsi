@@ -41,7 +41,7 @@ if ($state == null) {
     $avatar = get_config('mod_jitsi', 'showavatars') == true ? required_param('avatar', PARAM_TEXT) : null;
     $teacher = required_param('t', PARAM_BOOL);
 } else {
-    $paramdecode = base64urldecode($state);
+    $paramdecode = \mod_jitsi\local\util::base64url_decode($state);
     $parametrosarray = explode("&", $paramdecode);
     $avatararray = $parametrosarray[0];
     $nomarray = $parametrosarray[1];

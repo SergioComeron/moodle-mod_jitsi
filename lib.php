@@ -333,22 +333,6 @@ function jitsi_myprofile_navigation(core_user\output\myprofile\tree $tree, $user
 }
 
 /**
- * Base 64 encode
- * @param string $inputstr - Input to encode
- */
-function base64urlencode($inputstr) {
-    return strtr(base64_encode($inputstr), '+/=', '-_,');
-}
-
-/**
- * Base 64 decode
- * @param string $inputstr - Input to decode
- */
-function base64urldecode($inputstr) {
-    return base64_decode(strtr($inputstr, '-_,', '+/='));
-}
-
-/**
  * Create session
  * @param int $teacher - Moderation
  * @param int $cmid - Course module
@@ -2908,63 +2892,6 @@ function jitsi_render_segments_bar(array $segments, float $duration, string $bar
 }
 
 /**
- * Compute total watched percentage from segments.
- *
- * @param array $segments Array of [start, end] pairs in seconds
- * @param float $duration Video duration in seconds
- * @return int  0–100
- */
-function jitsi_segments_watched_pct(array $segments, float $duration): int {
-    if ($duration <= 0 || empty($segments)) {
-        return 0;
-    }
-    $watched = 0;
-    foreach ($segments as $seg) {
-        if (is_array($seg) && count($seg) >= 2) {
-            $watched += max(0, (float)$seg[1] - (float)$seg[0]);
-        }
-    }
-    return min(100, (int)round(($watched / $duration) * 100));
-}
-
-/**
- * Render an aggregate heatmap bar showing which parts of a recording each fraction of viewers watched.
- * Color intensity is proportional to the share of viewers who watched each time bucket.
- * Only shown to users with mod/jitsi:viewattendance.
- *
- * @param int $sourcerecordid
- * @param int $cmid
- * @return string HTML, or empty string if no data
- */
-/**
- * Format a number of seconds as a video timestamp (MM:SS or H:MM:SS).
- *
- * @param int $seconds
- * @return string
- */
-function jitsi_format_video_seconds(int $seconds): string {
-    if ($seconds < 60) {
-        return $seconds . 's';
-    }
-    $h   = intdiv($seconds, 3600);
-    $m   = intdiv($seconds % 3600, 60);
-    $s   = $seconds % 60;
-    $out = '';
-    if ($h > 0) {
-        $out .= $h . 'h ';
-    }
-    if ($m > 0 || $h > 0) {
-        $out .= $m . 'min';
-        if ($s > 0) {
-            $out .= ' ' . $s . 's';
-        }
-    } else {
-        $out .= $s . 's';
-    }
-    return trim($out);
-}
-
-/**
  * Render an aggregate heatmap bar showing which parts of a recording each fraction of viewers watched.
  * Color intensity is proportional to the share of viewers who watched each time bucket.
  * Only shown to users with mod/jitsi:viewattendance.
@@ -3107,8 +3034,8 @@ function jitsi_render_heatmap_bar(int $sourcerecordid, int $cmid): string {
         $width     = number_format($bucketwidth + 0.1, 3, '.', '');
         $start     = $i * $bucketsize;
         $end       = $start + $bucketsize;
-        $fmtstart  = jitsi_format_video_seconds($start);
-        $fmtend    = jitsi_format_video_seconds($end);
+        $fmtstart  = \mod_jitsi\local\recording_segments::format_seconds($start);
+        $fmtend    = \mod_jitsi\local\recording_segments::format_seconds($end);
         $html     .= '<div data-bucket="' . $i . '" data-start="' . s($fmtstart) . '" data-end="' . s($fmtend) . '"'
             . ' style="position:absolute;left:' . $left . '%;width:' . $width
             . '%;height:100%;background:rgba(13,110,253,' . $opacity . ')"></div>';
@@ -3131,7 +3058,9 @@ function jitsi_render_heatmap_bar(int $sourcerecordid, int $cmid): string {
             $width    = number_format($bucketwidth + 0.1, 3, '.', '');
             $start    = $i * $bucketsize;
             $end      = $start + $bucketsize;
-            $tooltip  = s($count . ' plays · ' . jitsi_format_video_seconds($start) . '–' . jitsi_format_video_seconds($end));
+            $tooltip  = s($count . ' plays · '
+                . \mod_jitsi\local\recording_segments::format_seconds($start) . '–'
+                . \mod_jitsi\local\recording_segments::format_seconds($end));
             $html    .= '<div title="' . $tooltip . '" style="position:absolute;left:' . $left . '%;width:' . $width
                 . '%;height:100%;background:rgba(253,126,20,' . $opacity . ')"></div>';
         }

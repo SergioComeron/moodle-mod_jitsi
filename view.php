@@ -71,7 +71,7 @@ if ($id) {
     $course = $DB->get_record('course', ['id' => $jitsi->course], '*', MUST_EXIST);
     $cm = get_coursemodule_from_instance('jitsi', $jitsi->id, $course->id, false, MUST_EXIST);
 } else if ($state) {
-    $paramdecode = base64urldecode($state);
+    $paramdecode = \mod_jitsi\local\util::base64url_decode($state);
     $parametrosarray = explode("&", $paramdecode);
     $idarray = $parametrosarray[0];
     $deletejitsirecordidarray = $parametrosarray[1];
