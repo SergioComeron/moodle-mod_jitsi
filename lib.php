@@ -2020,65 +2020,6 @@ function mod_jitsi_inplace_editable($itemtype, $itemid, $newvalue) {
 }
 
 /**
- * Counts the minutes of a user in the current session
- * @param id $contextinstanceid - context instance
- * @param id $userid - user id
- */
-function getminutes($contextinstanceid, $userid) {
-    global $DB, $USER;
-
-    $cache = cache::make('mod_jitsi', 'getminutes');
-    $cachekey = "getminutes_{$contextinstanceid}_{$userid}";
-    $cachedresult = $cache->get($cachekey);
-
-    if ($cachedresult !== false) {
-        return $cachedresult;
-    }
-
-    $sqlminutos = 'SELECT * FROM {logstore_standard_log} WHERE userid = :userid
-                   AND contextinstanceid = :contextinstanceid AND action = \'participating\'';
-    $params = ['userid' => $userid, 'contextinstanceid' => $contextinstanceid];
-    $minutos = $DB->get_records_sql($sqlminutos, $params);
-
-    $result = count($minutos);
-    $cache->set($cachekey, $result, 120); // Cache for 2 minutes.
-
-    return $result;
-}
-
-/**
- * Counts the minutes of a user in the current session
- * @param id $contextinstanceid - context instance
- * @param id $userid - user id
- * @param int $init - initial time
- * @param int $end - end time
- */
-function getminutesdates($contextinstanceid, $userid, $init, $end) {
-    global $DB, $USER;
-
-    $cache = cache::make('mod_jitsi', 'getminutesdates');
-    $cachekey = "getminutesdates_{$contextinstanceid}_{$userid}_{$init}_{$end}";
-    $cachedresult = $cache->get($cachekey);
-
-    if ($cachedresult !== false) {
-        return $cachedresult;
-    }
-
-    $sqlminutos = 'SELECT COUNT(*) AS minutes FROM {logstore_standard_log}
-                   WHERE userid = :userid AND contextinstanceid = :contextinstanceid
-                   AND action = \'participating\' AND timecreated BETWEEN :init AND :end';
-    $params = ['userid' => $userid,
-        'contextinstanceid' => $contextinstanceid,
-        'init' => $init,
-        'end' => $end,
-    ];
-    $minutos = $DB->get_record_sql($sqlminutos, $params);
-
-    $cache->set($cachekey, $minutos->minutes, 120); // Cache for 2 minutes.
-    return $minutos->minutes;
-}
-
-/**
  * Add a get_coursemodule_info function in case any jitsi type wants to add 'extra' information
  * for the course (see resource).
  *

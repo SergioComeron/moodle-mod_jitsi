@@ -49,7 +49,7 @@ class custom_completion extends activity_custom_completion {
             throw new \moodle_exception('Unable to find jitsi with id ' . $this->cm->instance);
         }
         $completionminutes = $this->cm->customdata['customcompletionrules']['completionminutes'];
-        $userminutes = getminutes($this->cm->id, $userid);
+        $userminutes = \mod_jitsi\local\attendance::minutes($this->cm->id, $userid);
 
         $status = $completionminutes <= $userminutes;
 

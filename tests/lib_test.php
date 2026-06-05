@@ -835,4 +835,68 @@ final class lib_test extends \advanced_testcase {
         // The "anal" flag removes every non-alphanumeric character (including hyphens).
         $this->assertEquals('mysession', \mod_jitsi\local\room::sanitize('My Session', true, true));
     }
+
+    /**
+     * Insert a 'participating' log row for the given module/user/time.
+     *
+     * @param int $cmid
+     * @param int $userid
+     * @param int $timecreated
+     */
+    protected function insert_participating_log($cmid, $userid, $timecreated): void {
+        global $DB;
+        $DB->insert_record('logstore_standard_log', (object)[
+            'eventname'         => '\\mod_jitsi\\event\\jitsi_session_participating',
+            'component'         => 'mod_jitsi',
+            'action'            => 'participating',
+            'target'            => 'session',
+            'crud'              => 'r',
+            'edulevel'          => 0,
+            'contextid'         => 1,
+            'contextlevel'      => CONTEXT_MODULE,
+            'contextinstanceid' => $cmid,
+            'userid'            => $userid,
+            'anonymous'         => 0,
+            'timecreated'       => $timecreated,
+        ]);
+    }
+
+    /**
+     * Test that attendance::minutes counts only this user's 'participating' rows.
+     *
+     * @covers \mod_jitsi\local\attendance::minutes
+     */
+    public function test_attendance_minutes_counts_participating(): void {
+        $this->resetAfterTest(true);
+        $cmid = 4321;
+        $userid = 777;
+
+        $this->insert_participating_log($cmid, $userid, time());
+        $this->insert_participating_log($cmid, $userid, time());
+        $this->insert_participating_log($cmid, $userid, time());
+        // Different user and different module must not be counted.
+        $this->insert_participating_log($cmid, 888, time());
+        $this->insert_participating_log(9999, $userid, time());
+
+        $this->assertEquals(3, \mod_jitsi\local\attendance::minutes($cmid, $userid));
+    }
+
+    /**
+     * Test that attendance::minutes_between only counts rows inside the time window.
+     *
+     * @covers \mod_jitsi\local\attendance::minutes_between
+     */
+    public function test_attendance_minutes_between_respects_window(): void {
+        $this->resetAfterTest(true);
+        $cmid = 4322;
+        $userid = 778;
+        $now = time();
+
+        $this->insert_participating_log($cmid, $userid, $now - 100);
+        $this->insert_participating_log($cmid, $userid, $now - 50);
+        // Outside the window.
+        $this->insert_participating_log($cmid, $userid, $now - 5000);
+
+        $this->assertEquals(2, \mod_jitsi\local\attendance::minutes_between($cmid, $userid, $now - 200, $now));
+    }
 }

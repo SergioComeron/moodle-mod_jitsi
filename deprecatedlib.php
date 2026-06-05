@@ -41,7 +41,7 @@ function jitsi_get_completion_state($course, $cm, $userid, $type) {
     }
     if ($jitsi->completionminutes) {
         $completionminutes = $jitsi->completionminutes;
-        $userminutes = getminutes($cm->id, $userid);
+        $userminutes = \mod_jitsi\local\attendance::minutes($cm->id, $userid);
         return $completionminutes <= $userminutes;
     } else {
         // Completion option is not enabled so just return $type.

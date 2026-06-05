@@ -82,8 +82,13 @@ foreach ($users as $user) {
     $table->data[] = [
         html_writer::link($urluser, fullname($user), ['data-toggle' =>
              'tooltip', 'data-placement' => 'top', 'title' => $user->username]),
-        getminutesdates($id, $user->id, strtotime('today midnight'), strtotime('today midnight +1 day')),
-            getminutes($id, $user->id)];
+        \mod_jitsi\local\attendance::minutes_between(
+            $id,
+            $user->id,
+            strtotime('today midnight'),
+            strtotime('today midnight +1 day')
+        ),
+        \mod_jitsi\local\attendance::minutes($id, $user->id)];
 }
 echo html_writer::table($table);
 echo $OUTPUT->footer();
