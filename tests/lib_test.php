@@ -643,11 +643,11 @@ final class lib_test extends \advanced_testcase {
     /**
      * Regression test for issue #138.
      *
-     * On a type-0 server (public/no JWT), createsession() must emit
+     * On a type-0 server (public/no JWT), \mod_jitsi\local\session::create() must emit
      * roomName so users join the correct room instead of landing
      * on the Jitsi homepage.
      *
-     * @covers ::createsession
+     * @covers \mod_jitsi\local\session::create
      */
     public function test_type0_server_sets_roomname_in_output(): void {
         global $DB, $PAGE;
@@ -713,7 +713,7 @@ final class lib_test extends \advanced_testcase {
         $PAGE->set_context(\context_module::instance($cm->id));
 
         ob_start();
-        createsession(
+        \mod_jitsi\local\session::create(
             0,
             $cm->id,
             'https://example.com/avatar.png',
@@ -727,7 +727,7 @@ final class lib_test extends \advanced_testcase {
         $this->assertStringContainsString(
             'roomName:',
             $output,
-            'createsession() must emit roomName for type-0 servers (regression #138)'
+            '\mod_jitsi\local\session::create() must emit roomName for type-0 servers (regression #138)'
         );
 
         $this->assertStringContainsString(
@@ -744,7 +744,7 @@ final class lib_test extends \advanced_testcase {
     }
 
     /**
-     * Run createsession() against a freshly inserted server and return its echoed output.
+     * Run \mod_jitsi\local\session::create() against a freshly inserted server and return its echoed output.
      *
      * @param array $serverfields Fields overriding the jitsi_servers defaults
      * @param array $configs mod_jitsi config overrides
@@ -793,7 +793,7 @@ final class lib_test extends \advanced_testcase {
         $PAGE->set_context(\context_module::instance($cm->id));
 
         ob_start();
-        createsession(
+        \mod_jitsi\local\session::create(
             0,
             $cm->id,
             'https://example.com/avatar.png',
@@ -808,7 +808,7 @@ final class lib_test extends \advanced_testcase {
     /**
      * Type-1 (self-hosted JWT) servers must emit roomName and a valid HS256 JWT.
      *
-     * @covers ::createsession
+     * @covers \mod_jitsi\local\session::create
      */
     public function test_type1_server_emits_signed_jwt(): void {
         $this->resetAfterTest(true);
@@ -840,7 +840,7 @@ final class lib_test extends \advanced_testcase {
     /**
      * Type-2 (8x8 JaaS) servers must emit the appid-prefixed roomName and an RS256 JWT.
      *
-     * @covers ::createsession
+     * @covers \mod_jitsi\local\session::create
      */
     public function test_type2_server_emits_jaas_room_and_jwt(): void {
         $this->resetAfterTest(true);
@@ -867,7 +867,7 @@ final class lib_test extends \advanced_testcase {
     /**
      * Type-3 (GCP) servers with app credentials must emit roomName and a JWT (HS256, as type 1).
      *
-     * @covers ::createsession
+     * @covers \mod_jitsi\local\session::create
      */
     public function test_type3_server_emits_jwt(): void {
         $this->resetAfterTest(true);

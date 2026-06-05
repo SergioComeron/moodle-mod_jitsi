@@ -105,7 +105,7 @@ if (
 } else {
     $nombre = str_replace("'", "\\'", $nombre);
     $mail = get_config('mod_jitsi', 'sendemail') ? $USER->email : null;
-    createsession($teacher, $cmid, $avatar, $nombre, $session, $mail, $jitsi);
+    \mod_jitsi\local\session::create($teacher, $cmid, $avatar, $nombre, $session, $mail, $jitsi);
 }
 
 echo $OUTPUT->footer();

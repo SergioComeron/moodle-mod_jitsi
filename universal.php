@@ -107,7 +107,7 @@ $PAGE->set_heading($sesion->name);
 
 echo $OUTPUT->header();
 if (!\mod_jitsi\local\invitation::is_timed_out($sesion)) {
-    createsession(0, $id, $avatar, $name, $sesparam, null, $sesion, true, null);
+    \mod_jitsi\local\session::create(0, $id, $avatar, $name, $sesparam, null, $sesion, true, null);
 } else {
     echo \mod_jitsi\local\invitation::error_time($sesion);
 }
