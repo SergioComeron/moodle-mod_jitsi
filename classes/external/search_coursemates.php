@@ -49,8 +49,7 @@ class search_coursemates extends external_api {
      * @return array
      */
     public static function execute($query) {
-        global $DB, $USER, $PAGE, $CFG;
-        require_once($CFG->dirroot . '/mod/jitsi/lib.php');
+        global $DB, $USER, $PAGE;
 
         $params = self::validate_parameters(self::execute_parameters(), ['query' => $query]);
         $context = \context_system::instance();
@@ -94,7 +93,7 @@ class search_coursemates extends external_api {
         foreach ($records as $record) {
             $userpicture = new \user_picture($record);
             $userpicture->size = 1;
-            $availability = jitsi_check_tutoring_availability($record->id, $USER->id);
+            $availability = \mod_jitsi\local\tutoring::check_availability($record->id, $USER->id);
             $users[] = [
                 'id'              => (int)$record->id,
                 'firstname'       => $record->firstname,

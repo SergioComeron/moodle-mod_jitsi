@@ -39,7 +39,7 @@ $PAGE->set_heading(get_string('privatesession', 'jitsi', $peer->firstname));
 echo $OUTPUT->header();
 
 // Check tutoring schedule: if the peer is a teacher with a schedule, validate availability.
-$availability = jitsi_check_tutoring_availability($peerid, $USER->id);
+$availability = \mod_jitsi\local\tutoring::check_availability($peerid, $USER->id);
 if ($availability['hasschedule'] && !$availability['available']) {
     $nextmsg = $availability['nextslot']
         ? get_string('tutoringnextavailable', 'jitsi', $availability['nextslot'])

@@ -49,14 +49,13 @@ class get_teacher_schedule extends external_api {
      * @return array
      */
     public static function execute($teacherid) {
-        global $DB, $USER, $CFG;
-        require_once($CFG->dirroot . '/mod/jitsi/lib.php');
+        global $DB, $USER;
 
         $params = self::validate_parameters(self::execute_parameters(), ['teacherid' => $teacherid]);
         $context = \context_system::instance();
         self::validate_context($context);
 
-        $availability = jitsi_check_tutoring_availability($params['teacherid'], $USER->id);
+        $availability = \mod_jitsi\local\tutoring::check_availability($params['teacherid'], $USER->id);
 
         $slots = [];
         if ($availability['hasschedule']) {

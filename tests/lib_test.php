@@ -494,7 +494,7 @@ final class lib_test extends \advanced_testcase {
      * Test that jitsi_check_tutoring_availability returns hasschedule=false
      * when teacher has no slots in any shared visible course.
      *
-     * @covers ::jitsi_check_tutoring_availability
+     * @covers \mod_jitsi\local\tutoring::check_availability
      */
     public function test_check_tutoring_availability_no_schedule(): void {
         $this->resetAfterTest(true);
@@ -506,7 +506,7 @@ final class lib_test extends \advanced_testcase {
         $this->getDataGenerator()->enrol_user($teacher->id, $course->id, 'editingteacher');
         $this->getDataGenerator()->enrol_user($student->id, $course->id, 'student');
 
-        $result = jitsi_check_tutoring_availability($teacher->id, $student->id);
+        $result = \mod_jitsi\local\tutoring::check_availability($teacher->id, $student->id);
 
         $this->assertFalse($result['hasschedule']);
         $this->assertTrue($result['available']);
@@ -517,7 +517,7 @@ final class lib_test extends \advanced_testcase {
      * Test that jitsi_check_tutoring_availability returns hasschedule=false
      * when they share no visible course (course is hidden).
      *
-     * @covers ::jitsi_check_tutoring_availability
+     * @covers \mod_jitsi\local\tutoring::check_availability
      */
     public function test_check_tutoring_availability_hidden_course(): void {
         global $DB;
@@ -541,7 +541,7 @@ final class lib_test extends \advanced_testcase {
             'timemodified' => time(),
         ]);
 
-        $result = jitsi_check_tutoring_availability($teacher->id, $student->id);
+        $result = \mod_jitsi\local\tutoring::check_availability($teacher->id, $student->id);
 
         $this->assertFalse($result['hasschedule']);
     }
@@ -550,7 +550,7 @@ final class lib_test extends \advanced_testcase {
      * Test that jitsi_check_tutoring_availability returns available=true
      * when current time falls within a slot covering the whole day.
      *
-     * @covers ::jitsi_check_tutoring_availability
+     * @covers \mod_jitsi\local\tutoring::check_availability
      */
     public function test_check_tutoring_availability_within_slot(): void {
         global $DB;
@@ -576,7 +576,7 @@ final class lib_test extends \advanced_testcase {
             'timemodified' => time(),
         ]);
 
-        $result = jitsi_check_tutoring_availability($teacher->id, $student->id);
+        $result = \mod_jitsi\local\tutoring::check_availability($teacher->id, $student->id);
 
         $this->assertTrue($result['hasschedule']);
         $this->assertTrue($result['available']);
@@ -586,7 +586,7 @@ final class lib_test extends \advanced_testcase {
      * Test that jitsi_check_tutoring_availability returns available=false
      * when slot is for a different weekday than today.
      *
-     * @covers ::jitsi_check_tutoring_availability
+     * @covers \mod_jitsi\local\tutoring::check_availability
      */
     public function test_check_tutoring_availability_outside_slot(): void {
         global $DB;
@@ -612,7 +612,7 @@ final class lib_test extends \advanced_testcase {
             'timemodified' => time(),
         ]);
 
-        $result = jitsi_check_tutoring_availability($teacher->id, $student->id);
+        $result = \mod_jitsi\local\tutoring::check_availability($teacher->id, $student->id);
 
         $this->assertTrue($result['hasschedule']);
         $this->assertFalse($result['available']);
@@ -622,7 +622,7 @@ final class lib_test extends \advanced_testcase {
      * Test that jitsi_check_tutoring_availability returns hasschedule=false
      * when the user is not enrolled as teacher in any visible course.
      *
-     * @covers ::jitsi_check_tutoring_availability
+     * @covers \mod_jitsi\local\tutoring::check_availability
      */
     public function test_check_tutoring_availability_not_a_teacher(): void {
         $this->resetAfterTest(true);
@@ -635,7 +635,7 @@ final class lib_test extends \advanced_testcase {
         $this->getDataGenerator()->enrol_user($user1->id, $course->id, 'student');
         $this->getDataGenerator()->enrol_user($user2->id, $course->id, 'student');
 
-        $result = jitsi_check_tutoring_availability($user1->id, $user2->id);
+        $result = \mod_jitsi\local\tutoring::check_availability($user1->id, $user2->id);
 
         $this->assertFalse($result['hasschedule']);
     }

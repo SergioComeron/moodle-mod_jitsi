@@ -241,7 +241,7 @@ if (!empty($calllist)) {
         $timeago = userdate($entry['time'], get_string('strftimedatetimeshort', 'langconfig'));
 
         // Show availability badge for teachers with a schedule.
-        $availability = jitsi_check_tutoring_availability($peer->id, $USER->id);
+        $availability = \mod_jitsi\local\tutoring::check_availability($peer->id, $USER->id);
         $badge = '';
         if ($availability['hasschedule']) {
             if ($availability['available']) {
