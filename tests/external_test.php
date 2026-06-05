@@ -1064,4 +1064,135 @@ final class external_test extends \advanced_testcase {
         $this->assertCount(1, $result['slots']);
         $this->assertEquals('10:00', $result['slots'][0]['timestart']);
     }
+
+    // View / AI queue tests.
+    // Note: getminutesfromlastconexion is a thin delegation to the lib.php function
+    // of the same name, which assumes a prior connection log exists (it reads
+    // ->timecreated off the row unconditionally). That pre-existing fragility in
+    // lib.php is out of scope here, so this wrapper is migrated without a dedicated test.
+
+    /**
+     * Test that view_jitsi triggers the course_module_viewed event.
+     *
+     * @covers \mod_jitsi\external\view_jitsi::execute
+     */
+    public function test_view_jitsi_triggers_event(): void {
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+        [$jitsi, $cm] = $this->create_jitsi_activity();
+
+        $sink = $this->redirectEvents();
+        $result = \mod_jitsi\external\view_jitsi::execute($cm->id);
+        $events = $sink->get_events();
+
+        $this->assertTrue($result['status']);
+        $this->assertCount(1, $events);
+        $this->assertInstanceOf(\mod_jitsi\event\course_module_viewed::class, $events[0]);
+    }
+
+    /**
+     * Create a GCS source record (storage.googleapis.com link) and return its id.
+     *
+     * @return int sourcerecord id
+     */
+    protected function create_gcs_source(): int {
+        global $DB, $USER;
+        return (int)$DB->insert_record('jitsi_source_record', (object)[
+            'link'            => 'https://storage.googleapis.com/bucket/rec.mp4',
+            'timecreated'     => time(),
+            'userid'          => $USER->id,
+            'embed'           => 0,
+            'maxparticipants' => 0,
+            'type'            => 0,
+            'timeexpires'     => 0,
+            'ai_quiz_id'      => 0,
+        ]);
+    }
+
+    /**
+     * Test that queue_ai_summary enqueues the ad-hoc task for a GCS recording.
+     *
+     * @covers \mod_jitsi\external\queue_ai_summary::execute
+     */
+    public function test_queue_ai_summary_queues_task(): void {
+        $this->resetAfterTest(true);
+        set_config('aienabled', 1, 'mod_jitsi');
+        $this->setAdminUser();
+        [$jitsi, $cm] = $this->create_jitsi_activity();
+        $srid = $this->create_gcs_source();
+
+        $result = \mod_jitsi\external\queue_ai_summary::execute($srid, $cm->id);
+
+        $this->assertTrue($result['success']);
+        $tasks = \core\task\manager::get_adhoc_tasks(\mod_jitsi\task\generate_ai_summary::class);
+        $this->assertCount(1, $tasks);
+    }
+
+    /**
+     * Test that queue_ai_transcription sets status pending and enqueues the task.
+     *
+     * @covers \mod_jitsi\external\queue_ai_transcription::execute
+     */
+    public function test_queue_ai_transcription_sets_pending_and_queues(): void {
+        global $DB;
+        $this->resetAfterTest(true);
+        set_config('aienabled', 1, 'mod_jitsi');
+        $this->setAdminUser();
+        [$jitsi, $cm] = $this->create_jitsi_activity();
+        $srid = $this->create_gcs_source();
+
+        $result = \mod_jitsi\external\queue_ai_transcription::execute($srid, $cm->id);
+
+        $this->assertTrue($result['success']);
+        $this->assertEquals('pending', $DB->get_field('jitsi_source_record', 'ai_transcription_status', ['id' => $srid]));
+        $tasks = \core\task\manager::get_adhoc_tasks(\mod_jitsi\task\generate_ai_transcription::class);
+        $this->assertCount(1, $tasks);
+    }
+
+    /**
+     * Test that queue_ai_quiz enqueues the ad-hoc task for a GCS recording.
+     *
+     * @covers \mod_jitsi\external\queue_ai_quiz::execute
+     */
+    public function test_queue_ai_quiz_queues_task(): void {
+        $this->resetAfterTest(true);
+        set_config('aienabled', 1, 'mod_jitsi');
+        $this->setAdminUser();
+        [$jitsi, $cm] = $this->create_jitsi_activity();
+        $srid = $this->create_gcs_source();
+
+        $result = \mod_jitsi\external\queue_ai_quiz::execute($srid, $cm->id);
+
+        $this->assertTrue($result['success']);
+        $tasks = \core\task\manager::get_adhoc_tasks(\mod_jitsi\task\generate_ai_quiz::class);
+        $this->assertCount(1, $tasks);
+    }
+
+    /**
+     * Test that queue_ai_summary refuses a non-GCS recording.
+     *
+     * @covers \mod_jitsi\external\queue_ai_summary::execute
+     */
+    public function test_queue_ai_summary_rejects_non_gcs(): void {
+        global $DB;
+        $this->resetAfterTest(true);
+        set_config('aienabled', 1, 'mod_jitsi');
+        $this->setAdminUser();
+        [$jitsi, $cm] = $this->create_jitsi_activity();
+        $srid = (int)$DB->insert_record('jitsi_source_record', (object)[
+            'link'            => 'https://youtu.be/abc123',
+            'timecreated'     => time(),
+            'userid'          => get_admin()->id,
+            'embed'           => 0,
+            'maxparticipants' => 0,
+            'type'            => 0,
+            'timeexpires'     => 0,
+            'ai_quiz_id'      => 0,
+        ]);
+
+        $result = \mod_jitsi\external\queue_ai_summary::execute($srid, $cm->id);
+
+        $this->assertFalse($result['success']);
+        $this->assertCount(0, \core\task\manager::get_adhoc_tasks(\mod_jitsi\task\generate_ai_summary::class));
+    }
 }

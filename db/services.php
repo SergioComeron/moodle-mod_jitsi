@@ -108,8 +108,8 @@ $functions = [
         ],
 
         'mod_jitsi_view_jitsi' => [
-                'classname' => 'mod_jitsi_external',
-                'methodname' => 'view_jitsi',
+                'classname' => 'mod_jitsi\external\view_jitsi',
+                'methodname' => 'execute',
                 'description' => 'Trigger the course module viewed event.',
                 'type' => 'write',
                 'capabilities' => 'mod/jitsi:view',
@@ -177,8 +177,8 @@ $functions = [
         ],
 
         'mod_jitsi_getminutesfromlastconexion' => [
-                'classname' => 'mod_jitsi_external',
-                'methodname' => 'getminutesfromlastconexion',
+                'classname' => 'mod_jitsi\external\getminutesfromlastconexion',
+                'methodname' => 'execute',
                 'description' => 'Get minutes from last conexion',
                 'type' => 'read',
                 'ajax' => true,
@@ -216,9 +216,8 @@ $functions = [
         ],
 
         'mod_jitsi_queue_ai_summary' => [
-                'classname' => 'mod_jitsi_external',
-                'methodname' => 'queue_ai_summary',
-                'classpath' => 'mod/jitsi/classes/external.php',
+                'classname' => 'mod_jitsi\external\queue_ai_summary',
+                'methodname' => 'execute',
                 'description' => 'Queue an AI summary generation task for a GCS recording',
                 'type' => 'write',
                 'ajax' => true,
@@ -226,9 +225,8 @@ $functions = [
         ],
 
         'mod_jitsi_queue_ai_quiz' => [
-                'classname' => 'mod_jitsi_external',
-                'methodname' => 'queue_ai_quiz',
-                'classpath' => 'mod/jitsi/classes/external.php',
+                'classname' => 'mod_jitsi\external\queue_ai_quiz',
+                'methodname' => 'execute',
                 'description' => 'Queue an AI true/false quiz generation task for a GCS recording',
                 'type' => 'write',
                 'ajax' => true,
@@ -236,9 +234,8 @@ $functions = [
         ],
 
         'mod_jitsi_queue_ai_transcription' => [
-                'classname' => 'mod_jitsi_external',
-                'methodname' => 'queue_ai_transcription',
-                'classpath' => 'mod/jitsi/classes/external.php',
+                'classname' => 'mod_jitsi\external\queue_ai_transcription',
+                'methodname' => 'execute',
                 'description' => 'Queue an AI transcription generation task for a GCS recording',
                 'type' => 'write',
                 'ajax' => true,

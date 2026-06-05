@@ -42,19 +42,6 @@ class mod_jitsi_external extends external_api {
      *
      * @return external_function_parameters
      */
-    public static function view_jitsi_parameters() {
-        return new external_function_parameters(
-            [
-                'cmid' => new external_value(PARAM_INT, 'course module instance id'),
-            ]
-        );
-    }
-
-    /**
-     * Returns description of method parameters
-     *
-     * @return external_function_parameters
-     */
     public static function create_stream_parameters() {
         return new external_function_parameters(
             ['session' => new external_value(PARAM_TEXT, 'Session object from google', VALUE_REQUIRED, '', NULL_NOT_ALLOWED),
@@ -115,30 +102,6 @@ class mod_jitsi_external extends external_api {
     }
 
     /**
-     * Returns description of method parameters
-     *
-     * @return external_function_parameters
-     */
-    public static function getminutesfromlastconexion_parameters() {
-        return new external_function_parameters(
-            ['cmid' => new external_value(PARAM_INT, 'Cm id', VALUE_REQUIRED, '', NULL_NOT_ALLOWED),
-                  'user' => new external_value(PARAM_INT, 'User id', VALUE_REQUIRED, '', NULL_NOT_ALLOWED),
-            ]
-        );
-    }
-
-    /**
-     * Returns description of method result value
-     *
-     * @return external_description
-     * @param int $cmid Course module id
-     * @param int $user User id
-     */
-    public static function getminutesfromlastconexion($cmid, $user) {
-        return getminutesfromlastconexion($cmid, $user);
-    }
-
-    /**
      * Delete Video from youtube when jitsi get an error
      *
      * @param int $idsource Source record id
@@ -161,42 +124,6 @@ class mod_jitsi_external extends external_api {
      */
     public static function delete_record_youtube_returns() {
         return new external_value(PARAM_TEXT, 'Video deleted');
-    }
-
-    /**
-     * Trigger the course module viewed event.
-     *
-     * @param int $cmid the course module instance id
-     * @return array of warnings and status result
-     * @throws moodle_exception
-     */
-    public static function view_jitsi($cmid) {
-        global $DB;
-
-        $params = self::validate_parameters(
-            self::view_jitsi_parameters(),
-            ['cmid' => $cmid]
-        );
-        $warnings = [];
-
-        $cm = get_coursemodule_from_id('jitsi', $cmid, 0, false, MUST_EXIST);
-
-        $context = \context_module::instance($cm->id);
-        self::validate_context($context);
-        require_capability('mod/jitsi:view', $context);
-
-        $event = \mod_jitsi\event\course_module_viewed::create([
-                'objectid' => $cm->instance,
-                'context' => $context,
-            ]);
-        $event->add_record_snapshot('course', $course);
-        $event->add_record_snapshot($cm->modname, $jitsi);
-        $event->trigger();
-
-        $result = [];
-        $result['status'] = true;
-        $result['warnings'] = $warnings;
-        return $result;
     }
 
     /**
@@ -514,18 +441,6 @@ class mod_jitsi_external extends external_api {
      *
      * @return external_description
      */
-    public static function view_jitsi_returns() {
-        return new external_single_structure([
-                'status' => new external_value(PARAM_BOOL, 'status: true if success'),
-                'warnings' => new external_warnings(),
-            ]);
-    }
-
-    /**
-     * Returns description of method result value
-     *
-     * @return external_description
-     */
     public static function create_stream_returns() {
         return new external_single_structure([
                 'stream' => new external_value(PARAM_TEXT, 'stream'),
@@ -536,195 +451,5 @@ class mod_jitsi_external extends external_api {
                 'errorinfo' => new external_value(PARAM_TEXT, 'error info'),
                 'link' => new external_value(PARAM_TEXT, 'link'),
             ]);
-    }
-
-    /**
-     * Returns description of method parameters
-     * @return external_function_parameters
-     */
-    public static function getminutesfromlastconexion_returns() {
-        return new external_value(PARAM_INT, 'Last conexion timestamp');
-    }
-
-    /**
-     * Returns description of queue_ai_summary parameters
-     * @return external_function_parameters
-     */
-    public static function queue_ai_summary_parameters() {
-        return new external_function_parameters([
-            'sourcerecordid' => new external_value(PARAM_INT, 'ID of the jitsi_source_record'),
-            'cmid' => new external_value(PARAM_INT, 'Course module ID for capability check'),
-        ]);
-    }
-
-    /**
-     * Queue an ad-hoc task to generate an AI summary for a GCS recording.
-     *
-     * @param int $sourcerecordid
-     * @param int $cmid
-     * @return array
-     */
-    public static function queue_ai_summary($sourcerecordid, $cmid) {
-        global $DB;
-
-        $params = self::validate_parameters(self::queue_ai_summary_parameters(), [
-            'sourcerecordid' => $sourcerecordid,
-            'cmid' => $cmid,
-        ]);
-
-        $context = context_module::instance($params['cmid']);
-        self::validate_context($context);
-        require_capability('mod/jitsi:generateaisummary', $context);
-
-        if (!get_config('mod_jitsi', 'aienabled')) {
-            return ['success' => false, 'message' => get_string('aidisabled', 'jitsi')];
-        }
-
-        $sourcerecord = $DB->get_record('jitsi_source_record', ['id' => $params['sourcerecordid']], '*', MUST_EXIST);
-
-        // Only GCS recordings are supported.
-        if (strpos($sourcerecord->link, 'storage.googleapis.com') === false) {
-            return ['success' => false, 'message' => get_string('aisummarynotavailable', 'jitsi')];
-        }
-
-        // Enqueue the ad-hoc task.
-        $task = new \mod_jitsi\task\generate_ai_summary();
-        $task->set_custom_data(['sourcerecordid' => $params['sourcerecordid'], 'lang' => current_language()]);
-        \core\task\manager::queue_adhoc_task($task, true);
-
-        return ['success' => true, 'message' => get_string('aisummaryqueued', 'jitsi')];
-    }
-
-    /**
-     * Returns description of queue_ai_summary return value
-     * @return external_description
-     */
-    public static function queue_ai_summary_returns() {
-        return new external_single_structure([
-            'success' => new external_value(PARAM_BOOL, 'Whether the task was queued successfully'),
-            'message' => new external_value(PARAM_TEXT, 'Status message'),
-        ]);
-    }
-
-    /**
-     * Returns description of queue_ai_transcription parameters
-     * @return external_function_parameters
-     */
-    public static function queue_ai_transcription_parameters() {
-        return new external_function_parameters([
-            'sourcerecordid' => new external_value(PARAM_INT, 'ID of the jitsi_source_record'),
-            'cmid' => new external_value(PARAM_INT, 'Course module ID for capability check'),
-        ]);
-    }
-
-    /**
-     * Queue an ad-hoc task to generate an AI transcription for a GCS recording.
-     *
-     * @param int $sourcerecordid
-     * @param int $cmid
-     * @return array
-     */
-    public static function queue_ai_transcription($sourcerecordid, $cmid) {
-        global $DB;
-
-        $params = self::validate_parameters(self::queue_ai_transcription_parameters(), [
-            'sourcerecordid' => $sourcerecordid,
-            'cmid' => $cmid,
-        ]);
-
-        $context = context_module::instance($params['cmid']);
-        self::validate_context($context);
-        require_capability('mod/jitsi:generateaitranscription', $context);
-
-        if (!get_config('mod_jitsi', 'aienabled')) {
-            return ['success' => false, 'message' => get_string('aidisabled', 'jitsi')];
-        }
-
-        $sourcerecord = $DB->get_record('jitsi_source_record', ['id' => $params['sourcerecordid']], '*', MUST_EXIST);
-
-        if (strpos($sourcerecord->link, 'storage.googleapis.com') === false) {
-            return ['success' => false, 'message' => get_string('aitranscriptionnotavailable', 'jitsi')];
-        }
-
-        $DB->set_field('jitsi_source_record', 'ai_transcription_status', 'pending', ['id' => $params['sourcerecordid']]);
-
-        $task = new \mod_jitsi\task\generate_ai_transcription();
-        $task->set_custom_data(['sourcerecordid' => $params['sourcerecordid'], 'lang' => current_language()]);
-        \core\task\manager::queue_adhoc_task($task, true);
-
-        return ['success' => true, 'message' => get_string('aitranscriptionqueued', 'jitsi')];
-    }
-
-    /**
-     * Returns description of queue_ai_transcription return value
-     * @return external_description
-     */
-    public static function queue_ai_transcription_returns() {
-        return new external_single_structure([
-            'success' => new external_value(PARAM_BOOL, 'Whether the task was queued successfully'),
-            'message' => new external_value(PARAM_TEXT, 'Status message'),
-        ]);
-    }
-
-    /**
-     * Returns description of queue_ai_quiz parameters
-     * @return external_function_parameters
-     */
-    public static function queue_ai_quiz_parameters() {
-        return new external_function_parameters([
-            'sourcerecordid' => new external_value(PARAM_INT, 'ID of the jitsi_source_record'),
-            'cmid' => new external_value(PARAM_INT, 'Course module ID for capability check'),
-        ]);
-    }
-
-    /**
-     * Queue an ad-hoc task to generate a true/false quiz from a GCS recording.
-     *
-     * @param int $sourcerecordid
-     * @param int $cmid
-     * @return array
-     */
-    public static function queue_ai_quiz($sourcerecordid, $cmid) {
-        global $DB;
-
-        $params = self::validate_parameters(self::queue_ai_quiz_parameters(), [
-            'sourcerecordid' => $sourcerecordid,
-            'cmid' => $cmid,
-        ]);
-
-        $context = context_module::instance($params['cmid']);
-        self::validate_context($context);
-        require_capability('mod/jitsi:generateaiquiz', $context);
-
-        if (!get_config('mod_jitsi', 'aienabled')) {
-            return ['success' => false, 'message' => get_string('aidisabled', 'jitsi')];
-        }
-
-        $sourcerecord = $DB->get_record('jitsi_source_record', ['id' => $params['sourcerecordid']], '*', MUST_EXIST);
-
-        if (strpos($sourcerecord->link, 'storage.googleapis.com') === false) {
-            return ['success' => false, 'message' => get_string('aiquizerror', 'jitsi')];
-        }
-
-        $task = new \mod_jitsi\task\generate_ai_quiz();
-        $task->set_custom_data([
-            'sourcerecordid' => $params['sourcerecordid'],
-            'cmid' => $params['cmid'],
-            'lang' => current_language(),
-        ]);
-        \core\task\manager::queue_adhoc_task($task, true);
-
-        return ['success' => true, 'message' => get_string('aiquizqueued', 'jitsi')];
-    }
-
-    /**
-     * Returns description of queue_ai_quiz return value
-     * @return external_description
-     */
-    public static function queue_ai_quiz_returns() {
-        return new external_single_structure([
-            'success' => new external_value(PARAM_BOOL, 'Whether the task was queued successfully'),
-            'message' => new external_value(PARAM_TEXT, 'Status message'),
-        ]);
     }
 }
