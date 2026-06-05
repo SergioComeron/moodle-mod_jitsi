@@ -403,7 +403,7 @@ echo '</div>';
 echo html_writer::tag('div', get_string('connectedattendeesnow', 'jitsi'), ['class' => 'text-muted small']);
 echo html_writer::end_div();
 echo html_writer::start_div('text-center');
-echo html_writer::tag('div', getminutes($id, $USER->id), ['class' => 'h4 mb-0 fw-bold']);
+echo html_writer::tag('div', \mod_jitsi\local\attendance::minutes($id, $USER->id), ['class' => 'h4 mb-0 fw-bold']);
 echo html_writer::tag('div', get_string('totaluserminutes', 'jitsi'), ['class' => 'text-muted small']);
 echo html_writer::end_div();
 echo html_writer::end_div();
