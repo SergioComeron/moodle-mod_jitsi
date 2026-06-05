@@ -49,9 +49,8 @@ $functions = [
         ],
 
         'mod_jitsi_press_record_button' => [
-                'classname' => 'mod_jitsi_external',
-                'methodname' => 'press_record_button',
-                'classpath' => 'mod/jitsi/classes/external.php',
+                'classname' => 'mod_jitsi\external\press_record_button',
+                'methodname' => 'execute',
                 'description' => 'User press record button',
                 'type' => 'write',
                 'ajax' => true,
@@ -60,9 +59,8 @@ $functions = [
         ],
 
         'mod_jitsi_press_button_cam' => [
-                'classname' => 'mod_jitsi_external',
-                'methodname' => 'press_button_cam',
-                'classpath' => 'mod/jitsi/classes/external.php',
+                'classname' => 'mod_jitsi\external\press_button_cam',
+                'methodname' => 'execute',
                 'description' => 'User press a camera button',
                 'type' => 'write',
                 'ajax' => true,
@@ -71,9 +69,8 @@ $functions = [
         ],
 
         'mod_jitsi_press_button_desktop' => [
-                'classname' => 'mod_jitsi_external',
-                'methodname' => 'press_button_desktop',
-                'classpath' => 'mod/jitsi/classes/external.php',
+                'classname' => 'mod_jitsi\external\press_button_desktop',
+                'methodname' => 'execute',
                 'description' => 'User press a desktop button',
                 'type' => 'write',
                 'ajax' => true,
@@ -82,9 +79,8 @@ $functions = [
         ],
 
         'mod_jitsi_press_button_end' => [
-                'classname' => 'mod_jitsi_external',
-                'methodname' => 'press_button_end',
-                'classpath' => 'mod/jitsi/classes/external.php',
+                'classname' => 'mod_jitsi\external\press_button_end',
+                'methodname' => 'execute',
                 'description' => 'User press a end button',
                 'type' => 'write',
                 'ajax' => true,
@@ -93,9 +89,8 @@ $functions = [
         ],
 
         'mod_jitsi_press_button_microphone' => [
-                'classname' => 'mod_jitsi_external',
-                'methodname' => 'press_button_microphone',
-                'classpath' => 'mod/jitsi/classes/external.php',
+                'classname' => 'mod_jitsi\external\press_button_microphone',
+                'methodname' => 'execute',
                 'description' => 'User press a microphone button',
                 'type' => 'write',
                 'ajax' => true,

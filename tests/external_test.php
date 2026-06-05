@@ -506,4 +506,109 @@ final class external_test extends \advanced_testcase {
         $this->expectException(\moodle_exception::class);
         \mod_jitsi\external\save_tutoring_slot::execute($course->id, 1, '10:00', '10:00');
     }
+
+    // Audit button tests.
+
+    /**
+     * Create a course with a jitsi activity and return [jitsi instance, cm].
+     *
+     * @return array
+     */
+    protected function create_jitsi_activity(): array {
+        $course = $this->getDataGenerator()->create_course();
+        $jitsi = $this->getDataGenerator()->create_module('jitsi', ['course' => $course->id]);
+        $cm = get_coursemodule_from_instance('jitsi', $jitsi->id, 0, false, MUST_EXIST);
+        return [$jitsi, $cm];
+    }
+
+    /**
+     * Test that press_button_cam triggers the cam event.
+     *
+     * @covers \mod_jitsi\external\press_button_cam::execute
+     */
+    public function test_press_button_cam_triggers_event(): void {
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+        [$jitsi, $cm] = $this->create_jitsi_activity();
+
+        $sink = $this->redirectEvents();
+        \mod_jitsi\external\press_button_cam::execute($jitsi->id, 0, $cm->id);
+        $events = $sink->get_events();
+
+        $this->assertCount(1, $events);
+        $this->assertInstanceOf(\mod_jitsi\event\jitsi_press_button_cam::class, $events[0]);
+        $this->assertEquals($jitsi->id, $events[0]->objectid);
+    }
+
+    /**
+     * Test that press_button_desktop triggers the desktop event.
+     *
+     * @covers \mod_jitsi\external\press_button_desktop::execute
+     */
+    public function test_press_button_desktop_triggers_event(): void {
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+        [$jitsi, $cm] = $this->create_jitsi_activity();
+
+        $sink = $this->redirectEvents();
+        \mod_jitsi\external\press_button_desktop::execute($jitsi->id, 0, $cm->id);
+        $events = $sink->get_events();
+
+        $this->assertCount(1, $events);
+        $this->assertInstanceOf(\mod_jitsi\event\jitsi_press_button_desktop::class, $events[0]);
+    }
+
+    /**
+     * Test that press_button_microphone triggers the microphone event.
+     *
+     * @covers \mod_jitsi\external\press_button_microphone::execute
+     */
+    public function test_press_button_microphone_triggers_event(): void {
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+        [$jitsi, $cm] = $this->create_jitsi_activity();
+
+        $sink = $this->redirectEvents();
+        \mod_jitsi\external\press_button_microphone::execute($jitsi->id, 0, $cm->id);
+        $events = $sink->get_events();
+
+        $this->assertCount(1, $events);
+        $this->assertInstanceOf(\mod_jitsi\event\jitsi_press_button_microphone::class, $events[0]);
+    }
+
+    /**
+     * Test that press_button_end triggers the end event.
+     *
+     * @covers \mod_jitsi\external\press_button_end::execute
+     */
+    public function test_press_button_end_triggers_event(): void {
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+        [$jitsi, $cm] = $this->create_jitsi_activity();
+
+        $sink = $this->redirectEvents();
+        \mod_jitsi\external\press_button_end::execute($jitsi->id, 0, $cm->id);
+        $events = $sink->get_events();
+
+        $this->assertCount(1, $events);
+        $this->assertInstanceOf(\mod_jitsi\event\jitsi_press_button_end::class, $events[0]);
+    }
+
+    /**
+     * Test that press_record_button triggers the record event.
+     *
+     * @covers \mod_jitsi\external\press_record_button::execute
+     */
+    public function test_press_record_button_triggers_event(): void {
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+        [$jitsi, $cm] = $this->create_jitsi_activity();
+
+        $sink = $this->redirectEvents();
+        \mod_jitsi\external\press_record_button::execute($jitsi->id, 0, $cm->id);
+        $events = $sink->get_events();
+
+        $this->assertCount(1, $events);
+        $this->assertInstanceOf(\mod_jitsi\event\jitsi_press_record_button::class, $events[0]);
+    }
 }
