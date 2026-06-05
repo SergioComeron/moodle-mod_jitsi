@@ -1683,53 +1683,6 @@ function createsessionpriv(
 }
 
 /**
- * Check if a date is out of time
- * @param stdClass $jitsi jitsi instance
- */
-function istimedout($jitsi) {
-    if (time() > $jitsi->validitytime) {
-        return true;
-    } else {
-        return false;
-    }
-}
-
-/**
- * Generate the time error
- * @param stdClass $jitsi jitsi instance
- */
-function generateerrortime($jitsi) {
-    global $CFG;
-    if ($jitsi->validitytime == 0 || get_config('mod_jitsi', 'invitebuttons') == 0) {
-        return get_string('invitationsnotactivated', 'jitsi');
-    } else {
-        return get_string('linkexpiredon', 'jitsi', userdate($jitsi->validitytime));
-    }
-}
-
-/**
- * Check if a code is original
- * @param int $code code to check
- * @param stdClass $jitsi jitsi instance
- */
-function isoriginal($code, $jitsi) {
-    if ($code == ($jitsi->timecreated + $jitsi->id)) {
-        $original = true;
-    } else {
-        $original = false;
-    }
-    return $original;
-}
-
-/**
- * Generate code from a jitsi
- * @param stdClass $jitsi jitsi instance
- */
-function generatecode($jitsi) {
-    return $jitsi->timecreated + $jitsi->id;
-}
-
-/**
  * Send notification when user enter on private session
  * @param stdClass $fromuser - User entering the private session
  * @param stdClass $touser - User session owner

@@ -69,7 +69,7 @@ $event->add_record_snapshot('course', $course);
 $event->add_record_snapshot('jitsi', $sesion);
 
 $event->trigger();
-if (!istimedout($sesion)) {
+if (!\mod_jitsi\local\invitation::is_timed_out($sesion)) {
     if (get_config('mod_jitsi', 'invitebuttons') == 1) {
         if (!isloggedin()) {
             $today = getdate();
@@ -173,7 +173,7 @@ if (!istimedout($sesion)) {
     }
 } else {
     echo "<div class=\"alert alert-danger\" role=\"alert\">";
-    echo generateerrortime($sesion);
+    echo \mod_jitsi\local\invitation::error_time($sesion);
     echo "</div>";
 }
 echo '<p></p>';

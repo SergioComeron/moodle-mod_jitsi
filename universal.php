@@ -106,10 +106,10 @@ $PAGE->set_title($sesion->name);
 $PAGE->set_heading($sesion->name);
 
 echo $OUTPUT->header();
-if (!istimedout($sesion)) {
+if (!\mod_jitsi\local\invitation::is_timed_out($sesion)) {
     createsession(0, $id, $avatar, $name, $sesparam, null, $sesion, true, null);
 } else {
-    echo generateerrortime($sesion);
+    echo \mod_jitsi\local\invitation::error_time($sesion);
 }
 if (isloggedin()) {
     echo $OUTPUT->footer();

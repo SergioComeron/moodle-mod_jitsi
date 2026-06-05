@@ -357,59 +357,59 @@ final class lib_test extends \advanced_testcase {
     /**
      * Test that istimedout returns true when validitytime is in the past.
      *
-     * @covers ::istimedout
+     * @covers \mod_jitsi\local\invitation::is_timed_out
      */
     public function test_istimedout_returns_true_when_expired(): void {
         $jitsi = new \stdClass();
         $jitsi->validitytime = time() - 3600;
-        $this->assertTrue(istimedout($jitsi));
+        $this->assertTrue(\mod_jitsi\local\invitation::is_timed_out($jitsi));
     }
 
     /**
      * Test that istimedout returns false when validitytime is in the future.
      *
-     * @covers ::istimedout
+     * @covers \mod_jitsi\local\invitation::is_timed_out
      */
     public function test_istimedout_returns_false_when_not_expired(): void {
         $jitsi = new \stdClass();
         $jitsi->validitytime = time() + 3600;
-        $this->assertFalse(istimedout($jitsi));
+        $this->assertFalse(\mod_jitsi\local\invitation::is_timed_out($jitsi));
     }
 
     /**
      * Test that generatecode returns timecreated + id.
      *
-     * @covers ::generatecode
+     * @covers \mod_jitsi\local\invitation::generate_code
      */
     public function test_generatecode_returns_sum_of_timecreated_and_id(): void {
         $jitsi = new \stdClass();
         $jitsi->timecreated = 1000000;
         $jitsi->id = 42;
-        $this->assertEquals(1000042, generatecode($jitsi));
+        $this->assertEquals(1000042, \mod_jitsi\local\invitation::generate_code($jitsi));
     }
 
     /**
      * Test that isoriginal returns true when code matches generatecode.
      *
-     * @covers ::isoriginal
+     * @covers \mod_jitsi\local\invitation::is_original
      */
     public function test_isoriginal_returns_true_for_correct_code(): void {
         $jitsi = new \stdClass();
         $jitsi->timecreated = 1000000;
         $jitsi->id = 42;
-        $this->assertTrue(isoriginal(1000042, $jitsi));
+        $this->assertTrue(\mod_jitsi\local\invitation::is_original(1000042, $jitsi));
     }
 
     /**
      * Test that isoriginal returns false for a wrong code.
      *
-     * @covers ::isoriginal
+     * @covers \mod_jitsi\local\invitation::is_original
      */
     public function test_isoriginal_returns_false_for_wrong_code(): void {
         $jitsi = new \stdClass();
         $jitsi->timecreated = 1000000;
         $jitsi->id = 42;
-        $this->assertFalse(isoriginal(9999, $jitsi));
+        $this->assertFalse(\mod_jitsi\local\invitation::is_original(9999, $jitsi));
     }
 
     /**

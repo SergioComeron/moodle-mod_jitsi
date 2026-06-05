@@ -90,7 +90,7 @@ $PAGE->set_heading($jitsi->name);
 echo $OUTPUT->header();
 
 echo "<div id=\"videoContainer\">";
-if (!istimedout($jitsi)) {
+if (!\mod_jitsi\local\invitation::is_timed_out($jitsi)) {
     $sourcerecord = $DB->get_record('jitsi_source_record', ['id' => $jitsi->sourcerecord]);
     if ($sourcerecord) {
         echo "<div class=\"embed-responsive embed-responsive-16by9\">
@@ -100,7 +100,7 @@ if (!istimedout($jitsi)) {
         echo '<div class="alert alert-warning text-center" role="alert">' . get_string('norecording', 'jitsi') . '</div>';
     }
 } else {
-    echo generateerrortime($jitsi);
+    echo \mod_jitsi\local\invitation::error_time($jitsi);
 }
 
 echo "</div>";
