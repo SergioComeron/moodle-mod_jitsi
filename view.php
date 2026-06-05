@@ -113,7 +113,7 @@ $PAGE->set_title(format_string($jitsi->name));
 $PAGE->set_heading(format_string($course->fullname));
 
 if ($deletejitsirecordid && confirm_sesskey($sesskey)) {
-    marktodelete($deletejitsirecordid, 1);
+    \mod_jitsi\local\recording::mark_to_delete($deletejitsirecordid, 1);
     $record = $DB->get_record('jitsi_record', ['id' => $deletejitsirecordid]);
     $source = $DB->get_record('jitsi_source_record', ['id' => $record->source]);
     $event = \mod_jitsi\event\jitsi_delete_record::create([

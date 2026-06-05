@@ -71,7 +71,7 @@ class cron_task_delete extends \core\task\scheduled_task {
                 if (!empty($source->type) && $source->type == 1) {
                     // External/Jibri recording — try to delete physical file from VM (best-effort).
                     if (preg_match('/^http:\/\/\d+\.\d+\.\d+\.\d+\//', $source->link)) {
-                        if (delete_jibri_file($source->link)) {
+                        if (\mod_jitsi\local\recording::delete_jibri_file($source->link)) {
                             mtrace("Deleted Jibri file: " . $source->link);
                         } else {
                             mtrace("Could not delete Jibri file (VM may be stopped): " . $source->link);

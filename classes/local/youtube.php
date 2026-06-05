@@ -31,8 +31,7 @@ class youtube {
      * @return bool
      */
     public static function delete_record($idsource) {
-        global $CFG, $DB, $PAGE;
-        require_once($CFG->dirroot . '/mod/jitsi/lib.php');
+        global $DB;
         $res = false;
         $source = $DB->get_record('jitsi_source_record', ['id' => $idsource]);
         $account = $DB->get_record('jitsi_record_account', ['id' => $source->account]);
@@ -130,7 +129,7 @@ class youtube {
                     if ($client->getAccessToken($idsource)) {
                         try {
                             $youtube->videos->delete($source->link);
-                            delete_jitsi_record($idsource);
+                            \mod_jitsi\local\recording::delete($idsource);
                             return true;
                         } catch (\Google_Service_Exception $e) {
                             throw new \Exception("exception" . $e->getMessage());
@@ -139,10 +138,10 @@ class youtube {
                         }
                     }
                 } else {
-                    delete_jitsi_record($idsource);
+                    \mod_jitsi\local\recording::delete($idsource);
                 }
             } else {
-                delete_jitsi_record($idsource);
+                \mod_jitsi\local\recording::delete($idsource);
             }
         }
         return $res;

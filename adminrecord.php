@@ -49,7 +49,7 @@ if ($deletejitsisourceid && confirm_sesskey($sesskey)) {
     $source = $DB->get_record('jitsi_source_record', ['id' => $deletejitsisourceid]);
     if ($source && (int)$source->type === 1) {
         // Jibri/GCS recording — delete file directly then remove DB records.
-        delete_jibri_file($source->link);
+        \mod_jitsi\local\recording::delete_jibri_file($source->link);
         $DB->delete_records('jitsi_record', ['source' => $source->id]);
         $DB->delete_records('jitsi_source_record', ['id' => $source->id]);
         redirect($PAGE->url, get_string('deleted'));
