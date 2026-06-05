@@ -197,9 +197,8 @@ $functions = [
         ],
 
         'mod_jitsi_save_recording_link' => [
-                'classname' => 'mod_jitsi_external',
-                'methodname' => 'save_recording_link',
-                'classpath' => 'mod/jitsi/classes/external.php',
+                'classname' => 'mod_jitsi\external\save_recording_link',
+                'methodname' => 'execute',
                 'description' => 'Save a recording link received from Jitsi recordingLinkAvailable event',
                 'type' => 'write',
                 'ajax' => true,
@@ -208,9 +207,8 @@ $functions = [
         ],
 
         'mod_jitsi_search_shared_sessions' => [
-                'classname' => 'mod_jitsi_external',
-                'methodname' => 'search_shared_sessions',
-                'classpath' => 'mod/jitsi/classes/external.php',
+                'classname' => 'mod_jitsi\external\search_shared_sessions',
+                'methodname' => 'execute',
                 'description' => 'Search for Jitsi master sessions available to join as a shared session',
                 'type' => 'read',
                 'ajax' => true,
@@ -248,9 +246,8 @@ $functions = [
         ],
 
         'mod_jitsi_search_coursemates' => [
-                'classname' => 'mod_jitsi_external',
-                'methodname' => 'search_coursemates',
-                'classpath' => 'mod/jitsi/classes/external.php',
+                'classname' => 'mod_jitsi\external\search_coursemates',
+                'methodname' => 'execute',
                 'description' => 'Search for users who share at least one course with the current user',
                 'type' => 'read',
                 'ajax' => true,
@@ -305,9 +302,8 @@ $functions = [
                 'loginrequired' => true,
         ],
         'mod_jitsi_get_teacher_schedule' => [
-                'classname' => 'mod_jitsi_external',
-                'methodname' => 'get_teacher_schedule',
-                'classpath' => 'mod/jitsi/classes/external.php',
+                'classname' => 'mod_jitsi\external\get_teacher_schedule',
+                'methodname' => 'execute',
                 'description' => 'Get tutoring schedule for a teacher visible to current user',
                 'type' => 'read',
                 'ajax' => true,

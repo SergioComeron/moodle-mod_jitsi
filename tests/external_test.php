@@ -973,4 +973,95 @@ final class external_test extends \advanced_testcase {
         $this->assertInstanceOf(\mod_jitsi\event\jitsi_error::class, $events[0]);
         $this->assertEquals($cm->instance, $events[0]->objectid);
     }
+
+    // Search / recording-link tests.
+
+    /**
+     * Test that save_recording_link creates source + record and is idempotent.
+     *
+     * @covers \mod_jitsi\external\save_recording_link::execute
+     */
+    public function test_save_recording_link_creates_and_dedupes(): void {
+        global $DB;
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+        [$jitsi, $cm] = $this->create_jitsi_activity();
+
+        $result = \mod_jitsi\external\save_recording_link::execute($jitsi->id, 'https://example.com/rec.mp4', 0);
+
+        $this->assertGreaterThan(0, $result['idsource']);
+        $this->assertEquals(1, $DB->count_records('jitsi_source_record', ['id' => $result['idsource']]));
+        $this->assertEquals(1, $DB->count_records('jitsi_record', ['source' => $result['idsource']]));
+
+        // Saving the same link again returns the same source (no duplicate).
+        $result2 = \mod_jitsi\external\save_recording_link::execute($jitsi->id, 'https://example.com/rec.mp4', 0);
+        $this->assertEquals($result['idsource'], $result2['idsource']);
+        $this->assertEquals(1, $DB->count_records('jitsi_record', ['source' => $result['idsource']]));
+    }
+
+    /**
+     * Test that search_shared_sessions finds a master session by name (as admin).
+     *
+     * @covers \mod_jitsi\external\search_shared_sessions::execute
+     */
+    public function test_search_shared_sessions_finds_by_name(): void {
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+        $course = $this->getDataGenerator()->create_course();
+        $jitsi = $this->getDataGenerator()->create_module('jitsi', [
+            'course' => $course->id,
+            'name'   => 'Findable Session XYZ',
+        ]);
+
+        $results = \mod_jitsi\external\search_shared_sessions::execute('Findable', '');
+
+        $this->assertNotEmpty($results);
+        $this->assertEquals($jitsi->tokeninterno, $results[0]['value']);
+    }
+
+    /**
+     * Test that search_coursemates finds a user sharing a course.
+     *
+     * @covers \mod_jitsi\external\search_coursemates::execute
+     */
+    public function test_search_coursemates_finds_shared_course_user(): void {
+        $this->resetAfterTest(true);
+        $course = $this->getDataGenerator()->create_course();
+        $me = $this->getDataGenerator()->create_user();
+        $mate = $this->getDataGenerator()->create_user(['firstname' => 'Bartholomew', 'lastname' => 'Smith']);
+        $this->getDataGenerator()->enrol_user($me->id, $course->id, 'student');
+        $this->getDataGenerator()->enrol_user($mate->id, $course->id, 'student');
+        $this->setUser($me);
+
+        $result = \mod_jitsi\external\search_coursemates::execute('Bartho');
+
+        $this->assertCount(1, $result['users']);
+        $this->assertEquals($mate->id, $result['users'][0]['id']);
+    }
+
+    /**
+     * Test that get_teacher_schedule returns slots for a teacher in a shared course.
+     *
+     * @covers \mod_jitsi\external\get_teacher_schedule::execute
+     */
+    public function test_get_teacher_schedule_returns_slots(): void {
+        $this->resetAfterTest(true);
+        $course = $this->getDataGenerator()->create_course();
+        $teacher = $this->getDataGenerator()->create_user();
+        $student = $this->getDataGenerator()->create_user();
+        $this->getDataGenerator()->enrol_user($teacher->id, $course->id, 'editingteacher');
+        $this->getDataGenerator()->enrol_user($student->id, $course->id, 'student');
+
+        // The teacher publishes a slot.
+        $this->setUser($teacher);
+        \mod_jitsi\external\save_tutoring_slot::execute($course->id, 1, '10:00', '11:00');
+
+        // The student can see it because they share a course.
+        $this->setUser($student);
+        $result = \mod_jitsi\external\get_teacher_schedule::execute($teacher->id);
+
+        $this->assertTrue($result['hasschedule']);
+        $this->assertCount(1, $result['slots']);
+        $this->assertEquals('10:00', $result['slots'][0]['timestart']);
+    }
 }
