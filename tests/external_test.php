@@ -778,4 +778,156 @@ final class external_test extends \advanced_testcase {
         $this->assertCount(1, $events);
         $this->assertInstanceOf(\mod_jitsi\event\jitsi_session_participating::class, $events[0]);
     }
+
+    // Jibri recording status tests.
+
+    /**
+     * Test that set_jibri_recording toggles the jitsi status field.
+     *
+     * @covers \mod_jitsi\external\set_jibri_recording::execute
+     */
+    public function test_set_jibri_recording_toggles_status(): void {
+        global $DB;
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+        [$jitsi, $cm] = $this->create_jitsi_activity();
+
+        \mod_jitsi\external\set_jibri_recording::execute($jitsi->id, 1);
+        $this->assertEquals('recording', $DB->get_field('jitsi', 'status', ['id' => $jitsi->id]));
+
+        \mod_jitsi\external\set_jibri_recording::execute($jitsi->id, 0);
+        $this->assertNull($DB->get_field('jitsi', 'status', ['id' => $jitsi->id]));
+    }
+
+    /**
+     * Test that get_jibri_recording reflects the recording status.
+     *
+     * @covers \mod_jitsi\external\get_jibri_recording::execute
+     */
+    public function test_get_jibri_recording_reads_status(): void {
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+        [$jitsi, $cm] = $this->create_jitsi_activity();
+
+        $this->assertEquals(0, \mod_jitsi\external\get_jibri_recording::execute($jitsi->id));
+
+        \mod_jitsi\external\set_jibri_recording::execute($jitsi->id, 1);
+        $this->assertEquals(1, \mod_jitsi\external\get_jibri_recording::execute($jitsi->id));
+    }
+
+    // Recording view / segment tests.
+
+    /**
+     * Create a GCS source record linked to the given jitsi activity, return its id.
+     *
+     * @param \stdClass $jitsi
+     * @return int sourcerecord id
+     */
+    protected function create_recording($jitsi): int {
+        global $DB, $USER;
+        $srid = $DB->insert_record('jitsi_source_record', (object)[
+            'timecreated'     => time(),
+            'userid'          => $USER->id,
+            'embed'           => 0,
+            'maxparticipants' => 0,
+            'type'            => 0,
+            'timeexpires'     => 0,
+            'ai_quiz_id'      => 0,
+        ]);
+        $DB->insert_record('jitsi_record', (object)[
+            'jitsi'   => $jitsi->id,
+            'deleted' => 0,
+            'source'  => $srid,
+            'visible' => 1,
+            'name'    => 'rec',
+        ]);
+        return $srid;
+    }
+
+    /**
+     * Test that recording_segments::merge merges overlapping segments.
+     *
+     * @covers \mod_jitsi\local\recording_segments::merge
+     */
+    public function test_recording_segments_merge_overlapping(): void {
+        $merged = \mod_jitsi\local\recording_segments::merge([[0, 10], [5, 15], [20, 25]], 30);
+        $this->assertEquals([[0, 15], [20, 25]], $merged);
+    }
+
+    /**
+     * Test that recording_segments::merge drops invalid/out-of-range segments.
+     *
+     * @covers \mod_jitsi\local\recording_segments::merge
+     */
+    public function test_recording_segments_merge_filters_invalid(): void {
+        $merged = \mod_jitsi\local\recording_segments::merge([[5, 5], [-1, 3], [10, 9], [0, 8]], 30);
+        $this->assertEquals([[0, 8]], $merged);
+    }
+
+    /**
+     * Test that log_recording_view triggers the recording_viewed event.
+     *
+     * @covers \mod_jitsi\external\log_recording_view::execute
+     */
+    public function test_log_recording_view_triggers_event(): void {
+        $this->resetAfterTest(true);
+        set_config('portal_license_key', 'testkey', 'mod_jitsi');
+        $this->setAdminUser();
+        [$jitsi, $cm] = $this->create_jitsi_activity();
+        $srid = $this->create_recording($jitsi);
+
+        $sink = $this->redirectEvents();
+        $result = \mod_jitsi\external\log_recording_view::execute($srid, $cm->id, 50);
+        $events = $sink->get_events();
+
+        $this->assertTrue($result['success']);
+        $this->assertCount(1, $events);
+        $this->assertInstanceOf(\mod_jitsi\event\recording_viewed::class, $events[0]);
+    }
+
+    /**
+     * Test that save_recording_segments stores merged segments.
+     *
+     * @covers \mod_jitsi\external\save_recording_segments::execute
+     */
+    public function test_save_recording_segments_stores_merged(): void {
+        global $DB;
+        $this->resetAfterTest(true);
+        set_config('portal_license_key', 'testkey', 'mod_jitsi');
+        $this->setAdminUser();
+        [$jitsi, $cm] = $this->create_jitsi_activity();
+        $srid = $this->create_recording($jitsi);
+
+        $result = \mod_jitsi\external\save_recording_segments::execute($srid, $cm->id, '[[0,10],[5,15]]', 30.0, '[]');
+
+        $this->assertTrue($result['success']);
+        $this->assertEquals([[0, 15]], json_decode($result['segments'], true));
+        $this->assertEquals(1, $DB->count_records('jitsi_recording_segments', ['sourcerecordid' => $srid]));
+    }
+
+    /**
+     * Test that get_bucket_viewers returns who watched a given bucket.
+     *
+     * @covers \mod_jitsi\external\get_bucket_viewers::execute
+     */
+    public function test_get_bucket_viewers_returns_watcher(): void {
+        $this->resetAfterTest(true);
+        set_config('portal_license_key', 'testkey', 'mod_jitsi');
+        $user = $this->getDataGenerator()->create_user(['firstname' => 'Grace', 'lastname' => 'Hopper']);
+        $this->setAdminUser();
+        [$jitsi, $cm] = $this->create_jitsi_activity();
+        $srid = $this->create_recording($jitsi);
+        $this->getDataGenerator()->enrol_user($user->id, $jitsi->course, 'editingteacher');
+        $this->setUser($user);
+        \mod_jitsi\external\save_recording_segments::execute($srid, $cm->id, '[[0,15]]', 30.0, '[]');
+
+        // Read back the heatmap as a user with viewattendance (admin).
+        $this->setAdminUser();
+        $result = \mod_jitsi\external\get_bucket_viewers::execute($srid, $cm->id, 0);
+
+        $this->assertEquals(0, $result['bucketstart']);
+        $this->assertEquals(10, $result['bucketend']);
+        $this->assertCount(1, $result['viewers']);
+        $this->assertEquals($user->id, $result['viewers'][0]['userid']);
+    }
 }
