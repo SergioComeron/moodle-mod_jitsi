@@ -1852,21 +1852,6 @@ function delete_jitsi_record($source) {
     $DB->delete_records('jitsi_record', ['source' => $source]);
     $DB->delete_records('jitsi_source_record', ['id' => $source]);
 }
-
-/**
- * Return if Jitsi record source is deletable
- * @param int $sourcerecord - Jitsi source record id
- */
-function isdeletable($sourcerecord) {
-    $res = true;
-    global $DB;
-    $records = $DB->get_records('jitsi_record', ['source' => $sourcerecord, 'deleted' => 0]);
-    if (!$records == null) {
-        $res = false;
-    }
-    return $res;
-}
-
 /**
  * Delete Record from youtube
  * @param int $idsource - Jitsi source record to delete
@@ -1876,7 +1861,7 @@ function deleterecordyoutube($idsource) {
     $res = false;
     $source = $DB->get_record('jitsi_source_record', ['id' => $idsource]);
     $account = $DB->get_record('jitsi_record_account', ['id' => $source->account]);
-    if (isdeletable($idsource)) {
+    if (\mod_jitsi\local\recording::is_deletable($idsource)) {
         if ($source->link != null) {
             if (!file_exists(__DIR__ . '/api/vendor/autoload.php')) {
                 throw new \Exception('please run "composer require google/apiclient:~2.0" in "' . __DIR__ . '"');
@@ -2333,20 +2318,6 @@ function togglestate($idvideo) {
         return false;
     }
     return $updateresponse;
-}
-
-/**
- * Get state of visibility of a video
- * @param array $records - Array of records
- */
-function isallvisible($records) {
-    $res = false;
-    foreach ($records as $record) {
-        if ($record->visible == 1) {
-            $res = true;
-        }
-    }
-    return $res;
 }
 
 /**

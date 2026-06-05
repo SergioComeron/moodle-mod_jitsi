@@ -436,7 +436,7 @@ final class lib_test extends \advanced_testcase {
     /**
      * Test that isdeletable returns false when a non-deleted record exists for the source.
      *
-     * @covers ::isdeletable
+     * @covers \mod_jitsi\local\recording::is_deletable
      */
     public function test_isdeletable_returns_false_when_active_record_exists(): void {
         global $DB;
@@ -463,13 +463,13 @@ final class lib_test extends \advanced_testcase {
             'visible'     => 1,
         ]);
 
-        $this->assertFalse(isdeletable($sourceid));
+        $this->assertFalse(\mod_jitsi\local\recording::is_deletable($sourceid));
     }
 
     /**
      * Test that isdeletable returns true when no active records exist for the source.
      *
-     * @covers ::isdeletable
+     * @covers \mod_jitsi\local\recording::is_deletable
      */
     public function test_isdeletable_returns_true_when_no_active_records(): void {
         global $DB;
@@ -487,7 +487,7 @@ final class lib_test extends \advanced_testcase {
             'userid'      => 0,
         ]);
 
-        $this->assertTrue(isdeletable($sourceid));
+        $this->assertTrue(\mod_jitsi\local\recording::is_deletable($sourceid));
     }
 
     /**
