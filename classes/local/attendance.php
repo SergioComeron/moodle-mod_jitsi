@@ -27,6 +27,25 @@ namespace mod_jitsi\local;
  */
 class attendance {
     /**
+     * Mark the activity complete for the current user when automatic completion by
+     * connected minutes is enabled.
+     *
+     * @param \stdClass $cm Course module
+     */
+    public static function update_completion($cm) {
+        global $DB;
+        $jitsi = $DB->get_record('jitsi', ['id' => $cm->instance], '*', MUST_EXIST);
+        if (! $course = $DB->get_record("course", ["id" => $cm->course])) {
+            throw new \Exception("Course is misconfigured");
+        }
+        $completion = new \completion_info($course);
+
+        if ($completion->is_enabled($cm) == COMPLETION_TRACKING_AUTOMATIC && $jitsi->completionminutes) {
+            $completion->update_state($cm, COMPLETION_COMPLETE);
+        }
+    }
+
+    /**
      * Total connected minutes for a user in a course module.
      *
      * @param int $contextinstanceid Course module id (context instance)

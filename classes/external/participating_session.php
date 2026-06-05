@@ -50,8 +50,7 @@ class participating_session extends external_api {
      * @param int $cmid Course Module id
      */
     public static function execute($jitsi, $user, $cmid) {
-        global $CFG, $DB;
-        require_once($CFG->dirroot . '/mod/jitsi/lib.php');
+        global $DB;
         $context = \context_module::instance($cmid);
         $jitsiob = $DB->get_record('jitsi', ['id' => $jitsi]);
         $course = $DB->get_record('course', ['id' => $jitsiob->course]);
@@ -62,7 +61,7 @@ class participating_session extends external_api {
         $event->add_record_snapshot('course', $course);
         $event->add_record_snapshot('jitsi', $jitsiob);
         $event->trigger();
-        update_completition(get_coursemodule_from_id('jitsi', $cmid, 0, false, MUST_EXIST));
+        \mod_jitsi\local\attendance::update_completion(get_coursemodule_from_id('jitsi', $cmid, 0, false, MUST_EXIST));
     }
 
     /**

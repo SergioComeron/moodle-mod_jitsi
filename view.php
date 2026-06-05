@@ -279,7 +279,7 @@ if (!$deletejitsirecordid) {
 }
 
 $cm = get_coursemodule_from_id('jitsi', $id, 0, false, MUST_EXIST);
-update_completition($cm);
+\mod_jitsi\local\attendance::update_completion($cm);
 if ($CFG->branch == 311) {
     if (!$deletejitsirecordid) {
         echo $OUTPUT->heading($jitsi->name);

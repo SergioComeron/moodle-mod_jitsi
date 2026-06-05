@@ -408,7 +408,7 @@ function createsession(
     echo "<script src=\"https://" . $domain . "/external_api.js\"></script>\n";
 
     $streamingoption = '';
-    $jibrienabled = ($servertype == 3 && jitsi_is_jibri_ready($server));
+    $jibrienabled = ($servertype == 3 && \mod_jitsi\local\jibri::is_ready($server));
     if (
         (get_config('mod_jitsi', 'livebutton') == 1) &&
         (has_capability('mod/jitsi:record', $PAGE->context)) &&
@@ -433,7 +433,7 @@ function createsession(
     $record = '';
     // Enable the Jitsi recording toolbar button when the record setting is on.
     // For GCP servers (type 3) the Moodle-integrated record button is used instead.
-    $jibrienabled = ($servertype == 3 && jitsi_is_jibri_ready($server));
+    $jibrienabled = ($servertype == 3 && \mod_jitsi\local\jibri::is_ready($server));
     if (
         get_config('mod_jitsi', 'record') == 1 &&
         has_capability('mod/jitsi:record', $PAGE->context) &&
@@ -637,7 +637,7 @@ function createsession(
     }
 
     // Disable live streaming if global setting is off, or if GCP (type 3) without Jibri ready.
-    $jibrilivestream = ($servertype == 3 && jitsi_is_jibri_ready($server));
+    $jibrilivestream = ($servertype == 3 && \mod_jitsi\local\jibri::is_ready($server));
     if (get_config('mod_jitsi', 'livebutton') == 0 || ($servertype == 3 && !$jibrilivestream)) {
         echo "liveStreamingEnabled: false,\n";
         echo "liveStreaming: {enabled: false},\n";
@@ -2093,23 +2093,6 @@ function mod_jitsi_get_completion_active_rule_descriptions($cm) {
 }
 
 /**
- * Update completion.
- * @param stdClass $cm - course module object
- */
-function update_completition($cm) {
-    global $DB;
-    $jitsi = $DB->get_record('jitsi', ['id' => $cm->instance], '*', MUST_EXIST);
-    if (! $course = $DB->get_record("course", ["id" => $cm->course])) {
-        throw new \Exception("Course is misconfigured");
-    }
-    $completion = new completion_info($course);
-
-    if ($completion->is_enabled($cm) == COMPLETION_TRACKING_AUTOMATIC && $jitsi->completionminutes) {
-        $completion->update_state($cm, COMPLETION_COMPLETE);
-    }
-}
-
-/**
  * Set embedable a video
  * @param int $idvideo - id of the video
  */
@@ -2575,36 +2558,6 @@ function jitsi_send_push_notification($userid, $title, $body, $url) {
     } catch (\Exception $e) {
         debugging('Web Push error: ' . $e->getMessage(), DEBUG_DEVELOPER);
     }
-}
-
-/**
- * Returns true if the given GCP server has at least one Jibri VM ready in the pool,
- * or falls back to the legacy jibri_provisioningstatus field for servers not yet migrated.
- *
- * @param \stdClass $server jitsi_servers record
- * @return bool
- */
-function jitsi_is_jibri_ready(\stdClass $server): bool {
-    global $DB;
-    if (empty($server->jibri_enabled)) {
-        return false;
-    }
-    // Check pool table first.
-    if (
-        $DB->record_exists_select(
-            'jitsi_jibri_pool',
-            "serverid = ? AND status IN ('idle', 'recording', 'streaming')",
-            [$server->id]
-        )
-    ) {
-        return true;
-    }
-    // If the server already has pool entries (even provisioning), don't fall back to legacy field.
-    if ($DB->record_exists('jitsi_jibri_pool', ['serverid' => $server->id])) {
-        return false;
-    }
-    // Fallback: legacy field (servers not yet migrated to pool).
-    return ($server->jibri_provisioningstatus ?? '') === 'ready';
 }
 
 /**

@@ -899,4 +899,83 @@ final class lib_test extends \advanced_testcase {
 
         $this->assertEquals(2, \mod_jitsi\local\attendance::minutes_between($cmid, $userid, $now - 200, $now));
     }
+
+    /**
+     * Insert a Jibri pool row for a server with the given status.
+     *
+     * @param int $serverid
+     * @param string $status
+     */
+    protected function insert_jibri_pool($serverid, $status): void {
+        global $DB;
+        $DB->insert_record('jitsi_jibri_pool', (object)[
+            'serverid'     => $serverid,
+            'status'       => $status,
+            'timecreated'  => time(),
+            'timemodified' => time(),
+        ]);
+    }
+
+    /**
+     * Test jibri::is_ready across the disabled / pool / legacy-fallback paths.
+     *
+     * @covers \mod_jitsi\local\jibri::is_ready
+     */
+    public function test_jibri_is_ready(): void {
+        $this->resetAfterTest(true);
+
+        // Jibri disabled on the server -> never ready.
+        $disabled = (object)['id' => 555, 'jibri_enabled' => 0, 'jibri_provisioningstatus' => 'ready'];
+        $this->assertFalse(\mod_jitsi\local\jibri::is_ready($disabled));
+
+        // Enabled with an idle pool VM -> ready.
+        $enabled = (object)['id' => 555, 'jibri_enabled' => 1, 'jibri_provisioningstatus' => ''];
+        $this->insert_jibri_pool(555, 'idle');
+        $this->assertTrue(\mod_jitsi\local\jibri::is_ready($enabled));
+
+        // Pool entries exist but only provisioning -> not ready, no legacy fallback.
+        $provisioning = (object)['id' => 556, 'jibri_enabled' => 1, 'jibri_provisioningstatus' => 'ready'];
+        $this->insert_jibri_pool(556, 'provisioning');
+        $this->assertFalse(\mod_jitsi\local\jibri::is_ready($provisioning));
+
+        // No pool entries -> legacy provisioningstatus field is used.
+        $legacy = (object)['id' => 557, 'jibri_enabled' => 1, 'jibri_provisioningstatus' => 'ready'];
+        $this->assertTrue(\mod_jitsi\local\jibri::is_ready($legacy));
+        $legacy->jibri_provisioningstatus = 'provisioning';
+        $this->assertFalse(\mod_jitsi\local\jibri::is_ready($legacy));
+    }
+
+    /**
+     * Test that attendance::update_completion marks the activity complete when
+     * automatic completion by minutes is configured.
+     *
+     * @covers \mod_jitsi\local\attendance::update_completion
+     */
+    public function test_attendance_update_completion_marks_complete(): void {
+        global $CFG;
+        $this->resetAfterTest(true);
+        $CFG->enablecompletion = 1;
+
+        $course = $this->getDataGenerator()->create_course(['enablecompletion' => 1]);
+        $jitsi = $this->getDataGenerator()->create_module('jitsi', [
+            'course'            => $course->id,
+            'completion'        => COMPLETION_TRACKING_AUTOMATIC,
+            'completionminutes' => 5,
+        ]);
+        $cm = get_coursemodule_from_instance('jitsi', $jitsi->id, $course->id, false, MUST_EXIST);
+        $user = $this->getDataGenerator()->create_user();
+        $this->getDataGenerator()->enrol_user($user->id, $course->id);
+        $this->setUser($user);
+
+        // The custom completion rule needs at least completionminutes connected minutes.
+        for ($i = 0; $i < 5; $i++) {
+            $this->insert_participating_log($cm->id, $user->id, time());
+        }
+
+        \mod_jitsi\local\attendance::update_completion($cm);
+
+        $completion = new \completion_info($course);
+        $data = $completion->get_data($cm, false, $user->id);
+        $this->assertEquals(COMPLETION_COMPLETE, $data->completionstate);
+    }
 }
