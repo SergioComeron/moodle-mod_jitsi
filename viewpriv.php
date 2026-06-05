@@ -77,7 +77,7 @@ $PAGE->set_heading(format_string($user->firstname));
 if ($userstocall != null) {
     foreach ($userstocall as $usertocall) {
         $usertocallob = $DB->get_record('user', ['id' => $usertocall]);
-        sendcallprivatesession($user, $usertocallob);
+        \mod_jitsi\local\notification::notify_call($user, $usertocallob);
     }
 }
 

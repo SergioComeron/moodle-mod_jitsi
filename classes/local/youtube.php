@@ -154,8 +154,7 @@ class youtube {
      * @return mixed Update response, or false on error
      */
     public static function make_embeddable($idvideo) {
-        global $CFG, $DB;
-        require_once($CFG->dirroot . '/mod/jitsi/lib.php');
+        global $DB;
 
         $source = $DB->get_record('jitsi_source_record', ['link' => $idvideo]);
         $account = $DB->get_record('jitsi_record_account', ['id' => $source->account]);
@@ -182,14 +181,24 @@ class youtube {
             $jitsi = $DB->get_record('jitsi', ['id' => $record->jitsi]);
             $source->embed = -1;
             $DB->update_record('jitsi_source_record', $source);
-            senderror($jitsi->id, $source->userid, 'ERROR doembedable: ' . $e->getMessage(), $source);
+            \mod_jitsi\local\notification::send_error(
+                $jitsi->id,
+                $source->userid,
+                'ERROR doembedable: ' . $e->getMessage(),
+                $source
+            );
             return false;
         } catch (\Google_Exception $e) {
             $record = $DB->get_record('jitsi_record', ['source' => $source->id]);
             $jitsi = $DB->get_record('jitsi', ['id' => $record->jitsi]);
             $source->embed = -1;
             $DB->update_record('jitsi_source_record', $source);
-            senderror($jitsi->id, $source->userid, 'ERROR doembedable: ' . $e->getMessage(), $source);
+            \mod_jitsi\local\notification::send_error(
+                $jitsi->id,
+                $source->userid,
+                'ERROR doembedable: ' . $e->getMessage(),
+                $source
+            );
             return false;
         }
 

@@ -84,8 +84,8 @@ if (get_config('mod_jitsi', 'privatesessions') == 1) {
 
     // Notify the peer when someone enters their session.
     if ($USER->id != $peerid) {
-        sendnotificationprivatesession($USER, $peer);
-        jitsi_send_push_notification(
+        \mod_jitsi\local\notification::notify_private_session($USER, $peer);
+        \mod_jitsi\local\notification::send_push(
             $peer->id,
             get_string('pushnotificationtitle', 'mod_jitsi'),
             get_string('pushnotificationbody', 'mod_jitsi', fullname($USER)),

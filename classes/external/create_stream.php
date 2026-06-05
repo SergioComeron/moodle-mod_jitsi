@@ -52,8 +52,7 @@ class create_stream extends external_api {
      * @return array result
      */
     public static function execute($session, $jitsi, $userid) {
-        global $CFG, $DB;
-        require_once($CFG->dirroot . '/mod/jitsi/lib.php');
+        global $DB;
 
         $params = self::validate_parameters(
             self::execute_parameters(),
@@ -212,7 +211,7 @@ class create_stream extends external_api {
             $result['usercomplete'] = $author->firstname . ' ' . $author->lastname;
             $result['errorinfo'] = $e->getMessage();
             $result['link'] = '';
-            senderror($jitsi, $userid, 'ERROR DE YOUTUBE: ' . $e->getMessage(), $source);
+            \mod_jitsi\local\notification::send_error($jitsi, $userid, 'ERROR DE YOUTUBE: ' . $e->getMessage(), $source);
             \mod_jitsi\local\google::change_account();
             return $result;
         } catch (\Google_Exception $e) {
@@ -226,7 +225,7 @@ class create_stream extends external_api {
             $result['usercomplete'] = $author->firstname . ' ' . $author->lastname;
             $result['errorinfo'] = $e->getMessage();
             $result['link'] = '';
-            senderror($jitsi, $userid, 'ERROR DE YOUTUBE: ' . $e->getMessage(), $source);
+            \mod_jitsi\local\notification::send_error($jitsi, $userid, 'ERROR DE YOUTUBE: ' . $e->getMessage(), $source);
             \mod_jitsi\local\google::change_account();
             return $result;
         }
