@@ -337,7 +337,7 @@ final class external_test extends \advanced_testcase {
     /**
      * Test that get_tutoring_schedule returns empty when user has no slots.
      *
-     * @covers \mod_jitsi_external::get_tutoring_schedule
+     * @covers \mod_jitsi\external\get_tutoring_schedule::execute
      */
     public function test_get_tutoring_schedule_empty(): void {
         $this->resetAfterTest(true);
@@ -345,7 +345,7 @@ final class external_test extends \advanced_testcase {
         $user = $this->getDataGenerator()->create_user();
         $this->setUser($user);
 
-        $result = \mod_jitsi_external::get_tutoring_schedule();
+        $result = \mod_jitsi\external\get_tutoring_schedule::execute();
 
         $this->assertIsArray($result['courses']);
         $this->assertEmpty($result['courses']);
@@ -354,7 +354,7 @@ final class external_test extends \advanced_testcase {
     /**
      * Test that save_tutoring_slot inserts a record for a teacher in a visible course.
      *
-     * @covers \mod_jitsi_external::save_tutoring_slot
+     * @covers \mod_jitsi\external\save_tutoring_slot::execute
      */
     public function test_save_tutoring_slot_creates_record(): void {
         global $DB;
@@ -365,7 +365,7 @@ final class external_test extends \advanced_testcase {
         $this->getDataGenerator()->enrol_user($teacher->id, $course->id, 'editingteacher');
         $this->setUser($teacher);
 
-        $result = \mod_jitsi_external::save_tutoring_slot($course->id, 1, '09:00', '11:00');
+        $result = \mod_jitsi\external\save_tutoring_slot::execute($course->id, 1, '09:00', '11:00');
 
         $this->assertArrayHasKey('id', $result);
         $this->assertGreaterThan(0, $result['id']);
@@ -381,7 +381,7 @@ final class external_test extends \advanced_testcase {
     /**
      * Test that save_tutoring_slot throws when end time is before start time.
      *
-     * @covers \mod_jitsi_external::save_tutoring_slot
+     * @covers \mod_jitsi\external\save_tutoring_slot::execute
      */
     public function test_save_tutoring_slot_rejects_invalid_time_range(): void {
         $this->resetAfterTest(true);
@@ -392,13 +392,13 @@ final class external_test extends \advanced_testcase {
         $this->setUser($teacher);
 
         $this->expectException(\moodle_exception::class);
-        \mod_jitsi_external::save_tutoring_slot($course->id, 1, '11:00', '09:00');
+        \mod_jitsi\external\save_tutoring_slot::execute($course->id, 1, '11:00', '09:00');
     }
 
     /**
      * Test that save_tutoring_slot throws when user lacks teacher capability.
      *
-     * @covers \mod_jitsi_external::save_tutoring_slot
+     * @covers \mod_jitsi\external\save_tutoring_slot::execute
      */
     public function test_save_tutoring_slot_requires_teacher_capability(): void {
         $this->resetAfterTest(true);
@@ -409,13 +409,13 @@ final class external_test extends \advanced_testcase {
         $this->setUser($student);
 
         $this->expectException(\moodle_exception::class);
-        \mod_jitsi_external::save_tutoring_slot($course->id, 1, '09:00', '11:00');
+        \mod_jitsi\external\save_tutoring_slot::execute($course->id, 1, '09:00', '11:00');
     }
 
     /**
      * Test that get_tutoring_schedule returns slots grouped by course after inserting some.
      *
-     * @covers \mod_jitsi_external::get_tutoring_schedule
+     * @covers \mod_jitsi\external\get_tutoring_schedule::execute
      */
     public function test_get_tutoring_schedule_returns_slots(): void {
         $this->resetAfterTest(true);
@@ -425,10 +425,10 @@ final class external_test extends \advanced_testcase {
         $this->getDataGenerator()->enrol_user($teacher->id, $course->id, 'editingteacher');
         $this->setUser($teacher);
 
-        \mod_jitsi_external::save_tutoring_slot($course->id, 1, '09:00', '11:00');
-        \mod_jitsi_external::save_tutoring_slot($course->id, 3, '14:00', '16:00');
+        \mod_jitsi\external\save_tutoring_slot::execute($course->id, 1, '09:00', '11:00');
+        \mod_jitsi\external\save_tutoring_slot::execute($course->id, 3, '14:00', '16:00');
 
-        $result = \mod_jitsi_external::get_tutoring_schedule();
+        $result = \mod_jitsi\external\get_tutoring_schedule::execute();
 
         $this->assertCount(1, $result['courses']);
         $this->assertEquals($course->id, $result['courses'][0]['courseid']);
@@ -443,7 +443,7 @@ final class external_test extends \advanced_testcase {
     /**
      * Test that delete_tutoring_slot removes the record when called by its owner.
      *
-     * @covers \mod_jitsi_external::delete_tutoring_slot
+     * @covers \mod_jitsi\external\delete_tutoring_slot::execute
      */
     public function test_delete_tutoring_slot_owner_can_delete(): void {
         global $DB;
@@ -454,12 +454,12 @@ final class external_test extends \advanced_testcase {
         $this->getDataGenerator()->enrol_user($teacher->id, $course->id, 'editingteacher');
         $this->setUser($teacher);
 
-        $saveresult = \mod_jitsi_external::save_tutoring_slot($course->id, 2, '10:00', '12:00');
+        $saveresult = \mod_jitsi\external\save_tutoring_slot::execute($course->id, 2, '10:00', '12:00');
         $slotid = $saveresult['id'];
 
         $this->assertTrue($DB->record_exists('jitsi_tutoring_schedule', ['id' => $slotid]));
 
-        $result = \mod_jitsi_external::delete_tutoring_slot($slotid);
+        $result = \mod_jitsi\external\delete_tutoring_slot::execute($slotid);
 
         $this->assertTrue($result['success']);
         $this->assertFalse($DB->record_exists('jitsi_tutoring_schedule', ['id' => $slotid]));
@@ -468,7 +468,7 @@ final class external_test extends \advanced_testcase {
     /**
      * Test that delete_tutoring_slot throws when called by a different user.
      *
-     * @covers \mod_jitsi_external::delete_tutoring_slot
+     * @covers \mod_jitsi\external\delete_tutoring_slot::execute
      */
     public function test_delete_tutoring_slot_non_owner_cannot_delete(): void {
         global $DB;
@@ -481,19 +481,19 @@ final class external_test extends \advanced_testcase {
 
         // Create slot as teacher.
         $this->setUser($teacher);
-        $saveresult = \mod_jitsi_external::save_tutoring_slot($course->id, 2, '10:00', '12:00');
+        $saveresult = \mod_jitsi\external\save_tutoring_slot::execute($course->id, 2, '10:00', '12:00');
         $slotid = $saveresult['id'];
 
         // Try to delete as another user.
         $this->setUser($other);
         $this->expectException(\moodle_exception::class);
-        \mod_jitsi_external::delete_tutoring_slot($slotid);
+        \mod_jitsi\external\delete_tutoring_slot::execute($slotid);
     }
 
     /**
      * Test that save_tutoring_slot with equal start and end times throws.
      *
-     * @covers \mod_jitsi_external::save_tutoring_slot
+     * @covers \mod_jitsi\external\save_tutoring_slot::execute
      */
     public function test_save_tutoring_slot_rejects_equal_times(): void {
         $this->resetAfterTest(true);
@@ -504,6 +504,6 @@ final class external_test extends \advanced_testcase {
         $this->setUser($teacher);
 
         $this->expectException(\moodle_exception::class);
-        \mod_jitsi_external::save_tutoring_slot($course->id, 1, '10:00', '10:00');
+        \mod_jitsi\external\save_tutoring_slot::execute($course->id, 1, '10:00', '10:00');
     }
 }
