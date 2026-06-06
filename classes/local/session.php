@@ -25,6 +25,118 @@ namespace mod_jitsi\local;
  */
 class session {
     /**
+     * Build the room name and (optionally) the signed JWT for a session, per server type.
+     *
+     * Server types: 0 = public (no token), 1 = self-hosted (HS256), 2 = 8x8 JaaS (RS256),
+     * 3 = GCP (HS256). When global tokentype is 1, type-1-style HS256 tokens are also used.
+     *
+     * @param \stdClass $server Server record from jitsi_servers
+     * @param \context $modcontext Context to evaluate the moderation capability against
+     * @param string $sessionnorm Normalized session name
+     * @param bool $teacher Whether the user is a moderator/owner
+     * @param string $affiliation 'owner' or 'member'
+     * @param string $nombre Display name
+     * @param string $avatar Avatar URL
+     * @param string|null $mail Email
+     * @return array ['roomname' => string, 'jwt' => string|null]
+     */
+    public static function build_token($server, $modcontext, $sessionnorm, $teacher, $affiliation, $nombre, $avatar, $mail) {
+        $servertype = $server->type;
+        $appid = $server->appid;
+        $domain = $server->domain;
+        $secret = $server->secret;
+        $eightbyeightappid = $server->eightbyeightappid;
+        $eightbyeightapikeyid = $server->eightbyeightapikeyid;
+        $privatykey = $server->privatekey;
+
+        $header = null;
+        $payload = null;
+        $headerencoded = null;
+        $payloadencoded = null;
+        $signature = null;
+
+        if ($servertype == '2') {
+            $header = json_encode([
+                "kid" => $eightbyeightapikeyid,
+                "typ" => "JWT",
+                "alg" => "RS256",
+            ]);
+
+            $payload = json_encode([
+                'iss' => 'chat',
+                'aud' => 'jitsi',
+                'exp' => time() + 24 * 3600,
+                'nbf' => time() - 10,
+                'room' => '*',
+                'sub' => $eightbyeightappid,
+                'context' => [
+                    'user' => [
+                        'moderator' => has_capability('mod/jitsi:moderation', $modcontext),
+                        'email' => $mail,
+                        'name' => $nombre,
+                        'avatar' => $avatar,
+                        'id' => "",
+                    ],
+                    'features' => [
+                        'recording' => $teacher,
+                        'livestreaming' => $teacher,
+                        'transcription' => $teacher,
+                        'outbound-call' => $teacher,
+                    ],
+                ],
+            ]);
+            $roomname = $eightbyeightappid . "/" . urlencode($sessionnorm);
+            $payloadencoded = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($payload));
+            $headerencoded = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($header));
+            openssl_sign($headerencoded . "." . $payloadencoded, $signature, $privatykey, OPENSSL_ALGO_SHA256);
+        } else if (get_config('mod_jitsi', 'tokentype') == '1' || $servertype == '1' || $servertype == '3') {
+            $header = json_encode([
+                "kid" => "jitsi/custom_key_name",
+                "typ" => "JWT",
+                "alg" => "HS256",
+            ], JSON_UNESCAPED_SLASHES);
+            $ismoderator = has_capability('mod/jitsi:moderation', $modcontext);
+            $payload = json_encode([
+                "context" => [
+                    "user" => [
+                        "affiliation" => $affiliation,
+                        "avatar" => $avatar,
+                        "name" => $nombre,
+                        "email" => $mail,
+                        "id" => "",
+                        "moderator" => $ismoderator,
+                    ],
+                    "group" => "",
+                ],
+                "aud" => "jitsi",
+                "iss" => $appid,
+                "sub" => $domain,
+                "room" => urlencode($sessionnorm),
+                "exp" => time() + 24 * 3600,
+                "moderator" => $ismoderator,
+            ], JSON_UNESCAPED_SLASHES);
+            $roomname = urlencode($sessionnorm);
+            $payloadencoded = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($payload));
+            $headerencoded = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($header));
+            $signature = hash_hmac('sha256', $headerencoded . "." . $payloadencoded, $secret, true);
+        } else {
+            $roomname = urlencode($sessionnorm);
+        }
+
+        $jwt = null;
+        if (
+            ($servertype == '1' && ($appid != null && $secret != null)) ||
+            ($servertype == '3' && ($appid != null && $secret != null)) ||
+            $servertype == '2'
+        ) {
+            $signatureencoded = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($signature));
+            $jwt = $headerencoded . "." . $payloadencoded . "." . $signatureencoded;
+        }
+
+        return ['roomname' => $roomname, 'jwt' => $jwt];
+    }
+
+    /**
      * Create and render a Jitsi session (HTML + JS).
      *
      * @param int $teacher Moderation flag
@@ -370,84 +482,10 @@ class session {
         }
         echo "},\n";
 
-        if ($servertype == '2') {
-            $header = json_encode([
-                "kid" => $eightbyeightapikeyid,
-                "typ" => "JWT",
-                "alg" => "RS256",
-            ]);
-
-            $payload = json_encode([
-                'iss' => 'chat',
-                'aud' => 'jitsi',
-                'exp' => time() + 24 * 3600,
-                'nbf' => time() - 10,
-                'room' => '*',
-                'sub' => $eightbyeightappid,
-                'context' => [
-                    'user' => [
-                        'moderator' => has_capability('mod/jitsi:moderation', $PAGE->context),
-                        'email' => $mail,
-                        'name' => $nombre,
-                        'avatar' => $avatar,
-                        'id' => "",
-                    ],
-                    'features' => [
-                        'recording' => $teacher,
-                        'livestreaming' => $teacher,
-                        'transcription' => $teacher,
-                        'outbound-call' => $teacher,
-                    ],
-                ],
-            ]);
-            echo "roomName: \"" . $eightbyeightappid . "/" . urlencode($sessionnorm) . "\",\n";
-            $payloadencoded = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($payload));
-            $headerencoded = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($header));
-            openssl_sign($headerencoded . "." . $payloadencoded, $signature, $privatykey, OPENSSL_ALGO_SHA256);
-        } else if (get_config('mod_jitsi', 'tokentype') == '1' || $servertype == '1' || $servertype == '3') {
-            $header = json_encode([
-                "kid" => "jitsi/custom_key_name",
-                "typ" => "JWT",
-                "alg" => "HS256",
-            ], JSON_UNESCAPED_SLASHES);
-            $base64urlheader = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($header));
-            $ismoderator = has_capability('mod/jitsi:moderation', $PAGE->context);
-            $payload = json_encode([
-                "context" => [
-                    "user" => [
-                        "affiliation" => $affiliation,
-                        "avatar" => $avatar,
-                        "name" => $nombre,
-                        "email" => $mail,
-                        "id" => "",
-                        "moderator" => $ismoderator,
-                    ],
-                    "group" => "",
-                ],
-                "aud" => "jitsi",
-                "iss" => $appid,
-                "sub" => $domain,
-                "room" => urlencode($sessionnorm),
-                "exp" => time() + 24 * 3600,
-                "moderator" => $ismoderator,
-            ], JSON_UNESCAPED_SLASHES);
-            echo "roomName: \"" . urlencode($sessionnorm) . "\",\n";
-            $payloadencoded = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($payload));
-            $headerencoded = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($header));
-            $signature = hash_hmac('sha256', $headerencoded . "." . $payloadencoded, $secret, true);
-        } else {
-            echo "roomName: \"" . urlencode($sessionnorm) . "\",\n";
-        }
-
-        if (
-            ($servertype == '1' && ($appid != null && $secret != null)) ||
-            ($servertype == '3' && ($appid != null && $secret != null)) ||
-            $servertype == '2'
-        ) {
-            $signatureencoded = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($signature));
-            $jwt = $headerencoded . "." . $payloadencoded . "." . $signatureencoded;
-
-            echo "jwt: \"" . $jwt . "\",\n";
+        $token = self::build_token($server, $PAGE->context, $sessionnorm, $teacher, $affiliation, $nombre, $avatar, $mail);
+        echo "roomName: \"" . $token['roomname'] . "\",\n";
+        if ($token['jwt'] !== null) {
+            echo "jwt: \"" . $token['jwt'] . "\",\n";
         }
 
         if ($CFG->branch < 36) {

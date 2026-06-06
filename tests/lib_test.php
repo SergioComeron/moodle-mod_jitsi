@@ -885,6 +885,109 @@ final class lib_test extends \advanced_testcase {
     }
 
     /**
+     * build_token returns the plain (url-encoded) room name and no JWT for type-0 servers.
+     *
+     * @covers \mod_jitsi\local\session::build_token
+     */
+    public function test_build_token_type0_no_jwt(): void {
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+        set_config('tokentype', '0', 'mod_jitsi');
+
+        $server = (object)[
+            'type' => 0, 'appid' => '', 'domain' => 'meet.jit.si', 'secret' => '',
+            'eightbyeightappid' => '', 'eightbyeightapikeyid' => '', 'privatekey' => '',
+        ];
+        $token = \mod_jitsi\local\session::build_token(
+            $server,
+            \context_system::instance(),
+            'Room-1',
+            false,
+            'member',
+            'Ann',
+            'http://a/av.png',
+            'a@b.c'
+        );
+
+        $this->assertSame('Room-1', $token['roomname']);
+        $this->assertNull($token['jwt']);
+    }
+
+    /**
+     * build_token signs an HS256 JWT for type-1 servers with the server secret and the expected claims.
+     *
+     * @covers \mod_jitsi\local\session::build_token
+     */
+    public function test_build_token_type1_hs256_claims_and_signature(): void {
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+        set_config('tokentype', '0', 'mod_jitsi');
+
+        $server = (object)[
+            'type' => 1, 'appid' => 'myapp', 'domain' => 'jitsi.example.com', 'secret' => 'sec',
+            'eightbyeightappid' => '', 'eightbyeightapikeyid' => '', 'privatekey' => '',
+        ];
+        $token = \mod_jitsi\local\session::build_token(
+            $server,
+            \context_system::instance(),
+            'Room-1',
+            true,
+            'owner',
+            'Ann',
+            'http://a/av.png',
+            'a@b.c'
+        );
+
+        $this->assertSame('Room-1', $token['roomname']);
+        $this->assertNotNull($token['jwt']);
+        [$h, $p, $s] = explode('.', $token['jwt']);
+        $header = json_decode(base64_decode(strtr($h, '-_', '+/')), true);
+        $payload = json_decode(base64_decode(strtr($p, '-_', '+/')), true);
+        $this->assertSame('HS256', $header['alg']);
+        $this->assertSame('Room-1', $payload['room']);
+        $this->assertSame('myapp', $payload['iss']);
+        $this->assertTrue($payload['moderator']);
+        $expected = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode(hash_hmac('sha256', $h . '.' . $p, 'sec', true)));
+        $this->assertSame($expected, $s, 'JWT signature must be HMAC-SHA256 of header.payload with the server secret');
+    }
+
+    /**
+     * build_token signs an RS256 JWT verifiable with the public key, and prefixes the room with the JaaS appid.
+     *
+     * @covers \mod_jitsi\local\session::build_token
+     */
+    public function test_build_token_type2_rs256_verifiable(): void {
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+
+        $res = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
+        openssl_pkey_export($res, $privatekey);
+        $publickey = openssl_pkey_get_details($res)['key'];
+
+        $server = (object)[
+            'type' => 2, 'appid' => '', 'domain' => '8x8.vc', 'secret' => '',
+            'eightbyeightappid' => 'vpaas-cookie', 'eightbyeightapikeyid' => 'vpaas-cookie/k1', 'privatekey' => $privatekey,
+        ];
+        $token = \mod_jitsi\local\session::build_token(
+            $server,
+            \context_system::instance(),
+            'Room-1',
+            true,
+            'owner',
+            'Ann',
+            'http://a/av.png',
+            'a@b.c'
+        );
+
+        $this->assertSame('vpaas-cookie/Room-1', $token['roomname']);
+        [$h, $p, $s] = explode('.', $token['jwt']);
+        $header = json_decode(base64_decode(strtr($h, '-_', '+/')), true);
+        $this->assertSame('RS256', $header['alg']);
+        $signature = base64_decode(strtr($s, '-_', '+/'));
+        $this->assertSame(1, openssl_verify($h . '.' . $p, $signature, $publickey, OPENSSL_ALGO_SHA256));
+    }
+
+    /**
      * jitsi_build_room_name combines parts with no separator by default.
      *
      * @covers \mod_jitsi\local\room::build_name
