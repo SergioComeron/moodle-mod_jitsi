@@ -509,25 +509,31 @@ class session {
         ];
         $PAGE->requires->js_call_amd('mod_jitsi/session_presence', 'init', [$presenceconfig]);
 
-        if (get_config('mod_jitsi', 'finishandreturn') == 1) {
-            echo "api.on('readyToClose', () => {\n";
-                echo "    require(['jquery', 'core/ajax', 'core/notification'], function($, ajax, notification) {\n";
-                    echo "       var respuesta = ajax.call([{\n";
-                    echo "            methodname: 'mod_jitsi_press_button_end',\n";
-                    echo "            args: {jitsi:'" . $jitsi->id . "', user:'" . $USER->id . "', cmid:'" . $cmid . "'},\n";
-                    echo "            fail: notification.exception\n";
-                    echo "       }]);\n";
-                    echo "    ;});";
-            echo "    api.dispose();\n";
+        // Password auto-fill and finish-and-return redirect live in the
+        // mod_jitsi/session_controls AMD module (both are settings-gated).
+        $password = get_config('mod_jitsi', 'password');
+        $finishandreturn = (get_config('mod_jitsi', 'finishandreturn') == 1);
+        $closeredirecturl = null;
+        if ($finishandreturn) {
             if ($universal == false && $user == null) {
-                echo "    location.href=\"" . $CFG->wwwroot . "/mod/jitsi/view.php?id=" . $cmid . "\";";
+                $closeredirecturl = $CFG->wwwroot . "/mod/jitsi/view.php?id=" . $cmid;
             } else if ($universal == true && $user == null) {
-                echo "    location.href=\"" . $CFG->wwwroot . "/mod/jitsi/formuniversal.php?t=" . $jitsi->token . "\";";
+                $closeredirecturl = $CFG->wwwroot . "/mod/jitsi/formuniversal.php?t=" . $jitsi->token;
             } else if ($user != null) {
-                echo "    location.href=\"" . $CFG->wwwroot . "/mod/jitsi/viewpriv.php?user=" . $user . "\";";
+                $closeredirecturl = $CFG->wwwroot . "/mod/jitsi/viewpriv.php?user=" . $user;
             }
-            echo  "});\n";
         }
+        if (($password != null && $password !== '') || $finishandreturn) {
+            $PAGE->requires->js_call_amd('mod_jitsi/session_controls', 'init', [[
+                'jitsiid' => (int) $jitsi->id,
+                'userid' => (int) $USER->id,
+                'cmid' => (int) $cmid,
+                'password' => ($password != null && $password !== '') ? $password : null,
+                'finishAndReturn' => $finishandreturn,
+                'closeRedirectUrl' => $closeredirecturl,
+            ]]);
+        }
+
         echo "var jitsiRecordingStateReceived = false;\n";
         echo "setTimeout(function() {\n";
         echo "  if (jitsiRecordingStateReceived) { return; }\n";
@@ -568,17 +574,6 @@ class session {
         echo "    api.startRecording({mode: 'file'});\n";
         echo "  }\n";
         echo "}\n";
-
-        if (get_config('mod_jitsi', 'password') != null) {
-            echo "api.addEventListener('participantRoleChanged', function(event) {\n";
-            echo "    if (event.role === \"moderator\") {\n";
-            echo "        api.executeCommand('password', '" . get_config('mod_jitsi', 'password') . "');\n";
-            echo "    }\n";
-            echo "});\n";
-            echo "api.on('passwordRequired', function () {\n";
-            echo "    api.executeCommand('password', '" . get_config('mod_jitsi', 'password') . "');\n";
-            echo "});\n";
-        }
 
         if ($user == null) {
             echo "api.addEventListener('recordingStatusChanged', function(event) {\n";
