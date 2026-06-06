@@ -600,7 +600,7 @@ if (!empty($gcsrecordings)) {
             'cmid'           => $cm->id,
         ], '', 'userid, segments, duration');
 
-        $heatmap = jitsi_render_heatmap_bar((int)$rec->id, (int)$cm->id);
+        $heatmap = \mod_jitsi\output\heatmap_bar::render((int)$rec->id, (int)$cm->id);
         if (!empty($heatmap)) {
             echo $heatmap;
         }

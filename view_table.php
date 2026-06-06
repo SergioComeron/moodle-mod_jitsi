@@ -334,7 +334,7 @@ class mod_view_table extends table_sql {
                     get_config('mod_jitsi', 'portal_license_key')
                     && has_capability('mod/jitsi:viewattendance', $context)
                 ) {
-                    $heatmaphtml = jitsi_render_heatmap_bar((int)$sourcerecord->id, (int)$cm->id);
+                    $heatmaphtml = \mod_jitsi\output\heatmap_bar::render((int)$sourcerecord->id, (int)$cm->id);
                 }
 
                 $content = "<h5>" . $OUTPUT->render($tmpl) . "</h5>"

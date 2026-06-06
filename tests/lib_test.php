@@ -1119,4 +1119,49 @@ final class lib_test extends \advanced_testcase {
         $data = $completion->get_data($cm, false, $user->id);
         $this->assertEquals(COMPLETION_COMPLETE, $data->completionstate);
     }
+
+    /**
+     * heatmap_bar::context returns null when there are no recording segments.
+     *
+     * @covers \mod_jitsi\output\heatmap_bar::context
+     */
+    public function test_heatmap_bar_context_empty(): void {
+        $this->resetAfterTest(true);
+        $this->assertNull(\mod_jitsi\output\heatmap_bar::context(555, 77));
+    }
+
+    /**
+     * heatmap_bar::context aggregates viewers and plays per bucket.
+     *
+     * @covers \mod_jitsi\output\heatmap_bar::context
+     */
+    public function test_heatmap_bar_context_aggregates(): void {
+        global $DB;
+        $this->resetAfterTest(true);
+        $user = $this->getDataGenerator()->create_user(['firstname' => 'Ada', 'lastname' => 'Lovelace']);
+        $srid = 555;
+        $cmid = 77;
+
+        $DB->insert_record('jitsi_recording_segments', (object)[
+            'userid'         => $user->id,
+            'sourcerecordid' => $srid,
+            'cmid'           => $cmid,
+            'segments'       => json_encode([[0, 15]]),
+            'playcounts'     => json_encode([3, 1]),
+            'duration'       => 20,
+            'timecreated'    => time(),
+            'timemodified'   => time(),
+        ]);
+
+        $ctx = \mod_jitsi\output\heatmap_bar::context($srid, $cmid);
+
+        $this->assertNotNull($ctx);
+        // Duration 20 / 10s buckets = 2 buckets; segment 0-15 covers both.
+        $this->assertCount(2, $ctx['viewerbuckets']);
+        $this->assertEquals(10, $ctx['bucketsize']);
+        // Playcounts [3,1] -> max plays 3 -> plays bar shown.
+        $this->assertTrue($ctx['hasplays']);
+        $this->assertCount(2, $ctx['playbuckets']);
+        $this->assertStringContainsString('Ada', $ctx['viewersjson']);
+    }
 }
