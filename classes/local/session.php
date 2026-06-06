@@ -484,29 +484,30 @@ class session {
         $event->add_record_snapshot($PAGE->cm->modname, $jitsi);
         $event->trigger();
 
-        $isguestjs = (!isloggedin() || isguestuser()) ? 'true' : 'false';
-        echo "var jitsiPresenceHash = (Math.random().toString(36).substr(2,9) + Date.now().toString(36));\n";
-        echo "var jitsiIsGuest = " . $isguestjs . ";\n";
-        echo "var jitsiGuestName = '" . addslashes($nombre) . "';\n";
-
-        echo "let intervalo = 60000;";
-        echo "setInterval(function(){myTimer(api)}, intervalo);\n";
-        echo "function myTimer(_api) {\n";
-        echo "      require(['core/ajax'], function(ajax) {\n";
-        echo "          ajax.call([{\n";
-        echo "              methodname: 'mod_jitsi_participating_session',\n";
-        echo "              args: {jitsi:'" . $jitsi->id . "', user:'" . $USER->id . "', cmid:'" . $cm->id . "'},\n";
-        echo "          }]);\n";
-        echo "      })\n";
-        echo "}\n";
-        echo "setInterval(function() {\n";
-        echo "  require(['core/ajax'], function(ajax) {\n";
-        echo "      ajax.call([{\n";
-        echo "          methodname: 'mod_jitsi_presence_heartbeat',\n";
-        echo "          args: {jitsiid:" . $jitsi->id . ", sessionhash: jitsiPresenceHash},\n";
-        echo "      }]);\n";
-        echo "  });\n";
-        echo "}, 30000);\n";
+        // Presence tracking (heartbeats, participating ping, join/leave) lives in the
+        // mod_jitsi/session_presence AMD module; hand it the live api instance and its config.
+        $trackjoinleave = ($user == null);
+        $redirecturl = null;
+        if ($user == null) {
+            if ($universal == false) {
+                $redirecturl = $CFG->wwwroot . "/mod/jitsi/view.php?id=" . $cmid;
+            } else {
+                $redirecturl = $CFG->wwwroot . "/mod/jitsi/formuniversal.php?t=" . $jitsi->token;
+            }
+        }
+        $presenceconfig = [
+            'jitsiid' => (int) $jitsi->id,
+            'cmid' => (int) $cm->id,
+            'userid' => (int) $USER->id,
+            'isGuest' => (!isloggedin() || isguestuser()),
+            'guestName' => $nombre,
+            'trackJoinLeave' => $trackjoinleave,
+            'redirectUrl' => $redirecturl,
+        ];
+        echo "require(['mod_jitsi/session_presence'], function(Presence) {\n";
+        echo "    Presence.init(api, " .
+            json_encode($presenceconfig, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . ");\n";
+        echo "});\n";
 
         if (get_config('mod_jitsi', 'finishandreturn') == 1) {
             echo "api.on('readyToClose', () => {\n";
@@ -753,35 +754,6 @@ class session {
 
             echo "api.on('participantJoined', function () {\n";
             echo "  console.log('Participant joined');\n";
-            echo "});\n";
-
-            echo "api.on('videoConferenceJoined', function () {\n";
-            echo "  require(['core/ajax'], function(ajax) {\n";
-            echo "      ajax.call([{\n";
-            echo "          methodname: 'mod_jitsi_presence_join',\n";
-            echo "          args: {jitsiid:" . $jitsi->id . ", sessionhash: jitsiPresenceHash,\n";
-            echo "              guestname: jitsiIsGuest ? jitsiGuestName : ''},\n";
-            echo "      }]);\n";
-            echo "  });\n";
-            echo "});\n";
-
-            echo "api.on('videoConferenceLeft', function () {\n";
-            echo "  require(['core/ajax'], function(ajax) {\n";
-            echo "      ajax.call([{\n";
-            echo "          methodname: 'mod_jitsi_presence_leave',\n";
-            echo "          args: {jitsiid:" . $jitsi->id . ", sessionhash: jitsiPresenceHash},\n";
-            echo "      }]);\n";
-            echo "  });\n";
-            if ($universal == false && $user == null) {
-                $redirecturl = $CFG->wwwroot . "/mod/jitsi/view.php?id=" . $cmid;
-                echo "  setTimeout(function() { location.href=\"" . $redirecturl . "\"; }, 2000);\n";
-            } else if ($universal == true && $user == null) {
-                $redirecturl = $CFG->wwwroot . "/mod/jitsi/formuniversal.php?t=" . $jitsi->token;
-                echo "  setTimeout(function() { location.href=\"" . $redirecturl . "\"; }, 2000);\n";
-            } else if ($user != null) {
-                $redirecturl = $CFG->wwwroot . "/mod/jitsi/call.php";
-                echo "  setTimeout(function() { location.href=\"" . $redirecturl . "\"; }, 2000);\n";
-            }
             echo "});\n";
 
             // Registro de los diferentes botones.
