@@ -117,7 +117,7 @@ class mod_adminrecords_table extends table_sql {
     protected function col_delete($values) {
         global $DB, $OUTPUT;
 
-        if (!isDeletable($values->id)) {
+        if (!\mod_jitsi\local\recording::is_deletable($values->id)) {
             return '';
         }
 
