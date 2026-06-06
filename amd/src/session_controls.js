@@ -39,7 +39,8 @@ import Notification from 'core/notification';
  * @param {number} config.userid Current user id.
  * @param {number} config.cmid Course module id.
  * @param {?string} config.password Room password to auto-fill (null/empty to disable).
- * @param {boolean} config.finishAndReturn Whether to report the end and redirect on close.
+ * @param {boolean} config.finishAndReturn Whether to redirect away when the meeting closes.
+ * @param {boolean} config.reportEnd Whether to report the session end (press_button_end) on close.
  * @param {?string} config.closeRedirectUrl URL to redirect to when the meeting closes.
  */
 export const init = (config) => {
@@ -61,10 +62,12 @@ export const init = (config) => {
 
     if (config.finishAndReturn) {
         api.on('readyToClose', () => {
-            Ajax.call([{
-                methodname: 'mod_jitsi_press_button_end',
-                args: {jitsi: config.jitsiid, user: config.userid, cmid: config.cmid},
-            }])[0].fail(Notification.exception);
+            if (config.reportEnd) {
+                Ajax.call([{
+                    methodname: 'mod_jitsi_press_button_end',
+                    args: {jitsi: config.jitsiid, user: config.userid, cmid: config.cmid},
+                }])[0].fail(Notification.exception);
+            }
             api.dispose();
             if (config.closeRedirectUrl) {
                 window.location.href = config.closeRedirectUrl;

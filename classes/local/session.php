@@ -334,6 +334,69 @@ class session {
     }
 
     /**
+     * Resolve the default server and the per-user session context shared by create()/create_priv().
+     *
+     * Echoes a notification and returns null when there is no default server or the GCP server is
+     * down; halts via notice() when the user lacks view permission.
+     *
+     * @param int $cmid Course module id
+     * @param string $session Session/room name
+     * @param int $teacher Moderation flag (1 = moderator)
+     * @param bool $universal Whether this is a universal (invitation) session
+     * @param \stdClass|null $user Peer user for private sessions
+     * @return \stdClass|null {server, sessionnorm, teacher (bool), affiliation, context} or null on error
+     */
+    private static function resolve_session_context($cmid, $session, $teacher, $universal, $user) {
+        global $DB, $OUTPUT;
+
+        $serverid = get_config('mod_jitsi', 'server');
+        $server = $DB->get_record('jitsi_servers', ['id' => $serverid]);
+
+        if (!$server) {
+            echo $OUTPUT->notification(get_string('nodefaultserver', 'jitsi'), 'error');
+            return null;
+        }
+
+        // Check if GCP server is running.
+        $serverstatus = \mod_jitsi\local\server::check_gcp_status($server);
+        if ($serverstatus['status'] === 'stopped') {
+            echo $OUTPUT->notification(get_string('gcpserverstopped', 'jitsi'), 'error');
+            return null;
+        } else if ($serverstatus['status'] === 'error') {
+            $errormsg = isset($serverstatus['message']) ? $serverstatus['message'] : 'Unknown error';
+            echo $OUTPUT->notification(get_string('gcpservererror', 'jitsi', $errormsg), 'error');
+            return null;
+        }
+
+        if ($teacher == 1) {
+            $teacher = true;
+            $affiliation = "owner";
+        } else {
+            $teacher = false;
+            $affiliation = "member";
+        }
+        if ($user != null) {
+            $context = \context_system::instance();
+        } else {
+            $context = \context_module::instance($cmid);
+        }
+
+        if ($universal == false) {
+            if (!has_capability('mod/jitsi:view', $context)) {
+                notice(get_string('noviewpermission', 'jitsi'));
+            }
+        }
+
+        return (object)[
+            'server' => $server,
+            'sessionnorm' => \mod_jitsi\local\room::normalize_session_name($session),
+            'teacher' => $teacher,
+            'affiliation' => $affiliation,
+            'context' => $context,
+        ];
+    }
+
+    /**
      * Create and render a Jitsi session (HTML + JS).
      *
      * @param int $teacher Moderation flag
@@ -357,54 +420,18 @@ class session {
         $universal = false,
         $user = null
     ) {
-        global $CFG, $DB, $PAGE, $USER, $OUTPUT;
+        global $CFG, $DB, $PAGE, $USER;
 
-        $serverid = get_config('mod_jitsi', 'server');
-        $server = $DB->get_record('jitsi_servers', ['id' => $serverid]);
-
-        if (!$server) {
-            echo $OUTPUT->notification(get_string('nodefaultserver', 'jitsi'), 'error');
+        $ctx = self::resolve_session_context($cmid, $session, $teacher, $universal, $user);
+        if ($ctx === null) {
             return;
         }
-
-        // Check if GCP server is running.
-        $serverstatus = \mod_jitsi\local\server::check_gcp_status($server);
-        if ($serverstatus['status'] === 'stopped') {
-            echo $OUTPUT->notification(get_string('gcpserverstopped', 'jitsi'), 'error');
-            return;
-        } else if ($serverstatus['status'] === 'error') {
-            $errormsg = isset($serverstatus['message']) ? $serverstatus['message'] : 'Unknown error';
-            echo $OUTPUT->notification(get_string('gcpservererror', 'jitsi', $errormsg), 'error');
-            return;
-        }
-
+        $server = $ctx->server;
         $servertype = $server->type;
-        $appid = $server->appid;
         $domain = $server->domain;
-        $secret = $server->secret;
-        $eightbyeightappid = $server->eightbyeightappid;
-        $eightbyeightapikeyid = $server->eightbyeightapikeyid;
-        $privatykey = $server->privatekey;
-
-        $sessionnorm = \mod_jitsi\local\room::normalize_session_name($session);
-        if ($teacher == 1) {
-            $teacher = true;
-            $affiliation = "owner";
-        } else {
-            $teacher = false;
-            $affiliation = "member";
-        }
-        if ($user != null) {
-            $context = \context_system::instance();
-        } else {
-            $context = \context_module::instance($cmid);
-        }
-
-        if ($universal == false) {
-            if (!has_capability('mod/jitsi:view', $context)) {
-                notice(get_string('noviewpermission', 'jitsi'));
-            }
-        }
+        $sessionnorm = $ctx->sessionnorm;
+        $teacher = $ctx->teacher;
+        $affiliation = $ctx->affiliation;
 
         echo "<script src=\"//ajax.googleapis.com/ajax/libs/jquery/2.0.0/jquery.min.js\"></script>";
         echo "<script src=\"https://" . $domain . "/external_api.js\"></script>\n";
@@ -525,6 +552,7 @@ class session {
                 'cmid' => (int) $cmid,
                 'password' => ($password != null && $password !== '') ? $password : null,
                 'finishAndReturn' => $finishandreturn,
+                'reportEnd' => true,
                 'closeRedirectUrl' => $closeredirecturl,
             ]]);
         }
@@ -571,26 +599,13 @@ class session {
         $universal = false,
         $user = null
     ) {
-        global $CFG, $DB, $PAGE, $USER, $OUTPUT;
-        $serverid = get_config('mod_jitsi', 'server');
-        $server = $DB->get_record('jitsi_servers', ['id' => $serverid]);
+        global $CFG, $PAGE, $USER;
 
-        if (!$server) {
-            echo $OUTPUT->notification(get_string('nodefaultserver', 'jitsi'), 'error');
+        $ctx = self::resolve_session_context($cmid, $session, $teacher, $universal, $user);
+        if ($ctx === null) {
             return;
         }
-
-        // Check if GCP server is running.
-        $serverstatus = \mod_jitsi\local\server::check_gcp_status($server);
-        if ($serverstatus['status'] === 'stopped') {
-            echo $OUTPUT->notification(get_string('gcpserverstopped', 'jitsi'), 'error');
-            return;
-        } else if ($serverstatus['status'] === 'error') {
-            $errormsg = isset($serverstatus['message']) ? $serverstatus['message'] : 'Unknown error';
-            echo $OUTPUT->notification(get_string('gcpservererror', 'jitsi', $errormsg), 'error');
-            return;
-        }
-
+        $server = $ctx->server;
         $servertype = $server->type;
         $appid = $server->appid;
         $domain = $server->domain;
@@ -598,26 +613,9 @@ class session {
         $eightbyeightappid = $server->eightbyeightappid;
         $eightbyeightapikeyid = $server->eightbyeightapikeyid;
         $privatykey = $server->privatekey;
-
-        $sessionnorm = \mod_jitsi\local\room::normalize_session_name($session);
-        if ($teacher == 1) {
-            $teacher = true;
-            $affiliation = "owner";
-        } else {
-            $teacher = false;
-            $affiliation = "member";
-        }
-        if ($user != null) {
-            $context = \context_system::instance();
-        } else {
-            $context = \context_module::instance($cmid);
-        }
-
-        if ($universal == false) {
-            if (!has_capability('mod/jitsi:view', $context)) {
-                notice(get_string('noviewpermission', 'jitsi'));
-            }
-        }
+        $sessionnorm = $ctx->sessionnorm;
+        $teacher = $ctx->teacher;
+        $affiliation = $ctx->affiliation;
 
         echo '<style>
         .cuadrado-wrapper {
@@ -646,8 +644,6 @@ class session {
         echo "<div class=\"row\">";
         echo "<div class=\"col-sm\">";
 
-        $account = $DB->get_record('jitsi_record_account', ['inuse' => 1]);
-
         echo "<div class=\"row\">";
         echo "<div class=\"col-sm-9\">";
         echo "<div id=\"state\"><div class=\"alert alert-light\" role=\"alert\"></div></div>";
@@ -665,11 +661,6 @@ class session {
         echo "<hr>";
 
         echo "<script>\n";
-        echo "if (document.getElementById(\"recordSwitch\") != null) {\n";
-        echo "  document.getElementById(\"recordSwitch\").disabled = true;\n";
-        echo "  setTimeout(function() { document.getElementById(\"recordSwitch\").disabled = false; }, 5000);\n";
-        echo "}\n";
-
         echo "const domain = \"" . $domain . "\";\n";
 
         $configoverwrite = self::build_config_overwrite($server, $jitsi, $PAGE->context, $buttons, true, false);
@@ -773,30 +764,34 @@ class session {
         echo "height: '100%',\n";
         echo "}\n";
         echo "const api = new JitsiMeetExternalAPI(domain, options);\n";
-
-        if (get_config('mod_jitsi', 'finishandreturn') == 1) {
-            echo "api.on('readyToClose', () => {\n";
-            echo "    api.dispose();\n";
-            if ($universal == false && $user == null) {
-                echo "    location.href=\"" . $CFG->wwwroot . "/mod/jitsi/view.php?id=" . $cmid . "\";";
-            } else if ($universal == true && $user == null) {
-                echo "    location.href=\"" . $CFG->wwwroot . "/mod/jitsi/formuniversal.php?t=" . $jitsi->token . "\";";
-            } else if ($user != null) {
-                echo "    location.href=\"" . $CFG->wwwroot . "/mod/jitsi/call.php\";";
-            }
-            echo  "});\n";
-        }
-
-        if (get_config('mod_jitsi', 'password') != null) {
-            echo "api.addEventListener('participantRoleChanged', function(event) {\n";
-            echo "    if (event.role === \"moderator\") {\n";
-            echo "        api.executeCommand('password', '" . get_config('mod_jitsi', 'password') . "');\n";
-            echo "    }\n";
-            echo "});\n";
-            echo "api.on('passwordRequired', function () {\n";
-            echo "    api.executeCommand('password', '" . get_config('mod_jitsi', 'password') . "');\n";
-            echo "});\n";
-        }
+        // Expose the live api so the session_controls AMD module can attach its listeners.
+        echo "window.jitsiSessionApi = api;\n";
         echo "</script>\n";
+
+        // Password auto-fill and finish-and-return redirect live in the mod_jitsi/session_controls
+        // module. Private sessions never report the session end (no associated activity).
+        $password = get_config('mod_jitsi', 'password');
+        $finishandreturn = (get_config('mod_jitsi', 'finishandreturn') == 1);
+        $closeredirecturl = null;
+        if ($finishandreturn) {
+            if ($universal == false && $user == null) {
+                $closeredirecturl = $CFG->wwwroot . "/mod/jitsi/view.php?id=" . $cmid;
+            } else if ($universal == true && $user == null) {
+                $closeredirecturl = $CFG->wwwroot . "/mod/jitsi/formuniversal.php?t=" . $jitsi->token;
+            } else if ($user != null) {
+                $closeredirecturl = $CFG->wwwroot . "/mod/jitsi/call.php";
+            }
+        }
+        if (($password != null && $password !== '') || $finishandreturn) {
+            $PAGE->requires->js_call_amd('mod_jitsi/session_controls', 'init', [[
+                'jitsiid' => (int) $jitsi->id,
+                'userid' => (int) $USER->id,
+                'cmid' => (int) $cmid,
+                'password' => ($password != null && $password !== '') ? $password : null,
+                'finishAndReturn' => $finishandreturn,
+                'reportEnd' => false,
+                'closeRedirectUrl' => $closeredirecturl,
+            ]]);
+        }
     }
 }
