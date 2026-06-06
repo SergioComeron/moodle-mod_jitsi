@@ -468,6 +468,9 @@ class session {
         echo "height: '100%',";
         echo "}\n";
         echo "const api = new JitsiMeetExternalAPI(domain, options);\n";
+        // Expose the live api so the session_presence AMD module (loaded via js_call_amd in the
+        // footer, after RequireJS is ready) can attach its listeners to it.
+        echo "window.jitsiSessionApi = api;\n";
         echo "api.addListener('videoConferenceJoined', () => {\n";
         echo "api.executeCommand('displayName', " . json_encode($nombre) . ");\n";
         echo "api.executeCommand('avatarUrl', " . json_encode($avatar) . ");\n";
@@ -504,10 +507,7 @@ class session {
             'trackJoinLeave' => $trackjoinleave,
             'redirectUrl' => $redirecturl,
         ];
-        echo "require(['mod_jitsi/session_presence'], function(Presence) {\n";
-        echo "    Presence.init(api, " .
-            json_encode($presenceconfig, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . ");\n";
-        echo "});\n";
+        $PAGE->requires->js_call_amd('mod_jitsi/session_presence', 'init', [$presenceconfig]);
 
         if (get_config('mod_jitsi', 'finishandreturn') == 1) {
             echo "api.on('readyToClose', () => {\n";

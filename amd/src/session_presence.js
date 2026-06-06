@@ -47,7 +47,9 @@ const generateSessionHash = () => {
 /**
  * Start presence tracking for a Jitsi session.
  *
- * @param {object} api The JitsiMeetExternalAPI instance.
+ * The live JitsiMeetExternalAPI instance is read from window.jitsiSessionApi, set by the
+ * inline session script, since js_call_amd can only pass JSON-serialisable arguments.
+ *
  * @param {object} config Configuration.
  * @param {number} config.jitsiid Jitsi activity instance id.
  * @param {number} config.cmid Course module id.
@@ -57,7 +59,8 @@ const generateSessionHash = () => {
  * @param {boolean} config.trackJoinLeave Whether to report join/leave and redirect on leave.
  * @param {?string} config.redirectUrl URL to redirect to after leaving (null to stay put).
  */
-export const init = (api, config) => {
+export const init = (config) => {
+    const api = window.jitsiSessionApi;
     const sessionHash = generateSessionHash();
 
     // Periodically flag that this user is still participating in the session.
@@ -76,7 +79,7 @@ export const init = (api, config) => {
         }]);
     }, HEARTBEAT_INTERVAL);
 
-    if (!config.trackJoinLeave) {
+    if (!config.trackJoinLeave || !api) {
         return;
     }
 
