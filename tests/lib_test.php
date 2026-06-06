@@ -1393,4 +1393,36 @@ final class lib_test extends \advanced_testcase {
         // A zero duration yields no segment bars.
         $this->assertCount(0, \mod_jitsi\output\segments_bar::context([[0, 50]], 0.0)['segments']);
     }
+
+    /**
+     * session_page::context shows the button row when either action button is enabled.
+     *
+     * @covers \mod_jitsi\output\session_page::context
+     */
+    public function test_session_page_context_buttons(): void {
+        $this->resetAfterTest(true);
+
+        $ctx = \mod_jitsi\output\session_page::context(true, true, false);
+        $this->assertTrue($ctx['textend']);
+        $this->assertTrue($ctx['showbuttons']);
+        $this->assertTrue($ctx['showstreaming']);
+        $this->assertFalse($ctx['showrecording']);
+        $this->assertArrayHasKey('streambtnlabel', $ctx);
+        $this->assertArrayHasKey('recordbtnlabel', $ctx);
+    }
+
+    /**
+     * session_page::context hides the button row when neither action button is enabled.
+     *
+     * @covers \mod_jitsi\output\session_page::context
+     */
+    public function test_session_page_context_no_buttons(): void {
+        $this->resetAfterTest(true);
+
+        $ctx = \mod_jitsi\output\session_page::context(false, false, false);
+        $this->assertFalse($ctx['textend']);
+        $this->assertFalse($ctx['showbuttons']);
+        $this->assertFalse($ctx['showstreaming']);
+        $this->assertFalse($ctx['showrecording']);
+    }
 }

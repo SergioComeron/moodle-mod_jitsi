@@ -1,0 +1,70 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template mod_jitsi/session_page
+
+    Layout shell for a Jitsi videoconference: the status line, the optional
+    stream/record action buttons and the empty container the Jitsi iframe is
+    mounted into. The conferencing JavaScript (still emitted inline by
+    session::create) targets the #state, #streamBtn, #recordBtn and
+    #jitsi-container ids defined here.
+
+    Context variables required for this template:
+    * textend bool - True on Moodle 5.0+ (use text-end utility class instead of text-right)
+    * showbuttons bool - Whether the action button row should be shown at all
+    * showstreaming bool - Whether the live streaming button should be shown
+    * showrecording bool - Whether the Jibri recording button should be shown
+    * streambtnlabel string - Label for the streaming button
+    * recordbtnlabel string - Label for the recording button
+
+    Example context (json):
+    {
+        "textend": true,
+        "showbuttons": true,
+        "showstreaming": true,
+        "showrecording": false,
+        "streambtnlabel": "Stream",
+        "recordbtnlabel": "Record"
+    }
+}}
+<div class="row">
+    <div class="col-sm">
+        <div class="row">
+            <div class="col-sm-9">
+                <div id="state"><div class="alert alert-light" role="alert"></div></div>
+            </div>
+            <div class="col-sm-3 {{#textend}}text-end{{/textend}}{{^textend}}text-right{{/textend}}">
+                {{#showbuttons}}
+                    <div class="d-flex gap-2 justify-content-end flex-wrap">
+                        {{#showstreaming}}
+                            <button id="streamBtn" class="btn btn-sm btn-outline-warning" onclick="handleStreamBtn()" disabled>
+                                <i class="fa fa-rss me-1" aria-hidden="true"></i>{{streambtnlabel}}
+                            </button>
+                        {{/showstreaming}}
+                        {{#showrecording}}
+                            <button id="recordBtn" class="btn btn-sm btn-outline-danger" onclick="handleRecordBtn()" disabled>
+                                <i class="fa fa-circle me-1" aria-hidden="true"></i>{{recordbtnlabel}}
+                            </button>
+                        {{/showrecording}}
+                    </div>
+                {{/showbuttons}}
+            </div>
+        </div>
+    </div>
+</div>
+<hr>
+<div class="cuadrado-wrapper"><div class="jitsi-container" id="jitsi-container"></div></div>

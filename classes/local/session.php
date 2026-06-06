@@ -278,22 +278,10 @@ class session {
             'shortcuts', 'tileview', '" . $bluroption . "', 'download', 'help', '" . $muteeveryone . "',
             '" . $mutevideoeveryone . "', '" . $security . "', '" . $participantspane . "', '" . $whiteboard . "']";
 
-        echo "<div class=\"row\">";
-        echo "<div class=\"col-sm\">";
-
         $account = $DB->get_record('jitsi_record_account', ['inuse' => 1]);
 
-        echo "<div class=\"row\">";
-        echo "<div class=\"col-sm-9\">";
-        echo "<div id=\"state\"><div class=\"alert alert-light\" role=\"alert\"></div></div>";
-        echo "</div>";
-
-        if ($CFG->branch >= 500) {
-            echo "<div class=\"col-sm-3 text-end\">";
-        } else {
-            echo "<div class=\"col-sm-3 text-right\">";
-        }
-
+        $showstreaming = false;
+        $showrecording = false;
         if ($user == null) {
             $showstreaming = (
                 get_config('mod_jitsi', 'livebutton') == 1 &&
@@ -308,46 +296,9 @@ class session {
                 $universal == false && $servertype == 3 &&
                 $jibrienabled && $jitsi->sessionwithtoken == 0
             );
-            if ($showstreaming || $showrecording) {
-                echo "<div class=\"d-flex gap-2 justify-content-end flex-wrap\">";
-                if ($showstreaming) {
-                    echo "<button id=\"streamBtn\" class=\"btn btn-sm btn-outline-warning\""
-                        . " onclick=\"handleStreamBtn()\" disabled>"
-                        . "<i class=\"fa fa-rss me-1\" aria-hidden=\"true\"></i>"
-                        . addslashes(get_string('streambtn', 'jitsi')) . "</button>";
-                }
-                if ($showrecording) {
-                    echo "<button id=\"recordBtn\" class=\"btn btn-sm btn-outline-danger\""
-                        . " onclick=\"handleRecordBtn()\" disabled>"
-                        . "<i class=\"fa fa-circle me-1\" aria-hidden=\"true\"></i>"
-                        . addslashes(get_string('recordbtn', 'jitsi')) . "</button>";
-                }
-                echo "</div>";
-            }
         }
 
-        echo "</div>";
-        echo "</div>";
-
-        echo "</div></div>";
-        echo "<hr>";
-
-        echo '<style>
-        .cuadrado-wrapper {
-            position: relative;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-        }
-        .jitsi-container {
-            width: calc(90vw);
-            height: calc(90vw * 9 / 16);
-            max-width: calc(90vh * 16 / 9);
-            max-height: calc(90vh);
-        }
-        </style>';
-        echo '<div class="cuadrado-wrapper"><div class="jitsi-container" id="jitsi-container"></div></div>';
+        echo \mod_jitsi\output\session_page::render($CFG->branch >= 500, $showstreaming, $showrecording);
 
         echo "<script>\n";
         echo "if (document.getElementById(\"recordSwitch\") != null) {\n";

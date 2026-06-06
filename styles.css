@@ -1,0 +1,14 @@
+.path-mod-jitsi .cuadrado-wrapper {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+.path-mod-jitsi .jitsi-container {
+    width: calc(90vw);
+    height: calc(90vw * 9 / 16);
+    max-width: calc(90vh * 16 / 9);
+    max-height: calc(90vh);
+}
