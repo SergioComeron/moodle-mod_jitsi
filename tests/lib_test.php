@@ -1042,6 +1042,113 @@ final class lib_test extends \advanced_testcase {
     }
 
     /**
+     * attendance::last_connection returns 0 when the user has never connected.
+     *
+     * @covers \mod_jitsi\local\attendance::last_connection
+     */
+    public function test_attendance_last_connection_returns_zero_when_no_log(): void {
+        $this->resetAfterTest(true);
+
+        $course = $this->getDataGenerator()->create_course();
+        $jitsi = $this->getDataGenerator()->create_module('jitsi', ['course' => $course->id]);
+        $cm = get_coursemodule_from_instance('jitsi', $jitsi->id, $course->id, false, MUST_EXIST);
+        $user = $this->getDataGenerator()->create_user();
+
+        $this->assertSame(0, \mod_jitsi\local\attendance::last_connection($cm->id, $user->id));
+    }
+
+    /**
+     * attendance::last_connection returns the timestamp of the most recent connection.
+     *
+     * @covers \mod_jitsi\local\attendance::last_connection
+     */
+    public function test_attendance_last_connection_returns_latest_timestamp(): void {
+        global $DB;
+        $this->resetAfterTest(true);
+
+        $course = $this->getDataGenerator()->create_course();
+        $jitsi = $this->getDataGenerator()->create_module('jitsi', ['course' => $course->id]);
+        $cm = get_coursemodule_from_instance('jitsi', $jitsi->id, $course->id, false, MUST_EXIST);
+        $context = \context_module::instance($cm->id);
+        $user = $this->getDataGenerator()->create_user();
+        $now = time();
+
+        // Two connections for this user; the latest must win.
+        $this->insert_log_with_context($context->id, $cm->id, $user->id, 'participating', $now - 500);
+        $this->insert_log_with_context($context->id, $cm->id, $user->id, 'enter', $now - 100);
+        // A different user must not interfere.
+        $this->insert_log_with_context($context->id, $cm->id, 99999, 'participating', $now);
+
+        $this->assertSame($now - 100, \mod_jitsi\local\attendance::last_connection($cm->id, $user->id));
+    }
+
+    /**
+     * server::check_gcp_status returns 'running' for non-GCP servers (type != 3).
+     *
+     * @covers \mod_jitsi\local\server::check_gcp_status
+     */
+    public function test_server_check_gcp_status_non_gcp_is_running(): void {
+        $this->resetAfterTest(true);
+        $server = (object)['type' => 1];
+        $this->assertSame('running', \mod_jitsi\local\server::check_gcp_status($server)['status']);
+    }
+
+    /**
+     * server::check_gcp_status returns 'error' while a GCP server is still provisioning.
+     *
+     * @covers \mod_jitsi\local\server::check_gcp_status
+     */
+    public function test_server_check_gcp_status_provisioning_is_error(): void {
+        $this->resetAfterTest(true);
+        $server = (object)['type' => 3, 'provisioningstatus' => 'provisioning'];
+        $this->assertSame('error', \mod_jitsi\local\server::check_gcp_status($server)['status']);
+    }
+
+    /**
+     * server::check_gcp_status treats a GCP server without instance metadata as 'running'.
+     *
+     * @covers \mod_jitsi\local\server::check_gcp_status
+     */
+    public function test_server_check_gcp_status_no_instance_is_running(): void {
+        $this->resetAfterTest(true);
+        $server = (object)[
+            'type'               => 3,
+            'provisioningstatus' => 'ready',
+            'gcpinstancename'    => '',
+            'gcpproject'         => '',
+            'gcpzone'            => '',
+        ];
+        $this->assertSame('running', \mod_jitsi\local\server::check_gcp_status($server)['status']);
+    }
+
+    /**
+     * Insert a log row for the given context/module/user/action/time.
+     *
+     * @param int $contextid
+     * @param int $cmid
+     * @param int $userid
+     * @param string $action
+     * @param int $timecreated
+     */
+    protected function insert_log_with_context($contextid, $cmid, $userid, $action, $timecreated): void {
+        global $DB;
+        $DB->insert_record('logstore_standard_log', (object)[
+            'eventname'         => '\\mod_jitsi\\event\\jitsi_session_participating',
+            'component'         => 'mod_jitsi',
+            'action'            => $action,
+            'target'            => 'session',
+            'crud'              => 'r',
+            'edulevel'          => 0,
+            'contextid'         => $contextid,
+            'contextlevel'      => CONTEXT_MODULE,
+            'contextinstanceid' => $cmid,
+            'userid'            => $userid,
+            'anonymous'         => 0,
+            'timecreated'       => $timecreated,
+        ]);
+    }
+
+    /**
      * Insert a Jibri pool row for a server with the given status.
      *
      * @param int $serverid

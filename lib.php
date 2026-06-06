@@ -76,94 +76,6 @@ function jitsi_supports($feature) {
 }
 
 /**
- * Check if a GCP server instance is running
- *
- * @param stdClass $server Server record from jitsi_servers table
- * @return array Array with 'status' ('running'|'stopped'|'error') and optional 'message'
- */
-function jitsi_check_gcp_server_status($server) {
-    // Only check GCP servers (type 3).
-    if ($server->type != 3) {
-        return ['status' => 'running']; // Non-GCP servers are always considered "running".
-    }
-
-    // Check if server is still provisioning.
-    if ($server->provisioningstatus === 'provisioning' || $server->provisioningstatus === 'error') {
-        return [
-            'status' => 'error',
-            'message' => 'Server is still being provisioned or has an error',
-        ];
-    }
-
-    // If no GCP instance name, assume it's not a GCP-managed server.
-    if (empty($server->gcpinstancename) || empty($server->gcpproject) || empty($server->gcpzone)) {
-        return ['status' => 'running'];
-    }
-
-    // Check if Google API client is available.
-    $autoloader = __DIR__ . '/api/vendor/autoload.php';
-    if (!file_exists($autoloader)) {
-        return [
-            'status' => 'error',
-            'message' => 'Google API client not installed',
-        ];
-    }
-
-    try {
-        require_once($autoloader);
-
-        // Initialize Google Client.
-        $client = new \Google\Client();
-        $client->setScopes(['https://www.googleapis.com/auth/cloud-platform']);
-
-        // Try to read Service Account uploaded via settings.
-        $fs = get_file_storage();
-        $context = context_system::instance();
-        $files = $fs->get_area_files($context->id, 'mod_jitsi', 'gcpserviceaccountjson', 0, 'itemid, filepath, filename', false);
-
-        if (!empty($files)) {
-            $file = reset($files);
-            $jsoncontent = $file->get_content();
-            $client->setAuthConfig(json_decode($jsoncontent, true));
-        } else {
-            // Fallback to Application Default Credentials.
-            $client->useApplicationDefaultCredentials();
-        }
-
-        $compute = new \Google\Service\Compute($client);
-
-        // Get instance status.
-        $instance = $compute->instances->get(
-            $server->gcpproject,
-            $server->gcpzone,
-            $server->gcpinstancename
-        );
-
-        $status = $instance->getStatus();
-
-        // Possible statuses: PROVISIONING, STAGING, RUNNING, STOPPING, STOPPED, SUSPENDING, SUSPENDED, TERMINATED.
-        if ($status === 'RUNNING') {
-            return ['status' => 'running'];
-        } else if ($status === 'STOPPED' || $status === 'TERMINATED' || $status === 'SUSPENDED') {
-            return [
-                'status' => 'stopped',
-                'message' => 'Instance status: ' . $status,
-            ];
-        } else {
-            return [
-                'status' => 'transitioning',
-                'message' => 'Instance status: ' . $status,
-            ];
-        }
-    } catch (Exception $e) {
-        return [
-            'status' => 'error',
-            'message' => $e->getMessage(),
-        ];
-    }
-}
-
-/**
  * Saves a new instance of the jitsi into the database
  *
  * Given an object containing all the necessary data,
@@ -448,20 +360,4 @@ function mod_jitsi_get_completion_active_rule_descriptions($cm) {
         }
     }
     return $descriptions;
-}
-
-/**
- * Get the last time a user was connected to a jitsi activity
- * @param int $cmid - Course module id
- * @param int $user - User id
- * @return int - Time of last connection
- */
-function getminutesfromlastconexion($cmid, $user) {
-    global $DB;
-    $contextmodule = context_module::instance($cmid);
-    $sqllastparticipating = 'select timecreated from {logstore_standard_log} where contextid = '
-        . $contextmodule->id . ' and (action = \'participating\' or action = \'enter\') and userid
-         = ' . $user . ' order by timecreated DESC limit 1';
-    $usersconnected = $DB->get_record_sql($sqllastparticipating);
-    return $usersconnected->timecreated;
 }

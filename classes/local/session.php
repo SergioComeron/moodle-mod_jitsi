@@ -49,7 +49,6 @@ class session {
         $user = null
     ) {
         global $CFG, $DB, $PAGE, $USER, $OUTPUT;
-        require_once($CFG->dirroot . '/mod/jitsi/lib.php');
 
         $serverid = get_config('mod_jitsi', 'server');
         $server = $DB->get_record('jitsi_servers', ['id' => $serverid]);
@@ -60,7 +59,7 @@ class session {
         }
 
         // Check if GCP server is running.
-        $serverstatus = jitsi_check_gcp_server_status($server);
+        $serverstatus = \mod_jitsi\local\server::check_gcp_status($server);
         if ($serverstatus['status'] === 'stopped') {
             echo $OUTPUT->notification(get_string('gcpserverstopped', 'jitsi'), 'error');
             return;
@@ -994,7 +993,6 @@ class session {
         $user = null
     ) {
         global $CFG, $DB, $PAGE, $USER, $OUTPUT;
-        require_once($CFG->dirroot . '/mod/jitsi/lib.php');
         $serverid = get_config('mod_jitsi', 'server');
         $server = $DB->get_record('jitsi_servers', ['id' => $serverid]);
 
@@ -1004,7 +1002,7 @@ class session {
         }
 
         // Check if GCP server is running.
-        $serverstatus = jitsi_check_gcp_server_status($server);
+        $serverstatus = \mod_jitsi\local\server::check_gcp_status($server);
         if ($serverstatus['status'] === 'stopped') {
             echo $OUTPUT->notification(get_string('gcpserverstopped', 'jitsi'), 'error');
             return;

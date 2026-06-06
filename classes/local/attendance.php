@@ -46,6 +46,26 @@ class attendance {
     }
 
     /**
+     * Timestamp of a user's most recent connection (participating/enter) to a course module.
+     *
+     * @param int $cmid Course module id
+     * @param int $userid User id
+     * @return int Unix timestamp, or 0 if the user has never connected
+     */
+    public static function last_connection($cmid, $userid): int {
+        global $DB;
+        $contextmodule = \context_module::instance($cmid);
+        $sql = "SELECT timecreated
+                  FROM {logstore_standard_log}
+                 WHERE contextid = :ctxid
+                   AND (action = 'participating' OR action = 'enter')
+                   AND userid = :userid
+              ORDER BY timecreated DESC";
+        $record = $DB->get_record_sql($sql, ['ctxid' => $contextmodule->id, 'userid' => $userid], IGNORE_MULTIPLE);
+        return $record ? (int)$record->timecreated : 0;
+    }
+
+    /**
      * Total connected minutes for a user in a course module.
      *
      * @param int $contextinstanceid Course module id (context instance)

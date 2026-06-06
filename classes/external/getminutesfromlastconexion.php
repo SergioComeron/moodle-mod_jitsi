@@ -49,9 +49,7 @@ class getminutesfromlastconexion extends external_api {
      * @return int
      */
     public static function execute($cmid, $user) {
-        global $CFG;
-        require_once($CFG->dirroot . '/mod/jitsi/lib.php');
-        return getminutesfromlastconexion($cmid, $user);
+        return \mod_jitsi\local\attendance::last_connection($cmid, $user);
     }
 
     /**
