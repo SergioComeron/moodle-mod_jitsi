@@ -756,51 +756,12 @@ class session {
             echo "  console.log('Participant joined');\n";
             echo "});\n";
 
-            // Registro de los diferentes botones.
-            echo "api.addEventListener('toolbarButtonClicked', function(event) {\n";
-            echo "if (event.key == 'camera'){\n";
-            echo "  require(['jquery', 'core/ajax', 'core/notification'], function($, ajax, notification) {\n";
-            echo "    var respuesta = ajax.call([{\n";
-            echo "      methodname: 'mod_jitsi_press_button_cam',\n";
-            echo "      args: {jitsi:'" . $jitsi->id . "', user:'" . $USER->id . "', cmid:'" . $cmid . "'},\n";
-            echo "      fail: notification.exception\n";
-            echo "    }]);\n";
-            echo "  ;});";
-            echo "}\n";
-
-            echo "if (event.key == 'desktop'){\n";
-            echo "  require(['jquery', 'core/ajax', 'core/notification'], function($, ajax, notification) {\n";
-            echo "    var respuesta = ajax.call([{\n";
-            echo "      methodname: 'mod_jitsi_press_button_desktop',\n";
-            echo "      args: {jitsi:'" . $jitsi->id . "', user:'" . $USER->id . "', cmid:'" . $cmid . "'},\n";
-            echo "      fail: notification.exception\n";
-            echo "    }]);\n";
-            echo "  ;});";
-            echo "}\n";
-
-            echo "if (event.key == '__end'){\n";
-            echo "  require(['jquery', 'core/ajax', 'core/notification'], function($, ajax, notification) {\n";
-            echo "    var respuesta = ajax.call([{\n";
-            echo "      methodname: 'mod_jitsi_press_button_end',\n";
-            echo "      args: {jitsi:'" . $jitsi->id . "', user:'" . $USER->id . "', cmid:'" . $cmid . "'},\n";
-            echo "      fail: notification.exception\n";
-            echo "    }]);\n";
-            echo "  ;});";
-            echo "}\n";
-
-            echo "if (event.key == 'microphone'){\n";
-            echo "  require(['jquery', 'core/ajax', 'core/notification'], function($, ajax, notification) {\n";
-            echo "    var respuesta = ajax.call([{\n";
-            echo "      methodname: 'mod_jitsi_press_button_microphone',\n";
-            echo "      args: {jitsi:'" . $jitsi->id . "', user:'" . $USER->id . "', cmid:'" . $cmid . "'},\n";
-            echo "      fail: notification.exception\n";
-            echo "    }]);\n";
-            echo "  ;});";
-            echo "}\n";
-            // Fin registro de los diferentes botones.
-
-            echo "    console.log(event['key']);\n";
-            echo "});\n";
+            // Toolbar-button audit lives in the mod_jitsi/session_buttons AMD module.
+            $PAGE->requires->js_call_amd('mod_jitsi/session_buttons', 'init', [[
+                'jitsiid' => (int) $jitsi->id,
+                'userid' => (int) $USER->id,
+                'cmid' => (int) $cmid,
+            ]]);
 
             echo "api.addEventListener('recordingStatusChanged', function(event) {\n";
             echo "  if (event['error']){\n";
