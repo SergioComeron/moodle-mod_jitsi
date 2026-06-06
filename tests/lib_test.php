@@ -1425,4 +1425,310 @@ final class lib_test extends \advanced_testcase {
         $this->assertFalse($ctx['showstreaming']);
         $this->assertFalse($ctx['showrecording']);
     }
+
+    /**
+     * build_toolbar_buttons includes the recording and live-streaming buttons for a moderator
+     * when the matching settings are on.
+     *
+     * @covers \mod_jitsi\local\session::build_toolbar_buttons
+     */
+    public function test_build_toolbar_buttons_includes_recording_and_streaming(): void {
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+        set_config('record', '1', 'mod_jitsi');
+        set_config('livebutton', '1', 'mod_jitsi');
+        set_config('streamingoption', '0', 'mod_jitsi');
+
+        $server = (object)['type' => 1];
+        $buttons = \mod_jitsi\local\session::build_toolbar_buttons(
+            $server,
+            \context_system::instance(),
+            false,
+            false
+        );
+
+        $this->assertContains('recording', $buttons);
+        $this->assertContains('livestreaming', $buttons);
+        // Slot order is preserved: recording sits between 'chat' and 'etherpad'.
+        $this->assertSame('chat', $buttons[7]);
+        $this->assertSame('recording', $buttons[8]);
+        $this->assertSame('etherpad', $buttons[9]);
+    }
+
+    /**
+     * build_toolbar_buttons never exposes recording or live streaming in private sessions.
+     *
+     * @covers \mod_jitsi\local\session::build_toolbar_buttons
+     */
+    public function test_build_toolbar_buttons_private_omits_recording_and_streaming(): void {
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+        set_config('record', '1', 'mod_jitsi');
+        set_config('livebutton', '1', 'mod_jitsi');
+        set_config('streamingoption', '0', 'mod_jitsi');
+
+        $server = (object)['type' => 1];
+        $buttons = \mod_jitsi\local\session::build_toolbar_buttons(
+            $server,
+            \context_system::instance(),
+            true,
+            false
+        );
+
+        $this->assertNotContains('recording', $buttons);
+        $this->assertNotContains('livestreaming', $buttons);
+    }
+
+    /**
+     * build_toolbar_buttons hides the recording button on GCP (type 3) servers, where the
+     * Moodle-integrated record button is used instead.
+     *
+     * @covers \mod_jitsi\local\session::build_toolbar_buttons
+     */
+    public function test_build_toolbar_buttons_type3_omits_recording(): void {
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+        set_config('record', '1', 'mod_jitsi');
+
+        $server = (object)['type' => 3];
+        $buttons = \mod_jitsi\local\session::build_toolbar_buttons(
+            $server,
+            \context_system::instance(),
+            false,
+            false
+        );
+
+        $this->assertNotContains('recording', $buttons);
+    }
+
+    /**
+     * build_config_overwrite disables chat and polls together when chat is off.
+     *
+     * @covers \mod_jitsi\local\session::build_config_overwrite
+     */
+    public function test_build_config_overwrite_disables_chat_and_polls(): void {
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+        set_config('chat', '0', 'mod_jitsi');
+
+        $config = \mod_jitsi\local\session::build_config_overwrite(
+            (object)['type' => 1],
+            (object)['name' => 'Subject'],
+            \context_system::instance(),
+            ['microphone'],
+            false,
+            false
+        );
+
+        $this->assertTrue($config['disableChat']);
+        $this->assertTrue($config['disablePolls']);
+        $this->assertSame('Subject', $config['subject']);
+    }
+
+    /**
+     * build_config_overwrite forces recording and live streaming off for private sessions,
+     * without emitting the create()-only liveStreaming object.
+     *
+     * @covers \mod_jitsi\local\session::build_config_overwrite
+     */
+    public function test_build_config_overwrite_private_forces_recording_off(): void {
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+        set_config('record', '1', 'mod_jitsi');
+        set_config('livebutton', '1', 'mod_jitsi');
+
+        $config = \mod_jitsi\local\session::build_config_overwrite(
+            (object)['type' => 1],
+            (object)['name' => 'Subject'],
+            \context_system::instance(),
+            ['microphone'],
+            true,
+            false
+        );
+
+        $this->assertFalse($config['fileRecordingsEnabled']);
+        $this->assertFalse($config['liveStreamingEnabled']);
+        $this->assertArrayNotHasKey('liveStreaming', $config);
+    }
+
+    /**
+     * build_config_overwrite emits both liveStreaming keys when a non-private session disables it.
+     *
+     * @covers \mod_jitsi\local\session::build_config_overwrite
+     */
+    public function test_build_config_overwrite_disables_livestreaming_both_keys(): void {
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+        set_config('livebutton', '0', 'mod_jitsi');
+
+        $config = \mod_jitsi\local\session::build_config_overwrite(
+            (object)['type' => 1],
+            (object)['name' => 'Subject'],
+            \context_system::instance(),
+            ['microphone'],
+            false,
+            false
+        );
+
+        $this->assertFalse($config['liveStreamingEnabled']);
+        $this->assertSame(['enabled' => false], $config['liveStreaming']);
+    }
+
+    /**
+     * build_config_overwrite gives moderators only the grant-moderator lockdown and no remote mute.
+     *
+     * @covers \mod_jitsi\local\session::build_config_overwrite
+     */
+    public function test_build_config_overwrite_moderator_remote_menu(): void {
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+
+        $config = \mod_jitsi\local\session::build_config_overwrite(
+            (object)['type' => 1],
+            (object)['name' => 'Subject'],
+            \context_system::instance(),
+            ['microphone'],
+            false,
+            false
+        );
+
+        $this->assertSame(['disableGrantModerator' => true], $config['remoteVideoMenu']);
+        $this->assertArrayNotHasKey('disableRemoteMute', $config);
+    }
+
+    /**
+     * build_config_overwrite locks down the remote video menu and remote mute for non-moderators.
+     *
+     * @covers \mod_jitsi\local\session::build_config_overwrite
+     */
+    public function test_build_config_overwrite_nonmoderator_remote_menu(): void {
+        $this->resetAfterTest(true);
+
+        $course = $this->getDataGenerator()->create_course();
+        $jitsi = $this->getDataGenerator()->create_module('jitsi', ['course' => $course->id]);
+        $cm = get_coursemodule_from_instance('jitsi', $jitsi->id, $course->id);
+        $context = \context_module::instance($cm->id);
+        $student = $this->getDataGenerator()->create_and_enrol($course, 'student');
+        $this->setUser($student);
+
+        $config = \mod_jitsi\local\session::build_config_overwrite(
+            (object)['type' => 1],
+            (object)['name' => 'Subject'],
+            $context,
+            ['microphone'],
+            false,
+            false
+        );
+
+        $this->assertSame(
+            ['disableKick' => true, 'disableGrantModerator' => true],
+            $config['remoteVideoMenu']
+        );
+        $this->assertTrue($config['disableRemoteMute']);
+    }
+
+    /**
+     * build_config_overwrite reveals the breakout-room buttons only when the setting is on.
+     *
+     * @covers \mod_jitsi\local\session::build_config_overwrite
+     */
+    public function test_build_config_overwrite_breakout_rooms_toggle(): void {
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+
+        set_config('allowbreakoutrooms', '1', 'mod_jitsi');
+        $on = \mod_jitsi\local\session::build_config_overwrite(
+            (object)['type' => 1],
+            (object)['name' => 'Subject'],
+            \context_system::instance(),
+            ['microphone'],
+            false,
+            false
+        );
+        $this->assertFalse($on['breakoutRooms']['hideAddRoomButton']);
+
+        set_config('allowbreakoutrooms', '0', 'mod_jitsi');
+        $off = \mod_jitsi\local\session::build_config_overwrite(
+            (object)['type' => 1],
+            (object)['name' => 'Subject'],
+            \context_system::instance(),
+            ['microphone'],
+            false,
+            false
+        );
+        $this->assertTrue($off['breakoutRooms']['hideAddRoomButton']);
+    }
+
+    /**
+     * build_config_overwrite omits the dropbox block for 8x8 (type 2) servers but includes it
+     * for other types when an app key is set.
+     *
+     * @covers \mod_jitsi\local\session::build_config_overwrite
+     */
+    public function test_build_config_overwrite_dropbox_by_server_type(): void {
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+        set_config('dropbox_appkey', 'abc123', 'mod_jitsi');
+
+        $type1 = \mod_jitsi\local\session::build_config_overwrite(
+            (object)['type' => 1],
+            (object)['name' => 'Subject'],
+            \context_system::instance(),
+            ['microphone'],
+            false,
+            false
+        );
+        $this->assertSame('abc123', $type1['dropbox']['appKey']);
+
+        $type2 = \mod_jitsi\local\session::build_config_overwrite(
+            (object)['type' => 2],
+            (object)['name' => 'Subject'],
+            \context_system::instance(),
+            ['microphone'],
+            false,
+            false
+        );
+        $this->assertArrayNotHasKey('dropbox', $type2);
+    }
+
+    /**
+     * build_config_overwrite serialises to valid JSON that is also a usable JS object literal.
+     *
+     * @covers \mod_jitsi\local\session::build_config_overwrite
+     */
+    public function test_build_config_overwrite_is_json_serialisable(): void {
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+
+        $config = \mod_jitsi\local\session::build_config_overwrite(
+            (object)['type' => 1],
+            (object)['name' => "O'Brien & co"],
+            \context_system::instance(),
+            ['microphone', '', 'camera'],
+            false,
+            false
+        );
+
+        $json = json_encode($config, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        $this->assertNotFalse($json);
+        $decoded = json_decode($json, true);
+        $this->assertSame("O'Brien & co", $decoded['subject']);
+        $this->assertSame(['microphone', '', 'camera'], $decoded['toolbarButtons']);
+    }
+
+    /**
+     * build_interface_config_overwrite carries the toolbar buttons and watermark link.
+     *
+     * @covers \mod_jitsi\local\session::build_interface_config_overwrite
+     */
+    public function test_build_interface_config_overwrite(): void {
+        $this->resetAfterTest(true);
+        set_config('watermarklink', 'https://example.com/logo', 'mod_jitsi');
+
+        $iface = \mod_jitsi\local\session::build_interface_config_overwrite(['microphone', 'camera']);
+
+        $this->assertSame(['microphone', 'camera'], $iface['TOOLBAR_BUTTONS']);
+        $this->assertTrue($iface['SHOW_JITSI_WATERMARK']);
+        $this->assertSame('https://example.com/logo', $iface['JITSI_WATERMARK_LINK']);
+    }
 }

@@ -137,6 +137,203 @@ class session {
     }
 
     /**
+     * Build the ordered list of Jitsi toolbar buttons, honouring plugin settings and capabilities.
+     *
+     * Conditional buttons collapse to an empty string when disabled (Jitsi ignores empty entries),
+     * preserving the exact slot order the front-end expects.
+     *
+     * @param \stdClass $server Server record from jitsi_servers
+     * @param \context $context Context to evaluate capabilities against
+     * @param bool $isprivate Whether this is a private (1-to-1) session (no recording/streaming)
+     * @param bool $jibrienabled Whether a GCP Jibri recorder is ready
+     * @return string[] Ordered toolbar button keys
+     */
+    public static function build_toolbar_buttons($server, \context $context, bool $isprivate, bool $jibrienabled): array {
+        $servertype = $server->type;
+
+        $record = '';
+        if (
+            !$isprivate &&
+            get_config('mod_jitsi', 'record') == 1 &&
+            has_capability('mod/jitsi:record', $context) &&
+            $servertype != 3
+        ) {
+            $record = 'recording';
+        }
+
+        $streamingoption = '';
+        if (
+            !$isprivate &&
+            get_config('mod_jitsi', 'livebutton') == 1 &&
+            has_capability('mod/jitsi:record', $context) &&
+            get_config('mod_jitsi', 'streamingoption') == 0 &&
+            ($servertype != 3 || $jibrienabled)
+        ) {
+            $streamingoption = 'livestreaming';
+        }
+
+        $youtubeoption = (get_config('mod_jitsi', 'shareyoutube') == 1) ? 'sharedvideo' : '';
+        $bluroption = (get_config('mod_jitsi', 'blurbutton') == 1) ? 'select-background' : '';
+        $security = (get_config('mod_jitsi', 'securitybutton') == 1) ? 'security' : '';
+        $invite = '';
+
+        $muteeveryone = '';
+        $mutevideoeveryone = '';
+        if (has_capability('mod/jitsi:moderation', $context)) {
+            $muteeveryone = 'mute-everyone';
+            $mutevideoeveryone = 'mute-video-everyone';
+        }
+
+        $participantspane = '';
+        if (
+            has_capability('mod/jitsi:moderation', $context) ||
+            get_config('mod_jitsi', 'participantspane') == 1
+        ) {
+            $participantspane = 'participants-pane';
+        }
+
+        $raisehand = (get_config('mod_jitsi', 'raisehand') == 1) ? 'raisehand' : '';
+        $whiteboard = (get_config('mod_jitsi', 'whiteboard') == 1) ? 'whiteboard' : '';
+
+        return [
+            'microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen',
+            'fodeviceselection', 'hangup', 'chat', $record, 'etherpad', $youtubeoption,
+            'settings', $raisehand, 'videoquality', $streamingoption, 'filmstrip', $invite, 'stats',
+            'shortcuts', 'tileview', $bluroption, 'download', 'help', $muteeveryone,
+            $mutevideoeveryone, $security, $participantspane, $whiteboard,
+        ];
+    }
+
+    /**
+     * Build the JitsiMeetExternalAPI configOverwrite object as a PHP array (ready for json_encode).
+     *
+     * @param \stdClass $server Server record from jitsi_servers
+     * @param \stdClass $jitsi Jitsi session record (uses ->name as the subject)
+     * @param \context $context Context to evaluate the moderation capability against
+     * @param string[] $buttons Toolbar button keys from build_toolbar_buttons()
+     * @param bool $isprivate Whether this is a private (1-to-1) session (recording/streaming forced off)
+     * @param bool $jibrienabled Whether a GCP Jibri recorder is ready
+     * @return array configOverwrite settings
+     */
+    public static function build_config_overwrite(
+        $server,
+        $jitsi,
+        \context $context,
+        array $buttons,
+        bool $isprivate,
+        bool $jibrienabled
+    ): array {
+        $servertype = $server->type;
+        $ismoderator = has_capability('mod/jitsi:moderation', $context);
+
+        $config = [];
+
+        $allowbreakout = (get_config('mod_jitsi', 'allowbreakoutrooms') == '1');
+        $config['breakoutRooms'] = [
+            'hideAddRoomButton' => !$allowbreakout,
+            'hideAutoAssignButton' => !$allowbreakout,
+            'hideJoinRoomButton' => !$allowbreakout,
+        ];
+
+        $config['subject'] = $jitsi->name;
+        $config['disableSelfView'] = false;
+        $config['defaultLanguage'] = current_language();
+        $config['disableInviteFunctions'] = true;
+        $config['recordingService'] = ['enabled' => get_config('mod_jitsi', 'livebutton') == 1];
+
+        if ($isprivate) {
+            // Private sessions never allow recording or live streaming.
+            $config['fileRecordingsEnabled'] = false;
+            $config['liveStreamingEnabled'] = false;
+        } else if (get_config('mod_jitsi', 'record') == 1) {
+            $config['fileRecordingsEnabled'] = true;
+        }
+
+        // The original JS emitted two remoteVideoMenu literals; for non-moderators the second
+        // (locked-down) one overrode the first. Collapse that here, since a PHP array can't hold
+        // duplicate keys, preserving the same runtime behaviour.
+        if ($ismoderator) {
+            $config['remoteVideoMenu'] = ['disableGrantModerator' => true];
+        } else {
+            $config['remoteVideoMenu'] = ['disableKick' => true, 'disableGrantModerator' => true];
+            $config['disableRemoteMute'] = true;
+        }
+
+        $config['buttonsWithNotifyClick'] = [
+            ['key' => 'camera', 'preventExecution' => false],
+            ['key' => 'desktop', 'preventExecution' => false],
+            ['key' => 'tileview', 'preventExecution' => false],
+            ['key' => 'chat', 'preventExecution' => false],
+            ['key' => 'chat', 'preventExecution' => false],
+            ['key' => 'microphone', 'preventExecution' => false],
+            ['key' => '__end', 'preventExecution' => true],
+        ];
+
+        $config['disableDeepLinking'] = true;
+
+        if (get_config('mod_jitsi', 'reactions') == 0) {
+            $config['disableReactions'] = true;
+        }
+
+        if (get_config('mod_jitsi', 'chat') == 0) {
+            $config['disableChat'] = true;
+            $config['disablePolls'] = true;
+        } else if (get_config('mod_jitsi', 'polls') == 0) {
+            $config['disablePolls'] = true;
+        }
+
+        // Disable live streaming if the global setting is off, or on GCP (type 3) without Jibri ready.
+        // Both keys are emitted for multi-version Jitsi Meet compatibility.
+        if (
+            !$isprivate &&
+            (get_config('mod_jitsi', 'livebutton') == 0 || ($servertype == 3 && !$jibrienabled))
+        ) {
+            $config['liveStreamingEnabled'] = false;
+            $config['liveStreaming'] = ['enabled' => false];
+        }
+
+        $config['toolbarButtons'] = $buttons;
+        $config['disableProfile'] = true;
+        $config['prejoinPageEnabled'] = false;
+        $config['prejoinConfig'] = ['enabled' => false];
+        $config['channelLastN'] = (int) get_config('mod_jitsi', 'channellastcam');
+        $config['startWithAudioMuted'] = get_config('mod_jitsi', 'startwithaudiomuted') == '1';
+        $config['startWithVideoMuted'] = get_config('mod_jitsi', 'startwithvideomuted') == '1';
+
+        if ($servertype != 2) {
+            $dropboxappkey = get_config('mod_jitsi', 'dropbox_appkey');
+            if (!empty($dropboxappkey)) {
+                $dropbox = ['appKey' => $dropboxappkey];
+                $dropboxredirecturi = get_config('mod_jitsi', 'dropbox_redirect_uri');
+                if (!empty($dropboxredirecturi)) {
+                    $dropbox['redirectURI'] = $dropboxredirecturi;
+                }
+                $config['dropbox'] = $dropbox;
+            }
+        }
+
+        if (get_config('mod_jitsi', 'transcription') == 0) {
+            $config['transcription'] = ['enabled' => false];
+        }
+
+        return $config;
+    }
+
+    /**
+     * Build the JitsiMeetExternalAPI interfaceConfigOverwrite object as a PHP array.
+     *
+     * @param string[] $buttons Toolbar button keys from build_toolbar_buttons()
+     * @return array interfaceConfigOverwrite settings
+     */
+    public static function build_interface_config_overwrite(array $buttons): array {
+        return [
+            'TOOLBAR_BUTTONS' => $buttons,
+            'SHOW_JITSI_WATERMARK' => true,
+            'JITSI_WATERMARK_LINK' => get_config('mod_jitsi', 'watermarklink'),
+        ];
+    }
+
+    /**
      * Create and render a Jitsi session (HTML + JS).
      *
      * @param int $teacher Moderation flag
@@ -212,71 +409,8 @@ class session {
         echo "<script src=\"//ajax.googleapis.com/ajax/libs/jquery/2.0.0/jquery.min.js\"></script>";
         echo "<script src=\"https://" . $domain . "/external_api.js\"></script>\n";
 
-        $streamingoption = '';
         $jibrienabled = ($servertype == 3 && \mod_jitsi\local\jibri::is_ready($server));
-        if (
-            (get_config('mod_jitsi', 'livebutton') == 1) &&
-            (has_capability('mod/jitsi:record', $PAGE->context)) &&
-            (get_config('mod_jitsi', 'streamingoption') == 0) &&
-            ($servertype != 3 || $jibrienabled)
-        ) {
-            $streamingoption = 'livestreaming';
-        }
-
-        $youtubeoption = '';
-        if (get_config('mod_jitsi', 'shareyoutube') == 1) {
-            $youtubeoption = 'sharedvideo';
-        }
-        $bluroption = '';
-        if (get_config('mod_jitsi', 'blurbutton') == 1) {
-            $bluroption = 'select-background';
-        }
-        $security = '';
-        if (get_config('mod_jitsi', 'securitybutton') == 1) {
-            $security = 'security';
-        }
-        $record = '';
-        // Enable the Jitsi recording toolbar button when the record setting is on.
-        // For GCP servers (type 3) the Moodle-integrated record button is used instead.
-        $jibrienabled = ($servertype == 3 && \mod_jitsi\local\jibri::is_ready($server));
-        if (
-            get_config('mod_jitsi', 'record') == 1 &&
-            has_capability('mod/jitsi:record', $PAGE->context) &&
-            $servertype != 3
-        ) {
-            $record = 'recording';
-        }
-        $invite = '';
-        $muteeveryone = '';
-        $mutevideoeveryone = '';
-        if (has_capability('mod/jitsi:moderation', $PAGE->context)) {
-            $muteeveryone = 'mute-everyone';
-            $mutevideoeveryone = 'mute-video-everyone';
-        }
-
-        $participantspane = '';
-        if (
-            has_capability('mod/jitsi:moderation', $PAGE->context) ||
-            get_config('mod_jitsi', 'participantspane') == 1
-        ) {
-            $participantspane = 'participants-pane';
-        }
-
-        $raisehand = '';
-        if (get_config('mod_jitsi', 'raisehand') == 1) {
-            $raisehand = 'raisehand';
-        }
-
-        $whiteboard = '';
-        if (get_config('mod_jitsi', 'whiteboard') == 1) {
-            $whiteboard = 'whiteboard';
-        }
-
-        $buttons = "['microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen',
-            'fodeviceselection', 'hangup', 'chat', '" . $record . "', 'etherpad', '" . $youtubeoption . "',
-            'settings', '" . $raisehand . "', 'videoquality', '" . $streamingoption . "', 'filmstrip', '" . $invite . "', 'stats',
-            'shortcuts', 'tileview', '" . $bluroption . "', 'download', 'help', '" . $muteeveryone . "',
-            '" . $mutevideoeveryone . "', '" . $security . "', '" . $participantspane . "', '" . $whiteboard . "']";
+        $buttons = self::build_toolbar_buttons($server, $PAGE->context, false, $jibrienabled);
 
         $account = $DB->get_record('jitsi_record_account', ['inuse' => 1]);
 
@@ -307,133 +441,13 @@ class session {
         echo "}\n";
 
         echo "const domain = \"" . $domain . "\";\n";
-        echo "const options = {\n";
-        echo "configOverwrite: {\n";
 
-        echo "breakoutRooms: {";
-        if (get_config('mod_jitsi', 'allowbreakoutrooms') == '1') {
-            echo "    hideAddRoomButton: false,";
-            echo "    hideAutoAssignButton: false,";
-            echo "    hideJoinRoomButton: false,";
-        } else {
-            echo "    hideAddRoomButton: true,";
-            echo "    hideAutoAssignButton: true,";
-            echo "    hideJoinRoomButton: true,";
-        }
-        echo "},";
-
-        echo "subject: '" . $jitsi->name . "',\n";
-        echo "disableSelfView: false,\n";
-        echo "defaultLanguage: '" . current_language() . "',\n";
-        echo "disableInviteFunctions: true,\n";
-        echo "recordingService: {\n";
-        if (get_config('mod_jitsi', 'livebutton') == 1) {
-            echo "enabled: true,\n";
-        } else {
-            echo "enabled: false,\n";
-        }
-        echo "},\n";
-        if (get_config('mod_jitsi', 'record') == 1) {
-            echo "fileRecordingsEnabled: true,\n";
-        }
-        echo "remoteVideoMenu: {\n";
-        echo "disableGrantModerator: true, \n";
-        echo "},\n";
-
-        echo "buttonsWithNotifyClick: [
-               {
-                    key: 'camera',
-                    preventExecution: false
-               },
-               {
-                    key: 'desktop',
-                    preventExecution: false
-               },
-               {
-                    key: 'tileview',
-                    preventExecution: false
-               },
-               {
-                    key: 'chat',
-                    preventExecution: false
-               },
-               {
-                    key: 'chat',
-                    preventExecution: false
-               },
-               {
-                    key: 'microphone',
-                    preventExecution: false
-               },
-               {
-                    key: '__end',
-                    preventExecution: true
-               }
-        ],\n";
-
-        echo "disableDeepLinking: true,\n";
-
-        if (!has_capability('mod/jitsi:moderation', $PAGE->context)) {
-            echo "remoteVideoMenu: {\n";
-            echo "    disableKick: true,\n";
-            echo "    disableGrantModerator: true\n";
-            echo "},\n";
-            echo "disableRemoteMute: true,\n";
-        }
-
-        if (get_config('mod_jitsi', 'reactions') == 0) {
-            echo "disableReactions: true,\n";
-        }
-
-        if (get_config('mod_jitsi', 'chat') == 0) {
-            echo "disableChat: true,\n";
-            echo "disablePolls: true,\n";
-        } else if (get_config('mod_jitsi', 'polls') == 0) {
-            echo "disablePolls: true,\n";
-        }
-
-        // Disable live streaming if global setting is off, or if GCP (type 3) without Jibri ready.
-        $jibrilivestream = ($servertype == 3 && \mod_jitsi\local\jibri::is_ready($server));
-        if (get_config('mod_jitsi', 'livebutton') == 0 || ($servertype == 3 && !$jibrilivestream)) {
-            echo "liveStreamingEnabled: false,\n";
-            echo "liveStreaming: {enabled: false},\n";
-        }
-
-        echo "toolbarButtons: " . $buttons . ",\n";
-        echo "disableProfile: true,\n";
-        echo "prejoinPageEnabled: false,\n";
-        echo "prejoinConfig: { enabled: false },\n";
-        echo "channelLastN: " . get_config('mod_jitsi', 'channellastcam') . ",\n";
-
-        if (get_config('mod_jitsi', 'startwithaudiomuted') == '1') {
-            echo "startWithAudioMuted: true,\n";
-        } else {
-            echo "startWithAudioMuted: false,\n";
-        }
-
-        if (get_config('mod_jitsi', 'startwithvideomuted') == '1') {
-            echo "startWithVideoMuted: true,\n";
-        } else {
-            echo "startWithVideoMuted: false,\n";
-        }
-        if ($servertype != 2) {
-            $dropboxappkey = get_config('mod_jitsi', 'dropbox_appkey');
-            if (!empty($dropboxappkey)) {
-                echo "dropbox: {\n";
-                echo "    appKey: '" . addslashes($dropboxappkey) . "',\n";
-                $dropboxredirecturi = get_config('mod_jitsi', 'dropbox_redirect_uri');
-                if (!empty($dropboxredirecturi)) {
-                    echo "    redirectURI: '" . addslashes($dropboxredirecturi) . "',\n";
-                }
-                echo "},\n";
-            }
-        }
-        if (get_config('mod_jitsi', 'transcription') == 0) {
-            echo "transcription: { enabled: false },\n";
-        }
-        echo "},\n";
-
+        $configoverwrite = self::build_config_overwrite($server, $jitsi, $PAGE->context, $buttons, false, $jibrienabled);
+        $interfaceconfig = self::build_interface_config_overwrite($buttons);
         $token = self::build_token($server, $PAGE->context, $sessionnorm, $teacher, $affiliation, $nombre, $avatar, $mail);
+
+        echo "const options = {\n";
+        echo "configOverwrite: " . json_encode($configoverwrite, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . ",\n";
         echo "roomName: \"" . $token['roomname'] . "\",\n";
         if ($token['jwt'] !== null) {
             echo "jwt: \"" . $token['jwt'] . "\",\n";
@@ -449,11 +463,7 @@ class session {
         } else {
             echo "parentNode: document.querySelector('#jitsi-container'),\n";
         }
-        echo "interfaceConfigOverwrite:{\n";
-        echo "TOOLBAR_BUTTONS: " . $buttons . ",\n";
-        echo "SHOW_JITSI_WATERMARK: true,\n";
-        echo "JITSI_WATERMARK_LINK: '" . get_config('mod_jitsi', 'watermarklink') . "',\n";
-        echo "},\n";
+        echo "interfaceConfigOverwrite: " . json_encode($interfaceconfig, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . ",\n";
         echo "width: '100%',";
         echo "height: '100%',";
         echo "}\n";
@@ -1051,52 +1061,7 @@ class session {
 
         // Recording and live streaming are disabled in private sessions — they have no
         // associated jitsi activity, so recordings cannot be stored or displayed.
-        $streamingoption = '';
-        $record = '';
-
-        $youtubeoption = '';
-        if (get_config('mod_jitsi', 'shareyoutube') == 1) {
-            $youtubeoption = 'sharedvideo';
-        }
-        $bluroption = '';
-        if (get_config('mod_jitsi', 'blurbutton') == 1) {
-            $bluroption = 'select-background';
-        }
-        $security = '';
-        if (get_config('mod_jitsi', 'securitybutton') == 1) {
-            $security = 'security';
-        }
-        $invite = '';
-        $muteeveryone = '';
-        $mutevideoeveryone = '';
-        if (has_capability('mod/jitsi:moderation', $PAGE->context)) {
-            $muteeveryone = 'mute-everyone';
-            $mutevideoeveryone = 'mute-video-everyone';
-        }
-
-        $participantspane = '';
-        if (
-            has_capability('mod/jitsi:moderation', $PAGE->context) ||
-            get_config('mod_jitsi', 'participantspane') == 1
-        ) {
-            $participantspane = 'participants-pane';
-        }
-
-        $raisehand = '';
-        if (get_config('mod_jitsi', 'raisehand') == 1) {
-            $raisehand = 'raisehand';
-        }
-
-        $whiteboard = '';
-        if (get_config('mod_jitsi', 'whiteboard') == 1) {
-            $whiteboard = 'whiteboard';
-        }
-
-        $buttons = "['microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen',
-            'fodeviceselection', 'hangup', 'chat', '" . $record . "', 'etherpad', '" . $youtubeoption . "',
-            'settings', '" . $raisehand . "', 'videoquality', '" . $streamingoption . "', 'filmstrip', '" . $invite . "', 'stats',
-            'shortcuts', 'tileview', '" . $bluroption . "', 'download', 'help', '" . $muteeveryone . "',
-            '" . $mutevideoeveryone . "', '" . $security . "', '" . $participantspane . "', '" . $whiteboard . "']";
+        $buttons = self::build_toolbar_buttons($server, $PAGE->context, true, false);
 
         echo "<div class=\"row\">";
         echo "<div class=\"col-sm\">";
@@ -1126,123 +1091,11 @@ class session {
         echo "}\n";
 
         echo "const domain = \"" . $domain . "\";\n";
+
+        $configoverwrite = self::build_config_overwrite($server, $jitsi, $PAGE->context, $buttons, true, false);
+
         echo "const options = {\n";
-        echo "configOverwrite: {\n";
-
-        echo "breakoutRooms: {";
-        if (get_config('mod_jitsi', 'allowbreakoutrooms') == '1') {
-            echo "    hideAddRoomButton: false,";
-            echo "    hideAutoAssignButton: false,";
-            echo "    hideJoinRoomButton: false,";
-        } else {
-            echo "    hideAddRoomButton: true,";
-            echo "    hideAutoAssignButton: true,";
-            echo "    hideJoinRoomButton: true,";
-        }
-        echo "},";
-
-        echo "subject: '" . $jitsi->name . "',\n";
-        echo "disableSelfView: false,\n";
-        echo "defaultLanguage: '" . current_language() . "',\n";
-        echo "disableInviteFunctions: true,\n";
-        echo "recordingService: {\n";
-        if (get_config('mod_jitsi', 'livebutton') == 1) {
-            echo "enabled: true,\n";
-        } else {
-            echo "enabled: false,\n";
-        }
-        echo "},\n";
-        // Private sessions never allow recording or live streaming.
-        echo "fileRecordingsEnabled: false,\n";
-        echo "liveStreamingEnabled: false,\n";
-        echo "remoteVideoMenu: {\n";
-        echo "disableGrantModerator: true, \n";
-        echo "},\n";
-
-        echo "buttonsWithNotifyClick: [
-               {
-                    key: 'camera',
-                    preventExecution: false
-               },
-               {
-                    key: 'desktop',
-                    preventExecution: false
-               },
-               {
-                    key: 'tileview',
-                    preventExecution: false
-               },
-               {
-                    key: 'chat',
-                    preventExecution: false
-               },
-               {
-                    key: 'chat',
-                    preventExecution: false
-               },
-               {
-                    key: 'microphone',
-                    preventExecution: false
-               },
-               {
-                    key: '__end',
-                    preventExecution: true
-               }
-        ],\n";
-
-        echo "disableDeepLinking: true,\n";
-
-        if (!has_capability('mod/jitsi:moderation', $PAGE->context)) {
-            echo "remoteVideoMenu: {\n";
-            echo "    disableKick: true,\n";
-            echo "    disableGrantModerator: true\n";
-            echo "},\n";
-            echo "disableRemoteMute: true,\n";
-        }
-
-        if (get_config('mod_jitsi', 'reactions') == 0) {
-            echo "disableReactions: true,\n";
-        }
-
-        if (get_config('mod_jitsi', 'chat') == 0) {
-            echo "disableChat: true,\n";
-            echo "disablePolls: true,\n";
-        } else if (get_config('mod_jitsi', 'polls') == 0) {
-            echo "disablePolls: true,\n";
-        }
-
-        echo "toolbarButtons: " . $buttons . ",\n";
-        echo "disableProfile: true,\n";
-        echo "prejoinPageEnabled: false,\n";
-        echo "prejoinConfig: { enabled: false },\n";
-        echo "channelLastN: " . get_config('mod_jitsi', 'channellastcam') . ",\n";
-        if (get_config('mod_jitsi', 'startwithaudiomuted') == '1') {
-            echo "startWithAudioMuted: true,\n";
-        } else {
-            echo "startWithAudioMuted: false,\n";
-        }
-
-        if (get_config('mod_jitsi', 'startwithvideomuted') == '1') {
-            echo "startWithVideoMuted: true,\n";
-        } else {
-            echo "startWithVideoMuted: false,\n";
-        }
-        if ($servertype != 2) {
-            $dropboxappkey = get_config('mod_jitsi', 'dropbox_appkey');
-            if (!empty($dropboxappkey)) {
-                echo "dropbox: {\n";
-                echo "    appKey: '" . addslashes($dropboxappkey) . "',\n";
-                $dropboxredirecturi = get_config('mod_jitsi', 'dropbox_redirect_uri');
-                if (!empty($dropboxredirecturi)) {
-                    echo "    redirectURI: '" . addslashes($dropboxredirecturi) . "',\n";
-                }
-                echo "},\n";
-            }
-        }
-        if (get_config('mod_jitsi', 'transcription') == 0) {
-            echo "transcription: { enabled: false },\n";
-        }
-        echo "},\n";
+        echo "configOverwrite: " . json_encode($configoverwrite, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . ",\n";
 
         if ($servertype == '2') {
             $header = json_encode([
@@ -1334,11 +1187,8 @@ class session {
         } else {
             echo "parentNode: document.querySelector('#jitsi-container'),\n";
         }
-        echo "interfaceConfigOverwrite:{\n";
-        echo "TOOLBAR_BUTTONS: " . $buttons . ",\n";
-        echo "SHOW_JITSI_WATERMARK: true,\n";
-        echo "JITSI_WATERMARK_LINK: '" . get_config('mod_jitsi', 'watermarklink') . "',\n";
-        echo "},\n";
+        echo "interfaceConfigOverwrite: " .
+            json_encode(self::build_interface_config_overwrite($buttons), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . ",\n";
         echo "width: '100%',\n";
         echo "height: '100%',\n";
         echo "}\n";
