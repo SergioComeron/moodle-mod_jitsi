@@ -317,7 +317,7 @@ class mod_view_table extends table_sql {
                         . ' data-segments="' . $barsegsjson . '"'
                         . ' data-duration="' . $existingdur . '"'
                         . ' id="jitsi-segbar-wrap-' . (int)$sourcerecord->id . '">'
-                        . jitsi_render_segments_bar(
+                        . \mod_jitsi\output\segments_bar::render(
                             $existingsegs,
                             $existingdur,
                             'jitsi-segbar-' . (int)$sourcerecord->id

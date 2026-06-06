@@ -1164,4 +1164,23 @@ final class lib_test extends \advanced_testcase {
         $this->assertCount(2, $ctx['playbuckets']);
         $this->assertStringContainsString('Ada', $ctx['viewersjson']);
     }
+
+    /**
+     * segments_bar::context maps each watched segment to a left/width percentage.
+     *
+     * @covers \mod_jitsi\output\segments_bar::context
+     */
+    public function test_segments_bar_context(): void {
+        $ctx = \mod_jitsi\output\segments_bar::context([[0, 50], [75, 100]], 100.0, 'mybar');
+
+        $this->assertEquals('mybar', $ctx['barid']);
+        $this->assertCount(2, $ctx['segments']);
+        $this->assertEquals('0.00', $ctx['segments'][0]['left']);
+        $this->assertEquals('50.00', $ctx['segments'][0]['width']);
+        $this->assertEquals('75.00', $ctx['segments'][1]['left']);
+        $this->assertEquals('25.00', $ctx['segments'][1]['width']);
+
+        // A zero duration yields no segment bars.
+        $this->assertCount(0, \mod_jitsi\output\segments_bar::context([[0, 50]], 0.0)['segments']);
+    }
 }

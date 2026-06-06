@@ -627,7 +627,7 @@ if (!empty($gcsrecordings)) {
                 $segs    = $segrow ? (json_decode($segrow->segments, true) ?? []) : [];
                 $dur     = $segrow ? (float)($segrow->duration ?? 0) : 0;
                 $pct     = \mod_jitsi\local\recording_segments::watched_pct($segs, $dur);
-                $bar     = jitsi_render_segments_bar($segs, $dur);
+                $bar     = \mod_jitsi\output\segments_bar::render($segs, $dur);
                 $barcell = $bar . '<small class="text-muted">' . $pct . '%</small>';
 
                 $viewtable->data[] = [
