@@ -135,4 +135,61 @@ class attendance {
         $cache->set($cachekey, $minutos->minutes, 120); // Cache for 2 minutes.
         return $minutos->minutes;
     }
+
+    /**
+     * Total connected minutes for every user in a course module, in a single query.
+     *
+     * Avoids the N+1 pattern of calling minutes() once per user.
+     *
+     * @param int $contextinstanceid Course module id (context instance)
+     * @return array Map of userid => total connected minutes
+     */
+    public static function minutes_all($contextinstanceid) {
+        global $DB;
+
+        $sql = 'SELECT userid, COUNT(*) AS minutes FROM {logstore_standard_log}
+                WHERE contextlevel = :contextlevel AND contextinstanceid = :contextinstanceid
+                AND action = \'participating\'
+                GROUP BY userid';
+        $params = ['contextlevel' => CONTEXT_MODULE, 'contextinstanceid' => $contextinstanceid];
+        $rows = $DB->get_records_sql($sql, $params);
+
+        $result = [];
+        foreach ($rows as $row) {
+            $result[$row->userid] = (int)$row->minutes;
+        }
+        return $result;
+    }
+
+    /**
+     * Connected minutes within a time window for every user in a course module, in a single query.
+     *
+     * Avoids the N+1 pattern of calling minutes_between() once per user.
+     *
+     * @param int $contextinstanceid Course module id (context instance)
+     * @param int $init Window start (unix timestamp)
+     * @param int $end Window end (unix timestamp)
+     * @return array Map of userid => connected minutes within the window
+     */
+    public static function minutes_between_all($contextinstanceid, $init, $end) {
+        global $DB;
+
+        $sql = 'SELECT userid, COUNT(*) AS minutes FROM {logstore_standard_log}
+                WHERE contextlevel = :contextlevel AND contextinstanceid = :contextinstanceid
+                AND action = \'participating\' AND timecreated BETWEEN :init AND :end
+                GROUP BY userid';
+        $params = [
+            'contextlevel' => CONTEXT_MODULE,
+            'contextinstanceid' => $contextinstanceid,
+            'init' => $init,
+            'end' => $end,
+        ];
+        $rows = $DB->get_records_sql($sql, $params);
+
+        $result = [];
+        foreach ($rows as $row) {
+            $result[$row->userid] = (int)$row->minutes;
+        }
+        return $result;
+    }
 }

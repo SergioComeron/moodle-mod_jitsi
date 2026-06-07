@@ -77,18 +77,22 @@ foreach ($usersconnected as $userconnected) {
 }
 
 $users = $DB->get_records_list('user', 'id', $userids);
+
+// Fetch minutes for all users in two aggregate queries instead of two per user.
+$todayminutes = \mod_jitsi\local\attendance::minutes_between_all(
+    $id,
+    strtotime('today midnight'),
+    strtotime('today midnight +1 day')
+);
+$totalminutes = \mod_jitsi\local\attendance::minutes_all($id);
+
 foreach ($users as $user) {
     $urluser = new moodle_url('/user/profile.php', ['id' => $user->id]);
     $table->data[] = [
         html_writer::link($urluser, fullname($user), ['data-toggle' =>
              'tooltip', 'data-placement' => 'top', 'title' => $user->username]),
-        \mod_jitsi\local\attendance::minutes_between(
-            $id,
-            $user->id,
-            strtotime('today midnight'),
-            strtotime('today midnight +1 day')
-        ),
-        \mod_jitsi\local\attendance::minutes($id, $user->id)];
+        $todayminutes[$user->id] ?? 0,
+        $totalminutes[$user->id] ?? 0];
 }
 echo html_writer::table($table);
 echo $OUTPUT->footer();
