@@ -117,6 +117,38 @@ export const init = (config) => {
     };
 
     /**
+     * Enable or disable both the stream and record buttons at once.
+     *
+     * @param {boolean} disabled Whether the buttons should be disabled.
+     */
+    const setControlsDisabled = (disabled) => {
+        const sb = document.getElementById('streamBtn');
+        const rb = document.getElementById('recordBtn');
+        if (sb) {
+            sb.disabled = disabled;
+        }
+        if (rb) {
+            rb.disabled = disabled;
+        }
+    };
+
+    /**
+     * Safety net: if neither button reflects an active state shortly after starting,
+     * re-enable both so a silent start failure can't leave the controls stuck.
+     */
+    const armControlsWatchdog = () => {
+        setTimeout(() => {
+            const sb = document.getElementById('streamBtn');
+            const rb = document.getElementById('recordBtn');
+            const streaming = sb && sb.classList.contains('btn-warning');
+            const recording = rb && rb.classList.contains('btn-danger');
+            if (!streaming && !recording) {
+                setControlsDisabled(false);
+            }
+        }, 20000);
+    };
+
+    /**
      * Begin a YouTube live stream: create it server-side, then start it via the api.
      */
     const stream = () => {
@@ -128,16 +160,21 @@ export const init = (config) => {
             if (response.error === 'errorauthor') {
                 window.alert(str.bloquedby + response.usercomplete); // eslint-disable-line no-alert
                 setState('<div class="alert alert-light" role="alert"></div>');
+                setControlsDisabled(false);
             } else if (response.error === 'erroryoutube') {
                 fire('mod_jitsi_delete_record_youtube', {idsource: idsource});
                 setState('<div class="alert alert-light" role="alert">ERROR RECORD ACCOUNT. TRY AGAIN IN A FEW SECONDS</div>');
                 fire('mod_jitsi_stop_stream_byerror', {jitsi: config.jitsiid, userid: config.userid});
+                setControlsDisabled(false);
             } else if (response.error === 'erroraccount') {
                 setState('<div class="alert alert-warning" role="alert">' + response.errorinfo + '</div>');
                 fire('mod_jitsi_stop_stream_byerror', {jitsi: config.jitsiid, userid: config.userid});
+                setControlsDisabled(false);
             } else if (response.stream === 'streaming') {
                 window.alert(str.streamingstarting); // eslint-disable-line no-alert
+                setControlsDisabled(false);
             } else {
+                // Success: recordingStatusChanged(stream, on) will set the final button states.
                 api.executeCommand('startRecording', {mode: 'stream', youtubeStreamKey: response.stream});
             }
         }).fail((ex) => {
@@ -146,6 +183,7 @@ export const init = (config) => {
                 jitsi: config.jitsiid, user: config.userid, error: ex.backtrace, cmid: config.cmid,
             });
             setState('<div class="alert alert-light" role="alert">' + str.internalerror + '</div>');
+            setControlsDisabled(false);
         });
     };
 
@@ -188,11 +226,16 @@ export const init = (config) => {
         if (!btn) {
             return;
         }
-        btn.disabled = true;
         fire('mod_jitsi_press_record_button', {jitsi: config.jitsiid, user: config.userid, cmid: config.cmid});
         if (btn.classList.contains('btn-warning')) {
+            // Stopping: only this button needs disabling (record is already disabled).
+            btn.disabled = true;
             stopStream();
         } else {
+            // Starting: disable BOTH buttons until streaming is confirmed, so a
+            // file recording can't be launched while the stream is preparing.
+            setControlsDisabled(true);
+            armControlsWatchdog();
             setState('<div class="alert alert-light" role="alert">' + str.preparing + '</div>');
             stream();
         }
@@ -206,10 +249,15 @@ export const init = (config) => {
         if (!btn) {
             return;
         }
-        btn.disabled = true;
         if (btn.classList.contains('btn-danger')) {
+            // Stopping: only this button needs disabling (stream is already disabled).
+            btn.disabled = true;
             api.stopRecording('file');
         } else {
+            // Starting: disable BOTH buttons until recording is confirmed, so a
+            // stream can't be launched while the recording is preparing.
+            setControlsDisabled(true);
+            armControlsWatchdog();
             api.startRecording({mode: 'file'});
         }
     };
