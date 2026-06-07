@@ -105,14 +105,23 @@ const loadRecordings = (editRecordId = 0) => {
 };
 
 /**
- * Force a re-fetch of the recordings fragment.
+ * Force a re-fetch of the recordings fragment, preserving the page scroll position.
+ *
+ * The container height is pinned while loading so the spinner does not collapse the
+ * layout, and the scroll offset is restored once the new markup is injected.
  *
  * @param {number} editRecordId Record id to edit, or 0 to show the add form.
  * @return {Promise} Resolves once reloaded.
  */
 const reload = (editRecordId = 0) => {
+    const scrollY = window.scrollY;
+    container.style.minHeight = container.offsetHeight + 'px';
     loaded = false;
-    return loadRecordings(editRecordId);
+    return loadRecordings(editRecordId).then((html) => {
+        container.style.minHeight = '';
+        window.scrollTo(window.scrollX, scrollY);
+        return html;
+    });
 };
 
 /**
