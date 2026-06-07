@@ -27,7 +27,7 @@
 
 require_once(dirname(dirname(dirname(__FILE__))) . '/config.php');
 require_once(dirname(__FILE__) . '/lib.php');
-require_once('view_table.php');
+require_once(__DIR__ . '/view_table.php');
 require_once($CFG->libdir . '/formslib.php');
 
 // Allow CORS requests.
@@ -150,15 +150,6 @@ $cminfo = \cm_info::create($cm);
 if (!has_capability('mod/jitsi:view', $context)) {
     notice(get_string('noviewpermission', 'jitsi'));
 }
-$courseid = $course->id;
-$context = context_course::instance($courseid);
-$roles = get_user_roles($context, $USER->id);
-
-$rolestr[] = null;
-foreach ($roles as $role) {
-    $rolestr[] = $role->shortname;
-}
-
 $moderation = false;
 if (has_capability('mod/jitsi:moderation', $context)) {
     $moderation = true;
@@ -183,8 +174,7 @@ if ($jitsi->sessionwithtoken == 0) {
     $jitsiid = $jitsi->id;
     $jitsiname = $jitsi->name;
 } else {
-    $sql = "select * from {jitsi} where tokeninterno = '" . $jitsi->tokeninvitacion . "'";
-    $jitsiinvitado = $DB->get_record_sql($sql);
+    $jitsiinvitado = $DB->get_record('jitsi', ['tokeninterno' => $jitsi->tokeninvitacion]);
     if ($jitsiinvitado != null) {
         $courseinvitado = $DB->get_record('course', ['id' => $jitsiinvitado->course]);
         $courseshortname = $courseinvitado->shortname;
@@ -212,7 +202,6 @@ if ($errorborrado == false) {
         'cmid' => $id,
         't' => $moderation,
     ];
-    $today = getdate();
 }
 
 if ($addrecordlink && !$errorborrado && confirm_sesskey()) {
@@ -463,8 +452,7 @@ require(['core/ajax'], function(ajax) {
 // Badges — centered, above card.
 echo html_writer::start_div('text-center mb-2');
 if ($jitsi->sessionwithtoken) {
-    $sql = "select * from {jitsi} where tokeninterno = '" . $jitsi->tokeninvitacion . "'";
-    $jitsimaster = $DB->get_record_sql($sql);
+    $jitsimaster = $DB->get_record('jitsi', ['tokeninterno' => $jitsi->tokeninvitacion]);
     $coursemaster = $DB->get_record('course', ['id' => $jitsimaster->course]);
     echo html_writer::tag(
         'span',
@@ -548,10 +536,10 @@ echo html_writer::empty_tag('img', [
     'alt'   => s(fullname($USER)),
 ]);
 echo html_writer::tag('p', s(fullname($USER)), ['class' => 'fw-semibold mb-3']);
-if ($today[0] < $fechacierre || $fechacierre == 0) {
+if (time() < $fechacierre || $fechacierre == 0) {
     if (
-        $today[0] > $fechainicio ||
-        has_capability('mod/jitsi:moderation', $context) && $today[0] > ($jitsi->timeopen - ($jitsi->minpretime * 60))
+        time() > $fechainicio ||
+        has_capability('mod/jitsi:moderation', $context) && time() > ($jitsi->timeopen - ($jitsi->minpretime * 60))
     ) {
         $button = new moodle_url('/mod/jitsi/session.php', $urlparams);
         echo html_writer::link(
