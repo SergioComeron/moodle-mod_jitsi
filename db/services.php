@@ -401,4 +401,40 @@ $functions = [
                 'ajax' => true,
                 'loginrequired' => true,
         ],
+
+        'mod_jitsi_delete_recording' => [
+                'classname' => 'mod_jitsi\external\delete_recording',
+                'methodname' => 'execute',
+                'description' => 'Mark a recording for deletion from the activity recordings tab',
+                'type' => 'write',
+                'ajax' => true,
+                'loginrequired' => true,
+        ],
+
+        'mod_jitsi_set_recording_visibility' => [
+                'classname' => 'mod_jitsi\external\set_recording_visibility',
+                'methodname' => 'execute',
+                'description' => 'Toggle the visibility of a recording in the activity recordings tab',
+                'type' => 'write',
+                'ajax' => true,
+                'loginrequired' => true,
+        ],
+
+        'mod_jitsi_add_recording_link' => [
+                'classname' => 'mod_jitsi\external\add_recording_link',
+                'methodname' => 'execute',
+                'description' => 'Add an external recording link to an activity',
+                'type' => 'write',
+                'ajax' => true,
+                'loginrequired' => true,
+        ],
+
+        'mod_jitsi_update_recording_link' => [
+                'classname' => 'mod_jitsi\external\update_recording_link',
+                'methodname' => 'execute',
+                'description' => 'Update an existing external recording link',
+                'type' => 'write',
+                'ajax' => true,
+                'loginrequired' => true,
+        ],
 ];

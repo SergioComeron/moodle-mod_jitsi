@@ -89,67 +89,37 @@ if (has_capability('mod/jitsi:viewrecords', $context)) {
 
 if (has_capability('mod/jitsi:record', $context)) {
     echo "<br><hr>";
-    if ($editrecordid) {
-        $editrecord = $DB->get_record('jitsi_record', ['id' => $editrecordid]);
-        $editsource = $editrecord ? $DB->get_record('jitsi_source_record', ['id' => $editrecord->source]) : null;
-    }
+    $cancelurl = (new moodle_url('/mod/jitsi/view.php', ['id' => $id, 'tab' => 'record']))->out(false);
+
+    $editrecord = $editrecordid ? $DB->get_record('jitsi_record', ['id' => $editrecordid]) : null;
+    $editsource = $editrecord ? $DB->get_record('jitsi_source_record', ['id' => $editrecord->source]) : null;
+
     if ($editrecordid && !empty($editrecord) && !empty($editsource) && $editsource->type == 1) {
-        echo "<h5>" . get_string('editrecordinglink', 'jitsi') . "</h5>";
-        echo "<form method=\"post\" action=\"" . (new moodle_url('/mod/jitsi/view.php', ['id' => $id]))->out(false) . "\">";
-        echo "<input type=\"hidden\" name=\"sesskey\" value=\"" . sesskey() . "\">";
-        echo "<input type=\"hidden\" name=\"tab\" value=\"record\">";
-        echo "<input type=\"hidden\" name=\"editingrecordid\" value=\"" . $editrecordid . "\">";
-        echo "<div class=\"mb-3\">";
-        echo "<label for=\"recordingurl\" class=\"form-label\">" . get_string('recordingurl', 'jitsi') . "</label>";
-        echo "<input type=\"url\" class=\"form-control\" id=\"recordingurl\" name=\"recordingurl\""
-            . " value=\"" . s($editsource->link) . "\" required data-is-dropbox=\""
-            . (strpos($editsource->link, 'dropbox.com') !== false ? '1' : '0') . "\">";
-        echo "</div>";
-        echo "<div class=\"mb-3\" id=\"dropboxembedoption\""
-            . (strpos($editsource->link, 'dropbox.com') !== false ? '' : ' style="display:none"') . ">";
-        echo "<div class=\"form-check\">";
-        echo "<input class=\"form-check-input\" type=\"checkbox\" id=\"embedrecording\" name=\"embedrecording\" value=\"1\""
-            . (!empty($editsource->embed) ? ' checked' : '') . ">";
-        echo "<label class=\"form-check-label\" for=\"embedrecording\">"
-            . get_string('dropboxembedrecording', 'jitsi') . "</label>";
-        echo "</div>";
-        echo "<div class=\"form-text text-warning mt-1\">" . get_string('dropboxembedwarning', 'jitsi') . "</div>";
-        echo "</div>";
-        echo "<div class=\"mb-3\">";
-        echo "<label for=\"recordingname\" class=\"form-label\">" . get_string('recordingname', 'jitsi') . "</label>";
-        echo "<input type=\"text\" class=\"form-control\" id=\"recordingname\" name=\"recordingname\""
-            . " value=\"" . s($editrecord->name) . "\">";
-        echo "</div>";
-        echo "<button type=\"submit\" name=\"saverecordedit\" value=\"1\" class=\"btn btn-primary\">";
-        echo get_string('savechanges');
-        echo "</button> ";
-        $cancelurl = new moodle_url('/mod/jitsi/view.php', ['id' => $id, 'tab' => 'record']);
-        echo "<a href=\"" . $cancelurl->out(false) . "\" class=\"btn btn-secondary\">" . get_string('cancel') . "</a>";
-        echo "</form><br>";
+        $formctx = [
+            'formtitle'    => get_string('editrecordinglink', 'jitsi'),
+            'cmid'         => $id,
+            'recordid'     => $editrecordid,
+            'url'          => $editsource->link,
+            'name'         => $editrecord->name,
+            'isdropbox'    => strpos($editsource->link, 'dropbox.com') !== false,
+            'embedchecked' => !empty($editsource->embed),
+            'submitlabel'  => get_string('savechanges'),
+            'iscancel'     => true,
+            'cancelurl'    => $cancelurl,
+        ];
     } else {
-        echo "<h5>" . get_string('addrecordinglink', 'jitsi') . "</h5>";
-        echo "<form method=\"post\" action=\"" . (new moodle_url('/mod/jitsi/view.php', ['id' => $id]))->out(false) . "\">";
-        echo "<input type=\"hidden\" name=\"sesskey\" value=\"" . sesskey() . "\">";
-        echo "<input type=\"hidden\" name=\"tab\" value=\"record\">";
-        echo "<div class=\"mb-3\">";
-        echo "<label for=\"recordingurl\" class=\"form-label\">" . get_string('recordingurl', 'jitsi') . "</label>";
-        echo "<input type=\"url\" class=\"form-control\" id=\"recordingurl\" name=\"recordingurl\" required>";
-        echo "</div>";
-        echo "<div class=\"mb-3\" id=\"dropboxembedoption\" style=\"display:none\">";
-        echo "<div class=\"form-check\">";
-        echo "<input class=\"form-check-input\" type=\"checkbox\" id=\"embedrecording\" name=\"embedrecording\" value=\"1\">";
-        echo "<label class=\"form-check-label\" for=\"embedrecording\">"
-            . get_string('dropboxembedrecording', 'jitsi') . "</label>";
-        echo "</div>";
-        echo "<div class=\"form-text text-warning mt-1\">" . get_string('dropboxembedwarning', 'jitsi') . "</div>";
-        echo "</div>";
-        echo "<div class=\"mb-3\">";
-        echo "<label for=\"recordingname\" class=\"form-label\">" . get_string('recordingname', 'jitsi') . "</label>";
-        echo "<input type=\"text\" class=\"form-control\" id=\"recordingname\" name=\"recordingname\">";
-        echo "</div>";
-        echo "<button type=\"submit\" name=\"addrecordlink\" value=\"1\" class=\"btn btn-secondary\">";
-        echo get_string('addrecordinglink', 'jitsi');
-        echo "</button>";
-        echo "</form><br>";
+        $formctx = [
+            'formtitle'    => get_string('addrecordinglink', 'jitsi'),
+            'cmid'         => $id,
+            'recordid'     => '',
+            'url'          => '',
+            'name'         => '',
+            'isdropbox'    => false,
+            'embedchecked' => false,
+            'submitlabel'  => get_string('addrecordinglink', 'jitsi'),
+            'iscancel'     => false,
+            'cancelurl'    => $cancelurl,
+        ];
     }
+    echo $OUTPUT->render_from_template('mod_jitsi/view_recording_form', $formctx);
 }

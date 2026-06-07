@@ -220,4 +220,28 @@ class recording {
         $DB->delete_records('jitsi_record', ['source' => $source]);
         $DB->delete_records('jitsi_source_record', ['id' => $source]);
     }
+
+    /**
+     * Trigger the jitsi_delete_record event for a deleted recording.
+     *
+     * Shared by the PRG controller in view.php (mobile fallback) and the
+     * delete_recording web service so the event lives in a single place.
+     *
+     * @param \stdClass $cm Course module record
+     * @param \stdClass $course Course record
+     * @param \stdClass $jitsi Jitsi activity record
+     * @param int $recordid jitsi_record id being deleted
+     * @param string $link Recording link (for the event payload)
+     */
+    public static function log_deletion($cm, $course, $jitsi, $recordid, $link) {
+        $context = \context_module::instance($cm->id);
+        $event = \mod_jitsi\event\jitsi_delete_record::create([
+            'objectid' => $jitsi->id,
+            'context' => $context,
+            'other' => ['record' => $recordid, 'link' => $link],
+        ]);
+        $event->add_record_snapshot('course', $course);
+        $event->add_record_snapshot('jitsi', $jitsi);
+        $event->trigger();
+    }
 }

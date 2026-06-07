@@ -1,0 +1,76 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template mod_jitsi/view_recording_form
+
+    The add/edit external recording link form shown at the bottom of the recordings
+    tab. Submitted via AJAX by the recordings_lazyload AMD module (no page reload);
+    an empty data-recordid means "add", otherwise "edit".
+
+    Context variables required for this template:
+    * formtitle string - heading shown above the form
+    * cmid int - course module id
+    * recordid int|string - jitsi_record id when editing, empty when adding
+    * url string - current recording URL (empty when adding)
+    * name string - current recording name (empty when adding)
+    * isdropbox bool - whether the current URL is a Dropbox link
+    * embedchecked bool - whether the embed checkbox is checked
+    * submitlabel string - submit button label
+    * iscancel bool - whether to show a cancel button (editing only)
+    * cancelurl string - href fallback for the cancel button
+
+    Example context (json):
+    {
+        "formtitle": "Add a recording link",
+        "cmid": 12,
+        "recordid": "",
+        "url": "",
+        "name": "",
+        "isdropbox": false,
+        "embedchecked": false,
+        "submitlabel": "Add a recording link",
+        "iscancel": false,
+        "cancelurl": "#"
+    }
+}}
+<h5>{{formtitle}}</h5>
+<form class="jitsi-recording-form" data-cmid="{{cmid}}" data-recordid="{{recordid}}">
+    <div class="mb-3">
+        <label for="recordingurl" class="form-label">{{#str}}recordingurl, jitsi{{/str}}</label>
+        <input type="url" class="form-control" id="recordingurl" name="recordingurl" value="{{url}}"
+            required data-is-dropbox="{{#isdropbox}}1{{/isdropbox}}{{^isdropbox}}0{{/isdropbox}}">
+    </div>
+    <div class="mb-3" id="dropboxembedoption" {{^isdropbox}}style="display:none"{{/isdropbox}}>
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="embedrecording" name="embedrecording"
+                value="1" {{#embedchecked}}checked{{/embedchecked}}>
+            <label class="form-check-label" for="embedrecording">{{#str}}dropboxembedrecording, jitsi{{/str}}</label>
+        </div>
+        <div class="form-text text-warning mt-1">{{#str}}dropboxembedwarning, jitsi{{/str}}</div>
+    </div>
+    <div class="mb-3">
+        <label for="recordingname" class="form-label">{{#str}}recordingname, jitsi{{/str}}</label>
+        <input type="text" class="form-control" id="recordingname" name="recordingname" value="{{name}}">
+    </div>
+    <button type="submit" class="btn {{#iscancel}}btn-primary{{/iscancel}}{{^iscancel}}btn-secondary{{/iscancel}} jitsi-recording-form-submit">
+        {{submitlabel}}
+    </button>
+    {{#iscancel}}
+        <a href="{{cancelurl}}" class="btn btn-secondary jitsi-recording-form-cancel">{{#str}}cancel{{/str}}</a>
+    {{/iscancel}}
+</form>
+<br>

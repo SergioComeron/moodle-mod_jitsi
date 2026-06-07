@@ -1,0 +1,63 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template mod_jitsi/view_recording_youtube
+
+    A legacy YouTube recording row: the recording name, creation date, optional
+    action buttons and the embedded YouTube iframe (responsive wrapper differs
+    between Bootstrap 4 and 5).
+
+    Context variables required for this template:
+    * inplacename string - pre-rendered inplace-editable recording name
+    * timecreated string - localised creation date
+    * showactions bool - whether the action row is shown
+    * candelete bool, canhidetoggle bool, visible bool, canedit bool, recordid int, cmid int
+        - see mod_jitsi/view_recording_actions
+    * embedlink string - YouTube video id
+    * branch5 bool - true on Moodle 5.x (Bootstrap 5 ratio classes)
+    * alignmentclass string - text alignment helper class
+
+    Example context (json):
+    {
+        "inplacename": "<span>My recording</span>",
+        "timecreated": "1 January 2026",
+        "showactions": true,
+        "candelete": true,
+        "canhidetoggle": false,
+        "visible": true,
+        "canedit": false,
+        "recordid": 5,
+        "cmid": 12,
+        "embedlink": "dQw4w9WgXcQ",
+        "branch5": true,
+        "alignmentclass": "text-end"
+    }
+}}
+<h5>{{{inplacename}}}</h5>
+<h6 class="card-subtitle mb-2 text-muted">{{timecreated}}</h6>
+{{#showactions}}
+    <span class="align-middle {{alignmentclass}}"><p>{{> mod_jitsi/view_recording_actions }}</p></span>
+{{/showactions}}
+{{^showactions}}
+    <br>
+{{/showactions}}
+{{#branch5}}<div class="ratio ratio-16x9">{{/branch5}}
+{{^branch5}}<div class="embed-responsive embed-responsive-16by9">{{/branch5}}
+    <iframe {{^branch5}}class="embed-responsive-item"{{/branch5}}
+        src="https://youtube.com/embed/{{embedlink}}" allowfullscreen
+        referrerpolicy="strict-origin-when-cross-origin"></iframe>
+</div>

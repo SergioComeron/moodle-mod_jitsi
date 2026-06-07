@@ -1,0 +1,69 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template mod_jitsi/view_recording_video
+
+    A recording row with an embeddable video player (GCS or raw Dropbox) plus the
+    AI generate dropdown, watched-segments bar, attendance heatmap and AI content
+    accordion. The complex AI/segments/heatmap blocks are pre-rendered in PHP and
+    injected as raw HTML.
+
+    Context variables required for this template:
+    * inplacename string - pre-rendered inplace-editable recording name
+    * timecreated string - localised creation date
+    * candelete bool, canhidetoggle bool, visible bool, canedit bool, recordid int, cmid int
+        - see mod_jitsi/view_recording_actions
+    * aidropdown string - pre-rendered AI generate dropdown (may be empty)
+    * videoid string - DOM id for the video element
+    * sourcerecordid int - jitsi_source_record id
+    * embedurl string - playable video URL
+    * barhtml string - pre-rendered watched-segments bar (may be empty)
+    * heatmaphtml string - pre-rendered attendance heatmap (may be empty)
+    * aiaccordion string - pre-rendered AI content accordion (may be empty)
+
+    Example context (json):
+    {
+        "inplacename": "<span>My recording</span>",
+        "timecreated": "1 January 2026",
+        "candelete": true,
+        "canhidetoggle": false,
+        "visible": true,
+        "canedit": true,
+        "recordid": 5,
+        "cmid": 12,
+        "aidropdown": "",
+        "videoid": "jitsi-video-9",
+        "sourcerecordid": 9,
+        "embedurl": "https://storage.googleapis.com/bucket/rec.mp4",
+        "barhtml": "",
+        "heatmaphtml": "",
+        "aiaccordion": ""
+    }
+}}
+<h5>{{{inplacename}}}</h5>
+<h6 class="card-subtitle mb-2 text-muted">{{timecreated}}</h6>
+<div class="d-flex align-items-center justify-content-end gap-1 mb-1">
+    {{> mod_jitsi/view_recording_actions }}{{{aidropdown}}}
+</div>
+<video id="{{videoid}}" controls style="width:100%;max-width:100%"
+    data-sourcerecordid="{{sourcerecordid}}" data-cmid="{{cmid}}">
+    <source src="{{embedurl}}" type="video/mp4">
+</video>
+{{{barhtml}}}
+{{{heatmaphtml}}}
+{{{aiaccordion}}}
+<br>

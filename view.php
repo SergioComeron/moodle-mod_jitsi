@@ -116,14 +116,7 @@ if ($deletejitsirecordid && confirm_sesskey($sesskey)) {
     \mod_jitsi\local\recording::mark_to_delete($deletejitsirecordid, 1);
     $record = $DB->get_record('jitsi_record', ['id' => $deletejitsirecordid]);
     $source = $DB->get_record('jitsi_source_record', ['id' => $record->source]);
-    $event = \mod_jitsi\event\jitsi_delete_record::create([
-        'objectid' => $PAGE->cm->instance,
-        'context' => $PAGE->context,
-        'other' => ['record' => $deletejitsirecordid, 'link' => $source->link],
-    ]);
-    $event->add_record_snapshot('course', $PAGE->course);
-    $event->add_record_snapshot($PAGE->cm->modname, $jitsi);
-    $event->trigger();
+    \mod_jitsi\local\recording::log_deletion($cm, $course, $jitsi, $deletejitsirecordid, $source->link);
 
     redirect($PAGE->url, get_string('deleted'));
 }

@@ -1186,4 +1186,110 @@ final class external_test extends \advanced_testcase {
         $this->assertFalse($result['success']);
         $this->assertCount(0, \core\task\manager::get_adhoc_tasks(\mod_jitsi\task\generate_ai_summary::class));
     }
+
+    // Recording CRUD web service tests.
+
+    /**
+     * Test add_recording_link creates both the source record and the linking record.
+     *
+     * @covers \mod_jitsi\external\add_recording_link::execute
+     */
+    public function test_add_recording_link_creates_records(): void {
+        global $DB;
+        $this->resetAfterTest(true);
+        [$jitsi, $cm] = $this->create_jitsi_activity();
+        $teacher = $this->getDataGenerator()->create_and_enrol(get_course($cm->course), 'editingteacher');
+        $this->setUser($teacher);
+
+        $result = \mod_jitsi\external\add_recording_link::execute($cm->id, 'https://example.com/rec.mp4', 'My rec', 0);
+
+        $this->assertTrue($result['success']);
+        $record = $DB->get_record('jitsi_record', ['jitsi' => $jitsi->id]);
+        $this->assertNotEmpty($record);
+        $this->assertEquals('My rec', $record->name);
+        $source = $DB->get_record('jitsi_source_record', ['id' => $record->source]);
+        $this->assertEquals(1, (int)$source->type);
+        $this->assertEquals('https://example.com/rec.mp4', $source->link);
+    }
+
+    /**
+     * Test update_recording_link updates the URL and name of an existing recording.
+     *
+     * @covers \mod_jitsi\external\update_recording_link::execute
+     */
+    public function test_update_recording_link_updates(): void {
+        global $DB;
+        $this->resetAfterTest(true);
+        [$jitsi, $cm] = $this->create_jitsi_activity();
+        $teacher = $this->getDataGenerator()->create_and_enrol(get_course($cm->course), 'editingteacher');
+        $this->setUser($teacher);
+        $recordid = \mod_jitsi\local\recording::add_link($jitsi->id, 'https://example.com/a.mp4', 'Old', 0, $teacher->id);
+
+        $result = \mod_jitsi\external\update_recording_link::execute(
+            $cm->id,
+            $recordid,
+            'https://example.com/b.mp4',
+            'New',
+            0
+        );
+
+        $this->assertTrue($result['success']);
+        $record = $DB->get_record('jitsi_record', ['id' => $recordid]);
+        $this->assertEquals('New', $record->name);
+        $source = $DB->get_record('jitsi_source_record', ['id' => $record->source]);
+        $this->assertEquals('https://example.com/b.mp4', $source->link);
+    }
+
+    /**
+     * Test set_recording_visibility toggles the visible flag both ways.
+     *
+     * @covers \mod_jitsi\external\set_recording_visibility::execute
+     */
+    public function test_set_recording_visibility_toggles(): void {
+        global $DB;
+        $this->resetAfterTest(true);
+        [$jitsi, $cm] = $this->create_jitsi_activity();
+        $teacher = $this->getDataGenerator()->create_and_enrol(get_course($cm->course), 'editingteacher');
+        $this->setUser($teacher);
+        $recordid = \mod_jitsi\local\recording::add_link($jitsi->id, 'https://example.com/a.mp4', 'R', 0, $teacher->id);
+
+        \mod_jitsi\external\set_recording_visibility::execute($cm->id, $recordid, 0);
+        $this->assertEquals(0, (int)$DB->get_field('jitsi_record', 'visible', ['id' => $recordid]));
+        \mod_jitsi\external\set_recording_visibility::execute($cm->id, $recordid, 1);
+        $this->assertEquals(1, (int)$DB->get_field('jitsi_record', 'visible', ['id' => $recordid]));
+    }
+
+    /**
+     * Test delete_recording marks the record as deleted.
+     *
+     * @covers \mod_jitsi\external\delete_recording::execute
+     */
+    public function test_delete_recording_marks_deleted(): void {
+        global $DB;
+        $this->resetAfterTest(true);
+        [$jitsi, $cm] = $this->create_jitsi_activity();
+        $teacher = $this->getDataGenerator()->create_and_enrol(get_course($cm->course), 'editingteacher');
+        $this->setUser($teacher);
+        $recordid = \mod_jitsi\local\recording::add_link($jitsi->id, 'https://example.com/a.mp4', 'R', 0, $teacher->id);
+
+        $result = \mod_jitsi\external\delete_recording::execute($cm->id, $recordid);
+
+        $this->assertTrue($result['success']);
+        $this->assertEquals(1, (int)$DB->get_field('jitsi_record', 'deleted', ['id' => $recordid]));
+    }
+
+    /**
+     * Test add_recording_link denies users without the record capability.
+     *
+     * @covers \mod_jitsi\external\add_recording_link::execute
+     */
+    public function test_add_recording_link_requires_capability(): void {
+        $this->resetAfterTest(true);
+        [$jitsi, $cm] = $this->create_jitsi_activity();
+        $student = $this->getDataGenerator()->create_and_enrol(get_course($cm->course), 'student');
+        $this->setUser($student);
+
+        $this->expectException(\required_capability_exception::class);
+        \mod_jitsi\external\add_recording_link::execute($cm->id, 'https://example.com/a.mp4', 'R', 0);
+    }
 }

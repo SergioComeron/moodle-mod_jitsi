@@ -1,0 +1,67 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template mod_jitsi/view_recording_actions
+
+    Action buttons (delete / hide / show / edit) for a single recording row.
+    Each button carries data-attributes consumed by the recordings_lazyload AMD
+    module, which calls the matching web service and re-fetches the recordings tab.
+
+    Context variables required for this template:
+    * candelete bool - whether the delete button is shown
+    * canhidetoggle bool - whether the hide/show toggle is shown
+    * visible bool - current visibility (true shows the hide button, false the show button)
+    * canedit bool - whether the edit button is shown
+    * recordid int - jitsi_record id
+    * cmid int - course module id
+
+    Example context (json):
+    {
+        "candelete": true,
+        "canhidetoggle": true,
+        "visible": true,
+        "canedit": true,
+        "recordid": 5,
+        "cmid": 12
+    }
+}}
+{{#candelete}}
+    <button type="button" class="btn btn-link p-0 mx-1 jitsi-rec-action" data-action="delete"
+        data-recordid="{{recordid}}" data-cmid="{{cmid}}" title="{{#str}}delete{{/str}}">
+        {{#pix}}t/delete, core{{/pix}}
+    </button>
+{{/candelete}}
+{{#canhidetoggle}}
+    {{#visible}}
+        <button type="button" class="btn btn-link p-0 mx-1 jitsi-rec-action" data-action="hide"
+            data-recordid="{{recordid}}" data-cmid="{{cmid}}" title="{{#str}}hide{{/str}}">
+            {{#pix}}t/hide, core{{/pix}}
+        </button>
+    {{/visible}}
+    {{^visible}}
+        <button type="button" class="btn btn-link p-0 mx-1 jitsi-rec-action" data-action="show"
+            data-recordid="{{recordid}}" data-cmid="{{cmid}}" title="{{#str}}show{{/str}}">
+            {{#pix}}t/show, core{{/pix}}
+        </button>
+    {{/visible}}
+{{/canhidetoggle}}
+{{#canedit}}
+    <button type="button" class="btn btn-link p-0 mx-1 jitsi-rec-action" data-action="edit"
+        data-recordid="{{recordid}}" data-cmid="{{cmid}}" title="{{#str}}edit{{/str}}">
+        {{#pix}}t/edit, core{{/pix}}
+    </button>
+{{/canedit}}
