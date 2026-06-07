@@ -122,6 +122,7 @@ const saveSegments = (video) => {
             cmid: parseInt(video.dataset.cmid, 10),
             segments: JSON.stringify(merged),
             duration: dur,
+            // eslint-disable-next-line camelcase
             session_segments: JSON.stringify(sessionMerged)
         }
     }])[0].then((result) => {
