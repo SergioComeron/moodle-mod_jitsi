@@ -533,66 +533,9 @@ if (has_capability('mod/jitsi:viewrecords', $PAGE->context) || has_capability('m
         'editrecordid' => $editrecordid,
     ]))->out(false);
 
-    $PAGE->requires->js_amd_inline("
-        require(['core/first'], function() {
-            var container = document.getElementById('jitsi-recordings-content');
-            var loaded = false;
-
-            function initDropboxToggle() {
-                var urlInput = document.getElementById('recordingurl');
-                if (!urlInput) { return; }
-                urlInput.addEventListener('input', function() {
-                    var isDropbox = this.value.indexOf('dropbox.com') !== -1;
-                    var embedOpt = document.getElementById('dropboxembedoption');
-                    if (embedOpt) { embedOpt.style.display = isDropbox ? 'block' : 'none'; }
-                    var embedChk = document.getElementById('embedrecording');
-                    if (embedChk && !isDropbox) { embedChk.checked = false; }
-                });
-            }
-
-            function loadRecordings() {
-                if (loaded) { return; }
-                loaded = true;
-                container.innerHTML = '<div class=\"text-center p-3\">' +
-                    '<div class=\"spinner-border\" role=\"status\"></div></div>';
-                var params = new URLSearchParams(window.location.search);
-                params.delete('tab');
-                var url = " . json_encode($recordingstaburl) . ";
-                var sep = url.indexOf('?') === -1 ? '?' : '&';
-                var extra = params.toString();
-                if (extra) { url += sep + extra; }
-                fetch(url, {credentials: 'same-origin'})
-                    .then(function(r) { return r.text(); })
-                    .then(function(html) {
-                        container.innerHTML = html;
-                        initDropboxToggle();
-                        // Notify Moodle that new content has been added so
-                        // components like inplace_editable can re-initialise.
-                        require(['core/inplace_editable'], function() {});
-                    });
-            }
-
-            var recordPane = document.getElementById('record');
-            if (recordPane && recordPane.classList.contains('active')) {
-                loadRecordings();
-            }
-
-            var recordPaneObs = document.getElementById('record');
-            if (recordPaneObs) {
-                var observer = new MutationObserver(function(mutations) {
-                    for (var i = 0; i < mutations.length; i++) {
-                        if (mutations[i].attributeName === 'class' &&
-                                recordPaneObs.classList.contains('active')) {
-                            observer.disconnect();
-                            loadRecordings();
-                            break;
-                        }
-                    }
-                });
-                observer.observe(recordPaneObs, {attributes: true, attributeFilter: ['class']});
-            }
-        });
-    ");
+    $PAGE->requires->js_call_amd('mod_jitsi/recordings_lazyload', 'init', [[
+        'recordingsUrl' => $recordingstaburl,
+    ]]);
 }
 
 
@@ -600,101 +543,13 @@ echo "</div>";
 
 echo "<hr>";
 
-// JS for AI dropdown + transcript timestamps.
-$PAGE->requires->strings_for_js(
-    ['aisummaryqueued', 'aiquizqueued', 'aitranscriptionqueued', 'aigdprnoticetitle'],
-    'mod_jitsi'
-);
+// AI dropdown + transcript timestamps.
 if (get_config('mod_jitsi', 'aienabled')) {
     $gdprregion = get_config('mod_jitsi', 'vertexairegion') ?: 'us-central1';
-    $gdprbody   = json_encode('<p>' . get_string('aigdprnotice', 'jitsi', s($gdprregion)) . '</p>');
-    $PAGE->requires->js_amd_inline("
-require(['core/ajax', 'core/notification'], function(Ajax, Notification) {
-
-    var gdprBody = $gdprbody;
-    var queuedMap = {
-        'mod_jitsi_queue_ai_summary':       'aisummaryqueued',
-        'mod_jitsi_queue_ai_quiz':          'aiquizqueued',
-        'mod_jitsi_queue_ai_transcription': 'aitranscriptionqueued'
-    };
-
-    function executeAction(action) {
-        action.el.classList.add('disabled');
-        Ajax.call([{
-            methodname: action.methodname,
-            args: {sourcerecordid: action.sourcerecordid, cmid: action.cmid},
-            done: function(result) {
-                if (result.success) {
-                    action.el.textContent =
-                        M.util.get_string(queuedMap[action.methodname], 'mod_jitsi');
-                } else {
-                    action.el.classList.remove('disabled');
-                }
-            },
-            fail: function(ex) {
-                Notification.exception(ex);
-                action.el.classList.remove('disabled');
-            }
-        }]);
-    }
-
-    function showGdprModal(action) {
-        // Load modal modules lazily so a load error doesn't break the click handler.
-        require(['core/modal_factory', 'core/modal_events'],
-            function(ModalFactory, ModalEvents) {
-                ModalFactory.create({
-                    type:  ModalFactory.types.SAVE_CANCEL,
-                    title: M.util.get_string('aigdprnoticetitle', 'mod_jitsi'),
-                    body:  gdprBody
-                }).done(function(modal) {
-                    modal.setSaveButtonText(M.util.get_string('confirm', 'core'));
-                    var root = modal.getRoot();
-                    root.on(ModalEvents.save, function() {
-                        modal.destroy();
-                        executeAction(action);
-                    });
-                    root.on(ModalEvents.cancel, function() { modal.destroy(); });
-                    modal.show();
-                });
-            },
-            function() {
-                // Fallback: native browser confirm if modal modules unavailable.
-                var plainText = gdprBody.replace(/<[^>]+>/g, '');
-                if (window.confirm(plainText)) {
-                    executeAction(action);
-                }
-            }
-        );
-    }
-
-    document.addEventListener('click', function(e) {
-        var generateItem = e.target.closest('.jitsi-ai-generate');
-        if (generateItem) {
-            e.preventDefault();
-            showGdprModal({
-                methodname:     generateItem.dataset.method,
-                sourcerecordid: parseInt(generateItem.dataset.sourcerecordid, 10),
-                cmid:           parseInt(generateItem.dataset.cmid, 10),
-                el:             generateItem
-            });
-            return;
-        }
-
-        var tsLink = e.target.closest('.jitsi-transcript-ts');
-        if (tsLink) {
-            e.preventDefault();
-            var videoId = tsLink.dataset.video;
-            var seconds = parseFloat(tsLink.dataset.seconds);
-            var video = document.getElementById(videoId);
-            if (video) {
-                video.currentTime = seconds;
-                video.play();
-                video.scrollIntoView({behavior: 'smooth', block: 'center'});
-            }
-        }
-    });
-});
-");
+    $gdprbody = '<p>' . get_string('aigdprnotice', 'jitsi', s($gdprregion)) . '</p>';
+    $PAGE->requires->js_call_amd('mod_jitsi/ai_actions', 'init', [[
+        'gdprBody' => $gdprbody,
+    ]]);
 }
 
 // Track GCS recording views with real segment tracking.
