@@ -83,12 +83,18 @@ class attendance {
             return $cachedresult;
         }
 
-        $sqlminutos = 'SELECT * FROM {logstore_standard_log} WHERE userid = :userid
+        // Filter by contextlevel too so PostgreSQL can use the composite index
+        // (userid, contextlevel, contextinstanceid, ...) instead of a full table
+        // scan, and count in the engine rather than fetching every matching row.
+        $sqlminutos = 'SELECT COUNT(*) FROM {logstore_standard_log}
+                       WHERE userid = :userid AND contextlevel = :contextlevel
                        AND contextinstanceid = :contextinstanceid AND action = \'participating\'';
-        $params = ['userid' => $userid, 'contextinstanceid' => $contextinstanceid];
-        $minutos = $DB->get_records_sql($sqlminutos, $params);
-
-        $result = count($minutos);
+        $params = [
+            'userid' => $userid,
+            'contextlevel' => CONTEXT_MODULE,
+            'contextinstanceid' => $contextinstanceid,
+        ];
+        $result = (int)$DB->get_field_sql($sqlminutos, $params);
         $cache->set($cachekey, $result, 120); // Cache for 2 minutes.
 
         return $result;
@@ -115,9 +121,11 @@ class attendance {
         }
 
         $sqlminutos = 'SELECT COUNT(*) AS minutes FROM {logstore_standard_log}
-                       WHERE userid = :userid AND contextinstanceid = :contextinstanceid
+                       WHERE userid = :userid AND contextlevel = :contextlevel
+                       AND contextinstanceid = :contextinstanceid
                        AND action = \'participating\' AND timecreated BETWEEN :init AND :end';
         $params = ['userid' => $userid,
+            'contextlevel' => CONTEXT_MODULE,
             'contextinstanceid' => $contextinstanceid,
             'init' => $init,
             'end' => $end,
