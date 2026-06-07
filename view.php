@@ -397,57 +397,7 @@ echo html_writer::tag('div', get_string('totaluserminutes', 'jitsi'), ['class' =
 echo html_writer::end_div();
 echo html_writer::end_div();
 
-$nousers = get_string('noconnectedusers', 'jitsi');
-$wwwroot = $CFG->wwwroot;
 $courseid = (int)$jitsi->course;
-$PAGE->requires->js_amd_inline("
-require(['core/ajax'], function(ajax) {
-    setInterval(function() {
-        ajax.call([{
-            methodname: 'mod_jitsi_get_presence_users',
-            args: {jitsiid: " . $jitsi->id . "}
-        }])[0].then(function(users) {
-            var countEl = document.getElementById('jitsi-presence-count');
-            var listEl = document.getElementById('jitsi-presence-list');
-            if (countEl) { countEl.textContent = users.length; }
-            if (listEl) {
-                listEl.innerHTML = '';
-                if (users.length === 0) {
-                    var li = document.createElement('li');
-                    var span = document.createElement('span');
-                    span.className = 'dropdown-item-text text-muted';
-                    span.textContent = " . json_encode($nousers) . ";
-                    li.appendChild(span);
-                    listEl.appendChild(li);
-                } else {
-                    users.forEach(function(u) {
-                        var li = document.createElement('li');
-                        if (u.isguest) {
-                            var span = document.createElement('span');
-                            span.className = 'dropdown-item-text';
-                            var icon = document.createElement('i');
-                            icon.className = 'fa fa-user-secret text-muted me-1';
-                            icon.setAttribute('aria-hidden', 'true');
-                            span.appendChild(icon);
-                            span.appendChild(document.createTextNode(u.name));
-                            li.appendChild(span);
-                        } else {
-                            var a = document.createElement('a');
-                            a.className = 'dropdown-item';
-                            var base = " . json_encode($wwwroot) . ";
-                            a.href = base + '/user/view.php?id=' + u.userid + '&course=' + " . $courseid . ";
-                            a.target = '_blank';
-                            a.textContent = u.name;
-                            li.appendChild(a);
-                        }
-                        listEl.appendChild(li);
-                    });
-                }
-            }
-        });
-    }, 15000);
-});
-");
 
 // Badges — centered, above card.
 echo html_writer::start_div('text-center mb-2');
@@ -489,25 +439,10 @@ echo html_writer::tag(
 );
 echo html_writer::end_div();
 
-$PAGE->requires->js_amd_inline("
-require(['core/ajax'], function(ajax) {
-    setInterval(function() {
-        ajax.call([{
-            methodname: 'mod_jitsi_get_jibri_recording',
-            args: {jitsiid: " . $jitsi->id . "}
-        }])[0].then(function(recording) {
-            var badge = document.getElementById('jitsi-jibri-badge');
-            if (badge) {
-                if (recording) {
-                    badge.classList.remove('d-none');
-                } else {
-                    badge.classList.add('d-none');
-                }
-            }
-        });
-    }, 15000);
-});
-");
+$PAGE->requires->js_call_amd('mod_jitsi/view_indicators', 'init', [[
+    'jitsiid' => (int)$jitsi->id,
+    'courseid' => $courseid,
+]]);
 
 if ($CFG->branch <= 311 && $jitsi->intro) {
     echo html_writer::div(
