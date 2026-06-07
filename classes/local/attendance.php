@@ -70,17 +70,22 @@ class attendance {
      *
      * @param int $contextinstanceid Course module id (context instance)
      * @param int $userid User id
+     * @param bool $usecache Whether to read/write the 2-minute cache. Pass false for
+     *                       near-real-time callers (e.g. the live view.php counter);
+     *                       the query is index-backed so an uncached read is cheap.
      * @return int
      */
-    public static function minutes($contextinstanceid, $userid) {
+    public static function minutes($contextinstanceid, $userid, $usecache = true) {
         global $DB;
 
         $cache = \cache::make('mod_jitsi', 'getminutes');
         $cachekey = "getminutes_{$contextinstanceid}_{$userid}";
-        $cachedresult = $cache->get($cachekey);
 
-        if ($cachedresult !== false) {
-            return $cachedresult;
+        if ($usecache) {
+            $cachedresult = $cache->get($cachekey);
+            if ($cachedresult !== false) {
+                return $cachedresult;
+            }
         }
 
         // Filter by contextlevel too so PostgreSQL can use the composite index
@@ -95,7 +100,10 @@ class attendance {
             'contextinstanceid' => $contextinstanceid,
         ];
         $result = (int)$DB->get_field_sql($sqlminutos, $params);
-        $cache->set($cachekey, $result, 120); // Cache for 2 minutes.
+
+        if ($usecache) {
+            $cache->set($cachekey, $result, 120); // Cache for 2 minutes.
+        }
 
         return $result;
     }

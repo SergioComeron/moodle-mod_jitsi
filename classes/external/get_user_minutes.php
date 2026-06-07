@@ -56,7 +56,9 @@ class get_user_minutes extends external_api {
         self::validate_context($context);
         require_capability('mod/jitsi:view', $context);
 
-        return ['minutes' => \mod_jitsi\local\attendance::minutes($cm->id, $USER->id)];
+        // Skip the cache so the live counter on view.php reflects near-real-time
+        // minutes; the query is index-backed, so an uncached read is cheap.
+        return ['minutes' => \mod_jitsi\local\attendance::minutes($cm->id, $USER->id, false)];
     }
 
     /**
