@@ -428,7 +428,7 @@ if ($CFG->branch <= 311 && $jitsi->intro) {
     );
 }
 
-// Centered card with avatar, name and join button.
+// Centered access card with avatar, name and join button (decisions stay in PHP).
 $fechacierre = $jitsi->timeclose;
 $fechainicio = $jitsi->timeopen;
 if ($jitsi->sessionwithtoken == 1) {
@@ -436,60 +436,43 @@ if ($jitsi->sessionwithtoken == 1) {
     $fechainicio = $jitsiinvitado->timeopen;
 }
 
-echo html_writer::start_div('d-flex justify-content-center mb-4');
-echo html_writer::start_div('card shadow-sm', ['style' => 'max-width:420px;width:100%']);
-echo html_writer::start_div('card-body p-4 text-center');
-$avatar = $CFG->wwwroot . '/user/pix.php/' . $USER->id . '/f1.jpg';
-echo html_writer::empty_tag('img', [
-    'src'   => s($avatar),
-    'class' => 'rounded-circle mb-2',
-    'style' => 'width:64px;height:64px;object-fit:cover',
-    'alt'   => s(fullname($USER)),
-]);
-echo html_writer::tag('p', s(fullname($USER)), ['class' => 'fw-semibold mb-3']);
+$canaccess = false;
+$accessurl = null;
+$accessnotice = null;
 if (time() < $fechacierre || $fechacierre == 0) {
     if (
         time() > $fechainicio ||
         has_capability('mod/jitsi:moderation', $context) && time() > ($jitsi->timeopen - ($jitsi->minpretime * 60))
     ) {
-        $button = new moodle_url('/mod/jitsi/session.php', $urlparams);
-        echo html_writer::link(
-            $button,
-            get_string('access', 'jitsi'),
-            [
-                'class'      => 'btn btn-primary btn-lg w-100',
-                'aria-label' => get_string('accesssessionlabel', 'jitsi', $jitsi->name),
-            ]
-        );
+        $canaccess = true;
+        $accessurl = (new moodle_url('/mod/jitsi/session.php', $urlparams))->out(false);
     } else {
-        echo $OUTPUT->notification(get_string('nostart', 'jitsi', userdate($jitsi->timeopen)), 'info');
+        $accessnotice = $OUTPUT->notification(get_string('nostart', 'jitsi', userdate($jitsi->timeopen)), 'info');
     }
 } else {
-    echo $OUTPUT->notification(get_string('finish', 'jitsi'), 'warning');
-}
-echo html_writer::end_div();
-echo html_writer::end_div();
-echo html_writer::end_div();
-
-// Help text below the card.
-if (get_config('mod_jitsi', 'help') != null) {
-    echo '<br>';
-    echo get_config('mod_jitsi', 'help');
-} else {
-    echo '<br>';
-    echo $OUTPUT->box(get_string('instruction', 'jitsi'));
+    $accessnotice = $OUTPUT->notification(get_string('finish', 'jitsi'), 'warning');
 }
 
+$helpconfig = get_config('mod_jitsi', 'help');
+$helphtml = ($helpconfig != null) ? $helpconfig : $OUTPUT->box(get_string('instruction', 'jitsi'));
+
+$inviteurl = null;
 if (get_config('mod_jitsi', 'inviteemail') == 1 && has_capability('mod/jitsi:createlink', $context)) {
-    $sendinvurl = new moodle_url('/mod/jitsi/sendinvitation.php', ['id' => $id]);
-    echo html_writer::start_div('text-center mt-3');
-    echo html_writer::link(
-        $sendinvurl,
-        '<i class="fa fa-envelope mr-1" aria-hidden="true"></i>' . get_string('sendinvitation', 'jitsi'),
-        ['class' => 'btn btn-outline-secondary btn-sm']
-    );
-    echo html_writer::end_div();
+    $inviteurl = (new moodle_url('/mod/jitsi/sendinvitation.php', ['id' => $id]))->out(false);
 }
+
+echo $OUTPUT->render_from_template('mod_jitsi/view_session_card', [
+    'avatar' => $CFG->wwwroot . '/user/pix.php/' . $USER->id . '/f1.jpg',
+    'fullname' => fullname($USER),
+    'canaccess' => $canaccess,
+    'accessurl' => $accessurl,
+    'accesstext' => get_string('access', 'jitsi'),
+    'accessarialabel' => get_string('accesssessionlabel', 'jitsi', $jitsi->name),
+    'accessnotice' => $accessnotice,
+    'helphtml' => $helphtml,
+    'inviteurl' => $inviteurl,
+    'invitelabel' => get_string('sendinvitation', 'jitsi'),
+]);
 
 echo '</div>';
 

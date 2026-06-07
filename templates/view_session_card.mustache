@@ -1,0 +1,69 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template mod_jitsi/view_session_card
+
+    Centered access card (avatar, name, join button or status notice), help text
+    and optional send-invitation button on the session tab.
+
+    Context variables required for this template:
+    * avatar string - current user's avatar URL
+    * fullname string - current user's full name
+    * canaccess bool - whether the join button is shown
+    * accessurl string - session.php URL with join params
+    * accesstext string - join button label
+    * accessarialabel string - join button aria-label
+    * accessnotice string - pre-rendered notification HTML when join is unavailable
+    * helphtml string - pre-rendered help/instruction HTML
+    * inviteurl string - send-invitation URL, or empty/false to hide the button
+    * invitelabel string - send-invitation button label
+
+    Example context (json):
+    {
+        "avatar": "https://example.com/u/1/f1.jpg",
+        "fullname": "Ada Lovelace",
+        "canaccess": true,
+        "accessurl": "#",
+        "accesstext": "Access",
+        "accessarialabel": "Access session My session",
+        "accessnotice": "",
+        "helphtml": "<div class=\"box\">Instructions</div>",
+        "inviteurl": "#",
+        "invitelabel": "Send invitation"
+    }
+}}
+<div class="d-flex justify-content-center mb-4">
+    <div class="card shadow-sm" style="max-width:420px;width:100%">
+        <div class="card-body p-4 text-center">
+            <img src="{{avatar}}" class="rounded-circle mb-2" style="width:64px;height:64px;object-fit:cover" alt="{{fullname}}">
+            <p class="fw-semibold mb-3">{{fullname}}</p>
+            {{#canaccess}}
+                <a href="{{accessurl}}" class="btn btn-primary btn-lg w-100" aria-label="{{accessarialabel}}">{{accesstext}}</a>
+            {{/canaccess}}
+            {{^canaccess}}
+                {{{accessnotice}}}
+            {{/canaccess}}
+        </div>
+    </div>
+</div>
+<br>
+{{{helphtml}}}
+{{#inviteurl}}
+    <div class="text-center mt-3">
+        <a href="{{inviteurl}}" class="btn btn-outline-secondary btn-sm"><i class="fa fa-envelope mr-1" aria-hidden="true"></i>{{invitelabel}}</a>
+    </div>
+{{/inviteurl}}
