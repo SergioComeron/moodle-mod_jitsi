@@ -491,6 +491,157 @@ final class lib_test extends \advanced_testcase {
     }
 
     /**
+     * Test that set_visibility toggles the visible flag of a recording.
+     *
+     * @covers \mod_jitsi\local\recording::set_visibility
+     */
+    public function test_set_visibility_toggles_visible_flag(): void {
+        global $DB;
+
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+
+        $course = $this->getDataGenerator()->create_course();
+        $jitsi = $this->getDataGenerator()->create_module('jitsi', ['course' => $course->id]);
+
+        $sourceid = $DB->insert_record('jitsi_source_record', [
+            'jitsi'       => $jitsi->id,
+            'link'        => 'https://example.com/v.mp4',
+            'timecreated' => time(),
+            'userid'      => 0,
+            'type'        => 1,
+        ]);
+        $recordid = $DB->insert_record('jitsi_record', [
+            'jitsi'       => $jitsi->id,
+            'source'      => $sourceid,
+            'name'        => 'Test',
+            'timecreated' => time(),
+            'deleted'     => 0,
+            'visible'     => 1,
+        ]);
+
+        \mod_jitsi\local\recording::set_visibility($recordid, 0);
+        $this->assertEquals(0, $DB->get_field('jitsi_record', 'visible', ['id' => $recordid]));
+
+        \mod_jitsi\local\recording::set_visibility($recordid, 1);
+        $this->assertEquals(1, $DB->get_field('jitsi_record', 'visible', ['id' => $recordid]));
+    }
+
+    /**
+     * Test that add_link creates a source record and a jitsi_record linking it.
+     *
+     * @covers \mod_jitsi\local\recording::add_link
+     */
+    public function test_add_link_creates_source_and_record(): void {
+        global $DB;
+
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+
+        $course = $this->getDataGenerator()->create_course();
+        $jitsi = $this->getDataGenerator()->create_module('jitsi', ['course' => $course->id]);
+
+        $recordid = \mod_jitsi\local\recording::add_link($jitsi->id, 'https://example.com/v.mp4', 'My rec', 1, 7);
+
+        $record = $DB->get_record('jitsi_record', ['id' => $recordid], '*', MUST_EXIST);
+        $this->assertEquals($jitsi->id, $record->jitsi);
+        $this->assertEquals('My rec', $record->name);
+        $this->assertEquals(1, $record->visible);
+        $this->assertEquals(0, $record->deleted);
+
+        $source = $DB->get_record('jitsi_source_record', ['id' => $record->source], '*', MUST_EXIST);
+        $this->assertEquals('https://example.com/v.mp4', $source->link);
+        $this->assertEquals(1, $source->type);
+        $this->assertEquals(7, $source->userid);
+        // Embed is only honoured for Dropbox links.
+        $this->assertEquals(0, $source->embed);
+    }
+
+    /**
+     * Test that add_link honours the embed flag only for Dropbox links and
+     * falls back to a date-based name when none is given.
+     *
+     * @covers \mod_jitsi\local\recording::add_link
+     */
+    public function test_add_link_embed_only_for_dropbox_and_default_name(): void {
+        global $DB;
+
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+
+        $course = $this->getDataGenerator()->create_course();
+        $jitsi = $this->getDataGenerator()->create_module('jitsi', ['course' => $course->id]);
+
+        $recordid = \mod_jitsi\local\recording::add_link($jitsi->id, 'https://www.dropbox.com/s/x/v.mp4', '', 1, 7);
+
+        $record = $DB->get_record('jitsi_record', ['id' => $recordid], '*', MUST_EXIST);
+        $source = $DB->get_record('jitsi_source_record', ['id' => $record->source], '*', MUST_EXIST);
+        $this->assertEquals(1, $source->embed);
+        // Empty name falls back to a userdate() string.
+        $this->assertNotEmpty($record->name);
+    }
+
+    /**
+     * Test that update_link updates the URL and name of a type-1 recording.
+     *
+     * @covers \mod_jitsi\local\recording::update_link
+     */
+    public function test_update_link_updates_url_and_name(): void {
+        global $DB;
+
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+
+        $course = $this->getDataGenerator()->create_course();
+        $jitsi = $this->getDataGenerator()->create_module('jitsi', ['course' => $course->id]);
+
+        $recordid = \mod_jitsi\local\recording::add_link($jitsi->id, 'https://example.com/old.mp4', 'Old', 0, 7);
+        \mod_jitsi\local\recording::update_link($recordid, 'https://example.com/new.mp4', 'New', 0);
+
+        $record = $DB->get_record('jitsi_record', ['id' => $recordid], '*', MUST_EXIST);
+        $source = $DB->get_record('jitsi_source_record', ['id' => $record->source], '*', MUST_EXIST);
+        $this->assertEquals('New', $record->name);
+        $this->assertEquals('https://example.com/new.mp4', $source->link);
+    }
+
+    /**
+     * Test that update_link leaves non type-1 sources (e.g. YouTube) untouched.
+     *
+     * @covers \mod_jitsi\local\recording::update_link
+     */
+    public function test_update_link_ignores_non_type1(): void {
+        global $DB;
+
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+
+        $course = $this->getDataGenerator()->create_course();
+        $jitsi = $this->getDataGenerator()->create_module('jitsi', ['course' => $course->id]);
+
+        $sourceid = $DB->insert_record('jitsi_source_record', [
+            'jitsi'       => $jitsi->id,
+            'link'        => 'https://youtube.com/orig',
+            'timecreated' => time(),
+            'userid'      => 0,
+            'type'        => 0,
+        ]);
+        $recordid = $DB->insert_record('jitsi_record', [
+            'jitsi'       => $jitsi->id,
+            'source'      => $sourceid,
+            'name'        => 'Orig',
+            'timecreated' => time(),
+            'deleted'     => 0,
+            'visible'     => 1,
+        ]);
+
+        \mod_jitsi\local\recording::update_link($recordid, 'https://example.com/new.mp4', 'New', 0);
+
+        $source = $DB->get_record('jitsi_source_record', ['id' => $sourceid], '*', MUST_EXIST);
+        $this->assertEquals('https://youtube.com/orig', $source->link);
+        $this->assertEquals('Orig', $DB->get_field('jitsi_record', 'name', ['id' => $recordid]));
+    }
+
+    /**
      * Test that jitsi_check_tutoring_availability returns hasschedule=false
      * when teacher has no slots in any shared visible course.
      *

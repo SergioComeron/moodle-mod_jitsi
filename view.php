@@ -129,16 +129,12 @@ if ($deletejitsirecordid && confirm_sesskey($sesskey)) {
 }
 
 if ($hidejitsirecordid && confirm_sesskey($sesskey)) {
-    $record = $DB->get_record('jitsi_record', ['id' => $hidejitsirecordid]);
-    $record->visible = 0;
-    $DB->update_record('jitsi_record', $record);
+    \mod_jitsi\local\recording::set_visibility($hidejitsirecordid, 0);
     redirect($PAGE->url, get_string('updated', 'jitsi'));
 }
 
 if ($showjitsirecordid && confirm_sesskey($sesskey)) {
-    $record = $DB->get_record('jitsi_record', ['id' => $showjitsirecordid]);
-    $record->visible = 1;
-    $DB->update_record('jitsi_record', $record);
+    \mod_jitsi\local\recording::set_visibility($showjitsirecordid, 1);
     redirect($PAGE->url, get_string('updated', 'jitsi'));
 }
 
@@ -210,24 +206,7 @@ if ($addrecordlink && !$errorborrado && confirm_sesskey()) {
     $recordingname = optional_param('recordingname', '', PARAM_TEXT);
     $embedrecording = optional_param('embedrecording', 0, PARAM_INT);
     if (!empty($recordingurl)) {
-        $sourcerecord = new stdClass();
-        $sourcerecord->link = $recordingurl;
-        $sourcerecord->account = null;
-        $sourcerecord->timecreated = time();
-        $sourcerecord->userid = $USER->id;
-        $sourcerecord->embed = (strpos($recordingurl, 'dropbox.com') !== false) ? $embedrecording : 0;
-        $sourcerecord->maxparticipants = 0;
-        $sourcerecord->type = 1;
-        $sourcerecord->id = $DB->insert_record('jitsi_source_record', $sourcerecord);
-
-        $record = new stdClass();
-        $record->jitsi = $jitsiid;
-        $record->deleted = 0;
-        $record->source = $sourcerecord->id;
-        $record->visible = 1;
-        $record->name = empty($recordingname) ? userdate(time()) : $recordingname;
-        $DB->insert_record('jitsi_record', $record);
-
+        \mod_jitsi\local\recording::add_link($jitsiid, $recordingurl, $recordingname, $embedrecording, $USER->id);
         $redirecturl = new moodle_url('/mod/jitsi/view.php', ['id' => $id, 'tab' => 'record']);
         redirect($redirecturl, get_string('recordinglinksaved', 'jitsi'));
     }
@@ -240,15 +219,7 @@ if ($saverecordedit && !$errorborrado && confirm_sesskey()) {
     $recordingname = optional_param('recordingname', '', PARAM_TEXT);
     $embedrecording = optional_param('embedrecording', 0, PARAM_INT);
     if ($editingrecordid && !empty($recordingurl)) {
-        $record = $DB->get_record('jitsi_record', ['id' => $editingrecordid], '*', MUST_EXIST);
-        $sourcerecord = $DB->get_record('jitsi_source_record', ['id' => $record->source], '*', MUST_EXIST);
-        if ($sourcerecord->type == 1) {
-            $sourcerecord->link = $recordingurl;
-            $sourcerecord->embed = (strpos($recordingurl, 'dropbox.com') !== false) ? $embedrecording : 0;
-            $DB->update_record('jitsi_source_record', $sourcerecord);
-            $record->name = empty($recordingname) ? userdate($sourcerecord->timecreated) : $recordingname;
-            $DB->update_record('jitsi_record', $record);
-        }
+        \mod_jitsi\local\recording::update_link($editingrecordid, $recordingurl, $recordingname, $embedrecording);
         $redirecturl = new moodle_url('/mod/jitsi/view.php', ['id' => $id, 'tab' => 'record']);
         redirect($redirecturl, get_string('updated', 'jitsi'));
     }

@@ -61,6 +61,73 @@ class recording {
     }
 
     /**
+     * Toggle the visibility of a recording in the activity recordings list.
+     *
+     * @param int $recordid jitsi_record id
+     * @param int $visible 1 = visible, 0 = hidden
+     */
+    public static function set_visibility($recordid, $visible) {
+        global $DB;
+        $record = $DB->get_record('jitsi_record', ['id' => $recordid], '*', MUST_EXIST);
+        $record->visible = $visible ? 1 : 0;
+        $DB->update_record('jitsi_record', $record);
+    }
+
+    /**
+     * Add an external recording link (type 1) to an activity, creating both the
+     * source record and the jitsi_record that links it to the activity.
+     *
+     * @param int $jitsiid jitsi activity instance id
+     * @param string $url Recording URL
+     * @param string $name Display name (defaults to the current date/time when empty)
+     * @param int $embed Whether to embed (only honoured for Dropbox links)
+     * @param int $userid Author user id
+     * @return int The new jitsi_record id
+     */
+    public static function add_link($jitsiid, $url, $name, $embed, $userid) {
+        global $DB;
+        $sourcerecord = new \stdClass();
+        $sourcerecord->link = $url;
+        $sourcerecord->account = null;
+        $sourcerecord->timecreated = time();
+        $sourcerecord->userid = $userid;
+        $sourcerecord->embed = (strpos($url, 'dropbox.com') !== false) ? $embed : 0;
+        $sourcerecord->maxparticipants = 0;
+        $sourcerecord->type = 1;
+        $sourcerecord->id = $DB->insert_record('jitsi_source_record', $sourcerecord);
+
+        $record = new \stdClass();
+        $record->jitsi = $jitsiid;
+        $record->deleted = 0;
+        $record->source = $sourcerecord->id;
+        $record->visible = 1;
+        $record->name = empty($name) ? userdate(time()) : $name;
+        return $DB->insert_record('jitsi_record', $record);
+    }
+
+    /**
+     * Update an existing external recording link (type 1 only).
+     *
+     * @param int $recordid jitsi_record id being edited
+     * @param string $url New recording URL
+     * @param string $name New display name (defaults to the source creation date when empty)
+     * @param int $embed Whether to embed (only honoured for Dropbox links)
+     */
+    public static function update_link($recordid, $url, $name, $embed) {
+        global $DB;
+        $record = $DB->get_record('jitsi_record', ['id' => $recordid], '*', MUST_EXIST);
+        $sourcerecord = $DB->get_record('jitsi_source_record', ['id' => $record->source], '*', MUST_EXIST);
+        if ($sourcerecord->type != 1) {
+            return;
+        }
+        $sourcerecord->link = $url;
+        $sourcerecord->embed = (strpos($url, 'dropbox.com') !== false) ? $embed : 0;
+        $DB->update_record('jitsi_source_record', $sourcerecord);
+        $record->name = empty($name) ? userdate($sourcerecord->timecreated) : $name;
+        $DB->update_record('jitsi_record', $record);
+    }
+
+    /**
      * Delete the recording file behind a recording link (GCS object or Jibri VM file).
      *
      * @param string $link Recording URL
