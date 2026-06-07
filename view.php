@@ -304,29 +304,20 @@ $hasvisiblerecords = $DB->record_exists_sql($sqlrecords . ' AND r.visible = 1', 
 
 $bstoggle = ($CFG->branch >= 500) ? 'data-bs-toggle' : 'data-toggle';
 
-echo '<ul class="nav nav-tabs" id="myTab" role="tablist">';
-echo '<li class="nav-item">';
-echo '<a class="nav-link ' . ($activetab == 'session' ? 'active' : '') . '" id="session-tab"'
-    . ' ' . $bstoggle . '="tab" href="#session" role="tab" aria-controls="session"'
-    . ' aria-selected="' . ($activetab == 'session' ? 'true' : 'false') . '">'
-    . get_string('session', 'jitsi') . '</a>';
-echo '</li>';
+$showrecordtab = (has_capability('mod/jitsi:viewrecords', $PAGE->context)
+        || has_capability('mod/jitsi:record', $PAGE->context))
+    && ($hasvisiblerecords
+        || has_capability('mod/jitsi:record', $PAGE->context)
+        || get_config('mod_jitsi', 'streamingoption') == 1);
 
-if (has_capability('mod/jitsi:viewrecords', $PAGE->context) || has_capability('mod/jitsi:record', $PAGE->context)) {
-    if (
-        $hasvisiblerecords ||
-        has_capability('mod/jitsi:record', $PAGE->context) ||
-        get_config('mod_jitsi', 'streamingoption') == 1
-    ) {
-        echo '<li class="nav-item">';
-        echo '<a class="nav-link ' . ($activetab == 'record' ? 'active' : '') . '" id="record-tab"'
-            . ' ' . $bstoggle . '="tab" href="#record" role="tab" aria-controls="record"'
-            . ' aria-selected="' . ($activetab == 'record' ? 'true' : 'false') . '">'
-            . get_string('records', 'jitsi') . '</a>';
-        echo '</li>';
-    }
-}
-echo '</ul>';
+echo $OUTPUT->render_from_template('mod_jitsi/view_tabs_nav', [
+    'bstoggle' => $bstoggle,
+    'sessionactive' => ($activetab == 'session'),
+    'sessionlabel' => get_string('session', 'jitsi'),
+    'showrecordtab' => $showrecordtab,
+    'recordactive' => ($activetab == 'record'),
+    'recordlabel' => get_string('records', 'jitsi'),
+]);
 
 echo '<div class="tab-content" id="myTabContent">';
 echo '<div class="tab-pane fade ' . ($activetab == 'session' ? 'show active' : '')
