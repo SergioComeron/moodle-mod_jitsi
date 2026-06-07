@@ -360,71 +360,33 @@ if ($presencecount > 0) {
     }
 }
 
-// Metrics — centered, above card.
-echo html_writer::start_div('d-flex justify-content-center gap-5 mt-3 mb-3');
-echo html_writer::start_div('text-center');
-echo '<div class="dropdown d-inline-block">';
-echo '<button class="border-0 bg-transparent p-0 dropdown-toggle" id="jitsi-presence-btn"'
-    . ' ' . $bstoggle . '="dropdown" aria-expanded="false"'
-    . ' aria-label="' . s(get_string('connectedattendeesnow', 'jitsi')) . '">';
-echo '<span id="jitsi-presence-count" class="h4 mb-0 fw-bold">' . $presencecount . '</span>';
-echo '</button>';
-echo '<ul class="dropdown-menu" id="jitsi-presence-list" aria-labelledby="jitsi-presence-btn">';
-if (empty($presenceusers)) {
-    echo '<li><span class="dropdown-item-text text-muted">' . get_string('noconnectedusers', 'jitsi') . '</span></li>';
-} else {
-    foreach ($presenceusers as $presenceitem) {
-        if ($presenceitem['isguest']) {
-            echo '<li><span class="dropdown-item-text">'
-                . '<i class="fa fa-user-secret text-muted me-1" aria-hidden="true"></i>'
-                . s($presenceitem['name'])
-                . '</span></li>';
-        } else {
-            $profileurl = new moodle_url('/user/view.php', ['id' => $presenceitem['userid'], 'course' => $jitsi->course]);
-            echo '<li><a class="dropdown-item" href="' . $profileurl . '" target="_blank" rel="noopener">'
-                . s($presenceitem['name'])
-                . '</a></li>';
-        }
+// Build presence + badge template context (decisions stay here; the template only renders).
+$presenceitems = [];
+foreach ($presenceusers as $presenceitem) {
+    $item = ['name' => $presenceitem['name'], 'isguest' => (bool)$presenceitem['isguest']];
+    if (!$presenceitem['isguest']) {
+        $item['profileurl'] = (new moodle_url(
+            '/user/view.php',
+            ['id' => $presenceitem['userid'], 'course' => $jitsi->course]
+        ))->out(false);
     }
+    $presenceitems[] = $item;
 }
-echo '</ul>';
-echo '</div>';
-echo html_writer::tag('div', get_string('connectedattendeesnow', 'jitsi'), ['class' => 'text-muted small']);
-echo html_writer::end_div();
-echo html_writer::start_div('text-center');
-echo html_writer::tag(
-    'div',
-    \mod_jitsi\local\attendance::minutes($id, $USER->id),
-    ['class' => 'h4 mb-0 fw-bold', 'id' => 'jitsi-user-minutes']
-);
-echo html_writer::tag('div', get_string('totaluserminutes', 'jitsi'), ['class' => 'text-muted small']);
-echo html_writer::end_div();
-echo html_writer::end_div();
 
-$courseid = (int)$jitsi->course;
-
-// Badges — centered, above card.
-echo html_writer::start_div('text-center mb-2');
+$sharedbadge = null;
 if ($jitsi->sessionwithtoken) {
     $jitsimaster = $DB->get_record('jitsi', ['tokeninterno' => $jitsi->tokeninvitacion]);
     $coursemaster = $DB->get_record('course', ['id' => $jitsimaster->course]);
-    echo html_writer::tag(
-        'span',
-        '🔗 ' . get_string('sessionshared', 'jitsi', $coursemaster->shortname),
-        ['class' => 'badge bg-secondary me-2']
-    );
+    $sharedbadge = get_string('sessionshared', 'jitsi', $coursemaster->shortname);
 }
+
+$recordingby = null;
 if ($jitsi->sourcerecord != null) {
     $source = $DB->get_record('jitsi_source_record', ['id' => $jitsi->sourcerecord]);
     if ($source) {
         $author = $DB->get_record('user', ['id' => $source->userid]);
         if ($author) {
-            echo html_writer::tag(
-                'span',
-                '<i class="fa fa-circle me-1" aria-hidden="true"></i>'
-                    . get_string('sessionisbeingrecordingby', 'jitsi', fullname($author)),
-                ['class' => 'badge bg-danger me-1']
-            );
+            $recordingby = get_string('sessionisbeingrecordingby', 'jitsi', fullname($author));
         } else {
             $jitsi->sourcerecord = null;
             $DB->update_record('jitsi', $jitsi);
@@ -434,14 +396,23 @@ if ($jitsi->sourcerecord != null) {
         $DB->update_record('jitsi', $jitsi);
     }
 }
-$jibrirecording = ($jitsi->status === 'recording');
-$jibribadgeclass = 'badge bg-danger me-1' . ($jibrirecording ? '' : ' d-none');
-echo html_writer::tag(
-    'span',
-    '<i class="fa fa-circle me-1" aria-hidden="true"></i>' . get_string('sessionisbeingrecorded', 'jitsi'),
-    ['class' => $jibribadgeclass, 'id' => 'jitsi-jibri-badge']
-);
-echo html_writer::end_div();
+
+$courseid = (int)$jitsi->course;
+
+echo $OUTPUT->render_from_template('mod_jitsi/view_session_header', [
+    'bstoggle' => $bstoggle,
+    'presencecount' => $presencecount,
+    'presenceusers' => $presenceitems,
+    'hasusers' => !empty($presenceitems),
+    'connectedlabel' => get_string('connectedattendeesnow', 'jitsi'),
+    'nouserslabel' => get_string('noconnectedusers', 'jitsi'),
+    'userminutes' => \mod_jitsi\local\attendance::minutes($id, $USER->id),
+    'minuteslabel' => get_string('totaluserminutes', 'jitsi'),
+    'sharedbadge' => $sharedbadge,
+    'recordingby' => $recordingby,
+    'jibrihidden' => ($jitsi->status !== 'recording'),
+    'jibrilabel' => get_string('sessionisbeingrecorded', 'jitsi'),
+]);
 
 $PAGE->requires->js_call_amd('mod_jitsi/view_indicators', 'init', [[
     'jitsiid' => (int)$jitsi->id,
