@@ -89,6 +89,26 @@ const refreshPresence = (jitsiid, courseid, noUsersText) => {
 };
 
 /**
+ * Refresh the current user's total connected-minutes counter.
+ *
+ * @param {number} cmid Course module id.
+ */
+const refreshUserMinutes = (cmid) => {
+    Ajax.call([{
+        methodname: 'mod_jitsi_get_user_minutes',
+        args: {cmid: cmid},
+    }])[0].then((result) => {
+        const minutesEl = document.getElementById('jitsi-user-minutes');
+        if (minutesEl) {
+            minutesEl.textContent = result.minutes;
+        }
+        return result;
+    }).catch(() => {
+        return;
+    });
+};
+
+/**
  * Toggle the Jibri "is being recorded" badge based on current recording status.
  *
  * @param {number} jitsiid Jitsi activity instance id.
@@ -114,6 +134,7 @@ const refreshJibriBadge = (jitsiid) => {
  * @param {object} config Configuration.
  * @param {number} config.jitsiid Jitsi activity instance id.
  * @param {number} config.courseid Course id, for profile links.
+ * @param {number} config.cmid Course module id, for the user-minutes counter.
  */
 export const init = (config) => {
     getString('noconnectedusers', 'mod_jitsi').then((noUsersText) => {
@@ -127,5 +148,6 @@ export const init = (config) => {
 
     setInterval(() => {
         refreshJibriBadge(config.jitsiid);
+        refreshUserMinutes(config.cmid);
     }, POLL_INTERVAL);
 };

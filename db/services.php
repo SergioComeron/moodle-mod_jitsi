@@ -392,4 +392,13 @@ $functions = [
                 'ajax' => true,
                 'loginrequired' => false,
         ],
+
+        'mod_jitsi_get_user_minutes' => [
+                'classname' => 'mod_jitsi\external\get_user_minutes',
+                'methodname' => 'execute',
+                'description' => 'Get the current user total connected minutes for a jitsi activity',
+                'type' => 'read',
+                'ajax' => true,
+                'loginrequired' => true,
+        ],
 ];

@@ -392,7 +392,11 @@ echo '</div>';
 echo html_writer::tag('div', get_string('connectedattendeesnow', 'jitsi'), ['class' => 'text-muted small']);
 echo html_writer::end_div();
 echo html_writer::start_div('text-center');
-echo html_writer::tag('div', \mod_jitsi\local\attendance::minutes($id, $USER->id), ['class' => 'h4 mb-0 fw-bold']);
+echo html_writer::tag(
+    'div',
+    \mod_jitsi\local\attendance::minutes($id, $USER->id),
+    ['class' => 'h4 mb-0 fw-bold', 'id' => 'jitsi-user-minutes']
+);
 echo html_writer::tag('div', get_string('totaluserminutes', 'jitsi'), ['class' => 'text-muted small']);
 echo html_writer::end_div();
 echo html_writer::end_div();
@@ -442,6 +446,7 @@ echo html_writer::end_div();
 $PAGE->requires->js_call_amd('mod_jitsi/view_indicators', 'init', [[
     'jitsiid' => (int)$jitsi->id,
     'courseid' => $courseid,
+    'cmid' => (int)$cm->id,
 ]]);
 
 if ($CFG->branch <= 311 && $jitsi->intro) {
