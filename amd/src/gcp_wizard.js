@@ -40,6 +40,9 @@ const vmInfo = {};
 /** Whether the DNS warning step has already been rendered. */
 let dnsWarningShown = false;
 
+/** Set when the user closes the modal; stops any scheduled polling. */
+let cancelled = false;
+
 /**
  * Show the modal.
  */
@@ -47,6 +50,7 @@ const showModal = () => {
     if (!modalEl) {
         return;
     }
+    cancelled = false;
     modalEl.classList.add('show');
     modalEl.style.display = 'block';
     modalEl.removeAttribute('aria-hidden');
@@ -59,6 +63,7 @@ const showModal = () => {
  * Hide the modal.
  */
 const closeModal = () => {
+    cancelled = true;
     if (modalEl) {
         modalEl.classList.remove('show');
         modalEl.style.display = 'none';
@@ -209,6 +214,9 @@ const showDnsWarning = (data) => {
  * Poll the provisioning status reported by the VM until completed or error.
  */
 const checkJitsiReady = async() => {
+    if (cancelled) {
+        return;
+    }
     try {
         const data = await postJSON(cfg.checkReadyUrl, {
             sesskey: cfg.sesskey,
@@ -263,6 +271,9 @@ const checkJitsiReady = async() => {
  * @param {string} opname GCP operation name.
  */
 const pollStatus = async(opname) => {
+    if (cancelled) {
+        return;
+    }
     try {
         const data = await postJSON(cfg.statusUrl, {sesskey: cfg.sesskey, opname: opname});
         if (data.status === 'pending') {

@@ -425,12 +425,18 @@ if ($action === 'checkjitsiready') {
 if ($action === 'listprovisioningservers') {
     @header('Content-Type: application/json');
 
-    // Return list of servers being provisioned.
+    // Return list of servers being provisioned. Ignore runs without activity in the
+    // last hour: the longest in-flow waits (DNS propagation, installation) time out
+    // at 15 minutes, so anything older is a stale leftover that would otherwise
+    // resurrect the provisioning modal forever on every page load.
     $servers = $DB->get_records_sql(
         "SELECT id, name, gcpinstancename, domain, gcpstaticipaddress, provisioningstatus
          FROM {jitsi_servers}
-         WHERE type = 3 AND provisioningstatus IS NOT NULL AND provisioningstatus != '' AND provisioningstatus != 'ready'
-         ORDER BY timecreated DESC"
+         WHERE type = 3 AND provisioningstatus IS NOT NULL AND provisioningstatus != ''
+           AND provisioningstatus NOT IN ('ready', 'error')
+           AND timemodified > :cutoff
+         ORDER BY timecreated DESC",
+        ['cutoff' => time() - HOURSECS]
     );
 
     echo json_encode(array_values($servers));
