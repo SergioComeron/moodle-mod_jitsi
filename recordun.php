@@ -89,10 +89,15 @@ $PAGE->set_title($jitsi->name);
 $PAGE->set_heading($jitsi->name);
 echo $OUTPUT->header();
 
+$hasvideo = false;
 echo "<div id=\"videoContainer\">";
 if (!\mod_jitsi\local\invitation::is_timed_out($jitsi)) {
-    $sourcerecord = $DB->get_record('jitsi_source_record', ['id' => $jitsi->sourcerecord]);
+    $sourcerecord = false;
+    if (!empty($jitsi->sourcerecord)) {
+        $sourcerecord = $DB->get_record('jitsi_source_record', ['id' => $jitsi->sourcerecord]);
+    }
     if ($sourcerecord) {
+        $hasvideo = true;
         echo "<div class=\"embed-responsive embed-responsive-16by9\">
             <iframe class=\"embed-responsive-item\" src=\"https://youtube.com/embed/" . $sourcerecord->link . "\" allowfullscreen>
             </iframe></div>";
@@ -104,66 +109,16 @@ if (!\mod_jitsi\local\invitation::is_timed_out($jitsi)) {
 }
 
 echo "</div>";
-echo "<script>\n";
-echo "var checkInterval;\n";
-echo "var hayVideo = document.getElementById('videoContainer').innerHTML.includes('embed-responsive-item');\n";
 
-echo "function checkSourceRecord(jitsiId) {\n";
-echo "    var xhr = new XMLHttpRequest();\n";
-echo "    xhr.open('GET', 'check_sourcerecord.php?jitsiId=' + jitsiId, true);\n";
-echo "    xhr.onreadystatechange = function() {\n";
-echo "        if (xhr.readyState == 4 && xhr.status == 200) {\n";
-echo "            var response = JSON.parse(xhr.responseText);\n";
-echo "            var container = document.getElementById('videoContainer');\n";
-echo "            var currentContent = container.innerHTML.trim();\n";
+if (!\mod_jitsi\local\invitation::is_timed_out($jitsi)) {
+    $PAGE->requires->js_call_amd('mod_jitsi/recordun_poll', 'init', [[
+        'cmid' => (int)$cm->id,
+        'hasvideo' => $hasvideo,
+        'loadingtext' => get_string('loadingvideo', 'jitsi'),
+        'norecordingtext' => get_string('norecording', 'jitsi'),
+    ]]);
+}
 
-echo "            if (response.found && hayVideo) {\n";
-
-echo "            } else {\n";
-echo "                if (response.found) {\n";
-echo "                    waitTenSeconds(response);\n";
-echo "                } else if (!response.found && currentContent !== 'No hay grabación') {\n";
-echo "                    waitTenSecondsForDelete();\n";
-echo "                }\n";
-echo "            }\n";
-echo "        }\n";
-echo "    };\n";
-echo "    xhr.send();\n";
-echo "};\n";
-
-// Función que retorna una promesa que se resuelve después de un periodo de tiempo.
-echo "function wait(ms) {\n";
-echo "    return new Promise(resolve => setTimeout(resolve, ms));\n";
-echo "};\n";
-
-// Función asíncrona que espera 10 segundos antes de continuar.
-echo "async function waitTenSeconds(response) {\n";
-echo "    document.getElementById('videoContainer').innerHTML = ";
-echo "    '<div class=\"d-flex flex-column align-items-center justify-content-center\" style=\"height: 100vh;\">";
-echo "     <div class=\"spinner-border\" role=\"status\">";
-echo "     <span class=\"sr-only\">" . get_string('loadingvideo', 'jitsi') . "</span></div><br>"
-    . get_string('loadingvideo', 'jitsi') . "</div>';\n";
-
-echo "    await wait(10000); // Esperar 10,000 milisegundos (10 segundos)\n";
-echo "    document.getElementById('videoContainer').innerHTML = ";
-echo "    '<div class=\"embed-responsive embed-responsive-16by9\">";
-echo "    <iframe class=\"embed-responsive-item\" src=\"https://youtube.com/embed/' + response.link + '\" allowfullscreen>";
-echo "    </iframe></div>';\n";
-echo "    hayVideo = true;\n";
-echo "}\n";
-
-echo "async function waitTenSecondsForDelete() {";
-echo "    await wait(10000);";
-echo "    document.getElementById('videoContainer').innerHTML = '<div class=\"alert alert-warning text-center\" role=\"alert\">"
-    . get_string('norecording', 'jitsi') . "</div>';\n";
-echo "    hayVideo = false;\n";
-echo "};\n";
-
-// Llama a la función cada 5 segundos.
-echo "checkInterval = setInterval(function() {\n";
-echo "    checkSourceRecord(" . $jitsi->id . ");\n";
-echo "}, 10000);\n";
-echo "</script>\n";
 if (isloggedin()) {
     echo $OUTPUT->footer();
 }

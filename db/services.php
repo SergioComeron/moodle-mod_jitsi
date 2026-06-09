@@ -437,4 +437,13 @@ $functions = [
                 'ajax' => true,
                 'loginrequired' => true,
         ],
+
+        'mod_jitsi_check_source_record' => [
+                'classname' => 'mod_jitsi\external\check_source_record',
+                'methodname' => 'execute',
+                'description' => 'Report whether an activity currently has an associated source recording',
+                'type' => 'read',
+                'ajax' => true,
+                'loginrequired' => true,
+        ],
 ];
