@@ -926,81 +926,18 @@ SCRIPT;
     echo $OUTPUT->header();
     echo $OUTPUT->heading('Add Jibri recording to: ' . format_string($server->name));
 
-    echo html_writer::div(
-        html_writer::tag(
-            'p',
-            'This will create a dedicated Jibri recording VM alongside your existing Jitsi server. ' .
-            'Two steps are required:'
-        ) .
-        html_writer::tag(
-            'ol',
-            html_writer::tag(
-                'li',
-                html_writer::tag('strong', 'Run the script below on your Jitsi VM') .
-                ' — reconfigures Prosody and Jicofo to accept Jibri connections.'
-            ) .
-            html_writer::tag(
-                'li',
-                html_writer::tag('strong', 'Click "Confirm"') .
-                ' — Moodle will create and configure the Jibri VM in GCP automatically.'
-            )
-        ),
-        'alert alert-info mb-3'
-    );
-
-    // Script display with copy button.
-    $scriptescaped = htmlspecialchars($reconfigscript);
-    echo html_writer::div(
-        html_writer::tag('h5', 'Reconfiguration script for the Jitsi VM') .
-        html_writer::tag(
-            'p',
-            html_writer::tag('code', 'ssh user@' . s($hostname) . ' \'sudo bash -s\' < script.sh'),
-            ['class' => 'text-muted small']
-        ) .
-        html_writer::tag('pre', $scriptescaped, [
-            'id' => 'jibri-reconfig-script',
-            'class' => 'bg-dark text-light p-3 rounded',
-            'style' => 'max-height:300px; overflow-y:auto; font-size:0.8em;',
-        ]) .
-        html_writer::tag(
-            'button',
-            'Copy script',
-            ['type' => 'button', 'class' => 'btn btn-sm btn-outline-secondary mb-3', 'id' => 'copy-reconfig-script']
-        ),
-        'mb-4'
-    );
-
-    // Machine type form + confirm.
-    $confirmurl = new moodle_url('/mod/jitsi/servermanagement.php', [
-        'action'  => 'addjibri',
-        'id'      => $id,
-        'confirm' => 1,
+    echo $OUTPUT->render_from_template('mod_jitsi/addjibri_confirm', [
+        'hostname' => $hostname,
+        'script' => $reconfigscript,
+        'confirmurl' => (new moodle_url('/mod/jitsi/servermanagement.php', [
+            'action'  => 'addjibri',
+            'id'      => $id,
+            'confirm' => 1,
+            'sesskey' => sesskey(),
+        ]))->out(false),
+        'cancelurl' => (new moodle_url('/mod/jitsi/servermanagement.php'))->out(false),
         'sesskey' => sesskey(),
     ]);
-    $cancelurl = new moodle_url('/mod/jitsi/servermanagement.php');
-
-    echo html_writer::start_tag('form', ['method' => 'post', 'action' => $confirmurl->out(false)]);
-    echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'sesskey', 'value' => sesskey()]);
-
-    echo html_writer::div(
-        html_writer::tag('label', 'Jibri VM machine type', ['class' => 'form-label fw-semibold', 'for' => 'jibri-machine']) .
-        html_writer::empty_tag('input', [
-            'type'  => 'text',
-            'id'    => 'jibri-machine',
-            'name'  => 'jibrimachinetype',
-            'value' => 'n2-standard-4',
-            'class' => 'form-control mb-1',
-        ]) .
-        html_writer::tag('small', 'Minimum recommended: <code>n2-standard-4</code> (4 vCPUs, 16 GB RAM).', ['class' => 'text-muted']), // phpcs:ignore moodle.Files.LineLength.MaxExceeded
-        'mb-4'
-    );
-
-    echo html_writer::div(
-        html_writer::tag('button', 'Confirm — Create Jibri VM', ['type' => 'submit', 'class' => 'btn btn-primary me-2']) .
-        html_writer::link($cancelurl, 'Cancel', ['class' => 'btn btn-secondary'])
-    );
-
-    echo html_writer::end_tag('form');
 
     $PAGE->requires->js_call_amd('mod_jitsi/copy_button', 'init', [[
         'buttonId' => 'copy-reconfig-script',
@@ -1318,62 +1255,15 @@ if ($showform) {
     // TABLE VIEW: Show server list and management options.
     echo $OUTPUT->heading(get_string('servermanagement', 'mod_jitsi'));
 
-    $settingsurl = new moodle_url('/admin/settings.php', ['section' => 'modsettingjitsi']);
-    $addserverurl = new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'add']);
-    $creategcpvmurl = new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'creategcpvm', 'sesskey' => sesskey()]);
-
-    echo html_writer::div(
-        html_writer::link($settingsurl, get_string('backtosettings', 'mod_jitsi'), ['class' => 'btn btn-secondary me-2']) .
-        html_writer::link($addserverurl, get_string('addnewserver', 'mod_jitsi'), ['class' => 'btn btn-success me-2']) .
-        html_writer::tag(
-            'button',
-            'Create VM in Google Cloud ' . html_writer::tag('span', 'BETA', ['class' => 'badge bg-warning text-dark ms-1']),
-            ['id' => 'btn-creategcpvm', 'type' => 'button', 'class' => 'btn btn-primary']
-        ),
-        'mb-3'
-    );
-
-    // Information about GCP servers.
-    echo html_writer::div(
-        html_writer::div(
-            html_writer::tag('strong', get_string('gcpserverinfo', 'mod_jitsi')) . '<br>' .
-            get_string('gcpserverinfodetail', 'mod_jitsi'),
-            'alert alert-info'
-        ),
-        'mb-3'
-    );
-
-    // Modal markup for progress.
-    $gcpstatusurl = (new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'gcpstatusjson']))->out(false);
-    $createvmurl  = (new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'creategcpvm', 'ajax' => 1]))->out(false);
-    $listurl      = (new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'listprovisioningservers']))->out(false);
-    $redirecturl  = (new moodle_url('/mod/jitsi/servermanagement.php'))->out(false);
-    $sesskeyjs    = sesskey();
-
-    // Modal markup (HTML only).
-    echo <<<HTML
-    <div class="modal fade" id="gcpModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-        <div class="modal-body" id="gcp-modal-body">
-            <!-- El contenido se inyectará dinámicamente -->
-        </div>
-        </div>
-    </div>
-    </div>
-    HTML;
-
-    $init = [
-        'sesskey' => $sesskeyjs,
-        'statusUrl' => $gcpstatusurl,
-        'createUrl' => $createvmurl,
-        'listUrl' => $listurl,
-        'redirectUrl' => $redirecturl,
+    $PAGE->requires->js_call_amd('mod_jitsi/gcp_wizard', 'init', [[
+        'sesskey' => sesskey(),
+        'statusUrl' => (new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'gcpstatusjson']))->out(false),
+        'createUrl' => (new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'creategcpvm', 'ajax' => 1]))->out(false),
+        'listUrl' => (new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'listprovisioningservers']))->out(false),
+        'redirectUrl' => (new moodle_url('/mod/jitsi/servermanagement.php'))->out(false),
         'hostname' => (string) get_config('mod_jitsi', 'gcp_hostname'),
         'checkReadyUrl' => (new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'checkjitsiready']))->out(false),
-    ];
-    $PAGE->requires->js_call_amd('mod_jitsi/gcp_wizard', 'init', [$init]);
-
+    ]]);
 
     $gcpclient = null;
     try {
@@ -1386,47 +1276,34 @@ if ($showform) {
     }
 
     $servers = $DB->get_records('jitsi_servers', null, 'name ASC');
-    $table = new html_table();
-    $table->head = [
-        get_string('name'),
-        get_string('type', 'mod_jitsi'),
-        get_string('domain', 'mod_jitsi'),
-        get_string('status', 'mod_jitsi'), // Nueva columna.
-        get_string('actions', 'mod_jitsi'),
-    ];
-
     $gcpserverids = []; // Para recopilar IDs de servidores GCP.
+    $serverscontext = [];
 
     foreach ($servers as $s) {
         switch ($s->type) {
             case 0:
-                $typestring = 'Server without token';
+                $typelabel = 'Server without token';
                 break;
             case 1:
-                $typestring = 'Self-hosted (JWT)';
+                $typelabel = 'Self-hosted (JWT)';
                 break;
             case 2:
-                $typestring = '8x8 server';
+                $typelabel = '8x8 server';
                 break;
             case 3:
-                $typestring = '🌩️ GCP Auto-Managed <span class="badge bg-warning text-dark">BETA</span>';
+                $typelabel = '🌩️ GCP Auto-Managed';
                 break;
             default:
-                $typestring = get_string('unknowntype', 'mod_jitsi');
+                $typelabel = get_string('unknowntype', 'mod_jitsi');
         }
 
-        // Build Jibri pool badge(s).
-        $jibribadge = '';
+        // Jibri pool badges (or legacy single badge when no pool rows exist yet).
+        $jibripool = null;
+        $jibrilegacy = null;
         if (!empty($s->jibri_enabled)) {
             $poolentries = $DB->get_records('jitsi_jibri_pool', ['serverid' => $s->id], 'id ASC');
             if (!empty($poolentries)) {
-                $poolsize = (int)($s->jibri_pool_size ?? 1);
-                $jibribadge .= '<div class="mt-1">';
-                $jibribadge .= '<small class="text-muted">🎥 Jibri pool (desired: '
-                    . '<input type="number" min="1" max="10" value="' . $poolsize . '"'
-                    . ' style="width:45px" class="form-control form-control-sm d-inline-block p-0 ps-1'
-                    . ' jitsi-poolsize-input" data-serverid="' . $s->id . '"'
-                    . '>):</small><br>';
+                $entries = [];
                 foreach ($poolentries as $pe) {
                     switch ($pe->status) {
                         case 'idle':
@@ -1447,55 +1324,55 @@ if ($showform) {
                             break;
                         default:
                             $pbadgeclass = 'bg-info';
-                            $pbadgetext  = '⏳ ' . s($pe->status);
+                            $pbadgetext  = '⏳ ' . $pe->status;
                     }
-                    $deletejibrientryurl = new moodle_url('/mod/jitsi/servermanagement.php', [
-                        'action'      => 'deletejibrientry',
-                        'id'          => $s->id,
-                        'poolentryid' => $pe->id,
-                        'sesskey'     => sesskey(),
-                    ]);
-                    $jibribadge .= '<span class="badge ' . $pbadgeclass . ' me-1" title="' . s($pe->gcpinstancename) . '">'
-                        . $pbadgetext . '</span>';
-                    $jibribadge .= html_writer::link(
-                        $deletejibrientryurl,
-                        '✕',
-                        ['class' => 'text-danger small me-1', 'title' => 'Remove this Jibri VM']
-                    );
+                    $entries[] = [
+                        'badgeclass' => $pbadgeclass,
+                        'badgetext'  => $pbadgetext,
+                        'title'      => $pe->gcpinstancename,
+                        'deleteurl'  => (new moodle_url('/mod/jitsi/servermanagement.php', [
+                            'action'      => 'deletejibrientry',
+                            'id'          => $s->id,
+                            'poolentryid' => $pe->id,
+                            'sesskey'     => sesskey(),
+                        ]))->out(false),
+                    ];
                 }
-                $addtopoolurl = new moodle_url('/mod/jitsi/servermanagement.php', [
-                    'action'  => 'addtojibripool',
-                    'id'      => $s->id,
-                    'sesskey' => sesskey(),
-                ]);
-                $jibribadge .= '<br>' . html_writer::link(
-                    $addtopoolurl,
-                    '+ Add Jibri',
-                    ['class' => 'btn btn-xs btn-outline-secondary mt-1', 'style' => 'font-size:0.75rem;padding:1px 6px']
-                );
-                $jibribadge .= '</div>';
+                $jibripool = [
+                    'serverid' => $s->id,
+                    'poolsize' => (int)($s->jibri_pool_size ?? 1),
+                    'entries'  => $entries,
+                    'addurl'   => (new moodle_url('/mod/jitsi/servermanagement.php', [
+                        'action'  => 'addtojibripool',
+                        'id'      => $s->id,
+                        'sesskey' => sesskey(),
+                    ]))->out(false),
+                ];
             } else {
-                // No pool entries yet — show legacy provisioning status.
                 switch ($s->jibri_provisioningstatus ?? '') {
                     case 'ready':
-                        $jibribadge = ' <span class="badge bg-success ms-1" title="'
-                            . s($s->jibri_gcpinstancename) . '">🎥 Jibri ready</span>';
+                        $jibrilegacy = ['badgeclass' => 'bg-success', 'badgetext' => '🎥 Jibri ready',
+                            'title' => $s->jibri_gcpinstancename];
                         break;
                     case 'error':
-                        $jibribadge = ' <span class="badge bg-danger ms-1" title="'
-                            . s($s->jibri_provisioningerror) . '">🎥 Jibri error</span>';
+                        $jibrilegacy = ['badgeclass' => 'bg-danger', 'badgetext' => '🎥 Jibri error',
+                            'title' => $s->jibri_provisioningerror];
                         break;
                     case '':
-                        $jibribadge = ' <span class="badge bg-secondary ms-1">🎥 Jibri pending</span>';
+                        $jibrilegacy = ['badgeclass' => 'bg-secondary', 'badgetext' => '🎥 Jibri pending', 'title' => ''];
                         break;
                     default:
-                        $jibribadge = ' <span class="badge bg-info ms-1">🎥 Jibri: '
-                            . s($s->jibri_provisioningstatus) . '</span>';
+                        $jibrilegacy = ['badgeclass' => 'bg-info',
+                            'badgetext' => '🎥 Jibri: ' . $s->jibri_provisioningstatus, 'title' => ''];
                 }
             }
         }
-        $statushtml = '<span class="badge bg-secondary" id="gcp-status-' . $s->id . '">N/A</span>';
-        $instancestatus = null; // Variable para guardar el estado real.
+
+        // Live GCP instance status badge.
+        $statusclass = 'bg-secondary';
+        $statustext = 'N/A';
+        $statustitle = '';
+        $instancestatus = null;
 
         if ($s->type == 3 && !empty($s->gcpproject) && !empty($s->gcpzone) && !empty($s->gcpinstancename)) {
             $gcpserverids[] = $s->id;
@@ -1503,154 +1380,124 @@ if ($showform) {
             if ($gcpclient) {
                 try {
                     $instance = $gcpclient->instances->get($s->gcpproject, $s->gcpzone, $s->gcpinstancename);
-                    $status = $instance->getStatus();
-                    $instancestatus = $status; // Guardar estado para lógica de botones.
+                    $instancestatus = $instance->getStatus();
 
-                    switch ($status) {
+                    switch ($instancestatus) {
                         case 'RUNNING':
-                            $statushtml = '<span class="badge bg-success" id="gcp-status-' . $s->id . '">🟢 Running</span>';
+                            $statusclass = 'bg-success';
+                            $statustext = '🟢 Running';
                             break;
                         case 'STOPPED':
                         case 'TERMINATED':
-                            $statushtml = '<span class="badge bg-danger" id="gcp-status-' . $s->id . '">🔴 Stopped</span>';
+                            $statusclass = 'bg-danger';
+                            $statustext = '🔴 Stopped';
                             break;
                         case 'STOPPING':
-                            $statushtml = '<span class="badge bg-warning" id="gcp-status-' . $s->id . '">🟡 Stopping...</span>';
+                            $statusclass = 'bg-warning';
+                            $statustext = '🟡 Stopping...';
                             break;
                         case 'PROVISIONING':
                         case 'STAGING':
-                            $statushtml = '<span class="badge bg-info" id="gcp-status-' . $s->id . '">🔵 Starting...</span>';
+                            $statusclass = 'bg-info';
+                            $statustext = '🔵 Starting...';
                             break;
                         case 'SUSPENDING':
-                            $statushtml = '<span class="badge bg-warning" id="gcp-status-' . $s->id . '">🟡 Suspending...</span>';
+                            $statusclass = 'bg-warning';
+                            $statustext = '🟡 Suspending...';
                             break;
                         case 'SUSPENDED':
-                            $statushtml = '<span class="badge bg-secondary" id="gcp-status-' . $s->id . '">⚫ Suspended</span>';
+                            $statusclass = 'bg-secondary';
+                            $statustext = '⚫ Suspended';
                             break;
                         case 'REPAIRING':
-                            $statushtml = '<span class="badge bg-warning" id="gcp-status-' . $s->id . '">🔧 Repairing...</span>';
+                            $statusclass = 'bg-warning';
+                            $statustext = '🔧 Repairing...';
                             break;
                         default:
-                            $statushtml = '<span class="badge bg-secondary" id="gcp-status-' . $s->id . '">' .
-                              htmlspecialchars($status) . '</span>';
+                            $statusclass = 'bg-secondary';
+                            $statustext = $instancestatus;
                     }
                 } catch (Exception $e) {
                     if (strpos($e->getMessage(), 'notFound') !== false || strpos($e->getMessage(), '404') !== false) {
-                        $statushtml = '<span class="badge bg-dark" id="gcp-status-' . $s->id . '">❌ Not Found</span>';
+                        $statusclass = 'bg-dark';
+                        $statustext = '❌ Not Found';
                         $instancestatus = 'NOT_FOUND';
                     } else {
-                        $statushtml = '<span class="badge bg-secondary" id="gcp-status-' . $s->id . '" title="' .
-                          htmlspecialchars($e->getMessage()) . '">⚠️ Error</span>';
+                        $statusclass = 'bg-secondary';
+                        $statustext = '⚠️ Error';
+                        $statustitle = $e->getMessage();
                         $instancestatus = 'ERROR';
                     }
                 }
             }
         }
 
-        $editurl = new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'edit', 'id' => $s->id]);
-        $deleteurl = new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'delete', 'id' => $s->id]);
-
-        // Solo mostrar Edit si NO es GCP.
-        $links = '';
-        if ($s->type != 3) {
-            $links = html_writer::link($editurl, get_string('edit'));
-        }
-
-        // Agregar acciones de start/stop según el estado real.
+        // Action links/controls. Start/Stop/wait are always rendered for GCP servers;
+        // mod_jitsi/server_status toggles their visibility on each status poll.
+        $gcp = null;
         if ($s->type == 3 && !empty($s->gcpproject) && !empty($s->gcpzone) && !empty($s->gcpinstancename)) {
-            $starturl = new moodle_url('/mod/jitsi/servermanagement.php', [
-                'action' => 'gcpstart',
-                'id' => $s->id,
-                'sesskey' => sesskey(),
-            ]);
-            $stopurl = new moodle_url('/mod/jitsi/servermanagement.php', [
-                'action' => 'gcpstop',
-                'id' => $s->id,
-                'sesskey' => sesskey(),
-            ]);
-
-            if (!empty($links)) {
-                $links .= ' | ';
-            }
-
-            // Render Start, Stop and the transition badge always; the AMD module
-            // (mod_jitsi/server_status) toggles their visibility on each poll, so
-            // the cell is never rebuilt and static links are never lost.
-            $showstart = in_array($instancestatus, ['STOPPED', 'TERMINATED', 'SUSPENDED', 'NOT_FOUND', 'ERROR', null]);
-            $showstop  = in_array($instancestatus, ['RUNNING', 'PROVISIONING', 'STAGING']);
-            $showwait  = in_array($instancestatus, ['STOPPING', 'SUSPENDING', 'REPAIRING']);
-
-            $links .= html_writer::start_span('jitsi-gcp-actions', ['data-serverid' => $s->id]);
-            $links .= html_writer::link(
-                $starturl,
-                '▶️ Start',
-                ['class' => 'btn btn-sm btn-success jitsi-gcp-start' . ($showstart ? '' : ' d-none')],
-            );
-            $links .= html_writer::link(
-                $stopurl,
-                '⏹️ Stop',
-                ['class' => 'btn btn-sm btn-warning jitsi-gcp-stop' . ($showstop ? '' : ' d-none')],
-            );
-            $links .= html_writer::span(
-                '⏳ Please wait...',
-                'badge bg-secondary jitsi-gcp-wait' . ($showwait ? '' : ' d-none')
-            );
-            $links .= html_writer::end_span();
+            $gcp = [
+                'serverid'  => $s->id,
+                'starturl'  => (new moodle_url('/mod/jitsi/servermanagement.php', [
+                    'action' => 'gcpstart', 'id' => $s->id, 'sesskey' => sesskey(),
+                ]))->out(false),
+                'stopurl'   => (new moodle_url('/mod/jitsi/servermanagement.php', [
+                    'action' => 'gcpstop', 'id' => $s->id, 'sesskey' => sesskey(),
+                ]))->out(false),
+                'showstart' => in_array($instancestatus, ['STOPPED', 'TERMINATED', 'SUSPENDED', 'NOT_FOUND', 'ERROR', null]),
+                'showstop'  => in_array($instancestatus, ['RUNNING', 'PROVISIONING', 'STAGING']),
+                'showwait'  => in_array($instancestatus, ['STOPPING', 'SUSPENDING', 'REPAIRING']),
+            ];
         }
 
-        // Show Enable/Disable GCS button for GCP servers with Jibri ready.
+        $gcs = null;
         if ($s->type == 3 && !empty($s->jibri_enabled) && ($s->jibri_provisioningstatus ?? '') === 'ready') {
-            if (!empty($links)) {
-                $links .= ' | ';
-            }
-            if (empty($s->gcs_enabled)) {
-                $enablegcsurl = new moodle_url('/mod/jitsi/servermanagement.php', [
-                    'action' => 'enablegcs', 'id' => $s->id, 'sesskey' => sesskey(),
-                ]);
-                $links .= html_writer::link(
-                    $enablegcsurl,
-                    get_string('enablegcs', 'jitsi'),
-                    ['class' => 'btn btn-sm btn-outline-secondary']
-                );
-            } else {
-                $disablegcsurl = new moodle_url('/mod/jitsi/servermanagement.php', [
-                    'action' => 'disablegcs', 'id' => $s->id, 'sesskey' => sesskey(),
-                ]);
-                $links .= html_writer::link(
-                    $disablegcsurl,
-                    get_string('disablegcs', 'jitsi'),
-                    ['class' => 'btn btn-sm btn-outline-warning']
-                );
-            }
+            $gcsenabled = !empty($s->gcs_enabled);
+            $gcs = [
+                'url' => (new moodle_url('/mod/jitsi/servermanagement.php', [
+                    'action' => $gcsenabled ? 'disablegcs' : 'enablegcs', 'id' => $s->id, 'sesskey' => sesskey(),
+                ]))->out(false),
+                'label' => get_string($gcsenabled ? 'disablegcs' : 'enablegcs', 'jitsi'),
+                'buttonclass' => $gcsenabled ? 'btn-outline-warning' : 'btn-outline-secondary',
+            ];
         }
 
-        // Show "Add Jibri" button for GCP servers that are ready and don't have Jibri yet.
+        $addjibriurl = null;
         if ($s->type == 3 && empty($s->jibri_enabled) && ($s->provisioningstatus ?? '') === 'ready') {
-            $addjibriurl = new moodle_url('/mod/jitsi/servermanagement.php', [
+            $addjibriurl = (new moodle_url('/mod/jitsi/servermanagement.php', [
                 'action' => 'addjibri',
                 'id'     => $s->id,
-            ]);
-            if (!empty($links)) {
-                $links .= ' | ';
-            }
-            $links .= html_writer::link($addjibriurl, '🎥 Add Jibri', ['class' => 'btn btn-sm btn-outline-info']);
+            ]))->out(false);
         }
 
-        // Delete siempre disponible.
-        if (!empty($links)) {
-            $links .= ' | ';
-        }
-        $links .= html_writer::link($deleteurl, get_string('delete'));
-
-        $table->data[] = [
-            format_string($s->name),
-            $typestring,
-            format_string($s->domain),
-            $statushtml . $jibribadge,
-            $links,
+        $serverscontext[] = [
+            'id' => $s->id,
+            'name' => format_string($s->name),
+            'typelabel' => $typelabel,
+            'isgcp' => $s->type == 3,
+            'domain' => format_string($s->domain),
+            'statusclass' => $statusclass,
+            'statustext' => $statustext,
+            'statustitle' => $statustitle,
+            'jibripool' => $jibripool,
+            'jibrilegacy' => $jibrilegacy,
+            'editurl' => $s->type != 3
+                ? (new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'edit', 'id' => $s->id]))->out(false)
+                : null,
+            'gcp' => $gcp,
+            'gcs' => $gcs,
+            'addjibriurl' => $addjibriurl,
+            'deleteurl' => (new moodle_url('/mod/jitsi/servermanagement.php', [
+                'action' => 'delete', 'id' => $s->id,
+            ]))->out(false),
         ];
     }
-    echo html_writer::table($table);
+
+    echo $OUTPUT->render_from_template('mod_jitsi/server_table', [
+        'settingsurl' => (new moodle_url('/admin/settings.php', ['section' => 'modsettingjitsi']))->out(false),
+        'addserverurl' => (new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'add']))->out(false),
+        'servers' => $serverscontext,
+    ]);
 
     // Live status badges + Start/Stop visibility + pool size inputs (mod_jitsi/server_status).
     $PAGE->requires->js_call_amd('mod_jitsi/server_status', 'init', [[

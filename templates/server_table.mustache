@@ -1,0 +1,124 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template mod_jitsi/server_table
+
+    Server management table view: header actions, GCP info, creation modal and
+    the servers table with live status badges and Jibri pool controls.
+
+    Example context (json):
+    {
+        "settingsurl": "https://example.com/admin/settings.php?section=modsettingjitsi",
+        "addserverurl": "https://example.com/mod/jitsi/servermanagement.php?action=add",
+        "servers": [
+            {
+                "name": "My server",
+                "typelabel": "Self-hosted (JWT)",
+                "isgcp": false,
+                "domain": "meet.example.com",
+                "id": 3,
+                "statusclass": "bg-secondary",
+                "statustext": "N/A",
+                "statustitle": "",
+                "jibripool": null,
+                "jibrilegacy": null,
+                "editurl": "https://example.com/mod/jitsi/servermanagement.php?action=edit&id=3",
+                "gcp": null,
+                "gcs": null,
+                "addjibriurl": null,
+                "deleteurl": "https://example.com/mod/jitsi/servermanagement.php?action=delete&id=3"
+            }
+        ]
+    }
+}}
+<div class="mb-3">
+    <a href="{{settingsurl}}" class="btn btn-secondary me-2">{{#str}} backtosettings, mod_jitsi {{/str}}</a>
+    <a href="{{addserverurl}}" class="btn btn-success me-2">{{#str}} addnewserver, mod_jitsi {{/str}}</a>
+    <button id="btn-creategcpvm" type="button" class="btn btn-primary">
+        Create VM in Google Cloud <span class="badge bg-warning text-dark ms-1">BETA</span>
+    </button>
+</div>
+
+<div class="mb-3">
+    <div class="alert alert-info">
+        <strong>{{#str}} gcpserverinfo, mod_jitsi {{/str}}</strong><br>
+        {{#str}} gcpserverinfodetail, mod_jitsi {{/str}}
+    </div>
+</div>
+
+<div class="modal fade" id="gcpModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body" id="gcp-modal-body"></div>
+        </div>
+    </div>
+</div>
+
+<table class="table generaltable">
+    <thead>
+        <tr>
+            <th>{{#str}} name, core {{/str}}</th>
+            <th>{{#str}} type, mod_jitsi {{/str}}</th>
+            <th>{{#str}} domain, mod_jitsi {{/str}}</th>
+            <th>{{#str}} status, mod_jitsi {{/str}}</th>
+            <th>{{#str}} actions, mod_jitsi {{/str}}</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{#servers}}
+        <tr>
+            <td>{{name}}</td>
+            <td>{{typelabel}}{{#isgcp}} <span class="badge bg-warning text-dark">BETA</span>{{/isgcp}}</td>
+            <td>{{domain}}</td>
+            <td>
+                <span class="badge {{statusclass}}" id="gcp-status-{{id}}" {{#statustitle}}title="{{statustitle}}"{{/statustitle}}>{{statustext}}</span>
+                {{#jibripool}}
+                <div class="mt-1">
+                    <small class="text-muted">🎥 Jibri pool (desired:
+                        <input type="number" min="1" max="10" value="{{poolsize}}" style="width:45px"
+                            class="form-control form-control-sm d-inline-block p-0 ps-1 jitsi-poolsize-input"
+                            data-serverid="{{serverid}}">):</small><br>
+                    {{#entries}}
+                    <span class="badge {{badgeclass}} me-1" title="{{title}}">{{badgetext}}</span>
+                    <a href="{{deleteurl}}" class="text-danger small me-1" title="Remove this Jibri VM">✕</a>
+                    {{/entries}}
+                    <br>
+                    <a href="{{addurl}}" class="btn btn-xs btn-outline-secondary mt-1"
+                        style="font-size:0.75rem;padding:1px 6px">+ Add Jibri</a>
+                </div>
+                {{/jibripool}}
+                {{#jibrilegacy}}
+                <span class="badge {{badgeclass}} ms-1" {{#title}}title="{{title}}"{{/title}}>{{badgetext}}</span>
+                {{/jibrilegacy}}
+            </td>
+            <td>
+                {{#editurl}}<a href="{{editurl}}">{{#str}} edit, core {{/str}}</a> | {{/editurl}}
+                {{#gcp}}
+                <span class="jitsi-gcp-actions" data-serverid="{{serverid}}">
+                    <a href="{{starturl}}" class="btn btn-sm btn-success jitsi-gcp-start{{^showstart}} d-none{{/showstart}}">▶️ Start</a>
+                    <a href="{{stopurl}}" class="btn btn-sm btn-warning jitsi-gcp-stop{{^showstop}} d-none{{/showstop}}">⏹️ Stop</a>
+                    <span class="badge bg-secondary jitsi-gcp-wait{{^showwait}} d-none{{/showwait}}">⏳ Please wait...</span>
+                </span>
+                {{/gcp}}
+                {{#gcs}} | <a href="{{url}}" class="btn btn-sm {{buttonclass}}">{{label}}</a>{{/gcs}}
+                {{#addjibriurl}} | <a href="{{addjibriurl}}" class="btn btn-sm btn-outline-info">🎥 Add Jibri</a>{{/addjibriurl}}
+                {{#gcp}} | {{/gcp}}<a href="{{deleteurl}}">{{#str}} delete, core {{/str}}</a>
+            </td>
+        </tr>
+        {{/servers}}
+    </tbody>
+</table>

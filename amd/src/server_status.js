@@ -30,6 +30,8 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+import Notification from 'core/notification';
+
 /** Poll interval in milliseconds. */
 const POLL_INTERVAL = 10000;
 
@@ -129,12 +131,12 @@ const wirePoolSizeInputs = (cfg) => {
                 .then((r) => r.json())
                 .then((d) => {
                     if (d.status !== 'ok') {
-                        window.alert('Could not update pool size.');
+                        Notification.addNotification({message: 'Could not update pool size.', type: 'error'});
                     }
                     return;
                 })
                 .catch(() => {
-                    window.alert('Could not update pool size.');
+                    Notification.addNotification({message: 'Could not update pool size.', type: 'error'});
                 });
         });
     });

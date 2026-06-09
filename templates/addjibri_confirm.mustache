@@ -1,0 +1,63 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template mod_jitsi/addjibri_confirm
+
+    Confirmation page shown before adding a Jibri recording VM to an existing
+    GCP Jitsi server: instructions, Prosody/Jicofo reconfiguration script with
+    copy button, machine type input and confirm/cancel actions.
+
+    Example context (json):
+    {
+        "hostname": "meet.example.com",
+        "script": "#!/bin/bash\necho hello",
+        "confirmurl": "https://example.com/mod/jitsi/servermanagement.php?action=addjibri&id=3&confirm=1&sesskey=x",
+        "cancelurl": "https://example.com/mod/jitsi/servermanagement.php",
+        "sesskey": "abc123"
+    }
+}}
+<div class="alert alert-info mb-3">
+    <p>This will create a dedicated Jibri recording VM alongside your existing Jitsi server.
+        Two steps are required:</p>
+    <ol>
+        <li><strong>Run the script below on your Jitsi VM</strong>
+            — reconfigures Prosody and Jicofo to accept Jibri connections.</li>
+        <li><strong>Click "Confirm"</strong>
+            — Moodle will create and configure the Jibri VM in GCP automatically.</li>
+    </ol>
+</div>
+
+<div class="mb-4">
+    <h5>Reconfiguration script for the Jitsi VM</h5>
+    <p class="text-muted small"><code>ssh user@{{hostname}} 'sudo bash -s' &lt; script.sh</code></p>
+    <pre id="jibri-reconfig-script" class="bg-dark text-light p-3 rounded"
+        style="max-height:300px; overflow-y:auto; font-size:0.8em;">{{script}}</pre>
+    <button type="button" class="btn btn-sm btn-outline-secondary mb-3" id="copy-reconfig-script">Copy script</button>
+</div>
+
+<form method="post" action="{{confirmurl}}">
+    <input type="hidden" name="sesskey" value="{{sesskey}}">
+    <div class="mb-4">
+        <label class="form-label fw-semibold" for="jibri-machine">Jibri VM machine type</label>
+        <input type="text" id="jibri-machine" name="jibrimachinetype" value="n2-standard-4" class="form-control mb-1">
+        <small class="text-muted">Minimum recommended: <code>n2-standard-4</code> (4 vCPUs, 16 GB RAM).</small>
+    </div>
+    <div>
+        <button type="submit" class="btn btn-primary me-2">Confirm — Create Jibri VM</button>
+        <a href="{{cancelurl}}" class="btn btn-secondary">{{#str}} cancel, core {{/str}}</a>
+    </div>
+</form>
