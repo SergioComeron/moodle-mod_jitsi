@@ -73,20 +73,10 @@ class check_jibri_pool extends \core\task\scheduled_task {
             return;
         }
 
-        // Load Google API autoloader.
-        $autoloaders = [
-            $CFG->dirroot . '/mod/jitsi/api/vendor/autoload.php',
-            $CFG->dirroot . '/mod/jitsi/vendor/autoload.php',
-            $CFG->dirroot . '/vendor/autoload.php',
-        ];
-        foreach ($autoloaders as $autoload) {
-            if (file_exists($autoload)) {
-                require_once($autoload);
-                break;
-            }
+        if (!\mod_jitsi\local\gcp::load_google_api()) {
+            mtrace('check_jibri_pool: Google API client not available');
+            return;
         }
-
-        require_once($CFG->dirroot . '/mod/jitsi/servermanagement.php');
 
         foreach ($servers as $server) {
             $this->process_server($server, $DB);
@@ -108,7 +98,7 @@ class check_jibri_pool extends \core\task\scheduled_task {
         // If the Jitsi VM is not running (e.g. stopped by admin), delete all pool VMs and bail out.
         if (!empty($server->gcpinstancename)) {
             try {
-                $compute   = mod_jitsi_gcp_client();
+                $compute   = \mod_jitsi\local\gcp::client();
                 $instance  = $compute->instances->get($server->gcpproject, $server->gcpzone, $server->gcpinstancename);
                 $gcpstatus = $instance->getStatus();
                 if ($gcpstatus !== 'RUNNING') {
@@ -140,7 +130,7 @@ class check_jibri_pool extends \core\task\scheduled_task {
                 // Fallback: check GCP status — if RUNNING after 10 min, treat as idle.
                 $gcpstatus = '';
                 try {
-                    $compute  = mod_jitsi_gcp_client();
+                    $compute  = \mod_jitsi\local\gcp::client();
                     $instance = $compute->instances->get(
                         $server->gcpproject,
                         $server->gcpzone,
@@ -239,7 +229,7 @@ class check_jibri_pool extends \core\task\scheduled_task {
         }
 
         try {
-            $compute  = mod_jitsi_gcp_client();
+            $compute  = \mod_jitsi\local\gcp::client();
             $instance = $compute->instances->get(
                 $server->gcpproject,
                 $server->gcpzone,
@@ -295,7 +285,7 @@ class check_jibri_pool extends \core\task\scheduled_task {
             . " from {$entry->gcpinstancename}");
 
         try {
-            $compute = mod_jitsi_gcp_client();
+            $compute = \mod_jitsi\local\gcp::client();
 
             // Create image from the running VM — no stop needed.
             // Jibri is stateless (config in files, no DB), so a live image boots correctly.
@@ -328,7 +318,7 @@ class check_jibri_pool extends \core\task\scheduled_task {
     private function delete_jibri_vm(\stdClass $server, \stdClass $entry, \moodle_database $DB): void {
         if (!empty($entry->gcpinstancename)) {
             try {
-                $compute = mod_jitsi_gcp_client();
+                $compute = \mod_jitsi\local\gcp::client();
                 $compute->instances->delete($server->gcpproject, $server->gcpzone, $entry->gcpinstancename);
             } catch (\Throwable $e) {
                 mtrace("check_jibri_pool: ERROR deleting VM {$entry->gcpinstancename}: " . $e->getMessage());

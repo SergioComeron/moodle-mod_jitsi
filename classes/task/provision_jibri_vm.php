@@ -64,25 +64,10 @@ class provision_jibri_vm extends \core\task\adhoc_task {
             return;
         }
 
-        // Load Google API autoloader.
-        $autoloaders = [
-            $CFG->dirroot . '/mod/jitsi/api/vendor/autoload.php',
-            $CFG->dirroot . '/mod/jitsi/vendor/autoload.php',
-            $CFG->dirroot . '/vendor/autoload.php',
-        ];
-        foreach ($autoloaders as $autoload) {
-            if (file_exists($autoload)) {
-                require_once($autoload);
-                break;
-            }
-        }
-
-        if (!class_exists('Google\\Client') || !class_exists('Google\\Service\\Compute')) {
+        if (!\mod_jitsi\local\gcp::load_google_api()) {
             mtrace('provision_jibri_vm: Google API client not available');
             return;
         }
-
-        require_once($CFG->dirroot . '/mod/jitsi/servermanagement.php');
 
         $project = $server->gcpproject;
         $zone    = $server->gcpzone;
@@ -135,7 +120,7 @@ class provision_jibri_vm extends \core\task\adhoc_task {
         $jitsihostname = $server->domain;
 
         try {
-            $compute = mod_jitsi_gcp_client();
+            $compute = \mod_jitsi\local\gcp::client();
 
             // Get the Jitsi VM's internal IP for XMPP connectivity.
             $jitsiinternalip = '';
@@ -212,10 +197,10 @@ class provision_jibri_vm extends \core\task\adhoc_task {
                     'fi';
             } else {
                 $imagepath     = $baseimage;
-                $startupscript = mod_jitsi_jibri_startup_script();
+                $startupscript = \mod_jitsi\local\gcp_scripts::jibri_startup_script();
             }
 
-            $opname = mod_jitsi_gcp_create_instance($compute, $project, $zone, [
+            $opname = \mod_jitsi\local\gcp::create_instance($compute, $project, $zone, [
                 'name'          => $jibriinstancename,
                 'machineType'   => $mach,
                 'image'         => $imagepath,
