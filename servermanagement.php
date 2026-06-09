@@ -1002,23 +1002,10 @@ SCRIPT;
 
     echo html_writer::end_tag('form');
 
-    // JS for copy button.
-    // phpcs:disable
-    $PAGE->requires->js_init_code(
-        "(function(){\n".
-        "  var btn = document.getElementById('copy-reconfig-script');\n".
-        "  var pre = document.getElementById('jibri-reconfig-script');\n".
-        "  if (btn && pre && navigator.clipboard) {\n".
-        "    btn.addEventListener('click', function(){\n".
-        "      navigator.clipboard.writeText(pre.textContent).then(function(){\n".
-        "        btn.textContent = '✓ Copied!';\n".
-        "        setTimeout(function(){ btn.textContent = 'Copy script'; }, 2000);\n".
-        "      });\n".
-        "    });\n".
-        "  }\n".
-        "})();\n"
-    );
-    // phpcs:enable
+    $PAGE->requires->js_call_amd('mod_jitsi/copy_button', 'init', [[
+        'buttonId' => 'copy-reconfig-script',
+        'sourceId' => 'jibri-reconfig-script',
+    ]]);
 
     echo $OUTPUT->footer();
     exit;
@@ -1357,7 +1344,6 @@ if ($showform) {
     );
 
     // Modal markup for progress.
-    $creating = get_string('creatingvm', 'mod_jitsi', '');
     $gcpstatusurl = (new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'gcpstatusjson']))->out(false);
     $createvmurl  = (new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'creategcpvm', 'ajax' => 1]))->out(false);
     $listurl      = (new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'listprovisioningservers']))->out(false);
@@ -1383,396 +1369,10 @@ if ($showform) {
         'createUrl' => $createvmurl,
         'listUrl' => $listurl,
         'redirectUrl' => $redirecturl,
-        'creatingText' => $creating,
         'hostname' => (string) get_config('mod_jitsi', 'gcp_hostname'),
         'checkReadyUrl' => (new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'checkjitsiready']))->out(false),
     ];
-    $initjson = json_encode($init, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
-    // phpcs:disable 
-    $PAGE->requires->js_init_code(
-        "(function(){\n".
-        "  var cfg = ".$initjson.";\n".
-        "  var btn = document.getElementById('btn-creategcpvm');\n".
-        "  if (!btn) return;\n".
-        "  var modalEl = document.getElementById('gcpModal');\n".
-        "  var modalBody = document.getElementById('gcp-modal-body');\n".
-        "  var backdrop;\n".
-        "  var lastWarnHTML = '';\n".
-        "  var vmInfo = {};\n".
-        "  var dnsWarningShown = false;\n".
-        "  function showModal(){\n".
-        "    if (!modalEl) return;\n".
-        "    modalEl.classList.add('show');\n".
-        "    modalEl.style.display = 'block';\n".
-        "    modalEl.removeAttribute('aria-hidden');\n".
-        "    backdrop = document.createElement('div');\n".
-        "    backdrop.className = 'modal-backdrop fade show';\n".
-        "    document.body.appendChild(backdrop);\n".
-        "  }\n".
-        "  window.closeModal = function closeModal(){\n".
-        "    if (modalEl) {\n".
-        "      modalEl.classList.remove('show');\n".
-        "      modalEl.style.display = 'none';\n".
-        "      modalEl.setAttribute('aria-hidden', 'true');\n".
-        "    }\n".
-        "    if (backdrop && backdrop.parentNode) {\n".
-        "      backdrop.parentNode.removeChild(backdrop);\n".
-        "    }\n".
-        "  };\n".
-        "  async function postJSON(url, data){\n".
-        "    var res = await fetch(url, {method: 'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: new URLSearchParams(data)});\n".
-        "    if (!res.ok) throw new Error('HTTP ' + res.status);\n".
-        "    var text = await res.text();\n".
-        "    console.log('[postJSON] Raw response (first 500 chars):', text.substring(0, 500));\n".
-        "    return JSON.parse(text);\n".
-        "  }\n".
-        "  async function checkJitsiReady(){\n".
-        "    try {\n".
-        "      console.log('[checkJitsiReady] CALLED! vmInfo.instancename:', vmInfo.instancename);\n".
-        "      console.log('[checkJitsiReady] Fetching status from:', cfg.checkReadyUrl);\n".
-        "      var data = await postJSON(cfg.checkReadyUrl, {\n".
-        "        sesskey: cfg.sesskey,\n".
-        "        instance: vmInfo.instancename\n".
-        "      });\n".
-        "      console.log('[checkJitsiReady] Status received:', data);\n".
-        "      if (data.status === 'provisioning') {\n".
-        "        console.log('[checkJitsiReady] Server is still provisioning, will check again in 5s');\n".
-        "        if (modalBody) {\n".
-        "          modalBody.innerHTML = (\n".
-        "            '<h5>⚙️ VM Initializing...</h5>'+ \n".
-        "            '<p>The virtual machine is starting up and running initial setup scripts.</p>'+\n".
-        "            '<div class=\"text-center\">'+\n".
-        "              '<div class=\"spinner-border spinner-border-sm\" role=\"status\"></div>'+\n".
-        "            '</div>'\n".
-        "          );\n".
-        "        }\n".
-        "        setTimeout(checkJitsiReady, 5000);\n".
-        "      } else if (data.status === 'waiting_dns') {\n".
-        "        if (!dnsWarningShown) {\n".
-        "          dnsWarningShown = true;\n".
-        "          var host = data.hostname || cfg.hostname || 'your-hostname.example.com';\n".
-        "          var authHost = 'auth.' + host;\n".
-        "          var ip = data.ip || vmInfo.ip || '';\n".
-        "          if (modalBody) {\n".
-        "            modalBody.innerHTML = (\n".
-        "              '<div class=\"alert alert-warning\"><h5>⚠️ Action Required: Configure DNS</h5>'+ \n".
-        "              '<p><strong>Public IP: <code>'+ ip +'</code></strong></p>'+\n".
-        "              '<p>Please create the following DNS A records:</p>'+\n".
-        "              '<ul class=\"text-start\">'+\n".
-        "                '<li><code>'+ host +' → '+ ip +'</code></li>'+\n".
-        "                '<li><code>'+ authHost +' → '+ ip +'</code></li>'+\n".
-        "              '</ul>'+\n".
-        "              '<p class=\"text-muted\">The installation will continue automatically once DNS propagates (checking every 15 seconds, timeout 15 minutes).</p>'+\n".
-        "              '<div id=\"dns-copy-buttons\" class=\"mt-2\">'+\n".
-        "                '<button id=\"copy-ip-dns\" class=\"btn btn-sm btn-outline-primary me-2\">Copy IP</button>'+\n".
-        "                '<button id=\"copy-records\" class=\"btn btn-sm btn-outline-secondary\">Copy DNS Records</button>'+\n".
-        "              '</div>'+\n".
-        "              '</div>'+\n".
-        "              '<div class=\"text-center\">'+\n".
-        "                '<div class=\"spinner-border spinner-border-sm\" role=\"status\"></div>'+\n".
-        "                '<p class=\"mt-2\">Waiting for DNS propagation...</p>'+\n".
-        "              '</div>'\n".
-        "            );\n".
-        "            var copyIpBtn = document.getElementById('copy-ip-dns');\n".
-        "            var copyRecordsBtn = document.getElementById('copy-records');\n".
-        "            if (copyIpBtn && navigator.clipboard) {\n".
-        "              copyIpBtn.addEventListener('click', function(){ \n".
-        "                navigator.clipboard.writeText(ip);\n".
-        "                copyIpBtn.textContent = '✓ Copied!';\n".
-        "                setTimeout(function(){ copyIpBtn.textContent = 'Copy IP'; }, 2000);\n".
-        "              });\n".
-        "            }\n".
-        "            if (copyRecordsBtn && navigator.clipboard) {\n".
-        "              copyRecordsBtn.addEventListener('click', function(){ \n".
-        "                var records = host + ' A ' + ip + '\\\\n' + authHost + ' A ' + ip;\n".
-        "                navigator.clipboard.writeText(records);\n".
-        "                copyRecordsBtn.textContent = '✓ Copied!';\n".
-        "                setTimeout(function(){ copyRecordsBtn.textContent = 'Copy DNS Records'; }, 2000);\n".
-        "              });\n".
-        "            }\n".
-        "          }\n".
-        "        }\n".
-        "        setTimeout(checkJitsiReady,  10000);\n".
-        "      } else if (data.status === 'dns_ready') {\n".
-        "        if (modalBody) {\n".
-        "          modalBody.innerHTML = (\n".
-        "            '<h5>✅ DNS Configured!</h5>'+ \n".
-        "            '<p class=\"text-success\">DNS records detected. Starting Jitsi installation...</p>'+\n".
-        "            '<div class=\"text-center\">'+\n".
-        "              '<div class=\"spinner-border spinner-border-sm\" role=\"status\"></div>'+\n".
-        "            '</div>'\n".
-        "          );\n".
-        "        }\n".
-        "        setTimeout(checkJitsiReady, 5000);\n".
-        "      } else if (data.status === 'installing') {\n".
-        "        if (modalBody) {\n".
-        "          modalBody.innerHTML = (\n".
-        "            '<h5>⚙️ Installing Jitsi Meet...</h5>'+ \n".
-        "            '<p>The VM is ready. Installing and configuring Jitsi services.</p>'+\n".
-        "            '<p class=\"text-muted\">This takes 8-12 minutes. Please wait...</p>'+\n".
-        "            '<div class=\"text-center\">'+\n".
-        "              '<div class=\"spinner-border spinner-border-sm\" role=\"status\"></div>'+\n".
-        "            '</div>'\n".
-        "          );\n".
-        "        }\n".
-        "        setTimeout(checkJitsiReady, 10000);\n".
-        "      } else if (data.status === 'completed') {\n".
-        "        showSuccessMessage(data.ip, data.hostname, data.serverid);\n".
-        "      } else if (data.status === 'error') {\n".
-        "        var errorMsg = data.error || 'Unknown installation error';\n".
-        "        if (modalBody) {\n".
-        "          modalBody.innerHTML = (\n".
-        "            '<div class=\"alert alert-danger\">'+ \n".
-        "              '<h5>❌ Installation Failed</h5>'+ \n".
-        "              '<p><strong>Error:</strong> ' + errorMsg + '</p>'+ \n".
-        "              '<p class=\"text-muted\">Please check the VM console logs in Google Cloud Console for more details.</p>'+\n".
-        "            '</div>'+\n".
-        "            '<div class=\"mt-3\">'+\n".
-        "              '<a href=\"'+ cfg.redirectUrl +'\" class=\"btn btn-primary\">Close</a>'+\n".
-        "            '</div>'\n".
-        "          );\n".
-        "        }\n".
-        "      }\n".
-        "    } catch(e){\n".
-        "      console.error('Check ready error:', e);\n".
-        "      if (modalBody) modalBody.innerHTML = '<p class=\"text-warning\">Cannot verify status. Check the VM console.</p>';\n".
-        "    }\n".
-        "  }\n".
-        "  function showSuccessMessage(ip, hostname, serverid){\n".
-        "    var host = hostname || cfg.hostname || 'your-hostname.example.com';\n".
-        "    if (modalBody) {\n".
-        "      modalBody.innerHTML = (\n".
-        "        '<h5>✅ Jitsi Server Ready & Registered!</h5>'+ \n".
-        "        '<p class=\"text-success\"><strong>Installation completed and server registered in Moodle</strong></p>'+ \n".
-        "        '<p>Public IP: <strong>'+ ip +'</strong></p>'+\n".
-        "        '<p>Your Jitsi Meet server is ready at: <code>https://'+ host +'</code></p>'+\n".
-        "        '<div class=\"mt-3\">'+\n".
-        "          '<button id=\"set-default-server\" class=\"btn btn-success me-2\">Set as Default Server</button>'+\n".
-        "          '<button id=\"copy-ip\" class=\"btn btn-outline-secondary me-2\">Copy IP</button>'+\n".
-        "          '<a href=\"'+ cfg.redirectUrl +'\" class=\"btn btn-primary\">Close</a>'+\n".
-        "        '</div>'\n".
-        "      );\n".
-        "      var copyBtn = document.getElementById('copy-ip');\n".
-        "      if (copyBtn && navigator.clipboard) {\n".
-        "        copyBtn.addEventListener('click', function(){ \n".
-        "          navigator.clipboard.writeText(ip);\n".
-        "          copyBtn.textContent = '✓ Copied!';\n".
-        "          setTimeout(function(){ copyBtn.textContent = 'Copy IP'; }, 2000);\n".
-        "        });\n".
-        "      }\n".
-        "      var setDefaultBtn = document.getElementById('set-default-server');\n".
-        "      if (setDefaultBtn && serverid) {\n".
-        "        setDefaultBtn.addEventListener('click', function(){ \n".
-        "          setDefaultBtn.disabled = true;\n".
-        "          setDefaultBtn.textContent = 'Setting...';\n".
-        "          var url = cfg.redirectUrl + '?action=setdefaultserver&id=' + serverid + '&sesskey=' + cfg.sesskey;\n".
-        "          window.location.href = url;\n".
-        "        });\n".
-        "      }\n".
-        "    }\n".
-        "  }\n".
-        "  async function pollStatus(opname){\n".
-        "    try {\n".
-        "      console.log('[pollStatus] Checking operation:', opname);\n".
-        "      var data = await postJSON(cfg.statusUrl, {sesskey: cfg.sesskey, opname: opname});\n".
-        "      console.log('[pollStatus] Received response:', data);\n".
-        "\n".
-        "      if (data.status === 'pending') {\n".
-        "        console.log('[pollStatus] Status is pending, will poll again in 1.5s');\n".
-        "        setTimeout(function(){ pollStatus(opname); }, 1500);\n".
-        "      } else if (data.status === 'done') {\n".
-        "        console.log('[pollStatus] Status is DONE! VM ready. IP:', data.ip);\n".
-        "        vmInfo.ip = (data.ip || '');\n".
-        "        if (modalBody) {\n".
-        "          modalBody.innerHTML = (\n".
-        "            '<h5>⚙️ VM Created - Starting Configuration...</h5>'+ \n".
-        "            '<p>Checking installation status...</p>'+\n".
-        "            '<div class=\"text-center\">'+\n".
-        "              '<div class=\"spinner-border spinner-border-sm\" role=\"status\"></div>'+\n".
-        "            '</div>'\n".
-        "          );\n".
-        "        }\n".
-        "        console.log('[pollStatus] About to schedule checkJitsiReady in 3 seconds...');\n".
-        "        console.log('[pollStatus] vmInfo.instancename is:', vmInfo.instancename);\n".
-        "        setTimeout(function(){\n".
-        "          console.log('[pollStatus setTimeout] Executing checkJitsiReady NOW!');\n".
-        "          checkJitsiReady();\n".
-        "        }, 3000);\n".
-        "        console.log('[pollStatus] setTimeout has been scheduled');\n".
-        "      } else {\n".
-        "        console.log('[pollStatus] Unexpected status:', data.status);\n".
-        "        if (modalBody) modalBody.textContent = 'Error: ' + (data.message || 'Unknown');\n".
-        "      }\n".
-        "    } catch(e){\n".
-        "      console.error('[pollStatus] Exception caught:', e);\n".
-        "      if (modalBody) modalBody.textContent = 'Error: ' + e.message;\n".
-        "    }\n".
-        "  }\n".
-        "  async function startVMCreation(enableJibri, jibriMachineType, enableGcs, jitsiMachineType) {\n".
-        "    dnsWarningShown = false;\n".
-        "    if (modalBody) {\n".
-        "      modalBody.innerHTML = (\n".
-        "        '<h5>⏳ Creating VM...</h5>'+\n".
-        "        '<p>Setting up infrastructure in Google Cloud.</p>'+\n".
-        "        '<div class=\"text-center\">'+\n".
-        "          '<div class=\"spinner-border spinner-border-sm\" role=\"status\"></div>'+\n".
-        "        '</div>'\n".
-        "      );\n".
-        "    }\n".
-        "    try {\n".
-        "      console.log('[Button Click] Requesting VM creation... jibri:', enableJibri, 'gcs:', enableGcs, 'jitsiMachine:', jitsiMachineType);\n".
-        "      var postData = {sesskey: cfg.sesskey, jitsimachinetype: jitsiMachineType || 'e2-standard-4'};\n".
-        "      if (enableJibri) {\n".
-        "        postData.enablejibri = '1';\n".
-        "        postData.jibrimachinetype = jibriMachineType || 'n2-standard-4';\n".
-        "        if (enableGcs) { postData.enablegcs = '1'; }\n".
-        "      }\n".
-        "      var data = await postJSON(cfg.createUrl, postData);\n".
-        "      console.log('[Button Click] Create response:', data);\n".
-        "      if (data && data.status === 'pending' && data.opname){\n".
-        "        vmInfo.instancename = data.instancename;\n".
-        "        console.log('[Button Click] VM instance name saved:', vmInfo.instancename);\n".
-        "        console.log('[Button Click] Starting pollStatus for operation:', data.opname);\n".
-        "        pollStatus(data.opname);\n".
-        "      } else if (data && data.status === 'error') {\n".
-        "        var errorMsg = data.message || 'Unknown error occurred';\n".
-        "        if (modalBody) {\n".
-        "          modalBody.innerHTML = '<div class=\"alert alert-danger\">' +\n".
-        "            '<strong>Error starting VM creation:</strong><br>' +\n".
-        "            errorMsg +\n".
-        "            '</div>' +\n".
-        "            '<div class=\"text-center mt-3\">' +\n".
-        "            '<button type=\"button\" class=\"btn btn-secondary\" onclick=\"closeModal();\">Close</button>' +\n".
-        "            '</div>';\n".
-        "        }\n".
-        "        console.error('VM creation error:', errorMsg);\n".
-        "      } else {\n".
-        "        if (modalBody) {\n".
-        "          modalBody.innerHTML = '<div class=\"alert alert-danger\">' +\n".
-        "            'Error: Unexpected response from server' +\n".
-        "            '</div>' +\n".
-        "            '<div class=\"text-center mt-3\">' +\n".
-        "            '<button type=\"button\" class=\"btn btn-secondary\" onclick=\"closeModal();\">Close</button>' +\n".
-        "            '</div>';\n".
-        "        }\n".
-        "        console.error('Unexpected response:', data);\n".
-        "      }\n".
-        "    } catch(e){\n".
-        "      if (modalBody) {\n".
-        "        modalBody.innerHTML = '<div class=\"alert alert-danger\">' +\n".
-        "          '<strong>Error:</strong><br>' + e.message +\n".
-        "          '</div>' +\n".
-        "          '<div class=\"text-center mt-3\">' +\n".
-        "          '<button type=\"button\" class=\"btn btn-secondary\" onclick=\"closeModal();\">Close</button>' +\n".
-        "          '</div>';\n".
-        "      }\n".
-        "      console.error('Exception during VM creation:', e);\n".
-        "    }\n".
-        "  }\n".
-        "  function showStep0() {\n".
-        "    if (modalBody) {\n".
-        "      modalBody.innerHTML =\n".
-        "        '<h5 class=\"mb-3\">Create VM in Google Cloud</h5>' +\n".
-        "        '<div class=\"mb-3 text-start\">' +\n".
-        "          '<label class=\"form-label fw-semibold\" for=\"jitsi-machine-type\">Jitsi server machine type</label>' +\n".
-        "          '<select class=\"form-select\" id=\"jitsi-machine-type\">' +\n".
-        "            '<option value=\"e2-medium\">e2-medium — 2 vCPU (shared), 4 GB RAM — ~10 concurrent users</option>' +\n".
-        "            '<option value=\"e2-standard-2\">e2-standard-2 — 2 vCPU, 8 GB RAM — ~20 concurrent users</option>' +\n".
-        "            '<option value=\"e2-standard-4\" selected>e2-standard-4 — 4 vCPU, 16 GB RAM — ~50 concurrent users (recommended)</option>' +\n".
-        "            '<option value=\"e2-standard-8\">e2-standard-8 — 8 vCPU, 32 GB RAM — ~100 concurrent users</option>' +\n".
-        "            '<option value=\"n2-standard-4\">n2-standard-4 — 4 vCPU, 16 GB RAM — ~60 concurrent users (higher performance)</option>' +\n".
-        "            '<option value=\"n2-standard-8\">n2-standard-8 — 8 vCPU, 32 GB RAM — ~120 concurrent users</option>' +\n".
-        "          '</select>' +\n".
-        "          '<small class=\"text-muted d-block mt-1\">The machine type determines how many simultaneous participants the server can handle.</small>' +\n".
-        "        '</div>' +\n".
-        "        '<div class=\"mb-3 text-start\">' +\n".
-        "          '<div class=\"form-check\">' +\n".
-        "            '<input class=\"form-check-input\" type=\"checkbox\" id=\"jibri-enable-check\">' +\n".
-        "            '<label class=\"form-check-label fw-semibold\" for=\"jibri-enable-check\">' +\n".
-        "              'Enable Jibri recording (dedicated VM)' +\n".
-        "            '</label>' +\n".
-        "          '</div>' +\n".
-        "          '<small class=\"text-muted d-block mt-1 ms-4\">' +\n".
-        "            'A second VM will be created as a dedicated Jibri recording server. Requires at least 4 vCPUs / 8 GB RAM.' +\n".
-        "          '</small>' +\n".
-        "        '</div>' +\n".
-        "        '<div class=\"mb-3 text-start\" id=\"jibri-machine-row\" style=\"display:none\">' +\n".
-        "          '<label class=\"form-label fw-semibold\" for=\"jibri-machine-type\">Jibri VM machine type</label>' +\n".
-        "          '<input type=\"text\" class=\"form-control\" id=\"jibri-machine-type\" value=\"n2-standard-4\">' +\n".
-        "          '<small class=\"text-muted\">Minimum recommended: <code>n2-standard-4</code> (4 vCPUs, 16 GB RAM).</small>' +\n".
-        "        '</div>' +\n".
-        "        '<div class=\"mb-3 text-start\" id=\"gcs-enable-row\" style=\"display:none\">' +\n".
-        "          '<div class=\"form-check\">' +\n".
-        "            '<input class=\"form-check-input\" type=\"checkbox\" id=\"gcs-enable-check\">' +\n".
-        "            '<label class=\"form-check-label fw-semibold\" for=\"gcs-enable-check\">' +\n".
-        "              'Upload recordings to Google Cloud Storage' +\n".
-        "            '</label>' +\n".
-        "          '</div>' +\n".
-        "          '<small class=\"text-muted d-block mt-1 ms-4\">' +\n".
-        "            'Recordings will be uploaded to a GCS bucket and served via a permanent public URL instead of the Jibri VM disk.' +\n".
-        "          '</small>' +\n".
-        "        '</div>' +\n".
-        "        '<div class=\"d-flex justify-content-end gap-2 mt-3\">' +\n".
-        "          '<button type=\"button\" class=\"btn btn-secondary\" onclick=\"closeModal();\">Cancel</button>' +\n".
-        "          '<button type=\"button\" class=\"btn btn-primary\" id=\"jibri-confirm-btn\">Create VM</button>' +\n".
-        "        '</div>';\n".
-        "      var check = document.getElementById('jibri-enable-check');\n".
-        "      var machineRow = document.getElementById('jibri-machine-row');\n".
-        "      var gcsRow = document.getElementById('gcs-enable-row');\n".
-        "      var confirmBtn = document.getElementById('jibri-confirm-btn');\n".
-        "      if (check && machineRow) {\n".
-        "        check.addEventListener('change', function() {\n".
-        "          machineRow.style.display = check.checked ? '' : 'none';\n".
-        "          if (gcsRow) gcsRow.style.display = check.checked ? '' : 'none';\n".
-        "        });\n".
-        "      }\n".
-        "      if (confirmBtn) {\n".
-        "        confirmBtn.addEventListener('click', function() {\n".
-        "          var enableJibri = check && check.checked;\n".
-        "          var machineTypeEl = document.getElementById('jibri-machine-type');\n".
-        "          var jibriMachine = (machineTypeEl && machineTypeEl.value.trim()) || 'n2-standard-4';\n".
-        "          var jitsiMachineEl = document.getElementById('jitsi-machine-type');\n".
-        "          var jitsiMachine = (jitsiMachineEl && jitsiMachineEl.value.trim()) || 'e2-standard-4';\n".
-        "          var gcsCheck = document.getElementById('gcs-enable-check');\n".
-        "          var enableGcs = enableJibri && gcsCheck && gcsCheck.checked;\n".
-        "          startVMCreation(enableJibri, jibriMachine, enableGcs, jitsiMachine);\n".
-        "        });\n".
-        "      }\n".
-        "    }\n".
-        "  }\n".
-        "  btn.addEventListener('click', function(){\n".
-        "    showModal();\n".
-        "    showStep0();\n".
-        "  });\n".
-        "\n".
-        "  // Check if there's a server in provisioning state on page load\n".
-        "  (async function checkOnLoad(){\n".
-        "    try {\n".
-        "      var response = await fetch(cfg.listUrl);\n".
-        "      var servers = await response.json();\n".
-        "      if (servers && servers.length > 0) {\n".
-        "        for (var i = 0; i < servers.length; i++) {\n".
-        "          var srv = servers[i];\n".
-        "          if (srv.provisioningstatus && srv.provisioningstatus !== 'ready' && srv.provisioningstatus !== 'error') {\n".
-        "            // Found a server being provisioned\n".
-        "            vmInfo.instancename = srv.gcpinstancename;\n".
-        "            console.log('Found server in provisioning:', vmInfo.instancename, 'status:', srv.provisioningstatus);\n".
-        "            showModal();\n".
-        "            if (modalBody) {\n".
-        "              modalBody.innerHTML = '<h5>⚙️ Resuming provisioning...</h5><div class=\"text-center\"><div class=\"spinner-border spinner-border-sm\" role=\"status\"></div></div>';\n".
-        "            }\n".
-        "            setTimeout(checkJitsiReady, 2000);\n".
-        "            break;\n".
-        "          }\n".
-        "        }\n".
-        "      }\n".
-        "    } catch(e) {\n".
-        "      console.log('Could not check for provisioning servers:', e);\n".
-        "    }\n".
-        "  })();\n".
-        "})();"
-        // phpcs:enable
-    );
+    $PAGE->requires->js_call_amd('mod_jitsi/gcp_wizard', 'init', [$init]);
 
 
     $gcpclient = null;
@@ -1824,8 +1424,8 @@ if ($showform) {
                 $jibribadge .= '<div class="mt-1">';
                 $jibribadge .= '<small class="text-muted">🎥 Jibri pool (desired: '
                     . '<input type="number" min="1" max="10" value="' . $poolsize . '"'
-                    . ' style="width:45px" class="form-control form-control-sm d-inline-block p-0 ps-1"'
-                    . ' onchange="updatePoolSize(' . $s->id . ', this.value)"'
+                    . ' style="width:45px" class="form-control form-control-sm d-inline-block p-0 ps-1'
+                    . ' jitsi-poolsize-input" data-serverid="' . $s->id . '"'
                     . '>):</small><br>';
                 foreach ($poolentries as $pe) {
                     switch ($pe->status) {
@@ -1973,45 +1573,29 @@ if ($showform) {
                 $links .= ' | ';
             }
 
-            // Lógica condicional de botones según estado.
-            $buttonshown = false;
+            // Render Start, Stop and the transition badge always; the AMD module
+            // (mod_jitsi/server_status) toggles their visibility on each poll, so
+            // the cell is never rebuilt and static links are never lost.
+            $showstart = in_array($instancestatus, ['STOPPED', 'TERMINATED', 'SUSPENDED', 'NOT_FOUND', 'ERROR', null]);
+            $showstop  = in_array($instancestatus, ['RUNNING', 'PROVISIONING', 'STAGING']);
+            $showwait  = in_array($instancestatus, ['STOPPING', 'SUSPENDING', 'REPAIRING']);
 
-            // Mostrar botón START solo si está apagado, suspendido o en error.
-            if (in_array($instancestatus, ['STOPPED', 'TERMINATED', 'SUSPENDED', 'NOT_FOUND', 'ERROR', null])) {
-                $links .= html_writer::link(
-                    $starturl,
-                    '▶️ Start',
-                    ['class' => 'btn btn-sm btn-success', 'id' => 'gcp-btn-start-' . $s->id],
-                );
-                $buttonshown = true;
-            }
-
-            // Mostrar botón STOP solo si está corriendo o arrancando.
-            if (in_array($instancestatus, ['RUNNING', 'PROVISIONING', 'STAGING'])) {
-                if ($buttonshown) {
-                    $links .= ' | ';
-                }
-                $links .= html_writer::link(
-                    $stopurl,
-                    '⏹️ Stop',
-                    ['class' => 'btn btn-sm btn-warning', 'id' => 'gcp-btn-stop-' . $s->id],
-                );
-                $buttonshown = true;
-            }
-
-            // Mostrar mensaje de espera si está en transición.
-            if (in_array($instancestatus, ['STOPPING', 'SUSPENDING', 'REPAIRING'])) {
-                if ($buttonshown) {
-                    $links .= ' | ';
-                }
-                $links .= '<span class="badge bg-secondary" id="gcp-btn-wait-' . $s->id . '">⏳ Please wait...</span>';
-                $buttonshown = true;
-            }
-
-            // Si no hay estado disponible, mostrar ambos botones deshabilitados.
-            if (!$buttonshown) {
-                $links .= '<span class="text-muted">Actions unavailable</span>';
-            }
+            $links .= html_writer::start_span('jitsi-gcp-actions', ['data-serverid' => $s->id]);
+            $links .= html_writer::link(
+                $starturl,
+                '▶️ Start',
+                ['class' => 'btn btn-sm btn-success jitsi-gcp-start' . ($showstart ? '' : ' d-none')],
+            );
+            $links .= html_writer::link(
+                $stopurl,
+                '⏹️ Stop',
+                ['class' => 'btn btn-sm btn-warning jitsi-gcp-stop' . ($showstop ? '' : ' d-none')],
+            );
+            $links .= html_writer::span(
+                '⏳ Please wait...',
+                'badge bg-secondary jitsi-gcp-wait' . ($showwait ? '' : ' d-none')
+            );
+            $links .= html_writer::end_span();
         }
 
         // Show Enable/Disable GCS button for GCP servers with Jibri ready.
@@ -2068,159 +1652,16 @@ if ($showform) {
     }
     echo html_writer::table($table);
 
-    // Actualizar JavaScript para también actualizar botones dinámicamente.
-    if (!empty($gcpserverids)) {
-        $statusurl = (new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'gcpserversstatus']))->out(false);
-        $gcpidsjs = json_encode($gcpserverids);
-        $sesskeyjs = sesskey();
-        $wwwroot = $CFG->wwwroot;
-        $updatepoolsizeurl = (new moodle_url(
+    // Live status badges + Start/Stop visibility + pool size inputs (mod_jitsi/server_status).
+    $PAGE->requires->js_call_amd('mod_jitsi/server_status', 'init', [[
+        'sesskey' => sesskey(),
+        'statusUrl' => (new moodle_url('/mod/jitsi/servermanagement.php', ['action' => 'gcpserversstatus']))->out(false),
+        'poolSizeUrl' => (new moodle_url(
             '/mod/jitsi/servermanagement.php',
             ['action' => 'updatepoolsize', 'sesskey' => sesskey()]
-        ))->out(false);
-        // phpcs:disable
-        $PAGE->requires->js_init_code(
-            "window.updatePoolSize = function(serverid, val) {\n".
-            "  fetch('" . $updatepoolsizeurl . "&id=' + serverid + '&poolsize=' + val, {method:'POST'})\n".
-            "    .then(function(r){return r.json();})\n".
-            "    .then(function(d){if(d.status!=='ok') alert('Could not update pool size.');});\n".
-            "};\n"
-        );
-        // phpcs:disable
-        $PAGE->requires->js_init_code(
-            "(function(){\n".
-            "  var gcpIds = ".$gcpidsjs.";\n".
-            "  if (gcpIds.length === 0) return;\n".
-            "  \n".
-            "  function updateStatuses(){\n".
-            "    fetch('".$statusurl."', {\n".
-            "      method: 'POST',\n".
-            "      headers: {'Content-Type':'application/x-www-form-urlencoded'},\n".
-            "      body: new URLSearchParams({sesskey: '".$sesskeyjs."', ids: gcpIds.join(',')})\n".
-            "    })\n".
-            "    .then(res => res.json())\n".
-            "    .then(data => {\n".
-            "      if (data.error) {\n".
-            "        console.error('Status update error:', data.error);\n".
-            "        return;\n".
-            "      }\n".
-            "      for (var id in data) {\n".
-            "        var badge = document.getElementById('gcp-status-' + id);\n".
-            "        if (!badge) continue;\n".
-            "        var status = data[id].status;\n".
-            "        var badgeClass = 'badge ';\n".
-            "        var badgeText = '';\n".
-            "        \n".
-            "        // ⬅️ Obtener contenedor de botones (celda de la tabla)\n".
-            "        var row = badge.closest('tr');\n".
-            "        var actionsCell = row ? row.cells[4] : null;\n".
-            "        \n".
-            "        switch(status) {\n".
-            "          case 'RUNNING':\n".
-            "            badgeClass += 'bg-success';\n".
-            "            badgeText = '🟢 Running';\n".
-            "            updateButtons(id, actionsCell, 'running');\n".
-            "            break;\n".
-            "          case 'STOPPED':\n".
-            "          case 'TERMINATED':\n".
-            "            badgeClass += 'bg-danger';\n".
-            "            badgeText = '🔴 Stopped';\n".
-            "            updateButtons(id, actionsCell, 'stopped');\n".
-            "            break;\n".
-            "          case 'STOPPING':\n".
-            "            badgeClass += 'bg-warning';\n".
-            "            badgeText = '🟡 Stopping...';\n".
-            "            updateButtons(id, actionsCell, 'transition');\n".
-            "            break;\n".
-            "          case 'PROVISIONING':\n".
-            "          case 'STAGING':\n".
-            "            badgeClass += 'bg-info';\n".
-            "            badgeText = '🔵 Starting...';\n".
-            "            updateButtons(id, actionsCell, 'running');\n".
-            "            break;\n".
-            "          case 'SUSPENDING':\n".
-            "            badgeClass += 'bg-warning';\n".
-            "            badgeText = '🟡 Suspending...';\n".
-            "            updateButtons(id, actionsCell, 'transition');\n".
-            "            break;\n".
-            "          case 'SUSPENDED':\n".
-            "            badgeClass += 'bg-secondary';\n".
-            "            badgeText = '⚫ Suspended';\n".
-            "            updateButtons(id, actionsCell, 'stopped');\n".
-            "            break;\n".
-            "          case 'REPAIRING':\n".
-            "            badgeClass += 'bg-warning';\n".
-            "            badgeText = '🔧 Repairing...';\n".
-            "            updateButtons(id, actionsCell, 'transition');\n".
-            "            break;\n".
-            "          case 'NOT_FOUND':\n".
-            "            badgeClass += 'bg-dark';\n".
-            "            badgeText = '❌ Not Found';\n".
-            "            updateButtons(id, actionsCell, 'stopped');\n".
-            "            break;\n".
-            "          case 'ERROR':\n".
-            "            badgeClass += 'bg-secondary';\n".
-            "            badgeText = '⚠️ Error';\n".
-            "            if (data[id].message) {\n".
-            "              badge.title = data[id].message;\n".
-            "            }\n".
-            "            updateButtons(id, actionsCell, 'stopped');\n".
-            "            break;\n".
-            "          default:\n".
-            "            badgeClass += 'bg-secondary';\n".
-            "            badgeText = status;\n".
-            "        }\n".
-            "        badge.className = badgeClass;\n".
-            "        badge.textContent = badgeText;\n".
-            "      }\n".
-            "    })\n".
-            "    .catch(err => console.error('Status update failed:', err));\n".
-            "  }\n".
-            "  \n".
-            "  function updateButtons(serverId, actionsCell, state) {\n".
-            "    if (!actionsCell) return;\n".
-            "    \n".
-            "    var startBtn = document.getElementById('gcp-btn-start-' + serverId);\n".
-            "    var stopBtn = document.getElementById('gcp-btn-stop-' + serverId);\n".
-            "    var waitSpan = document.getElementById('gcp-btn-wait-' + serverId);\n".
-            "    \n".
-            "    // Obtener el contenido de la celda para mantener links estáticos\n".
-            "    var cellHTML = actionsCell.innerHTML;\n".
-            "    var deleteLink = cellHTML.match(/(<a[^>]*action=delete[^>]*>.*?<\\/a>)/i);\n".
-            "    deleteLink = deleteLink ? deleteLink[0] : '';\n".
-            "    var jibriLink = cellHTML.match(/(<a[^>]*action=addjibri[^>]*>.*?<\\/a>)/i);\n".
-            "    jibriLink = jibriLink ? jibriLink[0] : '';\n".
-            "    var gcsLink = cellHTML.match(/(<a[^>]*action=(?:enablegcs|disablegcs)[^>]*>.*?<\\/a>)/i);\n".
-            "    gcsLink = gcsLink ? gcsLink[0] : '';\n".
-            "    \n".
-            "    var startUrl = '".$wwwroot."/mod/jitsi/servermanagement.php?action=gcpstart&id=' + serverId + '&sesskey=".$sesskeyjs."';\n".
-            "    var stopUrl = '".$wwwroot."/mod/jitsi/servermanagement.php?action=gcpstop&id=' + serverId + '&sesskey=".$sesskeyjs."';\n".
-            "    \n".
-            "    var newButtons = '';\n".
-            "    \n".
-            "    if (state === 'stopped') {\n".
-            "      newButtons = '<a href=\"' + startUrl + '\" class=\"btn btn-sm btn-success\" id=\"gcp-btn-start-' + serverId + '\">▶️ Start</a>';\n".
-            "    } else if (state === 'running') {\n".
-            "      newButtons = '<a href=\"' + stopUrl + '\" class=\"btn btn-sm btn-warning\" id=\"gcp-btn-stop-' + serverId + '\">⏹️ Stop</a>';\n".
-            "    } else if (state === 'transition') {\n".
-            "      newButtons = '<span class=\"badge bg-secondary\" id=\"gcp-btn-wait-' + serverId + '\">⏳ Please wait...</span>';\n".
-            "    }\n".
-            "    \n".
-            "    var extra = '';\n".
-            "    if (jibriLink) { extra += ' | ' + jibriLink; }\n".
-            "    if (gcsLink) { extra += ' | ' + gcsLink; }\n".
-            "    if (deleteLink) { extra += ' | ' + deleteLink; }\n".
-            "    actionsCell.innerHTML = newButtons + extra;\n".
-            "  }\n".
-            "  \n".
-            "  // Actualizar cada 10 segundos\n".
-            "  setInterval(updateStatuses, 10000);\n".
-            "  // Primera actualización después de 2 segundos\n".
-            "  setTimeout(updateStatuses, 2000);\n".
-            "})();"
-        );
-        // phpcs:enable
-    }
+        ))->out(false),
+        'serverIds' => array_values($gcpserverids),
+    ]]);
 } // End of TABLE VIEW (else block)
 
 echo $OUTPUT->footer();
