@@ -30,9 +30,6 @@
  */
 
 /* Moodle core API */
-defined('MOODLE_INTERNAL') || die();
-require_once(__DIR__ . '/deprecatedlib.php');
-
 
 /**
  * Returns the information on whether the module supports a feature
