@@ -2,7 +2,7 @@
 Feature: Manage recording links in the recordings tab
   In order to share session recordings with students
   As a teacher
-  I need to add, list and remove external recording links over AJAX
+  I need to add, list, hide, edit and remove external recording links over AJAX
 
   Background:
     Given the following "courses" exist:
@@ -30,4 +30,35 @@ Feature: Manage recording links in the recordings tab
     When I click on "[data-action='delete']" "css_element"
     And I click on "Delete" "button" in the "Confirm" "dialogue"
     Then I should see "No recordings available"
+    And I should not see "Lesson 1"
+
+  Scenario: A teacher hides and shows a recording
+    Given I am on the "Recorded Jitsi" "jitsi activity" page logged in as teacher1
+    When I click on "Recordings" "link"
+    And I set the field "Recording URL" to "https://example.com/lesson1.mp4"
+    And I set the field "Recording name (optional)" to "Lesson 1"
+    And I click on "Add recording link" "button"
+    Then "[data-action='hide']" "css_element" should exist
+
+    When I click on "[data-action='hide']" "css_element"
+    Then "[data-action='show']" "css_element" should exist
+    And "[data-action='hide']" "css_element" should not exist
+
+    When I click on "[data-action='show']" "css_element"
+    Then "[data-action='hide']" "css_element" should exist
+    And "[data-action='show']" "css_element" should not exist
+
+  Scenario: A teacher edits a recording's name through the edit form
+    Given I am on the "Recorded Jitsi" "jitsi activity" page logged in as teacher1
+    When I click on "Recordings" "link"
+    And I set the field "Recording URL" to "https://example.com/lesson1.mp4"
+    And I set the field "Recording name (optional)" to "Lesson 1"
+    And I click on "Add recording link" "button"
+    Then I should see "Lesson 1"
+
+    When I click on "[data-action='edit']" "css_element"
+    Then I should see "Edit recording link"
+    And I set the field "Recording name (optional)" to "Final lesson"
+    And I click on "Save changes" "button"
+    Then I should see "Final lesson"
     And I should not see "Lesson 1"
