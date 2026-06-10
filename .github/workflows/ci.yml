@@ -23,7 +23,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: '8.3'
           tools: composer
 
       - name: Install moodle-cs (Moodle coding standard)
@@ -53,7 +53,8 @@ jobs:
       matrix:
         moodle-branch:
           - MOODLE_405_STABLE
-          - MOODLE_500_STABLE
+          - MOODLE_501_STABLE
+          - MOODLE_502_STABLE
         db:
           - pgsql
           - mysqli
@@ -112,7 +113,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: '8.3'
           extensions: pgsql, mysqli, zip, curl, xml, mbstring, intl
           ini-values: max_input_vars=5000
 
@@ -195,7 +196,8 @@ jobs:
       matrix:
         moodle-branch:
           - MOODLE_405_STABLE
-          - MOODLE_500_STABLE
+          - MOODLE_501_STABLE
+          - MOODLE_502_STABLE
 
     steps:
       - name: Checkout mod_jitsi
@@ -206,7 +208,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: '8.3'
           extensions: pgsql, zip, gd, curl, xml, mbstring, intl
           ini-values: max_input_vars=5000
           coverage: none
