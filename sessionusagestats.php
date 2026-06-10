@@ -558,77 +558,31 @@ if ($tablerange && $tablerange->firstday) {
     echo $OUTPUT->notification(get_string('statsdelayed', 'jitsi'), 'info');
 }
 
-// Back to settings button.
-$settingsurl = new moodle_url('/admin/settings.php', ['section' => 'modsettingjitsi']);
-echo html_writer::link(
-    $settingsurl,
-    '← ' . get_string('backtosettings', 'jitsi'),
-    ['class' => 'btn btn-secondary mb-4']
-);
-
-// Filter form.
-echo html_writer::start_tag('div', ['class' => 'card mb-4']);
-echo html_writer::start_tag('div', ['class' => 'card-body']);
-$mform->display();
-echo html_writer::end_tag('div');
-echo html_writer::end_tag('div');
-
-// Summary stat cards.
-echo html_writer::start_tag('div', ['class' => 'row mb-4']);
-
-$statcards = [
-    [get_string('totalsessionsinperiod', 'jitsi'), $totalsessions],
-    [get_string('totaluniqueusersinperiod', 'jitsi'), $totaluniqueusers],
-    [get_string('totaluserminutesinperiod', 'jitsi'), format_jitsi_time($totalminutes)],
-    [get_string('averagetimeperuserinperiod', 'jitsi'), format_jitsi_time($totalavg)],
+// Build template context: summary cards, top-N selector and report sections.
+$cards = [
+    ['value' => $totalsessions, 'label' => get_string('totalsessionsinperiod', 'jitsi')],
+    ['value' => $totaluniqueusers, 'label' => get_string('totaluniqueusersinperiod', 'jitsi')],
+    ['value' => format_jitsi_time($totalminutes), 'label' => get_string('totaluserminutesinperiod', 'jitsi')],
+    ['value' => format_jitsi_time($totalavg), 'label' => get_string('averagetimeperuserinperiod', 'jitsi')],
 ];
 
-foreach ($statcards as $card) {
-    echo html_writer::start_tag('div', ['class' => 'col-md-3 col-sm-6 mb-3']);
-    echo html_writer::start_tag('div', ['class' => 'card h-100 text-center border-0 bg-light']);
-    echo html_writer::start_tag('div', ['class' => 'card-body py-3']);
-    echo html_writer::tag('div', $card[1], ['class' => 'h2 mb-1 fw-bold']);
-    echo html_writer::tag('div', $card[0], ['class' => 'text-muted small']);
-    echo html_writer::end_tag('div');
-    echo html_writer::end_tag('div');
-    echo html_writer::end_tag('div');
+$toplimitctx = ['label' => get_string('toplimit', 'jitsi'), 'options' => []];
+foreach ([10, 25, 50] as $i => $n) {
+    $toplimitctx['options'][] = [
+        'n' => $n,
+        'url' => (new moodle_url(
+            '/mod/jitsi/sessionusagestats.php',
+            array_merge($limitparams, ['toplimit' => $n])
+        ))->out(false),
+        'current' => $n === $toplimit,
+        'notfirst' => $i > 0,
+    ];
 }
 
-echo html_writer::end_tag('div');
+$sections = [];
 
-if (empty($monthlydata) && empty($coursedata) && empty($categorydata) && empty($userdata)) {
-    echo $OUTPUT->notification(get_string('statsnodata', 'jitsi'), 'warning');
-}
-
-/**
- * Render a top-N limit selector as small links.
- *
- * @param int   $current    Current limit value.
- * @param array $baseurl    Base URL params (fromdate, todate).
- * @return string HTML for the limit selector.
- */
-function jitsi_toplimit_selector($current, $baseurl) {
-    $links = [];
-    foreach ([10, 25, 50] as $n) {
-        $url = new moodle_url('/mod/jitsi/sessionusagestats.php', array_merge($baseurl, ['toplimit' => $n]));
-        if ($n === $current) {
-            $links[] = html_writer::tag('strong', $n);
-        } else {
-            $links[] = html_writer::link($url, $n);
-        }
-    }
-    $label = get_string('toplimit', 'jitsi') . ': ' . implode(' | ', $links);
-    return html_writer::tag('span', $label, ['class' => 'float-end small text-muted mt-1']);
-}
-
-// Monthly section.
+// Monthly section: dual-axis chart + table.
 if (!empty($monthlydata)) {
-    echo html_writer::start_tag('div', ['class' => 'card mb-4']);
-    echo html_writer::start_tag('div', ['class' => 'card-header d-flex align-items-center justify-content-between']);
-    echo html_writer::tag('h3', get_string('monthlyusage', 'jitsi'), ['class' => 'mb-0']);
-    echo html_writer::end_tag('div');
-    echo html_writer::start_tag('div', ['class' => 'card-body']);
-
     $chartlabels  = [];
     $sessionsdata = [];
     $usersdata    = [];
@@ -670,173 +624,177 @@ if (!empty($monthlydata)) {
     $chart->set_yaxis($yaxisright, 1);
 
     $chart->set_labels($chartlabels);
-    echo $OUTPUT->render_chart($chart);
 
-    $table = new html_table();
-    $table->head = [
-        get_string('month', 'jitsi'),
-        get_string('sessionsentered', 'jitsi'),
-        get_string('uniqueusers', 'jitsi'),
-        get_string('totaluserminutes', 'jitsi'),
-        get_string('averagetimeperuser', 'jitsi'),
-    ];
-    $table->attributes['class'] = 'generaltable mt-3';
-
+    $rows = [];
     foreach ($monthlydata as $month => $data) {
         $avg = $data['uniqueusers'] > 0 ? round($data['minutes'] / $data['uniqueusers']) : 0;
-        $table->data[] = [
+        $rows[] = ['cells' => [
             $month,
             $data['sessions'],
             $data['uniqueusers'],
             format_jitsi_time($data['minutes']),
             format_jitsi_time($avg),
-        ];
+        ]];
     }
 
-    echo html_writer::table($table);
-    echo $OUTPUT->download_dataformat_selector(
-        get_string('download'),
-        'sessionusagestats.php',
-        'dataformat',
-        array_merge($downloadparams, ['download' => 'monthly'])
-    );
-
-    echo html_writer::end_tag('div');
-    echo html_writer::end_tag('div');
+    $sections[] = [
+        'title' => get_string('monthlyusage', 'jitsi'),
+        'toplimit' => null,
+        'charthtml' => $OUTPUT->render_chart($chart),
+        'tableclass' => 'mt-3',
+        'head' => [
+            get_string('month', 'jitsi'),
+            get_string('sessionsentered', 'jitsi'),
+            get_string('uniqueusers', 'jitsi'),
+            get_string('totaluserminutes', 'jitsi'),
+            get_string('averagetimeperuser', 'jitsi'),
+        ],
+        'rows' => $rows,
+        'downloadhtml' => $OUTPUT->download_dataformat_selector(
+            get_string('download'),
+            'sessionusagestats.php',
+            'dataformat',
+            array_merge($downloadparams, ['download' => 'monthly'])
+        ),
+    ];
 }
 
 // Top courses section.
 if (!empty($coursedata)) {
-    echo html_writer::start_tag('div', ['class' => 'card mb-4']);
-    echo html_writer::start_tag('div', ['class' => 'card-header d-flex align-items-center justify-content-between']);
-    echo html_writer::tag('h3', get_string('topcourses', 'jitsi'), ['class' => 'mb-0']);
-    echo jitsi_toplimit_selector($toplimit, $limitparams);
-    echo html_writer::end_tag('div');
-    echo html_writer::start_tag('div', ['class' => 'card-body']);
-
-    $coursetable = new html_table();
-    $coursetable->head = [
-        get_string('course', 'jitsi'),
-        get_string('activity', 'jitsi'),
-        get_string('sessionsentered', 'jitsi'),
-        get_string('uniqueusers', 'jitsi'),
-        get_string('totaluserminutes', 'jitsi'),
-        get_string('averagetimeperuser', 'jitsi'),
-    ];
-    $coursetable->attributes['class'] = 'generaltable';
-
+    $rows = [];
     foreach ($coursedata as $cmid => $data) {
-        $urlcourse    = new moodle_url('/course/view.php', ['id' => $data->courseid]);
-        $urlactivity  = new moodle_url('/mod/jitsi/view.php', ['id' => $cmid]);
-        $courselink   = '<a href="' . $urlcourse . '">' . format_string($data->courseshortname) . '</a>';
-        $activitylink = '<a href="' . $urlactivity . '">' . format_string($data->activityname) . '</a>';
+        $courselink = html_writer::link(
+            new moodle_url('/course/view.php', ['id' => $data->courseid]),
+            format_string($data->courseshortname)
+        );
+        $activitylink = html_writer::link(
+            new moodle_url('/mod/jitsi/view.php', ['id' => $cmid]),
+            format_string($data->activityname)
+        );
         $avg = $data->uniqueusers > 0 ? round($data->minutes / $data->uniqueusers) : 0;
-        $coursetable->data[] = [
+        $rows[] = ['cells' => [
             $courselink,
             $activitylink,
             $data->sessions,
             $data->uniqueusers,
             format_jitsi_time($data->minutes),
             format_jitsi_time($avg),
-        ];
+        ]];
     }
 
-    echo html_writer::table($coursetable);
-    echo $OUTPUT->download_dataformat_selector(
-        get_string('download'),
-        'sessionusagestats.php',
-        'dataformat',
-        array_merge($downloadparams, ['download' => 'courses'])
-    );
-
-    echo html_writer::end_tag('div');
-    echo html_writer::end_tag('div');
+    $sections[] = [
+        'title' => get_string('topcourses', 'jitsi'),
+        'toplimit' => $toplimitctx,
+        'charthtml' => null,
+        'tableclass' => null,
+        'head' => [
+            get_string('course', 'jitsi'),
+            get_string('activity', 'jitsi'),
+            get_string('sessionsentered', 'jitsi'),
+            get_string('uniqueusers', 'jitsi'),
+            get_string('totaluserminutes', 'jitsi'),
+            get_string('averagetimeperuser', 'jitsi'),
+        ],
+        'rows' => $rows,
+        'downloadhtml' => $OUTPUT->download_dataformat_selector(
+            get_string('download'),
+            'sessionusagestats.php',
+            'dataformat',
+            array_merge($downloadparams, ['download' => 'courses'])
+        ),
+    ];
 }
 
 // Top categories section.
 if (!empty($categorydata)) {
-    echo html_writer::start_tag('div', ['class' => 'card mb-4']);
-    echo html_writer::start_tag('div', ['class' => 'card-header d-flex align-items-center justify-content-between']);
-    echo html_writer::tag('h3', get_string('topcategories', 'jitsi'), ['class' => 'mb-0']);
-    echo jitsi_toplimit_selector($toplimit, $limitparams);
-    echo html_writer::end_tag('div');
-    echo html_writer::start_tag('div', ['class' => 'card-body']);
-
-    $cattable = new html_table();
-    $cattable->head = [
-        get_string('category', 'jitsi'),
-        get_string('sessionsentered', 'jitsi'),
-        get_string('uniqueusers', 'jitsi'),
-        get_string('totaluserminutes', 'jitsi'),
-        get_string('averagetimeperuser', 'jitsi'),
-    ];
-    $cattable->attributes['class'] = 'generaltable';
-
+    $rows = [];
     foreach ($categorydata as $catid => $data) {
-        $urlcat  = new moodle_url('/course/index.php', ['categoryid' => $catid]);
-        $catlink = '<a href="' . $urlcat . '">' . format_string($data->catname) . '</a>';
+        $catlink = html_writer::link(
+            new moodle_url('/course/index.php', ['categoryid' => $catid]),
+            format_string($data->catname)
+        );
         $avg = $data->uniqueusers > 0 ? round($data->minutes / $data->uniqueusers) : 0;
-        $cattable->data[] = [
+        $rows[] = ['cells' => [
             $catlink,
             $data->sessions,
             $data->uniqueusers,
             format_jitsi_time($data->minutes),
             format_jitsi_time($avg),
-        ];
+        ]];
     }
 
-    echo html_writer::table($cattable);
-    echo $OUTPUT->download_dataformat_selector(
-        get_string('download'),
-        'sessionusagestats.php',
-        'dataformat',
-        array_merge($downloadparams, ['download' => 'categories'])
-    );
-
-    echo html_writer::end_tag('div');
-    echo html_writer::end_tag('div');
+    $sections[] = [
+        'title' => get_string('topcategories', 'jitsi'),
+        'toplimit' => $toplimitctx,
+        'charthtml' => null,
+        'tableclass' => null,
+        'head' => [
+            get_string('category', 'jitsi'),
+            get_string('sessionsentered', 'jitsi'),
+            get_string('uniqueusers', 'jitsi'),
+            get_string('totaluserminutes', 'jitsi'),
+            get_string('averagetimeperuser', 'jitsi'),
+        ],
+        'rows' => $rows,
+        'downloadhtml' => $OUTPUT->download_dataformat_selector(
+            get_string('download'),
+            'sessionusagestats.php',
+            'dataformat',
+            array_merge($downloadparams, ['download' => 'categories'])
+        ),
+    ];
 }
 
 // Top users section.
 if (!empty($userdata)) {
-    echo html_writer::start_tag('div', ['class' => 'card mb-4']);
-    echo html_writer::start_tag('div', ['class' => 'card-header d-flex align-items-center justify-content-between']);
-    echo html_writer::tag('h3', get_string('topusers', 'jitsi'), ['class' => 'mb-0']);
-    echo jitsi_toplimit_selector($toplimit, $limitparams);
-    echo html_writer::end_tag('div');
-    echo html_writer::start_tag('div', ['class' => 'card-body']);
-
-    $usertable = new html_table();
-    $usertable->head = [
-        get_string('user'),
-        get_string('sessionsentered', 'jitsi'),
-        get_string('totaluserminutes', 'jitsi'),
-        get_string('averagetimeperuser', 'jitsi'),
-    ];
-    $usertable->attributes['class'] = 'generaltable';
-
+    $rows = [];
     foreach ($userdata as $data) {
-        $urluser  = new moodle_url('/user/view.php', ['id' => $data->userid]);
-        $userlink = '<a href="' . $urluser . '">' . format_string(fullname($data)) . '</a>';
+        $userlink = html_writer::link(
+            new moodle_url('/user/view.php', ['id' => $data->userid]),
+            format_string(fullname($data))
+        );
         $avg = $data->sessions > 0 ? round($data->minutes / $data->sessions) : 0;
-        $usertable->data[] = [
+        $rows[] = ['cells' => [
             $userlink,
             $data->sessions,
             format_jitsi_time($data->minutes),
             format_jitsi_time($avg),
-        ];
+        ]];
     }
 
-    echo html_writer::table($usertable);
-    echo $OUTPUT->download_dataformat_selector(
-        get_string('download'),
-        'sessionusagestats.php',
-        'dataformat',
-        array_merge($downloadparams, ['download' => 'users'])
-    );
-
-    echo html_writer::end_tag('div');
-    echo html_writer::end_tag('div');
+    $sections[] = [
+        'title' => get_string('topusers', 'jitsi'),
+        'toplimit' => $toplimitctx,
+        'charthtml' => null,
+        'tableclass' => null,
+        'head' => [
+            get_string('user'),
+            get_string('sessionsentered', 'jitsi'),
+            get_string('totaluserminutes', 'jitsi'),
+            get_string('averagetimeperuser', 'jitsi'),
+        ],
+        'rows' => $rows,
+        'downloadhtml' => $OUTPUT->download_dataformat_selector(
+            get_string('download'),
+            'sessionusagestats.php',
+            'dataformat',
+            array_merge($downloadparams, ['download' => 'users'])
+        ),
+    ];
 }
+
+$nodata = empty($monthlydata) && empty($coursedata) && empty($categorydata) && empty($userdata);
+
+echo $OUTPUT->render_from_template('mod_jitsi/usage_stats', [
+    'backurl' => (new moodle_url('/admin/settings.php', ['section' => 'modsettingjitsi']))->out(false),
+    'backlabel' => get_string('backtosettings', 'jitsi'),
+    'formhtml' => $mform->render(),
+    'rowclass' => 'mb-4',
+    'colclass' => 'col-md-3 col-sm-6 mb-3',
+    'smallcards' => false,
+    'cards' => $cards,
+    'nodatahtml' => $nodata ? $OUTPUT->notification(get_string('statsnodata', 'jitsi'), 'warning') : null,
+    'sections' => $sections,
+]);
 
 echo $OUTPUT->footer();

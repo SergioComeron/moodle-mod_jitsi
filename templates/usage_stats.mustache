@@ -1,0 +1,74 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template mod_jitsi/usage_stats
+
+    Session usage statistics page: back button, filter form, summary cards
+    and one card section per report (monthly chart+table, top courses,
+    top categories, top users) with export selectors.
+
+    Example context (json):
+    {
+        "backurl": "https://example.com/admin/settings.php?section=modsettingjitsi",
+        "backlabel": "Back to settings",
+        "formhtml": "<form></form>",
+        "rowclass": "mb-4",
+        "colclass": "col-md-3 col-sm-6 mb-3",
+        "smallcards": false,
+        "cards": [{"value": "42", "label": "Total sessions"}],
+        "nodatahtml": null,
+        "sections": [
+            {
+                "title": "Monthly usage",
+                "toplimit": null,
+                "charthtml": "<div>chart</div>",
+                "tableclass": "mt-3",
+                "head": ["Month", "Sessions"],
+                "rows": [{"cells": ["2026-01", "10"]}],
+                "downloadhtml": "<form>download</form>"
+            }
+        ]
+    }
+}}
+<a href="{{backurl}}" class="btn btn-secondary mb-4">← {{backlabel}}</a>
+
+<div class="card mb-4">
+    <div class="card-body">
+        {{{formhtml}}}
+    </div>
+</div>
+
+{{> mod_jitsi/stats_cards }}
+
+{{{nodatahtml}}}
+
+{{#sections}}
+<div class="card mb-4">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <h3 class="mb-0">{{title}}</h3>
+        {{#toplimit}}
+        <span class="float-end small text-muted mt-1">{{label}}:
+            {{#options}}{{#notfirst}} | {{/notfirst}}{{#current}}<strong>{{n}}</strong>{{/current}}{{^current}}<a href="{{url}}">{{n}}</a>{{/current}}{{/options}}</span>
+        {{/toplimit}}
+    </div>
+    <div class="card-body">
+        {{{charthtml}}}
+        {{> mod_jitsi/stats_table }}
+        {{{downloadhtml}}}
+    </div>
+</div>
+{{/sections}}

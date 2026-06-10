@@ -1,0 +1,158 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template mod_jitsi/attendance_report
+
+    Attendance report for a Jitsi activity: three tabs with live session
+    attendance, per-recording view tracking (heatmap + watch progress) and a
+    course-wide overview. Both data-toggle and data-bs-toggle attributes are
+    emitted so tabs work on Bootstrap 4 and 5 themes.
+
+    Example context (json):
+    {
+        "backurl": "https://example.com/mod/jitsi/view.php?id=12",
+        "backlabel": "My activity",
+        "sessionintro": ["<div class='alert'>notice</div>"],
+        "sessions": {
+            "rowclass": "mb-4",
+            "colclass": "col-md-4 col-sm-6 mb-3",
+            "smallcards": false,
+            "cards": [{"value": "5", "label": "Unique users"}],
+            "table": {"tableclass": null, "head": ["Name"], "rows": [{"cells": ["Alice"]}]},
+            "downloadhtml": "<form>download</form>"
+        },
+        "formhtml": "<form></form>",
+        "gcs": {
+            "recordings": [
+                {
+                    "title": "Recording 1 — 1 Jan",
+                    "rowclass": "mb-2",
+                    "colclass": "col-md-3 col-sm-6 mb-2",
+                    "smallcards": true,
+                    "cards": [{"value": "3", "label": "Total plays"}],
+                    "heatmaphtml": "<div class='jitsi-heatmap'></div>",
+                    "table": {"tableclass": "table-sm", "head": ["Name"], "rows": [{"cells": ["Alice"]}]},
+                    "last": true
+                }
+            ]
+        },
+        "links": null,
+        "coursesections": [
+            {
+                "first": true,
+                "title": "Activities",
+                "table": {"tableclass": "table-sm", "head": ["Activity"], "rows": [{"cells": ["Session A"]}]},
+                "nodatahtml": null
+            }
+        ]
+    }
+}}
+<a href="{{backurl}}" class="btn btn-secondary mb-4">← {{backlabel}}</a>
+
+<ul class="nav nav-tabs mb-3" id="attendanceTabs" role="tablist">
+    <li class="nav-item">
+        <a class="nav-link active" id="tab-sessions-link" data-toggle="tab" data-bs-toggle="tab"
+            href="#tab-sessions" role="tab">{{#str}} attendancetablive, mod_jitsi {{/str}}</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" id="tab-recordings-link" data-toggle="tab" data-bs-toggle="tab"
+            href="#tab-recordings" role="tab">{{#str}} records, mod_jitsi {{/str}}</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" id="tab-course-link" data-toggle="tab" data-bs-toggle="tab"
+            href="#tab-course" role="tab">{{#str}} coursedashboard, mod_jitsi {{/str}}</a>
+    </li>
+</ul>
+
+<div class="tab-content">
+
+<div class="tab-pane fade show active" id="tab-sessions" role="tabpanel">
+    {{#sessionintro}}{{{.}}}{{/sessionintro}}
+    {{#sessions}}
+    {{> mod_jitsi/stats_cards }}
+    {{#table}}
+    {{> mod_jitsi/stats_table }}
+    {{/table}}
+    {{{downloadhtml}}}
+    {{/sessions}}
+</div>
+
+<div class="tab-pane fade" id="tab-recordings" role="tabpanel">
+    <div class="card mb-4">
+        <div class="card-body">
+            {{{formhtml}}}
+        </div>
+    </div>
+
+    {{#gcs}}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="mb-0">{{#str}} recordingviews, mod_jitsi {{/str}}</h3>
+        </div>
+        <div class="card-body">
+            {{#recordings}}
+            <div class="mb-4">
+                <h5 class="mb-2">{{title}}</h5>
+                {{> mod_jitsi/stats_cards }}
+                {{{heatmaphtml}}}
+                {{#table}}
+                {{> mod_jitsi/stats_table }}
+                {{/table}}
+                {{^table}}
+                <p class="text-muted">{{#str}} recordingnoviews, mod_jitsi {{/str}}</p>
+                {{/table}}
+            </div>
+            {{^last}}<hr>{{/last}}
+            {{/recordings}}
+        </div>
+    </div>
+    {{/gcs}}
+
+    {{#links}}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="mb-0">{{#str}} recordingaccesslog, mod_jitsi {{/str}}</h3>
+        </div>
+        <div class="card-body">
+            {{#recordings}}
+            <div class="mb-4">
+                <h5 class="mb-2">{{title}}</h5>
+                {{#table}}
+                {{> mod_jitsi/stats_table }}
+                {{/table}}
+                {{^table}}
+                <p class="text-muted">{{#str}} recordingnoviews, mod_jitsi {{/str}}</p>
+                {{/table}}
+            </div>
+            {{^last}}<hr>{{/last}}
+            {{/recordings}}
+        </div>
+    </div>
+    {{/links}}
+</div>
+
+<div class="tab-pane fade" id="tab-course" role="tabpanel">
+    {{#coursesections}}
+    <h5 class="{{#first}}mt-2{{/first}}{{^first}}mt-4{{/first}} mb-2">{{title}}</h5>
+    {{#table}}
+    {{> mod_jitsi/stats_table }}
+    {{/table}}
+    {{{nodatahtml}}}
+    {{/coursesections}}
+</div>
+
+</div>

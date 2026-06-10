@@ -1,0 +1,46 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template mod_jitsi/stats_table
+
+    Generic report table. Header and cell entries are pre-built HTML-safe
+    strings (links already escaped by the caller via format_string/html_writer).
+
+    Example context (json):
+    {
+        "tableclass": "table-sm",
+        "head": ["Name", "Sessions"],
+        "rows": [
+            {"cells": ["Alice", "5"]},
+            {"cells": ["Bob", "3"]}
+        ]
+    }
+}}
+<table class="generaltable{{#tableclass}} {{tableclass}}{{/tableclass}}">
+    <thead>
+        <tr>
+            {{#head}}<th>{{{.}}}</th>{{/head}}
+        </tr>
+    </thead>
+    <tbody>
+        {{#rows}}
+        <tr>
+            {{#cells}}<td>{{{.}}}</td>{{/cells}}
+        </tr>
+        {{/rows}}
+    </tbody>
+</table>
