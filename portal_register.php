@@ -77,6 +77,13 @@ if ($email && confirm_sesskey()) {
     if ($httpcode === 200 && !empty($result['ok'])) {
         set_config('portal_email', $email, 'mod_jitsi');
         set_config('portal_status', 'pending', 'mod_jitsi');
+
+        // Queue an ad-hoc task to send the first telemetry ping as soon as the
+        // e-mail is confirmed, instead of waiting for the weekly scheduled task.
+        $activatetask = new \mod_jitsi\task\activate_telemetry();
+        $activatetask->set_custom_data((object)['attempt' => 0]);
+        \core\task\manager::queue_adhoc_task($activatetask, true);
+
         redirect(
             $returnurl,
             get_string('portalregistrationsent', 'jitsi'),

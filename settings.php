@@ -158,6 +158,28 @@ if ($ADMIN->fulltree) {
         );
     }
 
+    // Self-diagnosis: registered (pending or active) but no telemetry ever
+    // received. The usual cause is that Moodle cron is not running the task.
+    if (($licensekey || $portalstatus === 'pending') && !get_config('mod_jitsi', 'portal_lastping')) {
+        $taskrec = $DB->get_record(
+            'task_scheduled',
+            ['classname' => '\mod_jitsi\task\send_telemetry'],
+            'lastruntime'
+        )
+            ?: $DB->get_record(
+                'task_scheduled',
+                ['classname' => 'mod_jitsi\task\send_telemetry'],
+                'lastruntime'
+            );
+        $cronran = $taskrec && (int)$taskrec->lastruntime > 0;
+        $statushtml .= html_writer::div(
+            html_writer::tag('strong', '⚠️ ' . get_string('telemetrynopingtitle', 'jitsi')) .
+            html_writer::empty_tag('br') .
+            get_string($cronran ? 'telemetrynopingsoon' : 'telemetrynocron', 'jitsi'),
+            'alert alert-warning mt-2'
+        );
+    }
+
     $settings->add(
         new admin_setting_heading(
             'jitsitelemetryheading',
