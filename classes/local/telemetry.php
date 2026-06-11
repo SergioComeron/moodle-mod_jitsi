@@ -118,6 +118,9 @@ class telemetry {
             'active_activities_week' => (int)($weeklystats->active_activities_week ?? 0),
             'recordings_total'       => $recordingstotal,
             'max_participants_peak'  => $maxparticipants,
+            // Cron health: a ping proves cron ran, but these flag a flaky/failing one.
+            'cron_last_run'          => (int)get_config('tool_task', 'lastcronstart'),
+            'failed_tasks'           => (int)$DB->count_records_select('task_scheduled', 'faildelay > 0'),
         ];
 
         $curl = curl_init(self::PORTAL . '/collect.php');
