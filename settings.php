@@ -172,12 +172,16 @@ if ($ADMIN->fulltree) {
                 'lastruntime'
             );
         $cronran = $taskrec && (int)$taskrec->lastruntime > 0;
-        $statushtml .= html_writer::div(
-            html_writer::tag('strong', '⚠️ ' . get_string('telemetrynopingtitle', 'jitsi')) .
-            html_writer::empty_tag('br') .
-            get_string($cronran ? 'telemetrynopingsoon' : 'telemetrynocron', 'jitsi'),
-            'alert alert-warning mt-2'
-        );
+        // Suppress for already-active sites whose cron runs: they are pinging,
+        // 'portal_lastping' is simply empty because it predates this feature.
+        if (!($licensekey && $cronran)) {
+            $statushtml .= html_writer::div(
+                html_writer::tag('strong', '⚠️ ' . get_string('telemetrynopingtitle', 'jitsi')) .
+                html_writer::empty_tag('br') .
+                get_string($cronran ? 'telemetrynopingsoon' : 'telemetrynocron', 'jitsi'),
+                'alert alert-warning mt-2'
+            );
+        }
     }
 
     $settings->add(
