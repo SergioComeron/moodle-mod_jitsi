@@ -348,7 +348,7 @@ class provider implements
             $cmid = $context->instanceid;
             $DB->delete_records('jitsi_usage_daily', ['cmid' => $cmid]);
             $DB->delete_records('jitsi_recording_segments', ['cmid' => $cmid]);
-            $DB->delete_records_sql(
+            $DB->execute(
                 'DELETE FROM {jitsi_presence}
                   WHERE jitsiid IN (SELECT cm.instance FROM {course_modules} cm WHERE cm.id = :cmid)',
                 ['cmid' => $cmid]
@@ -384,7 +384,7 @@ class provider implements
                 $cmid = $context->instanceid;
                 $DB->delete_records('jitsi_usage_daily', ['userid' => $userid, 'cmid' => $cmid]);
                 $DB->delete_records('jitsi_recording_segments', ['userid' => $userid, 'cmid' => $cmid]);
-                $DB->delete_records_sql(
+                $DB->execute(
                     'DELETE FROM {jitsi_presence}
                       WHERE userid = :userid
                         AND jitsiid IN (SELECT cm.instance FROM {course_modules} cm WHERE cm.id = :cmid)',
@@ -440,7 +440,7 @@ class provider implements
                 "userid $insql AND cmid = :cmid",
                 array_merge($inparams, ['cmid' => $cmid])
             );
-            $DB->delete_records_sql(
+            $DB->execute(
                 "DELETE FROM {jitsi_presence}
                   WHERE userid $insql
                     AND jitsiid IN (SELECT cm.instance FROM {course_modules} cm WHERE cm.id = :cmid)",
