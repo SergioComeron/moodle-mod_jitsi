@@ -8,6 +8,9 @@ on:
 jobs:
   bump:
     runs-on: ubuntu-latest
+    # Skip when the push is the bot's own bump commit, otherwise pushing it
+    # back to master would re-trigger this workflow in a loop.
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore: bump version') }}
     permissions:
       contents: write
     env:
@@ -137,7 +140,7 @@ jobs:
             echo "No changes to version.php — skipping commit and release"
             echo "skipped=true" >> "$GITHUB_OUTPUT"
           else
-            git commit -m "chore: bump version to ${{ steps.version.outputs.new_tag }} (build ${{ steps.version.outputs.build }}) [skip ci]"
+            git commit -m "chore: bump version to ${{ steps.version.outputs.new_tag }} (build ${{ steps.version.outputs.build }})"
             git push
             echo "skipped=false" >> "$GITHUB_OUTPUT"
           fi
@@ -147,11 +150,6 @@ jobs:
         run: |
           git tag ${{ steps.version.outputs.new_tag }}
           git push origin ${{ steps.version.outputs.new_tag }}
-
-      - name: Trigger release workflow
-        if: steps.commit.outputs.skipped == 'false'
-        run: |
-          gh workflow run release.yml --ref ${{ steps.version.outputs.new_tag }} \
-            --field tag=${{ steps.version.outputs.new_tag }}
-        env:
-          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          # Pushing the tag with PAT_TOKEN (and no [skip ci] on the tagged
+          # commit) triggers release.yml via its `on: push: tags` trigger.
+          # No explicit workflow_dispatch needed (the PAT lacks that scope).
