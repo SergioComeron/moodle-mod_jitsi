@@ -1,4 +1,104 @@
 # Changelog
+## v5.2.0
+# Added
+
+ * report cron health (last run + failing tasks) in the ping
+ * fast first ping after registration + cron self-diagnosis
+ * modernize recordings tab CRUD to WS+AJAX and HTML to Mustache
+ * auto-refresh total user minutes without page reload
+# Fixed
+
+ * repair broken base64url call sites in OAuth flow
+ * suppress cron self-diagnosis for active sites that already ping
+ * repair broken GDPR delete paths; add provider test coverage
+ * rename delete_data_for_users_in_context to delete_data_for_users (#193)
+ * stop stale provisioning runs from trapping the page in a modal loop
+ * replace insecure check_sourcerecord.php with capability-checked WS
+ * preserve scroll position when reloading the recordings tab
+ * prevent launching stream/record while the other is preparing
+ * silence camelcase ESLint warning for WS arg in recording_tracker
+ * migrate orphaned isDeletable() call site in adminrecords_table
+ * load session_presence via js_call_amd, not a top-level require (Phase C4a)
+ * migrate missed getminutes() call site in view.php
+ * avoid space in example displayName so iframe src validates
+ * use canonical Example context (json) header in mobile templates
+ * handle missing or unauthorised streaming account in create_stream
+ * anchor vendor/ ignore to plugin root so api/vendor is deployable
+ * move documentation string to correct alphabetical position in lang file
+# Changed
+
+ * bump guzzlehttp/psr7 from 2.8.0 to 2.11.0
+ * cover recording hide/show toggle and edit-form rename
+ * add @javascript recordings tab CRUD coverage
+ * upgrade actions/checkout to v5 to drop the Node.js 20 deprecation warning
+ * rebuild PHPUnit job on moodle-plugin-ci for public/-dir compatibility
+ * bump CI PostgreSQL service to 16 for Moodle 5.1/5.2
+ * bump to PHP 8.3 and test Moodle 4.5 / 5.1 / 5.2
+ * add view.feature and a moodle-plugin-ci Behat job
+ * render usage stats and attendance report via Mustache
+ * render server table and addjibri page via Mustache (V4)
+ * move inline JS to AMD modules, fix updateStatuses (V3)
+ * move VM provisioning callbacks to vm_callback class (V2)
+ * extract GCP/GCS helpers into autoloaded classes (V1)
+ * remove deprecatedlib.php (dead since Moodle 3.11)
+ * drop dead Moodle 3.11 compatibility branches
+ * move recording CRUD logic out of view.php into recording class (V4)
+ * move tab navigation to Mustache (V3 complete)
+ * move access card + help + invite to Mustache (V3)
+ * move session-header metrics + badges to Mustache (V3)
+ * move last two inline JS blocks to AMD modules (V2 complete)
+ * bypass minutes cache in get_user_minutes WS for live refresh
+ * batch per-user minutes in attendeesview (fix N+1)
+ * use composite index for connected-minutes queries
+ * move live header indicators to mod_jitsi/view_indicators AMD module (V2)
+ * move recording segment tracking to mod_jitsi/recording_tracker AMD module (V2)
+ * V1 cleanup — parametrize SQL, drop dead vars, unify $context (view.php refactor)
+ * dedup create()/create_priv() header + unify session controls (Phase C5)
+ * move recording/streaming controls to mod_jitsi/session_recording AMD module (Phase C4b)
+ * move password + finish-and-return to mod_jitsi/session_controls AMD module (Phase C4b)
+ * move toolbar-button audit to mod_jitsi/session_buttons AMD module (Phase C4b)
+ * move session presence tracking to mod_jitsi/session_presence AMD module (Phase C4a)
+ * extract JitsiMeetExternalAPI options builder from session (Phase C3)
+ * move session layout HTML to a Mustache template (Phase C2)
+ * extract JWT/roomName builder from session::create (Phase C1)
+ * move last two fragile helpers out of lib.php
+ * move createsessionpriv from lib.php to mod_jitsi\local\session::create_priv
+ * render watched-segments bar via Mustache template
+ * render heatmap via Mustache template instead of echoed HTML
+ * move createsession from lib.php to mod_jitsi\local\session::create
+ * cover createsession JWT/roomName for all 4 server types (createsession refactor, phase 1)
+ * extract notification helpers from lib.php to mod_jitsi\local
+otification
+ * extract recording lifecycle helpers from lib.php to mod_jitsi\localecording
+ * extract YouTube recording ops from lib.php to mod_jitsi\local\youtube
+ * extract Google API client helpers from lib.php to mod_jitsi\local\google
+ * extract jibri-ready + completion helpers from lib.php
+ * extract jitsi_check_tutoring_availability to mod_jitsi\local	utoring
+ * extract getminutes/getminutesdates to mod_jitsi\localttendance
+ * extract isdeletable to mod_jitsi\localecording + remove dead isallvisible
+ * extract invitation-link helpers from lib.php to mod_jitsi\local\invitation
+ * extract base64url + video-segment helpers from lib.php
+ * extract room-name helpers from lib.php to mod_jitsi\localoom
+ * migrate streaming endpoints and remove the monolithic external class
+ * migrate view/minutes/AI-queue endpoints to per-class external API + tests
+ * migrate search/recording-link endpoints to per-class external API + tests
+ * migrate error endpoints + remove dead enter_session
+ * migrate jibri + recording-view endpoints to per-class external API + tests
+ * migrate session/participants endpoints + remove dead get_participants
+ * migrate presence endpoints to per-class external API + tests
+ * migrate audit button endpoints to per-class external API + tests
+ * migrate check_incoming_call to per-class external API
+ * migrate tutoring schedule endpoints to per-class external API
+ * migrate push subscription endpoints to per-class external API
+ * a11y: add aria-hidden to decorative icons, alt to thumbnail, aria-label to presence button
+ * add moodle.org plugin listing description (HTML)
+ * trigger viewed event in PHP instead of ws-on-load in template
+ * drop legacy Ionic 3 mobile templates
+ * exclude .gitignore from release ZIP
+ * add documentation site link to README and plugin settings
+
+---
+
 ## v5.1.0
 # Added
 
