@@ -137,7 +137,7 @@ if (get_config('mod_jitsi', 'oauth_id') == null || get_config('mod_jitsi', 'oaut
     $tokensessionkey = 'token-' . $client->prepareScopes();
 
     if (isset($_GET['code'])) {
-        $paramstring = base64UrlDecode($_GET['state']);
+        $paramstring = \mod_jitsi\local\util::base64url_decode($_GET['state']);
         $paramarray = explode("&", $paramstring);
         $randstring = $paramarray[1];
         $namestring = $paramarray[0];
@@ -247,7 +247,7 @@ if (get_config('mod_jitsi', 'oauth_id') == null || get_config('mod_jitsi', 'oaut
 
         $rand = mt_rand();
         $stateparameters = 'name=' . $name . '&rand=' . $rand;
-        $state = base64UrlEncode($stateparameters);
+        $state = \mod_jitsi\local\util::base64url_encode($stateparameters);
         $client->setState($state);
         $_SESSION['rand'] = $rand;
 
