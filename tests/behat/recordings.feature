@@ -11,9 +11,11 @@ Feature: Manage recording links in the recordings tab
     And the following "users" exist:
       | username | firstname | lastname | email                |
       | teacher1 | Teacher   | One      | teacher1@example.com |
+      | student1 | Student   | One      | student1@example.com |
     And the following "course enrolments" exist:
       | user     | course | role           |
       | teacher1 | C1     | editingteacher |
+      | student1 | C1     | student        |
     And the following "activities" exist:
       | activity | name           | intro      | course | idnumber |
       | jitsi    | Recorded Jitsi | Rec intro  | C1     | jitsi1   |
@@ -62,3 +64,23 @@ Feature: Manage recording links in the recordings tab
     And I click on "Save changes" "button"
     Then I should see "Final lesson"
     And I should not see "Lesson 1"
+
+  Scenario: A student sees visible recordings but not hidden ones
+    Given the following "mod_jitsi > recordings" exist:
+      | jitsi  | name           | visible |
+      | jitsi1 | Visible lesson | 1       |
+      | jitsi1 | Hidden lesson  | 0       |
+    When I am on the "Recorded Jitsi" "jitsi activity" page logged in as student1
+    And I click on "Recordings" "link"
+    Then I should see "Visible lesson"
+    And I should not see "Hidden lesson"
+
+  Scenario: A teacher sees both visible and hidden recordings
+    Given the following "mod_jitsi > recordings" exist:
+      | jitsi  | name           | visible |
+      | jitsi1 | Visible lesson | 1       |
+      | jitsi1 | Hidden lesson  | 0       |
+    When I am on the "Recorded Jitsi" "jitsi activity" page logged in as teacher1
+    And I click on "Recordings" "link"
+    Then I should see "Visible lesson"
+    And I should see "Hidden lesson"
