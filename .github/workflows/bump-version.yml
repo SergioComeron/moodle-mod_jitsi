@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     # Skip when the push is the bot's own bump commit, otherwise pushing it
     # back to master would re-trigger this workflow in a loop.
-    if: ${{ !startsWith(github.event.head_commit.message, 'chore: bump version') }}
+    if: "${{ !startsWith(github.event.head_commit.message, 'chore: bump version') }}"
     permissions:
       contents: write
     env:
