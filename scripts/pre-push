@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+#
+# Hook pre-push para mod_jitsi.
+# - Ejecuta code sniffer (obligatorio) y tests PHPUnit antes de cada push.
+#
+# El plugin es un repo standalone (~/moodles/plugins/mod_jitsi) symlinkeado
+# dentro de varias instalaciones Moodle (4.5 en mod/jitsi, 5.2 en
+# public/mod/jitsi), así que el clásico "../.." ya no aplica.
+#
+# Instalación: bash scripts/install-hooks.sh
+
+set -e
+
+PLUGIN_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+PHPCS="${PLUGIN_DIR}/vendor/bin/phpcs"
+
+# Detectar la raíz de Moodle para ejecutar PHPUnit.
+detect_moodle_root() {
+    # 1. Override manual por variable de entorno.
+    if [ -n "${MOD_JITSI_MOODLE_ROOT}" ] && [ -f "${MOD_JITSI_MOODLE_ROOT}/vendor/bin/phpunit" ]; then
+        echo "${MOD_JITSI_MOODLE_ROOT}"
+        return 0
+    fi
+    # 2. Layout clásico: el plugin vive dentro del árbol Moodle (mod/jitsi).
+    local classic
+    classic="$(cd "${PLUGIN_DIR}/../.." 2>/dev/null && pwd)"
+    if [ -n "${classic}" ] && [ -f "${classic}/vendor/bin/phpunit" ] && [ -f "${classic}/version.php" ]; then
+        echo "${classic}"
+        return 0
+    fi
+    # 3. Layout standalone: probar instalaciones candidatas conocidas.
+    # Se prefiere la versión más nueva con PHPUnit instalado; las que no lo
+    # tengan se saltan automáticamente.
+    local candidates=(
+        "${HOME}/moodles/stable_502/moodle"
+        "${HOME}/moodles/stable_405/moodle"
+        "${HOME}/moodles/stable_501/moodle"
+        "${HOME}/moodles/stable_main/moodle"
+    )
+    local c
+    for c in "${candidates[@]}"; do
+        if [ -f "${c}/vendor/bin/phpunit" ]; then
+            echo "${c}"
+            return 0
+        fi
+    done
+    return 1
+}
+
+MOODLE_ROOT="$(detect_moodle_root || true)"
+PHPUNIT="${MOODLE_ROOT}/vendor/bin/phpunit"
+
+# --- Code sniffer (obligatorio) ---
+
+if [ ! -f "${PHPCS}" ]; then
+    echo "⚠️  phpcs no encontrado en ${PHPCS}"
+    echo "   Asegúrate de haber ejecutado 'composer install' en el directorio del plugin."
+    exit 1
+fi
+
+echo "▶ Ejecutando code sniffer..."
+
+cd "${PLUGIN_DIR}"
+"${PHPCS}" --standard=phpcs.xml
+
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "✗ Errores de code style. Push cancelado."
+    echo "  Ejecuta: vendor/bin/phpcbf --standard=phpcs.xml"
+    exit 1
+fi
+
+echo "✓ Code style correcto."
+
+# --- PHPUnit (se omite si no hay instalación Moodle con PHPUnit) ---
+
+if [ -z "${MOODLE_ROOT}" ] || [ ! -f "${PHPUNIT}" ]; then
+    echo "⚠️  PHPUnit no encontrado: no se localizó una instalación Moodle con vendor/bin/phpunit."
+    echo "   Se omite la ejecución de tests (solo se ha validado el code style)."
+    echo "   Para forzar una raíz Moodle: export MOD_JITSI_MOODLE_ROOT=/ruta/a/moodle"
+else
+    echo "▶ Ejecutando tests PHPUnit (${MOODLE_ROOT})..."
+
+    cd "${MOODLE_ROOT}"
+
+    set +e
+    PHPUNIT_OUTPUT=$(php "${PHPUNIT}" --testsuite mod_jitsi_testsuite 2>&1)
+    PHPUNIT_EXIT=$?
+    set -e
+
+    if echo "${PHPUNIT_OUTPUT}" | grep -q "initialised for different version"; then
+        echo "  Entorno PHPUnit desactualizado. Reinicializando..."
+        # En 5.x el código vive bajo public/, así que el init.php cambia de sitio.
+        if [ -f admin/tool/phpunit/cli/init.php ]; then
+            php admin/tool/phpunit/cli/init.php 2>&1 | tail -3
+        elif [ -f public/admin/tool/phpunit/cli/init.php ]; then
+            php public/admin/tool/phpunit/cli/init.php 2>&1 | tail -3
+        fi
+        echo "  Reejecutando tests..."
+        set +e
+        PHPUNIT_OUTPUT=$(php "${PHPUNIT}" --testsuite mod_jitsi_testsuite 2>&1)
+        PHPUNIT_EXIT=$?
+        set -e
+    fi
+
+    echo "${PHPUNIT_OUTPUT}"
+
+    if [ $PHPUNIT_EXIT -ne 0 ]; then
+        echo ""
+        echo "✗ Tests fallidos. Push cancelado."
+        echo "  Corrige los errores antes de volver a hacer push."
+        exit 1
+    fi
+
+    echo "✓ Todos los tests pasan."
+fi
+
+echo "▶ Continuando con el push."
+exit 0

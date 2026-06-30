@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<ruleset name="mod_jitsi">
+    <description>Coding standard for mod_jitsi. Based on Moodle CS with targeted exclusions.</description>
+
+    <file>.</file>
+    <exclude-pattern>vendor/*</exclude-pattern>
+    <exclude-pattern>api/vendor/*</exclude-pattern>
+    <exclude-pattern>node_modules/*</exclude-pattern>
+    <exclude-pattern>amd/build/*</exclude-pattern>
+
+    <arg name="extensions" value="php"/>
+    <arg name="warning-severity" value="0"/>
+
+    <rule ref="moodle"/>
+</ruleset>
