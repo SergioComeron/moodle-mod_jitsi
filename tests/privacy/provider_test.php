@@ -16,6 +16,7 @@
 
 namespace mod_jitsi\privacy;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use core_privacy\local\request\approved_contextlist;
 use core_privacy\local\request\approved_userlist;
 use core_privacy\local\request\userlist;
@@ -27,8 +28,8 @@ use core_privacy\local\request\userlist;
  * @category   test
  * @copyright  2026 Sergio Comerón Sánchez-Paniagua <sergiocomeron@icloud.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- * @covers     \mod_jitsi\privacy\provider
  */
+#[CoversClass(\mod_jitsi\privacy\provider::class)]
 final class provider_test extends \advanced_testcase {
     /** @var \stdClass Course. */
     private $course;

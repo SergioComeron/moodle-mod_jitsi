@@ -16,6 +16,8 @@
 
 namespace mod_jitsi;
 
+use PHPUnit\Framework\Attributes\CoversMethod;
+
 /**
  * Unit tests for the mod_jitsi data generator.
  *
@@ -23,11 +25,10 @@ namespace mod_jitsi;
  * @copyright  2026 Sergio Comerón Sánchez-Paniagua <sergiocomeron@icloud.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+#[CoversMethod(\mod_jitsi_generator::class, 'create_recording')]
 final class generator_test extends \advanced_testcase {
     /**
      * create_recording() inserts both the source row and the linking record.
-     *
-     * @covers \mod_jitsi_generator::create_recording
      */
     public function test_create_recording_links_source_and_record(): void {
         global $DB;
@@ -56,8 +57,6 @@ final class generator_test extends \advanced_testcase {
 
     /**
      * create_recording() applies sensible defaults (visible link, never expires).
-     *
-     * @covers \mod_jitsi_generator::create_recording
      */
     public function test_create_recording_defaults(): void {
         global $DB;
@@ -79,8 +78,6 @@ final class generator_test extends \advanced_testcase {
 
     /**
      * create_recording() requires a jitsiid.
-     *
-     * @covers \mod_jitsi_generator::create_recording
      */
     public function test_create_recording_requires_jitsiid(): void {
         $this->resetAfterTest();

@@ -16,6 +16,8 @@
 
 namespace mod_jitsi;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+
 /**
  * Schema lint tests for mod_jitsi install.xml.
  *
@@ -28,6 +30,7 @@ namespace mod_jitsi;
  * @copyright  2026 Sergio Comerón Sánchez-Paniagua <sergiocomeron@icloud.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+#[CoversClass(\xmldb_file::class)]
 final class xmldb_schema_test extends \advanced_testcase {
     /** @var \xmldb_structure Parsed install.xml structure. */
     private \xmldb_structure $structure;
@@ -55,8 +58,6 @@ final class xmldb_schema_test extends \advanced_testcase {
      *
      * Moodle XMLDB automatically strips such defaults and logs a debugging()
      * warning visible via local_adminer and the performance overview page.
-     *
-     * @covers \xmldb_file
      */
     public function test_no_char_notnull_with_empty_default(): void {
         $violations = [];
@@ -85,8 +86,6 @@ final class xmldb_schema_test extends \advanced_testcase {
      *
      * Oracle limits identifiers to 30 characters. With the mdl_ prefix (4 chars),
      * table names are capped at 26 chars in practice; Moodle's own limit is 28.
-     *
-     * @covers \xmldb_file
      */
     public function test_table_name_length(): void {
         $violations = [];
@@ -106,8 +105,6 @@ final class xmldb_schema_test extends \advanced_testcase {
 
     /**
      * Column names must not exceed 30 characters (Oracle hard limit).
-     *
-     * @covers \xmldb_file
      */
     public function test_column_name_length(): void {
         $violations = [];
@@ -133,8 +130,6 @@ final class xmldb_schema_test extends \advanced_testcase {
      *
      * A CHAR column wider than 1333 characters should be declared as TEXT instead,
      * because some database engines impose byte-length limits on indexed VARCHAR columns.
-     *
-     * @covers \xmldb_file
      */
     public function test_char_length(): void {
         $missing = [];
@@ -170,8 +165,6 @@ final class xmldb_schema_test extends \advanced_testcase {
      *
      * A table without a primary key cannot be used reliably across all database
      * engines supported by Moodle and will cause issues with backup/restore.
-     *
-     * @covers \xmldb_file
      */
     public function test_tables_have_primary_key(): void {
         $violations = [];

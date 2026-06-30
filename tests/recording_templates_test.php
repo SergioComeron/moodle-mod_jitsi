@@ -16,6 +16,8 @@
 
 namespace mod_jitsi;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+
 /**
  * Render tests for the recordings tab Mustache templates.
  *
@@ -23,6 +25,7 @@ namespace mod_jitsi;
  * @copyright  2024 Sergio Comerón Sánchez-Paniagua <sergiocomeron@icloud.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+#[CoversClass(\mod_view_table::class)]
 final class recording_templates_test extends \advanced_testcase {
     /**
      * Common action context shared by the row templates.
@@ -42,8 +45,6 @@ final class recording_templates_test extends \advanced_testcase {
 
     /**
      * The video template renders the player and action buttons.
-     *
-     * @covers \mod_view_table
      */
     public function test_video_template_renders(): void {
         global $OUTPUT;
@@ -67,8 +68,6 @@ final class recording_templates_test extends \advanced_testcase {
 
     /**
      * The external template renders the open/download button.
-     *
-     * @covers \mod_view_table
      */
     public function test_external_template_renders(): void {
         global $OUTPUT;
@@ -88,8 +87,6 @@ final class recording_templates_test extends \advanced_testcase {
 
     /**
      * The YouTube template renders the iframe and (optionally) actions.
-     *
-     * @covers \mod_view_table
      */
     public function test_youtube_template_renders(): void {
         global $OUTPUT;
@@ -115,8 +112,6 @@ final class recording_templates_test extends \advanced_testcase {
 
     /**
      * The add/edit form template renders inputs and submit button.
-     *
-     * @covers \mod_view_table
      */
     public function test_form_template_renders(): void {
         global $OUTPUT;

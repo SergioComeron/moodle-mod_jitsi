@@ -16,6 +16,8 @@
 
 namespace mod_jitsi;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+
 /**
  * Render tests for the server management Mustache templates.
  *
@@ -23,12 +25,11 @@ namespace mod_jitsi;
  * @copyright  2025 Sergio Comerón Sánchez-Paniagua <sergiocomeron@icloud.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+#[CoversClass(\mod_jitsi::class)]
 final class server_templates_test extends \advanced_testcase {
     /**
      * The server table renders a non-GCP row with edit/delete and a GCP row
      * with the pre-rendered Start/Stop/wait controls.
-     *
-     * @covers \mod_jitsi
      */
     public function test_server_table_renders(): void {
         global $OUTPUT;
@@ -115,8 +116,6 @@ final class server_templates_test extends \advanced_testcase {
 
     /**
      * The add-Jibri confirmation page renders the script and the confirm form.
-     *
-     * @covers \mod_jitsi
      */
     public function test_addjibri_confirm_renders(): void {
         global $OUTPUT;

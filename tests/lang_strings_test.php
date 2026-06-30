@@ -16,6 +16,8 @@
 
 namespace mod_jitsi;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+
 /**
  * Ensures lang strings referenced from code exist in lang/en/jitsi.php.
  *
@@ -27,11 +29,10 @@ namespace mod_jitsi;
  * @copyright  2026 Sergio Comerón Sánchez-Paniagua <sergiocomeron@icloud.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+#[CoversClass(\mod_jitsi::class)]
 final class lang_strings_test extends \advanced_testcase {
     /**
      * Every capability in db/access.php must have a matching lang string.
-     *
-     * @covers \mod_jitsi
      */
     public function test_capability_lang_strings_exist(): void {
         global $CFG;
@@ -59,8 +60,6 @@ final class lang_strings_test extends \advanced_testcase {
 
     /**
      * Every task class must return a non-empty name without triggering a debugging notice.
-     *
-     * @covers \mod_jitsi
      */
     public function test_task_get_name_strings_exist(): void {
         global $CFG;
@@ -97,8 +96,6 @@ final class lang_strings_test extends \advanced_testcase {
 
     /**
      * Every event class must return a non-empty name without triggering a debugging notice.
-     *
-     * @covers \mod_jitsi
      */
     public function test_event_get_name_strings_exist(): void {
         global $CFG;
@@ -134,8 +131,6 @@ final class lang_strings_test extends \advanced_testcase {
 
     /**
      * Moodle core requires certain plugin strings to exist for every activity module.
-     *
-     * @covers \mod_jitsi
      */
     public function test_required_module_strings_exist(): void {
         $sm = get_string_manager();

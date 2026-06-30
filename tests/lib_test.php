@@ -16,6 +16,9 @@
 
 namespace mod_jitsi;
 
+use PHPUnit\Framework\Attributes\CoversFunction;
+use PHPUnit\Framework\Attributes\CoversMethod;
+
 defined('MOODLE_INTERNAL') || die();
 
 global $CFG;
@@ -28,11 +31,42 @@ require_once($CFG->dirroot . '/mod/jitsi/lib.php');
  * @copyright  2026 Sergio Comerón Sánchez-Paniagua <sergiocomeron@icloud.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+#[CoversMethod(\mod_jitsi\local\room::class, 'normalize_session_name')]
+#[CoversFunction('jitsi_add_instance')]
+#[CoversFunction('jitsi_update_instance')]
+#[CoversFunction('jitsi_delete_instance')]
+#[CoversMethod(\mod_jitsi\local\util::class, 'base64url_encode')]
+#[CoversMethod(\mod_jitsi\local\util::class, 'base64url_decode')]
+#[CoversMethod(\mod_jitsi\local\recording_segments::class, 'format_seconds')]
+#[CoversMethod(\mod_jitsi\local\recording_segments::class, 'watched_pct')]
+#[CoversMethod(\mod_jitsi\local\invitation::class, 'is_timed_out')]
+#[CoversMethod(\mod_jitsi\local\invitation::class, 'generate_code')]
+#[CoversMethod(\mod_jitsi\local\invitation::class, 'is_original')]
+#[CoversFunction('jitsi_supports')]
+#[CoversMethod(\mod_jitsi\local\recording::class, 'is_deletable')]
+#[CoversMethod(\mod_jitsi\local\recording::class, 'set_visibility')]
+#[CoversMethod(\mod_jitsi\local\recording::class, 'add_link')]
+#[CoversMethod(\mod_jitsi\local\recording::class, 'update_link')]
+#[CoversMethod(\mod_jitsi\local\tutoring::class, 'check_availability')]
+#[CoversMethod(\mod_jitsi\local\session::class, 'create')]
+#[CoversMethod(\mod_jitsi\local\session::class, 'build_token')]
+#[CoversMethod(\mod_jitsi\local\room::class, 'build_name')]
+#[CoversMethod(\mod_jitsi\local\room::class, 'sanitize')]
+#[CoversMethod(\mod_jitsi\local\attendance::class, 'minutes')]
+#[CoversMethod(\mod_jitsi\local\attendance::class, 'minutes_between')]
+#[CoversMethod(\mod_jitsi\local\attendance::class, 'last_connection')]
+#[CoversMethod(\mod_jitsi\local\server::class, 'check_gcp_status')]
+#[CoversMethod(\mod_jitsi\local\jibri::class, 'is_ready')]
+#[CoversMethod(\mod_jitsi\local\attendance::class, 'update_completion')]
+#[CoversMethod(\mod_jitsi\output\heatmap_bar::class, 'context')]
+#[CoversMethod(\mod_jitsi\output\segments_bar::class, 'context')]
+#[CoversMethod(\mod_jitsi\output\session_page::class, 'context')]
+#[CoversMethod(\mod_jitsi\local\session::class, 'build_toolbar_buttons')]
+#[CoversMethod(\mod_jitsi\local\session::class, 'build_config_overwrite')]
+#[CoversMethod(\mod_jitsi\local\session::class, 'build_interface_config_overwrite')]
 final class lib_test extends \advanced_testcase {
     /**
      * Test that spaces are removed from session names.
-     *
-     * @covers \mod_jitsi\local\room::normalize_session_name
      */
     public function test_normalizesessionname_removes_spaces(): void {
         $this->assertEquals('HelloWorld', \mod_jitsi\local\room::normalize_session_name('Hello World'));
@@ -40,8 +74,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Test that special characters are removed from session names.
-     *
-     * @covers \mod_jitsi\local\room::normalize_session_name
      */
     public function test_normalizesessionname_removes_special_chars(): void {
         $this->assertEquals('roomname', \mod_jitsi\local\room::normalize_session_name('room@name!'));
@@ -49,8 +81,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Test that hyphens and underscores are preserved in session names.
-     *
-     * @covers \mod_jitsi\local\room::normalize_session_name
      */
     public function test_normalizesessionname_keeps_hyphens_and_underscores(): void {
         $this->assertEquals('Test-Session_1', \mod_jitsi\local\room::normalize_session_name('Test-Session_1'));
@@ -58,8 +88,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Test that accented characters are removed from session names.
-     *
-     * @covers \mod_jitsi\local\room::normalize_session_name
      */
     public function test_normalizesessionname_removes_accents(): void {
         $this->assertEquals('caf', \mod_jitsi\local\room::normalize_session_name('café'));
@@ -67,8 +95,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Test that alphanumeric session names are returned unchanged.
-     *
-     * @covers \mod_jitsi\local\room::normalize_session_name
      */
     public function test_normalizesessionname_alphanumeric_unchanged(): void {
         $this->assertEquals('Room123', \mod_jitsi\local\room::normalize_session_name('Room123'));
@@ -76,8 +102,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Test that jitsi_add_instance inserts a record and returns its ID.
-     *
-     * @covers ::jitsi_add_instance
      */
     public function test_add_instance_creates_record(): void {
         global $DB;
@@ -94,8 +118,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Test that jitsi_update_instance updates the record in the database.
-     *
-     * @covers ::jitsi_update_instance
      */
     public function test_update_instance_modifies_record(): void {
         global $DB;
@@ -120,8 +142,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Test that jitsi_delete_instance removes the record from the database.
-     *
-     * @covers ::jitsi_delete_instance
      */
     public function test_delete_instance_removes_record(): void {
         global $DB;
@@ -142,8 +162,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Test that jitsi_delete_instance returns false for a non-existent ID.
-     *
-     * @covers ::jitsi_delete_instance
      */
     public function test_delete_instance_returns_false_for_nonexistent(): void {
         $this->resetAfterTest(true);
@@ -155,8 +173,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Test that jitsi_delete_instance also removes associated records.
-     *
-     * @covers ::jitsi_delete_instance
      */
     public function test_delete_instance_removes_associated_records(): void {
         global $DB;
@@ -185,8 +201,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Test that jitsi_add_instance sets timecreated.
-     *
-     * @covers ::jitsi_add_instance
      */
     public function test_add_instance_sets_timecreated(): void {
         global $DB;
@@ -206,8 +220,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Test that jitsi_add_instance stores the correct course ID.
-     *
-     * @covers ::jitsi_add_instance
      */
     public function test_add_instance_stores_correct_course(): void {
         global $DB;
@@ -224,8 +236,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Test that jitsi_update_instance sets timemodified.
-     *
-     * @covers ::jitsi_update_instance
      */
     public function test_update_instance_sets_timemodified(): void {
         global $DB;
@@ -251,8 +261,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Test that deleting an instance with multiple recordings removes all of them.
-     *
-     * @covers ::jitsi_delete_instance
      */
     public function test_delete_instance_removes_multiple_recordings(): void {
         global $DB;
@@ -283,8 +291,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Test that two instances in the same course are independent.
-     *
-     * @covers ::jitsi_add_instance
      */
     public function test_two_instances_in_same_course_are_independent(): void {
         global $DB;
@@ -307,9 +313,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Test that base64urlencode and base64urldecode are inverse operations.
-     *
-     * @covers \mod_jitsi\local\util::base64url_encode
-     * @covers \mod_jitsi\local\util::base64url_decode
      */
     public function test_base64url_encode_decode_roundtrip(): void {
         $original = 'Hello World+/=';
@@ -319,8 +322,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Test that base64urlencode replaces +, / and = with URL-safe characters.
-     *
-     * @covers \mod_jitsi\local\util::base64url_encode
      */
     public function test_base64urlencode_uses_url_safe_chars(): void {
         $encoded = \mod_jitsi\local\util::base64url_encode('Hello World+/=');
@@ -331,8 +332,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Test that recording_segments::format_seconds renders compact durations.
-     *
-     * @covers \mod_jitsi\local\recording_segments::format_seconds
      */
     public function test_recording_segments_format_seconds(): void {
         $this->assertEquals('45s', \mod_jitsi\local\recording_segments::format_seconds(45));
@@ -343,8 +342,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Test that recording_segments::watched_pct computes the watched percentage.
-     *
-     * @covers \mod_jitsi\local\recording_segments::watched_pct
      */
     public function test_recording_segments_watched_pct(): void {
         $this->assertEquals(0, \mod_jitsi\local\recording_segments::watched_pct([], 100));
@@ -356,8 +353,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Test that istimedout returns true when validitytime is in the past.
-     *
-     * @covers \mod_jitsi\local\invitation::is_timed_out
      */
     public function test_istimedout_returns_true_when_expired(): void {
         $jitsi = new \stdClass();
@@ -367,8 +362,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Test that istimedout returns false when validitytime is in the future.
-     *
-     * @covers \mod_jitsi\local\invitation::is_timed_out
      */
     public function test_istimedout_returns_false_when_not_expired(): void {
         $jitsi = new \stdClass();
@@ -378,8 +371,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Test that generatecode returns timecreated + id.
-     *
-     * @covers \mod_jitsi\local\invitation::generate_code
      */
     public function test_generatecode_returns_sum_of_timecreated_and_id(): void {
         $jitsi = new \stdClass();
@@ -390,8 +381,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Test that isoriginal returns true when code matches generatecode.
-     *
-     * @covers \mod_jitsi\local\invitation::is_original
      */
     public function test_isoriginal_returns_true_for_correct_code(): void {
         $jitsi = new \stdClass();
@@ -402,8 +391,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Test that isoriginal returns false for a wrong code.
-     *
-     * @covers \mod_jitsi\local\invitation::is_original
      */
     public function test_isoriginal_returns_false_for_wrong_code(): void {
         $jitsi = new \stdClass();
@@ -414,8 +401,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Test that jitsi_supports returns true for required features.
-     *
-     * @covers ::jitsi_supports
      */
     public function test_jitsi_supports_required_features(): void {
         $this->assertTrue(jitsi_supports(FEATURE_MOD_INTRO));
@@ -426,8 +411,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Test that jitsi_supports returns null for unknown features.
-     *
-     * @covers ::jitsi_supports
      */
     public function test_jitsi_supports_returns_null_for_unknown_features(): void {
         $this->assertNull(jitsi_supports(FEATURE_GROUPINGS));
@@ -435,8 +418,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Test that isdeletable returns false when a non-deleted record exists for the source.
-     *
-     * @covers \mod_jitsi\local\recording::is_deletable
      */
     public function test_isdeletable_returns_false_when_active_record_exists(): void {
         global $DB;
@@ -468,8 +449,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Test that isdeletable returns true when no active records exist for the source.
-     *
-     * @covers \mod_jitsi\local\recording::is_deletable
      */
     public function test_isdeletable_returns_true_when_no_active_records(): void {
         global $DB;
@@ -492,8 +471,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Test that set_visibility toggles the visible flag of a recording.
-     *
-     * @covers \mod_jitsi\local\recording::set_visibility
      */
     public function test_set_visibility_toggles_visible_flag(): void {
         global $DB;
@@ -529,8 +506,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Test that add_link creates a source record and a jitsi_record linking it.
-     *
-     * @covers \mod_jitsi\local\recording::add_link
      */
     public function test_add_link_creates_source_and_record(): void {
         global $DB;
@@ -560,8 +535,6 @@ final class lib_test extends \advanced_testcase {
     /**
      * Test that add_link honours the embed flag only for Dropbox links and
      * falls back to a date-based name when none is given.
-     *
-     * @covers \mod_jitsi\local\recording::add_link
      */
     public function test_add_link_embed_only_for_dropbox_and_default_name(): void {
         global $DB;
@@ -583,8 +556,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Test that update_link updates the URL and name of a type-1 recording.
-     *
-     * @covers \mod_jitsi\local\recording::update_link
      */
     public function test_update_link_updates_url_and_name(): void {
         global $DB;
@@ -606,8 +577,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Test that update_link leaves non type-1 sources (e.g. YouTube) untouched.
-     *
-     * @covers \mod_jitsi\local\recording::update_link
      */
     public function test_update_link_ignores_non_type1(): void {
         global $DB;
@@ -644,8 +613,6 @@ final class lib_test extends \advanced_testcase {
     /**
      * Test that jitsi_check_tutoring_availability returns hasschedule=false
      * when teacher has no slots in any shared visible course.
-     *
-     * @covers \mod_jitsi\local\tutoring::check_availability
      */
     public function test_check_tutoring_availability_no_schedule(): void {
         $this->resetAfterTest(true);
@@ -667,8 +634,6 @@ final class lib_test extends \advanced_testcase {
     /**
      * Test that jitsi_check_tutoring_availability returns hasschedule=false
      * when they share no visible course (course is hidden).
-     *
-     * @covers \mod_jitsi\local\tutoring::check_availability
      */
     public function test_check_tutoring_availability_hidden_course(): void {
         global $DB;
@@ -700,8 +665,6 @@ final class lib_test extends \advanced_testcase {
     /**
      * Test that jitsi_check_tutoring_availability returns available=true
      * when current time falls within a slot covering the whole day.
-     *
-     * @covers \mod_jitsi\local\tutoring::check_availability
      */
     public function test_check_tutoring_availability_within_slot(): void {
         global $DB;
@@ -736,8 +699,6 @@ final class lib_test extends \advanced_testcase {
     /**
      * Test that jitsi_check_tutoring_availability returns available=false
      * when slot is for a different weekday than today.
-     *
-     * @covers \mod_jitsi\local\tutoring::check_availability
      */
     public function test_check_tutoring_availability_outside_slot(): void {
         global $DB;
@@ -772,8 +733,6 @@ final class lib_test extends \advanced_testcase {
     /**
      * Test that jitsi_check_tutoring_availability returns hasschedule=false
      * when the user is not enrolled as teacher in any visible course.
-     *
-     * @covers \mod_jitsi\local\tutoring::check_availability
      */
     public function test_check_tutoring_availability_not_a_teacher(): void {
         $this->resetAfterTest(true);
@@ -797,8 +756,6 @@ final class lib_test extends \advanced_testcase {
      * On a type-0 server (public/no JWT), \mod_jitsi\local\session::create() must emit
      * roomName so users join the correct room instead of landing
      * on the Jitsi homepage.
-     *
-     * @covers \mod_jitsi\local\session::create
      */
     public function test_type0_server_sets_roomname_in_output(): void {
         global $DB, $PAGE;
@@ -958,8 +915,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Type-1 (self-hosted JWT) servers must emit roomName and a valid HS256 JWT.
-     *
-     * @covers \mod_jitsi\local\session::create
      */
     public function test_type1_server_emits_signed_jwt(): void {
         $this->resetAfterTest(true);
@@ -990,8 +945,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Type-2 (8x8 JaaS) servers must emit the appid-prefixed roomName and an RS256 JWT.
-     *
-     * @covers \mod_jitsi\local\session::create
      */
     public function test_type2_server_emits_jaas_room_and_jwt(): void {
         $this->resetAfterTest(true);
@@ -1017,8 +970,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Type-3 (GCP) servers with app credentials must emit roomName and a JWT (HS256, as type 1).
-     *
-     * @covers \mod_jitsi\local\session::create
      */
     public function test_type3_server_emits_jwt(): void {
         $this->resetAfterTest(true);
@@ -1037,8 +988,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * build_token returns the plain (url-encoded) room name and no JWT for type-0 servers.
-     *
-     * @covers \mod_jitsi\local\session::build_token
      */
     public function test_build_token_type0_no_jwt(): void {
         $this->resetAfterTest(true);
@@ -1066,8 +1015,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * build_token signs an HS256 JWT for type-1 servers with the server secret and the expected claims.
-     *
-     * @covers \mod_jitsi\local\session::build_token
      */
     public function test_build_token_type1_hs256_claims_and_signature(): void {
         $this->resetAfterTest(true);
@@ -1104,8 +1051,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * build_token signs an RS256 JWT verifiable with the public key, and prefixes the room with the JaaS appid.
-     *
-     * @covers \mod_jitsi\local\session::build_token
      */
     public function test_build_token_type2_rs256_verifiable(): void {
         $this->resetAfterTest(true);
@@ -1140,8 +1085,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * jitsi_build_room_name combines parts with no separator by default.
-     *
-     * @covers \mod_jitsi\local\room::build_name
      */
     public function test_build_room_name_default_settings(): void {
         // Default sesionname=0,1,2 and separator=0 ('.') — but last part has no trailing sep.
@@ -1153,8 +1096,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * jitsi_build_room_name uses dot separator between all but last part.
-     *
-     * @covers \mod_jitsi\local\room::build_name
      */
     public function test_build_room_name_dot_separator(): void {
         $result = \mod_jitsi\local\room::build_name('mycourse', 7, 'My Session', '0,1,2', 0);
@@ -1163,8 +1104,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * jitsi_build_room_name defaults to '0,1,2' when sesionname is empty.
-     *
-     * @covers \mod_jitsi\local\room::build_name
      */
     public function test_build_room_name_empty_sesionname_defaults(): void {
         $a = \mod_jitsi\local\room::build_name('course', 1, 'Test', '', 3);
@@ -1174,8 +1113,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * jitsi_build_room_name defaults to '0,1,2' when sesionname is false (config not set).
-     *
-     * @covers \mod_jitsi\local\room::build_name
      */
     public function test_build_room_name_false_sesionname_defaults(): void {
         $a = \mod_jitsi\local\room::build_name('course', 2, 'Demo', false, 3);
@@ -1189,8 +1126,6 @@ final class lib_test extends \advanced_testcase {
      * Regression test for the bug where preg_replace('/[^a-zA-Z0-9]/','') was used
      * instead of \mod_jitsi\local\room::sanitize(), causing spaces to be stripped rather than
      * converted to hyphens, so the callback could never match an activity.
-     *
-     * @covers \mod_jitsi\local\room::build_name
      */
     public function test_build_room_name_matches_jibri_filename_room(): void {
         // Filename: prueba4prueba-dev-to-master-460_2026-04-19-08-27-30.mp4
@@ -1205,8 +1140,6 @@ final class lib_test extends \advanced_testcase {
      * Jibri strips dots from room names in MP4 filenames. When separator='0' (dot),
      * 'prueba.4.session' in the URL becomes 'prueba4session' in the filename.
      * The jibrirecording callback must match both forms.
-     *
-     * @covers \mod_jitsi\local\room::build_name
      */
     public function test_build_room_name_dot_separator_stripped_matches_jibri_filename(): void {
         $builtname = \mod_jitsi\local\room::build_name('prueba', 4, 'Prueba dev to master 4.6.0', '0,1,2', 0);
@@ -1220,8 +1153,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * room::sanitize lowercases, turns whitespace into hyphens and strips punctuation/dots.
-     *
-     * @covers \mod_jitsi\local\room::sanitize
      */
     public function test_room_sanitize_normalises_spaces_and_punctuation(): void {
         $this->assertEquals('my-session-460', \mod_jitsi\local\room::sanitize('My Session 4.6.0'));
@@ -1258,8 +1189,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Test that attendance::minutes counts only this user's 'participating' rows.
-     *
-     * @covers \mod_jitsi\local\attendance::minutes
      */
     public function test_attendance_minutes_counts_participating(): void {
         $this->resetAfterTest(true);
@@ -1278,8 +1207,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Test that attendance::minutes_between only counts rows inside the time window.
-     *
-     * @covers \mod_jitsi\local\attendance::minutes_between
      */
     public function test_attendance_minutes_between_respects_window(): void {
         $this->resetAfterTest(true);
@@ -1297,8 +1224,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * attendance::last_connection returns 0 when the user has never connected.
-     *
-     * @covers \mod_jitsi\local\attendance::last_connection
      */
     public function test_attendance_last_connection_returns_zero_when_no_log(): void {
         $this->resetAfterTest(true);
@@ -1313,8 +1238,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * attendance::last_connection returns the timestamp of the most recent connection.
-     *
-     * @covers \mod_jitsi\local\attendance::last_connection
      */
     public function test_attendance_last_connection_returns_latest_timestamp(): void {
         global $DB;
@@ -1338,8 +1261,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * server::check_gcp_status returns 'running' for non-GCP servers (type != 3).
-     *
-     * @covers \mod_jitsi\local\server::check_gcp_status
      */
     public function test_server_check_gcp_status_non_gcp_is_running(): void {
         $this->resetAfterTest(true);
@@ -1349,8 +1270,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * server::check_gcp_status returns 'error' while a GCP server is still provisioning.
-     *
-     * @covers \mod_jitsi\local\server::check_gcp_status
      */
     public function test_server_check_gcp_status_provisioning_is_error(): void {
         $this->resetAfterTest(true);
@@ -1360,8 +1279,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * server::check_gcp_status treats a GCP server without instance metadata as 'running'.
-     *
-     * @covers \mod_jitsi\local\server::check_gcp_status
      */
     public function test_server_check_gcp_status_no_instance_is_running(): void {
         $this->resetAfterTest(true);
@@ -1420,8 +1337,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * Test jibri::is_ready across the disabled / pool / legacy-fallback paths.
-     *
-     * @covers \mod_jitsi\local\jibri::is_ready
      */
     public function test_jibri_is_ready(): void {
         $this->resetAfterTest(true);
@@ -1450,8 +1365,6 @@ final class lib_test extends \advanced_testcase {
     /**
      * Test that attendance::update_completion marks the activity complete when
      * automatic completion by minutes is configured.
-     *
-     * @covers \mod_jitsi\local\attendance::update_completion
      */
     public function test_attendance_update_completion_marks_complete(): void {
         global $CFG;
@@ -1483,8 +1396,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * heatmap_bar::context returns null when there are no recording segments.
-     *
-     * @covers \mod_jitsi\output\heatmap_bar::context
      */
     public function test_heatmap_bar_context_empty(): void {
         $this->resetAfterTest(true);
@@ -1493,8 +1404,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * heatmap_bar::context aggregates viewers and plays per bucket.
-     *
-     * @covers \mod_jitsi\output\heatmap_bar::context
      */
     public function test_heatmap_bar_context_aggregates(): void {
         global $DB;
@@ -1528,8 +1437,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * segments_bar::context maps each watched segment to a left/width percentage.
-     *
-     * @covers \mod_jitsi\output\segments_bar::context
      */
     public function test_segments_bar_context(): void {
         $ctx = \mod_jitsi\output\segments_bar::context([[0, 50], [75, 100]], 100.0, 'mybar');
@@ -1547,8 +1454,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * session_page::context shows the button row when either action button is enabled.
-     *
-     * @covers \mod_jitsi\output\session_page::context
      */
     public function test_session_page_context_buttons(): void {
         $this->resetAfterTest(true);
@@ -1564,8 +1469,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * session_page::context hides the button row when neither action button is enabled.
-     *
-     * @covers \mod_jitsi\output\session_page::context
      */
     public function test_session_page_context_no_buttons(): void {
         $this->resetAfterTest(true);
@@ -1580,8 +1483,6 @@ final class lib_test extends \advanced_testcase {
     /**
      * build_toolbar_buttons includes the recording and live-streaming buttons for a moderator
      * when the matching settings are on.
-     *
-     * @covers \mod_jitsi\local\session::build_toolbar_buttons
      */
     public function test_build_toolbar_buttons_includes_recording_and_streaming(): void {
         $this->resetAfterTest(true);
@@ -1608,8 +1509,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * build_toolbar_buttons never exposes recording or live streaming in private sessions.
-     *
-     * @covers \mod_jitsi\local\session::build_toolbar_buttons
      */
     public function test_build_toolbar_buttons_private_omits_recording_and_streaming(): void {
         $this->resetAfterTest(true);
@@ -1633,8 +1532,6 @@ final class lib_test extends \advanced_testcase {
     /**
      * build_toolbar_buttons hides the recording button on GCP (type 3) servers, where the
      * Moodle-integrated record button is used instead.
-     *
-     * @covers \mod_jitsi\local\session::build_toolbar_buttons
      */
     public function test_build_toolbar_buttons_type3_omits_recording(): void {
         $this->resetAfterTest(true);
@@ -1654,8 +1551,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * build_config_overwrite disables chat and polls together when chat is off.
-     *
-     * @covers \mod_jitsi\local\session::build_config_overwrite
      */
     public function test_build_config_overwrite_disables_chat_and_polls(): void {
         $this->resetAfterTest(true);
@@ -1679,8 +1574,6 @@ final class lib_test extends \advanced_testcase {
     /**
      * build_config_overwrite forces recording and live streaming off for private sessions,
      * without emitting the create()-only liveStreaming object.
-     *
-     * @covers \mod_jitsi\local\session::build_config_overwrite
      */
     public function test_build_config_overwrite_private_forces_recording_off(): void {
         $this->resetAfterTest(true);
@@ -1704,8 +1597,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * build_config_overwrite emits both liveStreaming keys when a non-private session disables it.
-     *
-     * @covers \mod_jitsi\local\session::build_config_overwrite
      */
     public function test_build_config_overwrite_disables_livestreaming_both_keys(): void {
         $this->resetAfterTest(true);
@@ -1727,8 +1618,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * build_config_overwrite gives moderators only the grant-moderator lockdown and no remote mute.
-     *
-     * @covers \mod_jitsi\local\session::build_config_overwrite
      */
     public function test_build_config_overwrite_moderator_remote_menu(): void {
         $this->resetAfterTest(true);
@@ -1749,8 +1638,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * build_config_overwrite locks down the remote video menu and remote mute for non-moderators.
-     *
-     * @covers \mod_jitsi\local\session::build_config_overwrite
      */
     public function test_build_config_overwrite_nonmoderator_remote_menu(): void {
         $this->resetAfterTest(true);
@@ -1780,8 +1667,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * build_config_overwrite reveals the breakout-room buttons only when the setting is on.
-     *
-     * @covers \mod_jitsi\local\session::build_config_overwrite
      */
     public function test_build_config_overwrite_breakout_rooms_toggle(): void {
         $this->resetAfterTest(true);
@@ -1813,8 +1698,6 @@ final class lib_test extends \advanced_testcase {
     /**
      * build_config_overwrite omits the dropbox block for 8x8 (type 2) servers but includes it
      * for other types when an app key is set.
-     *
-     * @covers \mod_jitsi\local\session::build_config_overwrite
      */
     public function test_build_config_overwrite_dropbox_by_server_type(): void {
         $this->resetAfterTest(true);
@@ -1844,8 +1727,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * build_config_overwrite serialises to valid JSON that is also a usable JS object literal.
-     *
-     * @covers \mod_jitsi\local\session::build_config_overwrite
      */
     public function test_build_config_overwrite_is_json_serialisable(): void {
         $this->resetAfterTest(true);
@@ -1869,8 +1750,6 @@ final class lib_test extends \advanced_testcase {
 
     /**
      * build_interface_config_overwrite carries the toolbar buttons and watermark link.
-     *
-     * @covers \mod_jitsi\local\session::build_interface_config_overwrite
      */
     public function test_build_interface_config_overwrite(): void {
         $this->resetAfterTest(true);

@@ -16,6 +16,8 @@
 
 namespace mod_jitsi;
 
+use PHPUnit\Framework\Attributes\CoversMethod;
+
 defined('MOODLE_INTERNAL') || die();
 
 global $CFG;
@@ -29,13 +31,49 @@ require_once($CFG->dirroot . '/mod/jitsi/lib.php');
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  * @runTestsInSeparateProcesses
  */
+#[CoversMethod(\mod_jitsi\external\register_push_subscription::class, 'execute')]
+#[CoversMethod(\mod_jitsi\external\unregister_push_subscription::class, 'execute')]
+#[CoversMethod(\mod_jitsi\external\check_incoming_call::class, 'execute')]
+#[CoversMethod(\mod_jitsi\external\get_tutoring_schedule::class, 'execute')]
+#[CoversMethod(\mod_jitsi\external\save_tutoring_slot::class, 'execute')]
+#[CoversMethod(\mod_jitsi\external\delete_tutoring_slot::class, 'execute')]
+#[CoversMethod(\mod_jitsi\external\press_button_cam::class, 'execute')]
+#[CoversMethod(\mod_jitsi\external\press_button_desktop::class, 'execute')]
+#[CoversMethod(\mod_jitsi\external\press_button_microphone::class, 'execute')]
+#[CoversMethod(\mod_jitsi\external\press_button_end::class, 'execute')]
+#[CoversMethod(\mod_jitsi\external\press_record_button::class, 'execute')]
+#[CoversMethod(\mod_jitsi\external\presence_join::class, 'execute')]
+#[CoversMethod(\mod_jitsi\external\presence_leave::class, 'execute')]
+#[CoversMethod(\mod_jitsi\external\presence_heartbeat::class, 'execute')]
+#[CoversMethod(\mod_jitsi\external\get_presence_count::class, 'execute')]
+#[CoversMethod(\mod_jitsi\external\get_presence_users::class, 'execute')]
+#[CoversMethod(\mod_jitsi\external\update_participants::class, 'execute')]
+#[CoversMethod(\mod_jitsi\external\participating_session::class, 'execute')]
+#[CoversMethod(\mod_jitsi\external\set_jibri_recording::class, 'execute')]
+#[CoversMethod(\mod_jitsi\external\get_jibri_recording::class, 'execute')]
+#[CoversMethod(\mod_jitsi\local\recording_segments::class, 'merge')]
+#[CoversMethod(\mod_jitsi\external\log_recording_view::class, 'execute')]
+#[CoversMethod(\mod_jitsi\external\save_recording_segments::class, 'execute')]
+#[CoversMethod(\mod_jitsi\external\get_bucket_viewers::class, 'execute')]
+#[CoversMethod(\mod_jitsi\external\log_error::class, 'execute')]
+#[CoversMethod(\mod_jitsi\external\send_error::class, 'execute')]
+#[CoversMethod(\mod_jitsi\external\save_recording_link::class, 'execute')]
+#[CoversMethod(\mod_jitsi\external\search_shared_sessions::class, 'execute')]
+#[CoversMethod(\mod_jitsi\external\search_coursemates::class, 'execute')]
+#[CoversMethod(\mod_jitsi\external\get_teacher_schedule::class, 'execute')]
+#[CoversMethod(\mod_jitsi\external\view_jitsi::class, 'execute')]
+#[CoversMethod(\mod_jitsi\external\queue_ai_summary::class, 'execute')]
+#[CoversMethod(\mod_jitsi\external\queue_ai_transcription::class, 'execute')]
+#[CoversMethod(\mod_jitsi\external\queue_ai_quiz::class, 'execute')]
+#[CoversMethod(\mod_jitsi\external\add_recording_link::class, 'execute')]
+#[CoversMethod(\mod_jitsi\external\update_recording_link::class, 'execute')]
+#[CoversMethod(\mod_jitsi\external\set_recording_visibility::class, 'execute')]
+#[CoversMethod(\mod_jitsi\external\delete_recording::class, 'execute')]
 final class external_test extends \advanced_testcase {
     // Push subscription tests.
 
     /**
      * Test that register_push_subscription creates a new record.
-     *
-     * @covers \mod_jitsi\external\register_push_subscription::execute
      */
     public function test_register_push_subscription_creates_record(): void {
         global $DB;
@@ -62,8 +100,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that registering the same endpoint twice updates the existing record.
-     *
-     * @covers \mod_jitsi\external\register_push_subscription::execute
      */
     public function test_register_push_subscription_updates_existing(): void {
         global $DB;
@@ -90,8 +126,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that unregister_push_subscription removes the record.
-     *
-     * @covers \mod_jitsi\external\unregister_push_subscription::execute
      */
     public function test_unregister_push_subscription_removes_record(): void {
         global $DB;
@@ -113,8 +147,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that unregister_push_subscription only removes the current user's record.
-     *
-     * @covers \mod_jitsi\external\unregister_push_subscription::execute
      */
     public function test_unregister_push_subscription_does_not_affect_other_users(): void {
         global $DB;
@@ -153,8 +185,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that a user can have multiple subscriptions (different endpoints).
-     *
-     * @covers \mod_jitsi\external\register_push_subscription::execute
      */
     public function test_register_push_subscription_multiple_endpoints(): void {
         global $DB;
@@ -173,8 +203,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that check_incoming_call returns incoming=false when no log entries exist.
-     *
-     * @covers \mod_jitsi\external\check_incoming_call::execute
      */
     public function test_check_incoming_call_no_call(): void {
         $this->resetAfterTest(true);
@@ -190,8 +218,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that check_incoming_call detects a matching log entry.
-     *
-     * @covers \mod_jitsi\external\check_incoming_call::execute
      */
     public function test_check_incoming_call_detects_call(): void {
         global $DB;
@@ -237,8 +263,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that check_incoming_call ignores entries before the 'since' timestamp.
-     *
-     * @covers \mod_jitsi\external\check_incoming_call::execute
      */
     public function test_check_incoming_call_ignores_old_entries(): void {
         global $DB;
@@ -281,8 +305,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that check_incoming_call ignores entries where peerid does not match.
-     *
-     * @covers \mod_jitsi\external\check_incoming_call::execute
      */
     public function test_check_incoming_call_ignores_wrong_peer(): void {
         global $DB;
@@ -327,8 +349,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that get_tutoring_schedule returns empty when user has no slots.
-     *
-     * @covers \mod_jitsi\external\get_tutoring_schedule::execute
      */
     public function test_get_tutoring_schedule_empty(): void {
         $this->resetAfterTest(true);
@@ -344,8 +364,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that save_tutoring_slot inserts a record for a teacher in a visible course.
-     *
-     * @covers \mod_jitsi\external\save_tutoring_slot::execute
      */
     public function test_save_tutoring_slot_creates_record(): void {
         global $DB;
@@ -371,8 +389,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that save_tutoring_slot throws when end time is before start time.
-     *
-     * @covers \mod_jitsi\external\save_tutoring_slot::execute
      */
     public function test_save_tutoring_slot_rejects_invalid_time_range(): void {
         $this->resetAfterTest(true);
@@ -388,8 +404,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that save_tutoring_slot throws when user lacks teacher capability.
-     *
-     * @covers \mod_jitsi\external\save_tutoring_slot::execute
      */
     public function test_save_tutoring_slot_requires_teacher_capability(): void {
         $this->resetAfterTest(true);
@@ -405,8 +419,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that get_tutoring_schedule returns slots grouped by course after inserting some.
-     *
-     * @covers \mod_jitsi\external\get_tutoring_schedule::execute
      */
     public function test_get_tutoring_schedule_returns_slots(): void {
         $this->resetAfterTest(true);
@@ -433,8 +445,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that delete_tutoring_slot removes the record when called by its owner.
-     *
-     * @covers \mod_jitsi\external\delete_tutoring_slot::execute
      */
     public function test_delete_tutoring_slot_owner_can_delete(): void {
         global $DB;
@@ -458,8 +468,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that delete_tutoring_slot throws when called by a different user.
-     *
-     * @covers \mod_jitsi\external\delete_tutoring_slot::execute
      */
     public function test_delete_tutoring_slot_non_owner_cannot_delete(): void {
         global $DB;
@@ -483,8 +491,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that save_tutoring_slot with equal start and end times throws.
-     *
-     * @covers \mod_jitsi\external\save_tutoring_slot::execute
      */
     public function test_save_tutoring_slot_rejects_equal_times(): void {
         $this->resetAfterTest(true);
@@ -514,8 +520,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that press_button_cam triggers the cam event.
-     *
-     * @covers \mod_jitsi\external\press_button_cam::execute
      */
     public function test_press_button_cam_triggers_event(): void {
         $this->resetAfterTest(true);
@@ -533,8 +537,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that press_button_desktop triggers the desktop event.
-     *
-     * @covers \mod_jitsi\external\press_button_desktop::execute
      */
     public function test_press_button_desktop_triggers_event(): void {
         $this->resetAfterTest(true);
@@ -551,8 +553,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that press_button_microphone triggers the microphone event.
-     *
-     * @covers \mod_jitsi\external\press_button_microphone::execute
      */
     public function test_press_button_microphone_triggers_event(): void {
         $this->resetAfterTest(true);
@@ -569,8 +569,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that press_button_end triggers the end event.
-     *
-     * @covers \mod_jitsi\external\press_button_end::execute
      */
     public function test_press_button_end_triggers_event(): void {
         $this->resetAfterTest(true);
@@ -587,8 +585,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that press_record_button triggers the record event.
-     *
-     * @covers \mod_jitsi\external\press_record_button::execute
      */
     public function test_press_record_button_triggers_event(): void {
         $this->resetAfterTest(true);
@@ -607,8 +603,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that presence_join creates a presence record and returns the count.
-     *
-     * @covers \mod_jitsi\external\presence_join::execute
      */
     public function test_presence_join_creates_record(): void {
         global $DB;
@@ -628,8 +622,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that joining twice with the same hash updates instead of duplicating.
-     *
-     * @covers \mod_jitsi\external\presence_join::execute
      */
     public function test_presence_join_updates_existing(): void {
         global $DB;
@@ -647,8 +639,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that presence_leave removes the presence record.
-     *
-     * @covers \mod_jitsi\external\presence_leave::execute
      */
     public function test_presence_leave_removes_record(): void {
         global $DB;
@@ -666,8 +656,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that presence_heartbeat keeps the entry and clears stale ones.
-     *
-     * @covers \mod_jitsi\external\presence_heartbeat::execute
      */
     public function test_presence_heartbeat_clears_stale(): void {
         global $DB;
@@ -698,8 +686,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that get_presence_count returns the number of active participants.
-     *
-     * @covers \mod_jitsi\external\get_presence_count::execute
      */
     public function test_get_presence_count_returns_active(): void {
         $this->resetAfterTest(true);
@@ -715,8 +701,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that get_presence_users returns the participant names.
-     *
-     * @covers \mod_jitsi\external\get_presence_users::execute
      */
     public function test_get_presence_users_returns_names(): void {
         $this->resetAfterTest(true);
@@ -737,8 +721,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that update_participants stores the participant count.
-     *
-     * @covers \mod_jitsi\external\update_participants::execute
      */
     public function test_update_participants_stores_count(): void {
         global $DB;
@@ -754,8 +736,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that participating_session triggers the participating event.
-     *
-     * @covers \mod_jitsi\external\participating_session::execute
      */
     public function test_participating_session_triggers_event(): void {
         $this->resetAfterTest(true);
@@ -774,8 +754,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that set_jibri_recording toggles the jitsi status field.
-     *
-     * @covers \mod_jitsi\external\set_jibri_recording::execute
      */
     public function test_set_jibri_recording_toggles_status(): void {
         global $DB;
@@ -792,8 +770,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that get_jibri_recording reflects the recording status.
-     *
-     * @covers \mod_jitsi\external\get_jibri_recording::execute
      */
     public function test_get_jibri_recording_reads_status(): void {
         $this->resetAfterTest(true);
@@ -837,8 +813,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that recording_segments::merge merges overlapping segments.
-     *
-     * @covers \mod_jitsi\local\recording_segments::merge
      */
     public function test_recording_segments_merge_overlapping(): void {
         $merged = \mod_jitsi\local\recording_segments::merge([[0, 10], [5, 15], [20, 25]], 30);
@@ -847,8 +821,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that recording_segments::merge drops invalid/out-of-range segments.
-     *
-     * @covers \mod_jitsi\local\recording_segments::merge
      */
     public function test_recording_segments_merge_filters_invalid(): void {
         $merged = \mod_jitsi\local\recording_segments::merge([[5, 5], [-1, 3], [10, 9], [0, 8]], 30);
@@ -857,8 +829,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that log_recording_view triggers the recording_viewed event.
-     *
-     * @covers \mod_jitsi\external\log_recording_view::execute
      */
     public function test_log_recording_view_triggers_event(): void {
         $this->resetAfterTest(true);
@@ -878,8 +848,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that save_recording_segments stores merged segments.
-     *
-     * @covers \mod_jitsi\external\save_recording_segments::execute
      */
     public function test_save_recording_segments_stores_merged(): void {
         global $DB;
@@ -898,8 +866,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that get_bucket_viewers returns who watched a given bucket.
-     *
-     * @covers \mod_jitsi\external\get_bucket_viewers::execute
      */
     public function test_get_bucket_viewers_returns_watcher(): void {
         $this->resetAfterTest(true);
@@ -926,8 +892,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that log_error triggers the jitsi_error event.
-     *
-     * @covers \mod_jitsi\external\log_error::execute
      */
     public function test_log_error_triggers_event(): void {
         $this->resetAfterTest(true);
@@ -944,8 +908,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that send_error emails the admins and triggers the error event.
-     *
-     * @covers \mod_jitsi\external\send_error::execute
      */
     public function test_send_error_emails_admins_and_triggers_event(): void {
         $this->resetAfterTest(true);
@@ -969,8 +931,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that save_recording_link creates source + record and is idempotent.
-     *
-     * @covers \mod_jitsi\external\save_recording_link::execute
      */
     public function test_save_recording_link_creates_and_dedupes(): void {
         global $DB;
@@ -992,8 +952,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that search_shared_sessions finds a master session by name (as admin).
-     *
-     * @covers \mod_jitsi\external\search_shared_sessions::execute
      */
     public function test_search_shared_sessions_finds_by_name(): void {
         $this->resetAfterTest(true);
@@ -1012,8 +970,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that search_coursemates finds a user sharing a course.
-     *
-     * @covers \mod_jitsi\external\search_coursemates::execute
      */
     public function test_search_coursemates_finds_shared_course_user(): void {
         $this->resetAfterTest(true);
@@ -1032,8 +988,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that get_teacher_schedule returns slots for a teacher in a shared course.
-     *
-     * @covers \mod_jitsi\external\get_teacher_schedule::execute
      */
     public function test_get_teacher_schedule_returns_slots(): void {
         $this->resetAfterTest(true);
@@ -1064,8 +1018,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that view_jitsi triggers the course_module_viewed event.
-     *
-     * @covers \mod_jitsi\external\view_jitsi::execute
      */
     public function test_view_jitsi_triggers_event(): void {
         $this->resetAfterTest(true);
@@ -1102,8 +1054,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that queue_ai_summary enqueues the ad-hoc task for a GCS recording.
-     *
-     * @covers \mod_jitsi\external\queue_ai_summary::execute
      */
     public function test_queue_ai_summary_queues_task(): void {
         $this->resetAfterTest(true);
@@ -1121,8 +1071,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that queue_ai_transcription sets status pending and enqueues the task.
-     *
-     * @covers \mod_jitsi\external\queue_ai_transcription::execute
      */
     public function test_queue_ai_transcription_sets_pending_and_queues(): void {
         global $DB;
@@ -1142,8 +1090,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that queue_ai_quiz enqueues the ad-hoc task for a GCS recording.
-     *
-     * @covers \mod_jitsi\external\queue_ai_quiz::execute
      */
     public function test_queue_ai_quiz_queues_task(): void {
         $this->resetAfterTest(true);
@@ -1161,8 +1107,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test that queue_ai_summary refuses a non-GCS recording.
-     *
-     * @covers \mod_jitsi\external\queue_ai_summary::execute
      */
     public function test_queue_ai_summary_rejects_non_gcs(): void {
         global $DB;
@@ -1191,8 +1135,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test add_recording_link creates both the source record and the linking record.
-     *
-     * @covers \mod_jitsi\external\add_recording_link::execute
      */
     public function test_add_recording_link_creates_records(): void {
         global $DB;
@@ -1214,8 +1156,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test update_recording_link updates the URL and name of an existing recording.
-     *
-     * @covers \mod_jitsi\external\update_recording_link::execute
      */
     public function test_update_recording_link_updates(): void {
         global $DB;
@@ -1242,8 +1182,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test set_recording_visibility toggles the visible flag both ways.
-     *
-     * @covers \mod_jitsi\external\set_recording_visibility::execute
      */
     public function test_set_recording_visibility_toggles(): void {
         global $DB;
@@ -1261,8 +1199,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test delete_recording marks the record as deleted.
-     *
-     * @covers \mod_jitsi\external\delete_recording::execute
      */
     public function test_delete_recording_marks_deleted(): void {
         global $DB;
@@ -1280,8 +1216,6 @@ final class external_test extends \advanced_testcase {
 
     /**
      * Test add_recording_link denies users without the record capability.
-     *
-     * @covers \mod_jitsi\external\add_recording_link::execute
      */
     public function test_add_recording_link_requires_capability(): void {
         $this->resetAfterTest(true);

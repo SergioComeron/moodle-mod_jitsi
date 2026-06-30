@@ -16,6 +16,8 @@
 
 namespace mod_jitsi;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+
 /**
  * Render tests for the usage stats and attendance report Mustache templates.
  *
@@ -23,11 +25,10 @@ namespace mod_jitsi;
  * @copyright  2026 Sergio Comerón Sánchez-Paniagua <sergiocomeron@icloud.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+#[CoversClass(\mod_jitsi::class)]
 final class report_templates_test extends \advanced_testcase {
     /**
      * The usage stats template renders cards, sections, tables and selectors.
-     *
-     * @covers \mod_jitsi
      */
     public function test_usage_stats_renders(): void {
         global $OUTPUT;
@@ -90,8 +91,6 @@ final class report_templates_test extends \advanced_testcase {
 
     /**
      * The attendance report template renders tabs, sessions table and recordings.
-     *
-     * @covers \mod_jitsi
      */
     public function test_attendance_report_renders(): void {
         global $OUTPUT;
