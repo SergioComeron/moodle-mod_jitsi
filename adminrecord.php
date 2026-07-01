@@ -29,7 +29,7 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-require_once(dirname(dirname(dirname(__FILE__))) . '/config.php');
+require_once(dirname($_SERVER['SCRIPT_FILENAME'], 3) . '/config.php');
 require_once("$CFG->libdir/formslib.php");
 require_once(dirname(__FILE__) . '/lib.php');
 require_once($CFG->libdir . '/tablelib.php');

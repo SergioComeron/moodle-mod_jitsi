@@ -24,7 +24,7 @@
  * @copyright  2024 Sergio Comerón <info@sergiocomeron.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-require_once(__DIR__ . '/../../config.php');
+require_once(dirname($_SERVER['SCRIPT_FILENAME'], 3) . '/config.php');
 require_once($CFG->libdir . '/formslib.php');
 global $DB, $OUTPUT, $PAGE;
 

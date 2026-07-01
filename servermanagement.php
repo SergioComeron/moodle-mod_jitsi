@@ -31,7 +31,7 @@ $rawaction = filter_input(INPUT_GET, 'action', FILTER_UNSAFE_RAW) ??
 if ($rawaction === 'jitsiready' || $rawaction === 'jibriready'
         || $rawaction === 'jibrirecording' || $rawaction === 'jibristatus') {
     define('NO_MOODLE_COOKIES', true);
-    require_once(__DIR__ . '/../../config.php');
+    require_once(dirname($_SERVER['SCRIPT_FILENAME'], 3) . '/config.php');
     require_once($CFG->dirroot . '/mod/jitsi/lib.php');
 
     @header('Content-Type: application/json');
@@ -43,7 +43,7 @@ if ($rawaction === 'jitsiready' || $rawaction === 'jibriready'
 // phpcs:enable
 
 // Para el resto de acciones: cargar Moodle normalmente.
-require_once(__DIR__ . '/../../config.php');
+require_once(dirname($_SERVER['SCRIPT_FILENAME'], 3) . '/config.php');
 
 $action = optional_param('action', '', PARAM_ALPHA);
 
