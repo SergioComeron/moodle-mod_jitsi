@@ -76,6 +76,12 @@ class generate_ai_summary extends \core\task\adhoc_task {
                 . "of the following video recording from an online class. "
                 . "Identify the main topics covered, key concepts explained, and any important conclusions. "
                 . "Focus on educational content. "
+                . "Base the summary STRICTLY on what is actually said and shown in the recording; "
+                . "never invent, assume or embellish content. "
+                . "If the recording contains little or no discernible speech or educational content "
+                . "(e.g. silence, a static image or a test recording), do NOT fabricate a summary: "
+                . "reply with a single short paragraph stating that the recording contains no "
+                . "summarisable educational content. "
                 . "Write your response in the following language: {$lang}.";
 
             $summary = vertex_ai::generate_for_record($sourcerecord, $prompt, [

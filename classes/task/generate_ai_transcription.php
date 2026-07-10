@@ -80,6 +80,9 @@ class generate_ai_transcription extends \core\task\adhoc_task {
                 . "### Exercise 1\n"
                 . "[05:30] Let's start with the first exercise.\n"
                 . "Include all spoken content. Use chapter headings only at natural topic boundaries. "
+                . "Transcribe ONLY speech that actually occurs in the recording; never invent dialogue. "
+                . "If there is no discernible speech, output exactly one line with the timestamp [00:00] "
+                . "and a brief note (in the requested language) that the recording contains no speech. "
                 . "Write everything (including chapter titles) in the following language: {$lang}.";
 
             $transcription = vertex_ai::generate_for_record($sourcerecord, $prompt, [

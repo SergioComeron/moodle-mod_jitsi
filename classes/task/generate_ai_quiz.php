@@ -77,6 +77,10 @@ class generate_ai_quiz extends \core\task\adhoc_task {
         try {
             $prompt = "Analyze this video recording of an online class and generate exactly {$numquestions} "
                 . "true/false questions to assess student comprehension. "
+                . "Base every question STRICTLY on content actually said or shown in the recording; "
+                . "never invent material that is not present. "
+                . "If the recording contains no discernible educational content (e.g. silence, a static "
+                . "image or a test recording), return an empty JSON array [] instead. "
                 . "Write the questions in the following language: {$lang}. "
                 . "Return ONLY a valid JSON array. Each element must have exactly two fields: "
                 . "\"question\" (string with the question text) and \"correct\" (boolean, the correct answer). "
