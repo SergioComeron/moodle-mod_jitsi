@@ -28,7 +28,7 @@ import Ajax from 'core/ajax';
 import Notification from 'core/notification';
 import {getString} from 'core/str';
 import {add as addToast} from 'core/toast';
-import ModalFactory from 'core/modal_factory';
+import ModalSaveCancel from 'core/modal_save_cancel';
 import ModalEvents from 'core/modal_events';
 
 /** GDPR notice body HTML, set from config at init. */
@@ -159,8 +159,7 @@ const showGdprModal = async(action) => {
             getString('aigdprnoticetitle', 'mod_jitsi'),
             getString('confirm', 'core'),
         ]);
-        const modal = await ModalFactory.create({
-            type: ModalFactory.types.SAVE_CANCEL,
+        const modal = await ModalSaveCancel.create({
             title: title,
             body: gdprBody,
         });
