@@ -463,8 +463,8 @@ if ($ADMIN->fulltree) {
 
     $dropboxheadingdesc = get_string('dropboxconfigex', 'jitsi');
     if ($is8x8server) {
-        $dropboxheadingdesc = '<div class="alert alert-warning mt-2">'
-            . get_string('dropboxnotwith8x8', 'jitsi')
+        $dropboxheadingdesc = '<div class="alert alert-info mt-2">'
+            . get_string('dropboxwith8x8', 'jitsi', $CFG->wwwroot . '/mod/jitsi/dropboxoauth.php')
             . '</div>' . $dropboxheadingdesc;
     }
 
@@ -489,22 +489,6 @@ if ($ADMIN->fulltree) {
         get_string('dropboxredirecturiex', 'jitsi'),
         ''
     ));
-
-    if ($is8x8server) {
-        $PAGE->requires->js_init_code('
-            (function() {
-                var fields = ["s_mod_jitsi_dropbox_appkey", "s_mod_jitsi_dropbox_redirect_uri"];
-                fields.forEach(function(name) {
-                    var el = document.querySelector("[name=\'" + name + "\']");
-                    if (el) {
-                        el.disabled = true;
-                        el.style.opacity = "0.5";
-                        el.style.cursor = "not-allowed";
-                    }
-                });
-            })();
-        ');
-    }
 
     $settings->add(
         new admin_setting_heading(

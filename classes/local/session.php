@@ -448,6 +448,8 @@ class session {
 
         $showstreaming = false;
         $showrecording = false;
+        $showdropbox = false;
+        $dropboxappkey = trim((string) get_config('mod_jitsi', 'dropbox_appkey'));
         if ($user == null) {
             $showstreaming = (
                 get_config('mod_jitsi', 'livebutton') == 1 &&
@@ -470,9 +472,17 @@ class session {
                 $universal == false && $canrecordhere &&
                 $jitsi->sessionwithtoken == 0
             );
+            // On 8x8 with the Moodle-integrated record button, a Dropbox app key
+            // additionally enables the "Record to Dropbox" button.
+            $showdropbox = $showrecording && $servertype == 2 && $dropboxappkey !== '';
         }
 
-        echo \mod_jitsi\output\session_page::render($CFG->branch >= 500, $showstreaming, $showrecording);
+        echo \mod_jitsi\output\session_page::render(
+            $CFG->branch >= 500,
+            $showstreaming,
+            $showrecording,
+            $showdropbox
+        );
 
         echo "<script>\n";
         echo "const domain = \"" . $domain . "\";\n";
@@ -583,6 +593,8 @@ class session {
                 'userid' => (int) $USER->id,
                 'cmid' => (int) $cmid,
                 'session' => $session,
+                'dropboxAppKey' => $showdropbox ? $dropboxappkey : '',
+                'dropboxOauthUrl' => $CFG->wwwroot . '/mod/jitsi/dropboxoauth.php',
             ]]);
         }
         echo "</script>\n";
