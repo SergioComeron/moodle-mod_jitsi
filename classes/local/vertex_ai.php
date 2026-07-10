@@ -161,10 +161,10 @@ class vertex_ai {
                 return $url;
             }
         }
-        if (preg_match('/https:\/\/objectstorage\.[^"\'\s<>\\\\]+/i', $html, $m)) {
+        if (preg_match('/https:\/\/objectstorage\.[^"\'\s<>\\\\\[\]{}(),]+/i', $html, $m)) {
             return html_entity_decode($m[0]);
         }
-        if (preg_match('/https:\/\/[^"\'\s<>\\\\]+\.(?:mp4|webm|mov|m4v)(?:\?[^"\'\s<>\\\\]*)?/i', $html, $m)) {
+        if (preg_match('/https:\/\/[^"\'\s<>\\\\\[\]{}(),]+\.(?:mp4|webm|mov|m4v)(?:\?[^"\'\s<>\\\\\[\]{}(),]*)?/i', $html, $m)) {
             return html_entity_decode($m[0]);
         }
         return null;

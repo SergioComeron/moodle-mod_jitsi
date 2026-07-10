@@ -142,6 +142,13 @@ final class vertex_ai_test extends \advanced_testcase {
         $html = '<a href="https://files.example.com/download/rec.webm?tok=x">download</a>';
         $this->assertSame('https://files.example.com/download/rec.webm?tok=x', vertex_ai::extract_video_url($html));
 
+        // Unquoted URL inside JS markup must not drag trailing brackets along.
+        $html = '<script>var sources=[https://objectstorage.eu.oraclecloud.com/p/T/n/ns/b/b/o/rec.mp4]</script>';
+        $this->assertSame(
+            'https://objectstorage.eu.oraclecloud.com/p/T/n/ns/b/b/o/rec.mp4',
+            vertex_ai::extract_video_url($html)
+        );
+
         // Nothing that looks like a video.
         $this->assertNull(vertex_ai::extract_video_url('<html><body>No video here</body></html>'));
     }
