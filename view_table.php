@@ -125,34 +125,6 @@ class mod_view_table extends table_sql {
         $isgcs = strpos($sourcerecord->link, 'storage.googleapis.com') !== false;
         $isdropbox = !empty($sourcerecord->embed) && strpos($sourcerecord->link, 'dropbox.com') !== false;
 
-        if (!$isdropbox && !$isgcs) {
-            // Non-embeddable link: render an open/download button.
-            $is8x8 = strpos($sourcerecord->link, '8x8.vc') !== false;
-            $jibriwarn = '';
-            if (preg_match('/^http:\/\/\d+\.\d+\.\d+\.\d+\//', $sourcerecord->link)) {
-                $jibriwarn = ' <small class="text-warning ms-1" title="'
-                    . s(get_string('jibrirecordingoffline', 'jitsi')) . '">⚠</small>';
-            }
-            return $OUTPUT->render_from_template('mod_jitsi/view_recording_external', array_merge($actionsctx, [
-                'inplacename'    => $inplacename,
-                'timecreated'    => userdate($values->timecreated),
-                'jibriwarn'      => $jibriwarn,
-                'openurl'        => $sourcerecord->link,
-                'openlabel'      => $is8x8 ? get_string('download') : get_string('openrecording', 'jitsi'),
-                'sourcerecordid' => (int)$sourcerecord->id,
-            ]));
-        }
-
-        // Embeddable video (GCS or Dropbox raw): video player + AI tools.
-        if ($isdropbox) {
-            $embedurl = preg_replace('/([?&])dl=\d/', '$1raw=1', $sourcerecord->link);
-            if (strpos($embedurl, 'raw=1') === false) {
-                $embedurl .= (strpos($embedurl, '?') !== false ? '&' : '?') . 'raw=1';
-            }
-        } else {
-            $embedurl = $sourcerecord->link;
-        }
-
         // AI state flags.
         $summaryerrorstrs = [
             get_string('aisummaryerror', 'jitsi'),
@@ -173,9 +145,10 @@ class mod_view_table extends table_sql {
         $transcriptiondone = ($transcriptionstatus === 'done') && !empty($sourcerecord->ai_transcription);
 
         $aienabled = (bool)get_config('mod_jitsi', 'aienabled');
-        $cangensum = $aienabled && $isgcs && has_capability('mod/jitsi:generateaisummary', $context);
-        $cangenquiz = $aienabled && $isgcs && has_capability('mod/jitsi:generateaiquiz', $context);
-        $cangentrans = $aienabled && $isgcs && has_capability('mod/jitsi:generateaitranscription', $context);
+        $aisupported = \mod_jitsi\local\vertex_ai::supports($sourcerecord);
+        $cangensum = $aienabled && $aisupported && has_capability('mod/jitsi:generateaisummary', $context);
+        $cangenquiz = $aienabled && $aisupported && has_capability('mod/jitsi:generateaiquiz', $context);
+        $cangentrans = $aienabled && $aisupported && has_capability('mod/jitsi:generateaitranscription', $context);
 
         // Build AI dropdown button (generate options only, shown above the video).
         $bstoggle = $branch5 ? 'data-bs-toggle' : 'data-toggle';
@@ -303,6 +276,36 @@ class mod_view_table extends table_sql {
                 . '<div class="tab-content p-2 bg-light rounded-bottom">'
                 . $tabpanes . '</div>'
                 . '</div>';
+        }
+
+        if (!$isdropbox && !$isgcs) {
+            // Non-embeddable link: render an open/download button (plus AI tools when supported).
+            $is8x8 = strpos($sourcerecord->link, '8x8.vc') !== false;
+            $jibriwarn = '';
+            if (preg_match('/^http:\/\/\d+\.\d+\.\d+\.\d+\//', $sourcerecord->link)) {
+                $jibriwarn = ' <small class="text-warning ms-1" title="'
+                    . s(get_string('jibrirecordingoffline', 'jitsi')) . '">⚠</small>';
+            }
+            return $OUTPUT->render_from_template('mod_jitsi/view_recording_external', array_merge($actionsctx, [
+                'inplacename'    => $inplacename,
+                'timecreated'    => userdate($values->timecreated),
+                'jibriwarn'      => $jibriwarn,
+                'openurl'        => $sourcerecord->link,
+                'openlabel'      => $is8x8 ? get_string('download') : get_string('openrecording', 'jitsi'),
+                'sourcerecordid' => (int)$sourcerecord->id,
+                'aidropdown'     => $aidropdown,
+                'aiaccordion'    => $aiaccordion,
+            ]));
+        }
+
+        // Embeddable video (GCS or Dropbox raw): video player + AI tools.
+        if ($isdropbox) {
+            $embedurl = preg_replace('/([?&])dl=\d/', '$1raw=1', $sourcerecord->link);
+            if (strpos($embedurl, 'raw=1') === false) {
+                $embedurl .= (strpos($embedurl, '?') !== false ? '&' : '?') . 'raw=1';
+            }
+        } else {
+            $embedurl = $sourcerecord->link;
         }
 
         // Load existing watched segments for this user to pre-render the bar.

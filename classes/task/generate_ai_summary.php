@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Ad-hoc task to generate an AI summary for a GCS recording via Vertex AI (Gemini).
+ * Ad-hoc task to generate an AI summary for a recording via Vertex AI (Gemini).
  *
  * @package    mod_jitsi
  * @copyright  2026 Sergio Comerón Sánchez-Paniagua <sergiocomeron@icloud.com>
@@ -23,9 +23,10 @@
  */
 namespace mod_jitsi\task;
 
+use mod_jitsi\local\vertex_ai;
 
 /**
- * Ad-hoc task: call Vertex AI Gemini to summarise a GCS recording.
+ * Ad-hoc task: call Vertex AI Gemini to summarise a recording.
  *
  * Custom data expected:
  *   - sourcerecordid (int): ID of the jitsi_source_record row
@@ -44,7 +45,7 @@ class generate_ai_summary extends \core\task\adhoc_task {
      * Execute the task: call Vertex AI Gemini and store the summary.
      */
     public function execute(): void {
-        global $CFG, $DB;
+        global $DB;
 
         $data = $this->get_custom_data();
         if (empty($data->sourcerecordid)) {
@@ -58,9 +59,9 @@ class generate_ai_summary extends \core\task\adhoc_task {
             return;
         }
 
-        // Only GCS recordings (https://storage.googleapis.com/...) are supported.
-        if (!preg_match('/^https:\/\/storage\.googleapis\.com\/([^\/]+)\/(.+)$/', $sourcerecord->link, $m)) {
-            mtrace("generate_ai_summary: recording is not a GCS URL: {$sourcerecord->link}");
+        $media = vertex_ai::media_for($sourcerecord);
+        if (!$media) {
+            mtrace("generate_ai_summary: recording not supported for AI: {$sourcerecord->link}");
             $DB->set_field(
                 'jitsi_source_record',
                 'ai_summary',
@@ -70,39 +71,9 @@ class generate_ai_summary extends \core\task\adhoc_task {
             return;
         }
 
-        $bucketname = $m[1];
-        $objectname = $m[2];
-        $gsuri = "gs://{$bucketname}/{$objectname}";
-
-        // Determine which GCP project to use for Vertex AI.
-        $server = $DB->get_record('jitsi_servers', ['gcs_bucket' => $bucketname, 'gcs_enabled' => 1]);
-        $project = !empty($server->gcpproject) ? $server->gcpproject : '';
+        $project = vertex_ai::project_for($sourcerecord);
         if (empty($project)) {
-            mtrace("generate_ai_summary: could not determine GCP project for bucket {$bucketname}");
-            $DB->set_field(
-                'jitsi_source_record',
-                'ai_summary',
-                get_string('aisummaryerror', 'jitsi'),
-                ['id' => $sourcerecord->id]
-            );
-            return;
-        }
-
-        // Load Google API autoloader.
-        $autoloaders = [
-            $CFG->dirroot . '/mod/jitsi/api/vendor/autoload.php',
-            $CFG->dirroot . '/mod/jitsi/vendor/autoload.php',
-            $CFG->dirroot . '/vendor/autoload.php',
-        ];
-        foreach ($autoloaders as $autoload) {
-            if (file_exists($autoload)) {
-                require_once($autoload);
-                break;
-            }
-        }
-
-        if (!class_exists('Google\\Client')) {
-            mtrace('generate_ai_summary: Google API client not available');
+            mtrace("generate_ai_summary: could not determine GCP project for {$sourcerecord->link}");
             $DB->set_field(
                 'jitsi_source_record',
                 'ai_summary',
@@ -113,43 +84,6 @@ class generate_ai_summary extends \core\task\adhoc_task {
         }
 
         try {
-            $client = new \Google\Client();
-            $client->addScope('https://www.googleapis.com/auth/cloud-platform');
-
-            // Use service account JSON from Moodle file storage if available.
-            $fs = get_file_storage();
-            $ctx = \context_system::instance();
-            $files = $fs->get_area_files(
-                $ctx->id,
-                'mod_jitsi',
-                'gcpserviceaccountjson',
-                0,
-                'itemid, filepath, filename',
-                false
-            );
-            if (!empty($files)) {
-                $file = reset($files);
-                $key = json_decode($file->get_content(), true);
-                if (is_array($key)) {
-                    $client->setAuthConfig($key);
-                } else {
-                    $client->useApplicationDefaultCredentials();
-                }
-            } else {
-                $client->useApplicationDefaultCredentials();
-            }
-
-            $accesstoken = $client->fetchAccessTokenWithAssertion();
-            if (empty($accesstoken['access_token'])) {
-                throw new \Exception('Could not obtain access token for Vertex AI');
-            }
-
-            $token = $accesstoken['access_token'];
-            $location = get_config('mod_jitsi', 'vertexairegion') ?: 'europe-west1';
-            $model = 'gemini-2.5-flash';
-            $endpoint = "https://{$location}-aiplatform.googleapis.com/v1/projects/{$project}"
-                . "/locations/{$location}/publishers/google/models/{$model}:generateContent";
-
             $lang = !empty($data->lang) ? $data->lang : current_language();
             $prompt = "You are an educational assistant. Please provide a concise summary (3-5 paragraphs) "
                 . "of the following video recording from an online class. "
@@ -157,50 +91,10 @@ class generate_ai_summary extends \core\task\adhoc_task {
                 . "Focus on educational content. "
                 . "Write your response in the following language: {$lang}.";
 
-            $body = json_encode([
-                'contents' => [
-                    [
-                        'role' => 'user',
-                        'parts' => [
-                            ['text' => $prompt],
-                            [
-                                'fileData' => [
-                                    'mimeType' => 'video/mp4',
-                                    'fileUri' => $gsuri,
-                                ],
-                            ],
-                        ],
-                    ],
-                ],
-                'generationConfig' => [
-                    'temperature' => 0.2,
-                    'maxOutputTokens' => 1024,
-                ],
-            ]);
-
-            $ch = curl_init($endpoint);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                'Authorization: Bearer ' . $token,
-                'Content-Type: application/json',
-            ]);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 300);
-            $response = curl_exec($ch);
-            $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
-
-            if ($httpcode !== 200) {
-                throw new \Exception("Vertex AI returned HTTP {$httpcode}: {$response}");
-            }
-
-            $result = json_decode($response, true);
-            $summary = $result['candidates'][0]['content']['parts'][0]['text'] ?? null;
-
-            if (empty($summary)) {
-                throw new \Exception('Empty response from Vertex AI: ' . $response);
-            }
+            $summary = vertex_ai::generate_text($project, $media, $prompt, [
+                'temperature' => 0.2,
+                'maxOutputTokens' => 1024,
+            ], 300);
 
             $DB->set_field('jitsi_source_record', 'ai_summary', $summary, ['id' => $sourcerecord->id]);
             mtrace("generate_ai_summary: summary saved for source record {$sourcerecord->id}");

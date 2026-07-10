@@ -67,8 +67,8 @@ class queue_ai_summary extends external_api {
 
         $sourcerecord = $DB->get_record('jitsi_source_record', ['id' => $params['sourcerecordid']], '*', MUST_EXIST);
 
-        // Only GCS recordings are supported.
-        if (strpos($sourcerecord->link, 'storage.googleapis.com') === false) {
+        // Only recordings reachable by Vertex AI (GCS or public external links) are supported.
+        if (!\mod_jitsi\local\vertex_ai::supports($sourcerecord)) {
             return ['success' => false, 'message' => get_string('aisummarynotavailable', 'jitsi')];
         }
 

@@ -51,7 +51,7 @@ $string['adminaccountex'] = 'At least one account is required in order to stream
  </br></br>NEW from v3.3.3: a new column called "In queue" allows use all your recorders in round robin. You can add recorders to the queue clicking on "<b>+</b>" and you can remove them from the queue clicking on "<b>-</b>". When a recorder has been used because it was the recorder "<b>in use</b>" (or the next one to be used), the flag "In use" will be set to the next recorder in the queue. This feature allows you to use many recorders in order to avoid YouTube quota limits like the live streams allowed per day.';
 $string['aidisabled'] = 'AI features are disabled by the administrator.';
 $string['aienabled'] = 'Enable AI features';
-$string['aienabledex'] = 'Enable AI-powered features (summary, quiz, transcription) for GCS recordings. When enabled, video recordings are sent to Google Vertex AI for processing. Ensure your institution has a Data Processing Agreement with Google Cloud and that the selected region complies with applicable data protection regulations (e.g. GDPR).';
+$string['aienabledex'] = 'Enable AI-powered features (summary, quiz, transcription) for cloud recordings (Google Cloud Storage and publicly reachable external recording links, e.g. 8x8/JaaS). When enabled, video recordings are sent to Google Vertex AI for processing. Ensure your institution has a Data Processing Agreement with Google Cloud and that the selected region complies with applicable data protection regulations (e.g. GDPR).';
 $string['aigdprnotice'] = 'When you generate AI content, the video recording is sent to Google Vertex AI ({$a}) for processing. It may contain personal data (voices and images of participants). Ensure this complies with your institution\'s data protection policy and that a Data Processing Agreement with Google Cloud is in place.';
 $string['aigdprnotice_tab'] = 'Data & Privacy';
 $string['aigdprnoticetitle'] = 'Data &amp; Privacy';
@@ -75,7 +75,7 @@ $string['aitools'] = 'AI Tools';
 $string['aitranscription'] = 'AI Transcription';
 $string['aitranscriptionerror'] = 'Error generating AI transcription';
 $string['aitranscriptiongenerating'] = 'Generating transcription...';
-$string['aitranscriptionnotavailable'] = 'AI transcription is only available for GCS recordings.';
+$string['aitranscriptionnotavailable'] = 'AI transcription is not available for this recording.';
 $string['aitranscriptionqueued'] = 'AI transcription queued. Refresh the page in a few minutes.';
 $string['alertacceswithlogin'] = 'You are accessing through an external link and you are logged in, please access from the course.';
 $string['alias'] = 'Alias';

@@ -1131,6 +1131,58 @@ final class external_test extends \advanced_testcase {
         $this->assertCount(0, \core\task\manager::get_adhoc_tasks(\mod_jitsi\task\generate_ai_summary::class));
     }
 
+    /**
+     * Test that queue_ai_summary accepts a type-1 external https link (e.g. 8x8/JaaS).
+     */
+    public function test_queue_ai_summary_queues_external_link(): void {
+        global $DB;
+        $this->resetAfterTest(true);
+        set_config('aienabled', 1, 'mod_jitsi');
+        $this->setAdminUser();
+        [$jitsi, $cm] = $this->create_jitsi_activity();
+        $srid = (int)$DB->insert_record('jitsi_source_record', (object)[
+            'link'            => 'https://recordings.8x8.vc/room/rec.mp4?token=abc',
+            'timecreated'     => time(),
+            'userid'          => get_admin()->id,
+            'embed'           => 0,
+            'maxparticipants' => 0,
+            'type'            => 1,
+            'timeexpires'     => time() + DAYSECS,
+            'ai_quiz_id'      => 0,
+        ]);
+
+        $result = \mod_jitsi\external\queue_ai_summary::execute($srid, $cm->id);
+
+        $this->assertTrue($result['success']);
+        $this->assertCount(1, \core\task\manager::get_adhoc_tasks(\mod_jitsi\task\generate_ai_summary::class));
+    }
+
+    /**
+     * Test that queue_ai_summary refuses an expired type-1 external link.
+     */
+    public function test_queue_ai_summary_rejects_expired_external_link(): void {
+        global $DB;
+        $this->resetAfterTest(true);
+        set_config('aienabled', 1, 'mod_jitsi');
+        $this->setAdminUser();
+        [$jitsi, $cm] = $this->create_jitsi_activity();
+        $srid = (int)$DB->insert_record('jitsi_source_record', (object)[
+            'link'            => 'https://recordings.8x8.vc/room/rec.mp4?token=abc',
+            'timecreated'     => time() - 2 * DAYSECS,
+            'userid'          => get_admin()->id,
+            'embed'           => 0,
+            'maxparticipants' => 0,
+            'type'            => 1,
+            'timeexpires'     => time() - DAYSECS,
+            'ai_quiz_id'      => 0,
+        ]);
+
+        $result = \mod_jitsi\external\queue_ai_summary::execute($srid, $cm->id);
+
+        $this->assertFalse($result['success']);
+        $this->assertCount(0, \core\task\manager::get_adhoc_tasks(\mod_jitsi\task\generate_ai_summary::class));
+    }
+
     // Recording CRUD web service tests.
 
     /**
