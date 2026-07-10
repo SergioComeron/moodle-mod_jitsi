@@ -1,4 +1,38 @@
 # Changelog
+## v5.3.0
+# Added
+
+ * 'Record to Dropbox' button on 8x8 with Moodle-integrated recording
+ * recordingoption setting picks the record button location on 8x8
+ * move the record button to the Moodle toolbar on 8x8/JaaS servers
+ * visible progress feedback for AI generation
+ * enable AI features for external recording links (type 1)
+# Fixed
+
+ * harden AI prompts against hallucination on empty recordings
+ * queued AI messages no longer ask to refresh the page
+ * don't capture trailing brackets in unquoted player-page video URLs
+ * resolve 8x8 player pages to the direct video URL for Vertex AI
+ * replace removed core/modal_factory with core/modal_save_cancel
+ * quote bump-version job if-condition to keep YAML valid
+# Changed
+
+ * Merge feature/ai-external-links: AI for external recordings + progress feedback + 8x8 record button
+ * README covers AI for external recordings, recording button setting and Dropbox button
+ * update google/apiclient from v2.19.3 to v2.19.4 (#198)
+ * Fix: resolver config.php sin resolver symlinks en endpoints web
+ * migrate @covers annotations to PHPUnit 11 attributes
+ * add standalone phpcs.xml and pre-push hook scripts
+ * bump guzzlehttp/guzzle 7.12.1 + psr7 2.12.1 (vendor synced)
+ * Merge dependabot web-token/jwt-library 4.1.7 (vendor synced)
+ * sync api/vendor for web-token/jwt-library 4.1.7
+ * bump web-token/jwt-library from 4.1.4 to 4.1.7 in /api
+ * cover open/close date validation in the activity form
+ * seed recordings and cover student vs teacher visibility
+ * trigger release.yml via tag push, drop failing workflow_dispatch
+
+---
+
 ## v5.2.0
 # Added
 
