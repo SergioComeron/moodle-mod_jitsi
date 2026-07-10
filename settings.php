@@ -322,6 +322,17 @@ if ($ADMIN->fulltree) {
         )
     );
 
+    $recordingoptions = ['0' => get_string('jitsiinterface', 'jitsi'), '1' => get_string('integrated', 'jitsi')];
+    $settings->add(
+        new admin_setting_configselect(
+            'mod_jitsi/recordingoption',
+            get_string('recordingoption', 'jitsi'),
+            get_string('recordingoptionex', 'jitsi'),
+            '0',
+            $recordingoptions,
+        )
+    );
+
     $settings->add(
         new admin_setting_configcheckbox(
             'mod_jitsi/participantspane',
