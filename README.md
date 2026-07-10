@@ -13,7 +13,7 @@
 - [Recommendations when using public Jitsi servers](#recommendations-when-using-public-jitsi-servers)
 - [Using a Jitsi as a Service Account](#using-a-jitsi-as-a-service-account)
 - [Google Cloud Platform (GCP) Integration - BETA](#google-cloud-platform-gcp-integration---beta)
-- [AI Features for GCS Recordings](#ai-features-for-gcs-recordings)
+- [AI Features for Recordings](#ai-features-for-recordings)
 - [Attendance Report](#attendance-report)
 - [Session Usage Statistics](#session-usage-statistics)
 - [Disclaimer](#disclaimer)
@@ -48,6 +48,8 @@ Features available in the plugin:
 * YouTube streaming and **automatic recordings publishing** in your course (requires streaming configuration — see below)
 * **Dropbox recording** with automatic or manual link publishing in the recordings tab
 * **JaaS (8x8) cloud recordings** automatically captured and available for download, expiring after 24 hours
+* **One-click record button** in the Moodle toolbar for GCP and (optionally) 8x8 servers, with an extra "Record to Dropbox" button when Dropbox credentials are configured
+* **AI summary, quiz and transcription** of recordings via Google Vertex AI (Gemini) — for GCS recordings and cloud recording links (8x8/JaaS, Dropbox)
 * **Attendance report** — detailed per-activity report with time-on-session per student, recording view tracking and access log *(requires mod_jitsi Account)*
 * **Recording view tracking** — progress bars showing exactly which parts of each video each student has watched, persisted between sessions *(requires mod_jitsi Account)*
 * **Viewing heatmap** — aggregate bar showing which parts of each recording were watched by what fraction of students, with a second bar tracking replays. Hover to see the viewer list per segment *(requires mod_jitsi Account)*
@@ -104,9 +106,9 @@ These are the permissions populated by default with the plugin. Most of them are
 - **Access to the attendees reports** (mod/jitsi:viewusersonsession): allows seeing who is currently in a session. You may want to allow students access to attendees reports.
 - **View recordings** (mod/jitsi:viewrecords): allows access to the Recordings tab. Disable this to hide recordings from specific roles.
 - **View external recording links** (mod/jitsi:viewexternallink): allows viewing externally-linked recordings (Dropbox, 8x8, manual links).
-- **Generate AI summary** (mod/jitsi:generateaisummary): allows generating AI-powered summaries for GCS recordings. Requires AI features to be enabled.
-- **Generate AI quiz** (mod/jitsi:generateaiquiz): allows generating AI-powered quizzes from GCS recordings. Requires AI features to be enabled.
-- **Generate AI transcription** (mod/jitsi:generateaitranscription): allows generating AI transcriptions for GCS recordings. Requires AI features to be enabled.
+- **Generate AI summary** (mod/jitsi:generateaisummary): allows generating AI-powered summaries for supported recordings (GCS and cloud recording links). Requires AI features to be enabled.
+- **Generate AI quiz** (mod/jitsi:generateaiquiz): allows generating AI-powered quizzes from supported recordings (GCS and cloud recording links). Requires AI features to be enabled.
+- **Generate AI transcription** (mod/jitsi:generateaitranscription): allows generating AI transcriptions for supported recordings (GCS and cloud recording links). Requires AI features to be enabled.
 - **Access to the attendance report** (mod/jitsi:viewattendance): allows teachers to access the detailed attendance report with recording view tracking. Requires mod_jitsi Account.
 
 ## Recording configuration
@@ -173,6 +175,13 @@ Links are saved automatically in the activity's **Recordings** tab. Duplicate li
 
 When using a JaaS server with cloud recording enabled, recordings appear automatically in the Recordings tab with a **Download** button. These links are hosted on 8x8's CDN and expire after **24 hours** (or according to your JaaS plan). Once expired, they are automatically hidden from the tab — no manual cleanup is needed.
 
+#### Recording button location (8x8)
+
+The **Recording button (8x8/JaaS)** setting picks where teachers start a recording:
+
+- **Jitsi interface** (default): Jitsi's native recording button stays inside the meeting. Its dialog lets the user choose between the 8x8 recording service and their own Dropbox.
+- **Moodle integrated**: the native button is removed and a one-click **Record** button appears in the Moodle toolbar above the meeting (same UX as GCP servers). It always records to the 8x8 recording service and the link is saved in the activity automatically. If the Dropbox app credentials are configured, a separate **Dropbox** button is also shown: it runs the Dropbox OAuth flow in a popup and records straight to the teacher's Dropbox (that recording must then be published manually, see below).
+
 ### Dropbox recordings
 
 If Dropbox is configured in the plugin settings (**App Key** and **Redirect URI**), teachers can record sessions directly to their Dropbox account. Once the recording is saved to Dropbox, the teacher must **manually publish the link** to students:
@@ -190,6 +199,8 @@ Navigate to **Site administration > Plugins > Activity modules > Jitsi** and fil
 - **Dropbox Redirect URI**: the OAuth2 redirect URI registered in your Dropbox app. Must match exactly what you set in the Dropbox App Console — usually `https://your-jitsi-domain/static/oauth.html`.
 
 You need to create a Dropbox app at the [Dropbox App Console](https://www.dropbox.com/developers/apps).
+
+> **8x8 servers**: to use the **Record to Dropbox** button in the Moodle toolbar (recording button setting "Moodle integrated"), register this **additional** redirect URI in your Dropbox app: `https://your-moodle/mod/jitsi/dropboxoauth.php`. The token obtained in the popup lives only in the browser session; it is never stored server-side.
 
 #### Embedding Dropbox videos
 
@@ -520,13 +531,21 @@ Running Jitsi servers in GCP incurs costs:
    - Self-signed certificates will show browser warnings to users
    - Certificates auto-renew via certbot
 
-## AI Features for GCS Recordings
+## AI Features for Recordings
 
-When GCS (Google Cloud Storage) upload is enabled for a Jibri recording server, recordings stored at `https://storage.googleapis.com/…` can be processed by **Google Vertex AI (Gemini 2.5 Flash)** to generate:
+Recordings can be processed by **Google Vertex AI (Gemini 2.5 Flash)** to generate:
 
 - **AI Summary** — a 3-5 paragraph educational summary of the recording
 - **AI Quiz** — a set of true/false questions auto-created as a Moodle quiz
 - **AI Transcription** — a timestamped transcript with chapter headings
+
+### Supported recording sources
+
+- **GCS recordings** (`https://storage.googleapis.com/…`) from a GCP auto-managed server with Jibri.
+- **External recording links** with a public, non-expired `https://` URL — including **JaaS (8x8) cloud recordings** (the plugin resolves the 8x8 player page to the underlying video automatically) and **Dropbox links** added to the Recordings tab.
+- **YouTube recordings are not supported**: Vertex AI only ingests public YouTube videos, and the plugin uploads them as unlisted.
+
+Note that 8x8 cloud recording links expire (24 hours by default), so AI content must be generated while the link is still valid — the generated summary/quiz/transcription is kept permanently either way.
 
 ### Enabling AI features
 
@@ -535,7 +554,9 @@ Navigate to **Site administration > Plugins > Activity modules > Jitsi > AI Feat
 1. Check **Enable AI features** (`aienabled`). This is **disabled by default**.
 2. Select the **Vertex AI region** where recordings will be processed (default: `europe-west1`).
 
-Teachers and editing teachers with the corresponding capabilities (`generateaisummary`, `generateaiquiz`, `generateaitranscription`) will see generation buttons in the Recordings tab for GCS recordings.
+Vertex AI requests are billed to a GCP project, resolved in this order: the GCS server owning the recording's bucket → the global **GCP project** plugin setting → any configured server with a project. Sites without a GCP-managed server can use AI features by filling in the global **GCP project** setting and uploading the **service account JSON** (the service account needs the Vertex AI User role and the Vertex AI API enabled in the project).
+
+Teachers and editing teachers with the corresponding capabilities (`generateaisummary`, `generateaiquiz`, `generateaitranscription`) will see an **AI** dropdown in the Recordings tab for supported recordings. After confirming the data-protection notice, the item switches to a queued state and the tab refreshes itself automatically when the generation finishes — no page reload needed. Generation runs as an ad-hoc task, so Moodle cron must be running.
 
 ### GDPR / Data Protection considerations
 
