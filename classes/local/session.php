@@ -151,12 +151,17 @@ class session {
     public static function build_toolbar_buttons($server, \context $context, bool $isprivate, bool $jibrienabled): array {
         $servertype = $server->type;
 
+        // On GCP (type 3) the Moodle toolbar record button always replaces Jitsi's own;
+        // on 8x8/JaaS (type 2) the recordingoption setting picks between the native
+        // button (its dialog allows Dropbox) and the Moodle toolbar one.
+        $moodlerecordbtn = ($servertype == 3)
+            || ($servertype == 2 && get_config('mod_jitsi', 'recordingoption') == 1);
         $record = '';
         if (
             !$isprivate &&
             get_config('mod_jitsi', 'record') == 1 &&
             has_capability('mod/jitsi:record', $context) &&
-            $servertype != 3
+            !$moodlerecordbtn
         ) {
             $record = 'recording';
         }
@@ -443,6 +448,8 @@ class session {
 
         $showstreaming = false;
         $showrecording = false;
+        $showdropbox = false;
+        $dropboxappkey = trim((string) get_config('mod_jitsi', 'dropbox_appkey'));
         if ($user == null) {
             $showstreaming = (
                 get_config('mod_jitsi', 'livebutton') == 1 &&
@@ -452,14 +459,30 @@ class session {
                 $jitsi->sessionwithtoken == 0 &&
                 ($servertype != 3 || $jibrienabled)
             );
+            // GCP needs its Jibri recorder ready; 8x8 records in the JaaS cloud when
+            // the recordingoption setting picks the Moodle toolbar button.
+            $canrecordhere = ($servertype == 3 && $jibrienabled)
+                || (
+                    $servertype == 2 &&
+                    get_config('mod_jitsi', 'record') == 1 &&
+                    get_config('mod_jitsi', 'recordingoption') == 1
+                );
             $showrecording = (
                 has_capability('mod/jitsi:record', $PAGE->context) &&
-                $universal == false && $servertype == 3 &&
-                $jibrienabled && $jitsi->sessionwithtoken == 0
+                $universal == false && $canrecordhere &&
+                $jitsi->sessionwithtoken == 0
             );
+            // On 8x8 with the Moodle-integrated record button, a Dropbox app key
+            // additionally enables the "Record to Dropbox" button.
+            $showdropbox = $showrecording && $servertype == 2 && $dropboxappkey !== '';
         }
 
-        echo \mod_jitsi\output\session_page::render($CFG->branch >= 500, $showstreaming, $showrecording);
+        echo \mod_jitsi\output\session_page::render(
+            $CFG->branch >= 500,
+            $showstreaming,
+            $showrecording,
+            $showdropbox
+        );
 
         echo "<script>\n";
         echo "const domain = \"" . $domain . "\";\n";
@@ -570,6 +593,8 @@ class session {
                 'userid' => (int) $USER->id,
                 'cmid' => (int) $cmid,
                 'session' => $session,
+                'dropboxAppKey' => $showdropbox ? $dropboxappkey : '',
+                'dropboxOauthUrl' => $CFG->wwwroot . '/mod/jitsi/dropboxoauth.php',
             ]]);
         }
         echo "</script>\n";

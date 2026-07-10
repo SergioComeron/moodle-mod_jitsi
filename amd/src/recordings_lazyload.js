@@ -99,6 +99,8 @@ const loadRecordings = (editRecordId = 0) => {
         .then((html) => {
             container.innerHTML = html;
             initDropboxToggle();
+            // Let other modules (e.g. ai_actions) react to the fresh markup.
+            document.dispatchEvent(new CustomEvent('mod_jitsi/recordings:loaded'));
             return html;
         })
         .catch(Notification.exception);
@@ -254,6 +256,13 @@ export const init = (config) => {
         handleCancelClick(e);
     });
     container.addEventListener('submit', handleFormSubmit);
+
+    // Re-fetch requested by other modules (e.g. ai_actions after queuing a generation).
+    document.addEventListener('mod_jitsi/recordings:reload', () => {
+        if (loaded) {
+            reload().catch(Notification.exception);
+        }
+    });
 
     const recordPane = document.getElementById('record');
     if (recordPane && recordPane.classList.contains('active')) {

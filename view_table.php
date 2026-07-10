@@ -125,34 +125,6 @@ class mod_view_table extends table_sql {
         $isgcs = strpos($sourcerecord->link, 'storage.googleapis.com') !== false;
         $isdropbox = !empty($sourcerecord->embed) && strpos($sourcerecord->link, 'dropbox.com') !== false;
 
-        if (!$isdropbox && !$isgcs) {
-            // Non-embeddable link: render an open/download button.
-            $is8x8 = strpos($sourcerecord->link, '8x8.vc') !== false;
-            $jibriwarn = '';
-            if (preg_match('/^http:\/\/\d+\.\d+\.\d+\.\d+\//', $sourcerecord->link)) {
-                $jibriwarn = ' <small class="text-warning ms-1" title="'
-                    . s(get_string('jibrirecordingoffline', 'jitsi')) . '">⚠</small>';
-            }
-            return $OUTPUT->render_from_template('mod_jitsi/view_recording_external', array_merge($actionsctx, [
-                'inplacename'    => $inplacename,
-                'timecreated'    => userdate($values->timecreated),
-                'jibriwarn'      => $jibriwarn,
-                'openurl'        => $sourcerecord->link,
-                'openlabel'      => $is8x8 ? get_string('download') : get_string('openrecording', 'jitsi'),
-                'sourcerecordid' => (int)$sourcerecord->id,
-            ]));
-        }
-
-        // Embeddable video (GCS or Dropbox raw): video player + AI tools.
-        if ($isdropbox) {
-            $embedurl = preg_replace('/([?&])dl=\d/', '$1raw=1', $sourcerecord->link);
-            if (strpos($embedurl, 'raw=1') === false) {
-                $embedurl .= (strpos($embedurl, '?') !== false ? '&' : '?') . 'raw=1';
-            }
-        } else {
-            $embedurl = $sourcerecord->link;
-        }
-
         // AI state flags.
         $summaryerrorstrs = [
             get_string('aisummaryerror', 'jitsi'),
@@ -173,33 +145,58 @@ class mod_view_table extends table_sql {
         $transcriptiondone = ($transcriptionstatus === 'done') && !empty($sourcerecord->ai_transcription);
 
         $aienabled = (bool)get_config('mod_jitsi', 'aienabled');
-        $cangensum = $aienabled && $isgcs && has_capability('mod/jitsi:generateaisummary', $context);
-        $cangenquiz = $aienabled && $isgcs && has_capability('mod/jitsi:generateaiquiz', $context);
-        $cangentrans = $aienabled && $isgcs && has_capability('mod/jitsi:generateaitranscription', $context);
+        $aisupported = \mod_jitsi\local\vertex_ai::supports($sourcerecord);
+        $cangensum = $aienabled && $aisupported && has_capability('mod/jitsi:generateaisummary', $context);
+        $cangenquiz = $aienabled && $aisupported && has_capability('mod/jitsi:generateaiquiz', $context);
+        $cangentrans = $aienabled && $aisupported && has_capability('mod/jitsi:generateaitranscription', $context);
 
         // Build AI dropdown button (generate options only, shown above the video).
+        // Items whose ad-hoc task is still queued render disabled with the
+        // .jitsi-ai-pending marker so ai_actions.js polls until they finish.
         $bstoggle = $branch5 ? 'data-bs-toggle' : 'data-toggle';
+        $pendingattrs = ' data-sourcerecordid="' . (int)$sourcerecord->id . '"'
+            . ' data-cmid="' . (int)$cm->id . '"';
         $aidropdownitems = '';
         if ($cangensum && !$summaryexists) {
-            $aidropdownitems .= '<li><a class="dropdown-item jitsi-ai-generate" href="#"'
-                . ' data-method="mod_jitsi_queue_ai_summary"'
-                . ' data-sourcerecordid="' . (int)$sourcerecord->id . '"'
-                . ' data-cmid="' . (int)$cm->id . '">'
-                . '<i class="fa fa-align-left me-1" aria-hidden="true"></i>'
-                . get_string('generateaisummary', 'jitsi') . '</a></li>';
+            $summarypending = \mod_jitsi\local\vertex_ai::has_pending_task(
+                \mod_jitsi\task\generate_ai_summary::class,
+                (int)$sourcerecord->id
+            );
+            if ($summarypending) {
+                $aidropdownitems .= '<li><span class="dropdown-item disabled jitsi-ai-pending"' . $pendingattrs . '>'
+                    . '<i class="fa fa-spinner fa-spin me-1" aria-hidden="true"></i>'
+                    . get_string('aisummaryqueued', 'jitsi') . '</span></li>';
+            } else {
+                $aidropdownitems .= '<li><a class="dropdown-item jitsi-ai-generate" href="#"'
+                    . ' data-method="mod_jitsi_queue_ai_summary"'
+                    . ' data-sourcerecordid="' . (int)$sourcerecord->id . '"'
+                    . ' data-cmid="' . (int)$cm->id . '">'
+                    . '<i class="fa fa-align-left me-1" aria-hidden="true"></i>'
+                    . get_string('generateaisummary', 'jitsi') . '</a></li>';
+            }
         }
         if ($cangenquiz && $quizid <= 0) {
-            $aidropdownitems .= '<li><a class="dropdown-item jitsi-ai-generate" href="#"'
-                . ' data-method="mod_jitsi_queue_ai_quiz"'
-                . ' data-sourcerecordid="' . (int)$sourcerecord->id . '"'
-                . ' data-cmid="' . (int)$cm->id . '">'
-                . '<i class="fa fa-list-check me-1" aria-hidden="true"></i>'
-                . get_string('aiquizgenerate', 'jitsi') . '</a></li>';
+            $quizpending = \mod_jitsi\local\vertex_ai::has_pending_task(
+                \mod_jitsi\task\generate_ai_quiz::class,
+                (int)$sourcerecord->id
+            );
+            if ($quizpending) {
+                $aidropdownitems .= '<li><span class="dropdown-item disabled jitsi-ai-pending"' . $pendingattrs . '>'
+                    . '<i class="fa fa-spinner fa-spin me-1" aria-hidden="true"></i>'
+                    . get_string('aiquizqueued', 'jitsi') . '</span></li>';
+            } else {
+                $aidropdownitems .= '<li><a class="dropdown-item jitsi-ai-generate" href="#"'
+                    . ' data-method="mod_jitsi_queue_ai_quiz"'
+                    . ' data-sourcerecordid="' . (int)$sourcerecord->id . '"'
+                    . ' data-cmid="' . (int)$cm->id . '">'
+                    . '<i class="fa fa-list-check me-1" aria-hidden="true"></i>'
+                    . get_string('aiquizgenerate', 'jitsi') . '</a></li>';
+            }
         }
         if ($cangentrans && !$transcriptiondone) {
             if ($transcriptionstatus === 'pending') {
-                $aidropdownitems .= '<li><span class="dropdown-item disabled">'
-                    . '<i class="fa fa-microphone me-1" aria-hidden="true"></i>'
+                $aidropdownitems .= '<li><span class="dropdown-item disabled jitsi-ai-pending"' . $pendingattrs . '>'
+                    . '<i class="fa fa-spinner fa-spin me-1" aria-hidden="true"></i>'
                     . get_string('aitranscriptionqueued', 'jitsi') . '</span></li>';
             } else {
                 $aidropdownitems .= '<li><a class="dropdown-item jitsi-ai-generate" href="#"'
@@ -303,6 +300,36 @@ class mod_view_table extends table_sql {
                 . '<div class="tab-content p-2 bg-light rounded-bottom">'
                 . $tabpanes . '</div>'
                 . '</div>';
+        }
+
+        if (!$isdropbox && !$isgcs) {
+            // Non-embeddable link: render an open/download button (plus AI tools when supported).
+            $is8x8 = strpos($sourcerecord->link, '8x8.vc') !== false;
+            $jibriwarn = '';
+            if (preg_match('/^http:\/\/\d+\.\d+\.\d+\.\d+\//', $sourcerecord->link)) {
+                $jibriwarn = ' <small class="text-warning ms-1" title="'
+                    . s(get_string('jibrirecordingoffline', 'jitsi')) . '">⚠</small>';
+            }
+            return $OUTPUT->render_from_template('mod_jitsi/view_recording_external', array_merge($actionsctx, [
+                'inplacename'    => $inplacename,
+                'timecreated'    => userdate($values->timecreated),
+                'jibriwarn'      => $jibriwarn,
+                'openurl'        => $sourcerecord->link,
+                'openlabel'      => $is8x8 ? get_string('download') : get_string('openrecording', 'jitsi'),
+                'sourcerecordid' => (int)$sourcerecord->id,
+                'aidropdown'     => $aidropdown,
+                'aiaccordion'    => $aiaccordion,
+            ]));
+        }
+
+        // Embeddable video (GCS or Dropbox raw): video player + AI tools.
+        if ($isdropbox) {
+            $embedurl = preg_replace('/([?&])dl=\d/', '$1raw=1', $sourcerecord->link);
+            if (strpos($embedurl, 'raw=1') === false) {
+                $embedurl .= (strpos($embedurl, '?') !== false ? '&' : '?') . 'raw=1';
+            }
+        } else {
+            $embedurl = $sourcerecord->link;
         }
 
         // Load existing watched segments for this user to pre-render the bar.

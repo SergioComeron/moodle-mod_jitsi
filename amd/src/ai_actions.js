@@ -27,21 +27,113 @@
 import Ajax from 'core/ajax';
 import Notification from 'core/notification';
 import {getString} from 'core/str';
-import ModalFactory from 'core/modal_factory';
+import {add as addToast} from 'core/toast';
+import ModalSaveCancel from 'core/modal_save_cancel';
 import ModalEvents from 'core/modal_events';
-
-/** Maps each AI web service method to its "queued" confirmation string key. */
-const QUEUED_MAP = {
-    'mod_jitsi_queue_ai_summary': 'aisummaryqueued',
-    'mod_jitsi_queue_ai_quiz': 'aiquizqueued',
-    'mod_jitsi_queue_ai_transcription': 'aitranscriptionqueued',
-};
 
 /** GDPR notice body HTML, set from config at init. */
 let gdprBody = '';
 
+/** Poll interval while a generation task is queued, in ms. */
+const POLL_MS = 20000;
+
+/** Give up polling a recording after this many ticks (~30 minutes). */
+const MAX_TICKS = 90;
+
+/** Recordings being polled, keyed by "sourcerecordid-cmid". */
+const watched = new Map();
+
+/** Interval id of the active poller, or null. */
+let pollTimer = null;
+
 /**
- * Fire the AI action web service and update the menu item on success.
+ * Ask the recordings table to re-fetch itself (handled by recordings_lazyload).
+ */
+const triggerReload = () => {
+    document.dispatchEvent(new CustomEvent('mod_jitsi/recordings:reload'));
+};
+
+/**
+ * One poll tick: query the AI status of every watched recording and reload
+ * the recordings table when any of them has finished.
+ */
+const pollTick = async() => {
+    const keys = [...watched.keys()];
+    const requests = keys.map((key) => ({
+        methodname: 'mod_jitsi_get_ai_status',
+        args: {
+            sourcerecordid: watched.get(key).sourcerecordid,
+            cmid: watched.get(key).cmid,
+        },
+    }));
+    const promises = Ajax.call(requests);
+    let reloadNeeded = false;
+    let anyFailed = false;
+    for (let i = 0; i < keys.length; i++) {
+        try {
+            const status = await promises[i];
+            const entry = watched.get(keys[i]);
+            entry.ticks++;
+            const features = ['summary', 'quiz', 'transcription'];
+            if (!entry.features) {
+                // Remember what was being generated to report its final state.
+                entry.features = features.filter((f) => status[f] === 'pending');
+            }
+            const pending = features.some((f) => status[f] === 'pending');
+            if (!pending) {
+                watched.delete(keys[i]);
+                reloadNeeded = true;
+                anyFailed = anyFailed || entry.features.some((f) => status[f] === 'error');
+            } else if (entry.ticks >= MAX_TICKS) {
+                watched.delete(keys[i]);
+            }
+        } catch (ex) {
+            watched.delete(keys[i]);
+        }
+    }
+    if (anyFailed) {
+        getString('aigenerationfailed', 'mod_jitsi')
+            .then((msg) => addToast(msg, {type: 'warning'}))
+            .catch(() => null);
+    }
+    if (watched.size === 0 && pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+    }
+    if (reloadNeeded) {
+        triggerReload();
+    }
+};
+
+/**
+ * Start polling the AI status of a recording until its tasks finish.
+ *
+ * @param {number} sourcerecordid jitsi_source_record id.
+ * @param {number} cmid Course module id.
+ */
+const startWatching = (sourcerecordid, cmid) => {
+    const key = sourcerecordid + '-' + cmid;
+    if (!watched.has(key)) {
+        watched.set(key, {sourcerecordid, cmid, ticks: 0});
+    }
+    if (!pollTimer) {
+        pollTimer = setInterval(() => {
+            pollTick().catch(() => null);
+        }, POLL_MS);
+    }
+};
+
+/**
+ * Scan the page for queued generations (rendered as .jitsi-ai-pending) and poll them.
+ */
+const scanPending = () => {
+    document.querySelectorAll('.jitsi-ai-pending[data-sourcerecordid]').forEach((el) => {
+        startWatching(parseInt(el.dataset.sourcerecordid, 10), parseInt(el.dataset.cmid, 10));
+    });
+};
+
+/**
+ * Fire the AI action web service, notify the user and refresh the recordings table.
  *
  * @param {object} action The action descriptor (methodname, sourcerecordid, cmid, el).
  */
@@ -53,8 +145,13 @@ const executeAction = async(action) => {
             args: {sourcerecordid: action.sourcerecordid, cmid: action.cmid},
         }])[0];
         if (result.success) {
-            action.el.textContent = await getString(QUEUED_MAP[action.methodname], 'mod_jitsi');
+            await addToast(result.message, {type: 'info'});
+            // Re-render the table: the item switches to its queued state and
+            // scanPending() picks it up for polling.
+            triggerReload();
+            startWatching(action.sourcerecordid, action.cmid);
         } else {
+            await addToast(result.message, {type: 'warning'});
             action.el.classList.remove('disabled');
         }
     } catch (ex) {
@@ -74,8 +171,7 @@ const showGdprModal = async(action) => {
             getString('aigdprnoticetitle', 'mod_jitsi'),
             getString('confirm', 'core'),
         ]);
-        const modal = await ModalFactory.create({
-            type: ModalFactory.types.SAVE_CANCEL,
+        const modal = await ModalSaveCancel.create({
             title: title,
             body: gdprBody,
         });
@@ -107,6 +203,10 @@ const showGdprModal = async(action) => {
  */
 export const init = (config) => {
     gdprBody = config.gdprBody;
+
+    // Poll generations already queued when the table is (re)rendered.
+    scanPending();
+    document.addEventListener('mod_jitsi/recordings:loaded', scanPending);
 
     document.addEventListener('click', (e) => {
         const generateItem = e.target.closest('.jitsi-ai-generate');

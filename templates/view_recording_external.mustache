@@ -30,6 +30,8 @@
     * openurl string - recording link
     * openlabel string - open/download button label
     * sourcerecordid int - jitsi_source_record id
+    * aidropdown string - pre-rendered AI generate dropdown (may be empty)
+    * aiaccordion string - pre-rendered accordion with generated AI content (may be empty)
 
     Example context (json):
     {
@@ -44,17 +46,22 @@
         "cmid": 12,
         "openurl": "https://8x8.vc/rec",
         "openlabel": "Download",
-        "sourcerecordid": 9
+        "sourcerecordid": 9,
+        "aidropdown": "",
+        "aiaccordion": ""
     }
 }}
-<div class="d-flex align-items-center gap-2 py-1">
-    <span class="flex-grow-1">
-        {{{inplacename}}}{{{jibriwarn}}}
-        <small class="text-muted ms-2">{{timecreated}}</small>
-    </span>
-    <span class="text-nowrap">
-        {{> mod_jitsi/view_recording_actions }}<a href="{{openurl}}" target="_blank"
-            class="btn btn-sm btn-primary jitsi-recording-link"
-            data-sourcerecordid="{{sourcerecordid}}" data-cmid="{{cmid}}">{{openlabel}}</a>
-    </span>
+<div class="py-1">
+    <div class="d-flex align-items-center gap-2">
+        <span class="flex-grow-1">
+            {{{inplacename}}}{{{jibriwarn}}}
+            <small class="text-muted ms-2">{{timecreated}}</small>
+        </span>
+        <span class="text-nowrap">
+            {{> mod_jitsi/view_recording_actions }}{{{aidropdown}}}<a href="{{openurl}}" target="_blank"
+                class="btn btn-sm btn-primary jitsi-recording-link ms-1"
+                data-sourcerecordid="{{sourcerecordid}}" data-cmid="{{cmid}}">{{openlabel}}</a>
+        </span>
+    </div>
+    {{{aiaccordion}}}
 </div>

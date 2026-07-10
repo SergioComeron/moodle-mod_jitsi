@@ -20,16 +20,18 @@
     Layout shell for a Jitsi videoconference: the status line, the optional
     stream/record action buttons and the empty container the Jitsi iframe is
     mounted into. The conferencing JavaScript (still emitted inline by
-    session::create) targets the #state, #streamBtn, #recordBtn and
-    #jitsi-container ids defined here.
+    session::create) targets the #state, #streamBtn, #recordBtn, #dropboxBtn
+    and #jitsi-container ids defined here.
 
     Context variables required for this template:
     * textend bool - True on Moodle 5.0+ (use text-end utility class instead of text-right)
     * showbuttons bool - Whether the action button row should be shown at all
     * showstreaming bool - Whether the live streaming button should be shown
-    * showrecording bool - Whether the Jibri recording button should be shown
+    * showrecording bool - Whether the Moodle recording button (GCP Jibri or 8x8 cloud) should be shown
+    * showdropbox bool - Whether the "Record to Dropbox" button should be shown (8x8 only)
     * streambtnlabel string - Label for the streaming button
     * recordbtnlabel string - Label for the recording button
+    * dropboxbtnlabel string - Label for the Dropbox recording button
 
     Example context (json):
     {
@@ -37,8 +39,10 @@
         "showbuttons": true,
         "showstreaming": true,
         "showrecording": false,
+        "showdropbox": false,
         "streambtnlabel": "Stream",
-        "recordbtnlabel": "Record"
+        "recordbtnlabel": "Record",
+        "dropboxbtnlabel": "Dropbox"
     }
 }}
 <div class="row">
@@ -60,6 +64,11 @@
                                 <i class="fa fa-circle me-1" aria-hidden="true"></i>{{recordbtnlabel}}
                             </button>
                         {{/showrecording}}
+                        {{#showdropbox}}
+                            <button id="dropboxBtn" class="btn btn-sm btn-outline-primary" disabled>
+                                <i class="fa-brands fa-dropbox me-1" aria-hidden="true"></i>{{dropboxbtnlabel}}
+                            </button>
+                        {{/showdropbox}}
                     </div>
                 {{/showbuttons}}
             </div>

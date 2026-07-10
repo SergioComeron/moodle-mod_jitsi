@@ -29,17 +29,25 @@ class session_page {
      *
      * @param bool $textend True on Moodle 5.0+ (text-end utility class instead of text-right)
      * @param bool $showstreaming Whether the live streaming button should be shown
-     * @param bool $showrecording Whether the Jibri recording button should be shown
+     * @param bool $showrecording Whether the Moodle recording button (GCP Jibri or 8x8 cloud) should be shown
+     * @param bool $showdropbox Whether the "Record to Dropbox" button should be shown (8x8 only)
      * @return array Template context
      */
-    public static function context(bool $textend, bool $showstreaming, bool $showrecording): array {
+    public static function context(
+        bool $textend,
+        bool $showstreaming,
+        bool $showrecording,
+        bool $showdropbox = false
+    ): array {
         return [
-            'textend'        => $textend,
-            'showbuttons'    => $showstreaming || $showrecording,
-            'showstreaming'  => $showstreaming,
-            'showrecording'  => $showrecording,
-            'streambtnlabel' => get_string('streambtn', 'jitsi'),
-            'recordbtnlabel' => get_string('recordbtn', 'jitsi'),
+            'textend'         => $textend,
+            'showbuttons'     => $showstreaming || $showrecording || $showdropbox,
+            'showstreaming'   => $showstreaming,
+            'showrecording'   => $showrecording,
+            'showdropbox'     => $showdropbox,
+            'streambtnlabel'  => get_string('streambtn', 'jitsi'),
+            'recordbtnlabel'  => get_string('recordbtn', 'jitsi'),
+            'dropboxbtnlabel' => get_string('dropboxbtn', 'jitsi'),
         ];
     }
 
@@ -48,14 +56,20 @@ class session_page {
      *
      * @param bool $textend True on Moodle 5.0+ (text-end utility class instead of text-right)
      * @param bool $showstreaming Whether the live streaming button should be shown
-     * @param bool $showrecording Whether the Jibri recording button should be shown
+     * @param bool $showrecording Whether the Moodle recording button (GCP Jibri or 8x8 cloud) should be shown
+     * @param bool $showdropbox Whether the "Record to Dropbox" button should be shown (8x8 only)
      * @return string
      */
-    public static function render(bool $textend, bool $showstreaming, bool $showrecording): string {
+    public static function render(
+        bool $textend,
+        bool $showstreaming,
+        bool $showrecording,
+        bool $showdropbox = false
+    ): string {
         global $OUTPUT;
         return $OUTPUT->render_from_template(
             'mod_jitsi/session_page',
-            self::context($textend, $showstreaming, $showrecording)
+            self::context($textend, $showstreaming, $showrecording, $showdropbox)
         );
     }
 }

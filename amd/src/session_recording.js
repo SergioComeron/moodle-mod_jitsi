@@ -69,6 +69,8 @@ const recordingBanner = (text) => {
  * @param {number} config.userid Current user id.
  * @param {number} config.cmid Course module id.
  * @param {string} config.session Room/session name.
+ * @param {string} config.dropboxAppKey Dropbox app key ('' disables the Dropbox button).
+ * @param {string} config.dropboxOauthUrl URL of the plugin's Dropbox OAuth landing page.
  */
 export const init = (config) => {
     const api = window.jitsiSessionApi;
@@ -117,24 +119,28 @@ export const init = (config) => {
     };
 
     /**
-     * Enable or disable both the stream and record buttons at once.
+     * Enable or disable the stream, record and Dropbox buttons at once.
      *
      * @param {boolean} disabled Whether the buttons should be disabled.
      */
     const setControlsDisabled = (disabled) => {
         const sb = document.getElementById('streamBtn');
         const rb = document.getElementById('recordBtn');
+        const db = document.getElementById('dropboxBtn');
         if (sb) {
             sb.disabled = disabled;
         }
         if (rb) {
             rb.disabled = disabled;
         }
+        if (db) {
+            db.disabled = disabled;
+        }
     };
 
     /**
-     * Safety net: if neither button reflects an active state shortly after starting,
-     * re-enable both so a silent start failure can't leave the controls stuck.
+     * Safety net: if no button reflects an active state shortly after starting,
+     * re-enable them so a silent start failure can't leave the controls stuck.
      */
     const armControlsWatchdog = () => {
         setTimeout(() => {
@@ -262,19 +268,55 @@ export const init = (config) => {
         }
     };
 
+    // Short-lived Dropbox access token obtained via the OAuth popup (page-lifetime cache).
+    let dropboxToken = null;
+    let dropboxTokenExpiry = 0;
+
+    /**
+     * Start a file recording uploaded to the user's Dropbox.
+     *
+     * @param {string} token Dropbox OAuth2 access token.
+     */
+    const startDropboxRecording = (token) => {
+        setControlsDisabled(true);
+        armControlsWatchdog();
+        api.startRecording({mode: 'file', dropboxToken: token});
+    };
+
+    // The OAuth popup (mod/jitsi/dropboxoauth.php) posts the token back here.
+    window.addEventListener('message', (e) => {
+        if (e.origin !== window.location.origin || !e.data || e.data.type !== 'jitsiDropboxToken') {
+            return;
+        }
+        dropboxToken = e.data.token;
+        dropboxTokenExpiry = Date.now() + Math.max((e.data.expiresIn || 0) - 60, 300) * 1000;
+        startDropboxRecording(dropboxToken);
+    });
+
+    /**
+     * Handle the "Record to Dropbox" button: reuse a cached token or run the OAuth popup.
+     */
+    const handleDropboxBtn = () => {
+        if (!config.dropboxAppKey) {
+            return;
+        }
+        if (dropboxToken && Date.now() < dropboxTokenExpiry) {
+            startDropboxRecording(dropboxToken);
+            return;
+        }
+        const url = 'https://www.dropbox.com/oauth2/authorize'
+            + '?client_id=' + encodeURIComponent(config.dropboxAppKey)
+            + '&response_type=token'
+            + '&redirect_uri=' + encodeURIComponent(config.dropboxOauthUrl);
+        window.open(url, 'jitsidropboxoauth', 'width=600,height=700');
+    };
+
     // Enable the action buttons after 5s if no recording-state event has arrived.
     setTimeout(() => {
         if (recordingStateReceived) {
             return;
         }
-        const sb = document.getElementById('streamBtn');
-        const rb = document.getElementById('recordBtn');
-        if (sb) {
-            sb.disabled = false;
-        }
-        if (rb) {
-            rb.disabled = false;
-        }
+        setControlsDisabled(false);
     }, 5000);
 
     const streamBtn = document.getElementById('streamBtn');
@@ -285,13 +327,20 @@ export const init = (config) => {
     if (recordBtn) {
         recordBtn.addEventListener('click', handleRecordBtn);
     }
+    const dropboxBtn = document.getElementById('dropboxBtn');
+    if (dropboxBtn) {
+        dropboxBtn.addEventListener('click', handleDropboxBtn);
+    }
 
     // Reflect recording/streaming state on the buttons and banner, and report it server-side.
     api.addEventListener('recordingStatusChanged', (event) => {
         recordingStateReceived = true;
         const sb = document.getElementById('streamBtn');
         const rb = document.getElementById('recordBtn');
+        const db = document.getElementById('dropboxBtn');
         if (event.mode === 'file') {
+            // Any file recording (8x8 cloud or Dropbox) turns the record button
+            // red, which then acts as the single stop control.
             if (event.on) {
                 if (rb) {
                     rb.classList.remove('btn-outline-danger');
@@ -301,6 +350,9 @@ export const init = (config) => {
                 if (sb) {
                     sb.disabled = true;
                 }
+                if (db) {
+                    db.disabled = true;
+                }
             } else {
                 if (rb) {
                     rb.classList.remove('btn-danger');
@@ -309,6 +361,9 @@ export const init = (config) => {
                 }
                 if (sb) {
                     sb.disabled = false;
+                }
+                if (db) {
+                    db.disabled = false;
                 }
             }
             fire('mod_jitsi_set_jibri_recording', {jitsiid: config.jitsiid, recording: event.on ? 1 : 0});
@@ -322,6 +377,9 @@ export const init = (config) => {
             if (rb) {
                 rb.disabled = true;
             }
+            if (db) {
+                db.disabled = true;
+            }
             setState(recordingBanner(str.beingrecorded));
         } else if (event.on === false && event.mode === 'stream') {
             if (sb) {
@@ -334,6 +392,11 @@ export const init = (config) => {
             if (rb) {
                 setTimeout(() => {
                     rb.disabled = false;
+                }, 2000);
+            }
+            if (db) {
+                setTimeout(() => {
+                    db.disabled = false;
                 }, 2000);
             }
             setState('');

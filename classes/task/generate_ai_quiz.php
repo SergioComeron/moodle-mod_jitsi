@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Ad-hoc task to generate a Moodle true/false quiz from a GCS recording via Vertex AI.
+ * Ad-hoc task to generate a Moodle true/false quiz from a recording via Vertex AI.
  *
  * @package    mod_jitsi
  * @copyright  2026 Sergio Comerón Sánchez-Paniagua <sergiocomeron@icloud.com>
@@ -23,9 +23,10 @@
  */
 namespace mod_jitsi\task;
 
+use mod_jitsi\local\vertex_ai;
 
 /**
- * Ad-hoc task: generate a true/false quiz in Moodle from a GCS recording using Gemini.
+ * Ad-hoc task: generate a true/false quiz in Moodle from a recording using Gemini.
  *
  * Custom data expected:
  *   - sourcerecordid (int): ID of the jitsi_source_record row
@@ -63,38 +64,8 @@ class generate_ai_quiz extends \core\task\adhoc_task {
             return;
         }
 
-        if (!preg_match('/^https:\/\/storage\.googleapis\.com\/([^\/]+)\/(.+)$/', $sourcerecord->link, $m)) {
-            mtrace("generate_ai_quiz: not a GCS URL: {$sourcerecord->link}");
-            $DB->set_field('jitsi_source_record', 'ai_quiz_id', -1, ['id' => $sourcerecord->id]);
-            return;
-        }
-
-        $bucketname = $m[1];
-        $objectname = $m[2];
-        $gsuri = "gs://{$bucketname}/{$objectname}";
-
-        $server = $DB->get_record('jitsi_servers', ['gcs_bucket' => $bucketname, 'gcs_enabled' => 1]);
-        if (!$server || empty($server->gcpproject)) {
-            mtrace("generate_ai_quiz: could not find GCP project for bucket {$bucketname}");
-            $DB->set_field('jitsi_source_record', 'ai_quiz_id', -1, ['id' => $sourcerecord->id]);
-            return;
-        }
-
-        // Load Google API.
-        $autoloaders = [
-            $CFG->dirroot . '/mod/jitsi/api/vendor/autoload.php',
-            $CFG->dirroot . '/mod/jitsi/vendor/autoload.php',
-            $CFG->dirroot . '/vendor/autoload.php',
-        ];
-        foreach ($autoloaders as $autoload) {
-            if (file_exists($autoload)) {
-                require_once($autoload);
-                break;
-            }
-        }
-
-        if (!class_exists('Google\\Client')) {
-            mtrace('generate_ai_quiz: Google API client not available');
+        if (!vertex_ai::supports($sourcerecord)) {
+            mtrace("generate_ai_quiz: recording not supported for AI: {$sourcerecord->link}");
             $DB->set_field('jitsi_source_record', 'ai_quiz_id', -1, ['id' => $sourcerecord->id]);
             return;
         }
@@ -104,96 +75,21 @@ class generate_ai_quiz extends \core\task\adhoc_task {
         $lang = !empty($data->lang) ? $data->lang : 'en';
 
         try {
-            // Get Vertex AI access token.
-            $client = new \Google\Client();
-            $client->addScope('https://www.googleapis.com/auth/cloud-platform');
-            $fs = get_file_storage();
-            $ctx = \context_system::instance();
-            $files = $fs->get_area_files(
-                $ctx->id,
-                'mod_jitsi',
-                'gcpserviceaccountjson',
-                0,
-                'itemid, filepath, filename',
-                false
-            );
-            if (!empty($files)) {
-                $file = reset($files);
-                $key = json_decode($file->get_content(), true);
-                if (is_array($key)) {
-                    $client->setAuthConfig($key);
-                } else {
-                    $client->useApplicationDefaultCredentials();
-                }
-            } else {
-                $client->useApplicationDefaultCredentials();
-            }
-            $accesstoken = $client->fetchAccessTokenWithAssertion();
-            if (empty($accesstoken['access_token'])) {
-                throw new \Exception('Could not obtain Vertex AI access token');
-            }
-
-            $token = $accesstoken['access_token'];
-            $project = $server->gcpproject;
-            $location = get_config('mod_jitsi', 'vertexairegion') ?: 'europe-west1';
-            $model = 'gemini-2.5-flash';
-            $endpoint = "https://{$location}-aiplatform.googleapis.com/v1/projects/{$project}"
-                . "/locations/{$location}/publishers/google/models/{$model}:generateContent";
-
             $prompt = "Analyze this video recording of an online class and generate exactly {$numquestions} "
                 . "true/false questions to assess student comprehension. "
+                . "Base every question STRICTLY on content actually said or shown in the recording; "
+                . "never invent material that is not present. "
+                . "If the recording contains no discernible educational content (e.g. silence, a static "
+                . "image or a test recording), return an empty JSON array [] instead. "
                 . "Write the questions in the following language: {$lang}. "
                 . "Return ONLY a valid JSON array. Each element must have exactly two fields: "
                 . "\"question\" (string with the question text) and \"correct\" (boolean, the correct answer). "
                 . "Do not include any explanation, markdown, or text outside the JSON array.";
 
-            $body = json_encode([
-                'contents' => [
-                    [
-                        'role' => 'user',
-                        'parts' => [
-                            ['text' => $prompt],
-                            [
-                                'fileData' => [
-                                    'mimeType' => 'video/mp4',
-                                    'fileUri' => $gsuri,
-                                ],
-                            ],
-                        ],
-                    ],
-                ],
-                'generationConfig' => [
-                    'temperature' => 0.3,
-                    'maxOutputTokens' => 2048,
-                ],
-            ]);
-
-            $ch = curl_init($endpoint);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                'Authorization: Bearer ' . $token,
-                'Content-Type: application/json',
-            ]);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 300);
-            $response = curl_exec($ch);
-            $curlerror = curl_error($ch);
-            $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
-
-            if ($response === false || $httpcode === 0) {
-                throw new \Exception("Curl error: {$curlerror}");
-            }
-            if ($httpcode !== 200) {
-                throw new \Exception("Vertex AI returned HTTP {$httpcode}: {$response}");
-            }
-
-            $result = json_decode($response, true);
-            $rawtext = $result['candidates'][0]['content']['parts'][0]['text'] ?? '';
-            if (empty($rawtext)) {
-                throw new \Exception('Empty response from Vertex AI');
-            }
+            $rawtext = vertex_ai::generate_for_record($sourcerecord, $prompt, [
+                'temperature' => 0.3,
+                'maxOutputTokens' => 2048,
+            ], 300);
 
             // Strip markdown code fences if present.
             // phpcs:ignore moodle.Strings.ForbiddenStrings.Found

@@ -1550,6 +1550,36 @@ final class lib_test extends \advanced_testcase {
     }
 
     /**
+     * On 8x8/JaaS (type 2) servers the recordingoption setting decides whether the native
+     * Jitsi recording button stays in the iframe (0, allows Dropbox) or the Moodle-integrated
+     * record button replaces it (1).
+     */
+    public function test_build_toolbar_buttons_type2_honours_recordingoption(): void {
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+        set_config('record', '1', 'mod_jitsi');
+        $server = (object)['type' => 2];
+
+        set_config('recordingoption', '0', 'mod_jitsi');
+        $buttons = \mod_jitsi\local\session::build_toolbar_buttons(
+            $server,
+            \context_system::instance(),
+            false,
+            false
+        );
+        $this->assertContains('recording', $buttons);
+
+        set_config('recordingoption', '1', 'mod_jitsi');
+        $buttons = \mod_jitsi\local\session::build_toolbar_buttons(
+            $server,
+            \context_system::instance(),
+            false,
+            false
+        );
+        $this->assertNotContains('recording', $buttons);
+    }
+
+    /**
      * build_config_overwrite disables chat and polls together when chat is off.
      */
     public function test_build_config_overwrite_disables_chat_and_polls(): void {
