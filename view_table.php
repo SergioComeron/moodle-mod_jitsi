@@ -151,28 +151,52 @@ class mod_view_table extends table_sql {
         $cangentrans = $aienabled && $aisupported && has_capability('mod/jitsi:generateaitranscription', $context);
 
         // Build AI dropdown button (generate options only, shown above the video).
+        // Items whose ad-hoc task is still queued render disabled with the
+        // .jitsi-ai-pending marker so ai_actions.js polls until they finish.
         $bstoggle = $branch5 ? 'data-bs-toggle' : 'data-toggle';
+        $pendingattrs = ' data-sourcerecordid="' . (int)$sourcerecord->id . '"'
+            . ' data-cmid="' . (int)$cm->id . '"';
         $aidropdownitems = '';
         if ($cangensum && !$summaryexists) {
-            $aidropdownitems .= '<li><a class="dropdown-item jitsi-ai-generate" href="#"'
-                . ' data-method="mod_jitsi_queue_ai_summary"'
-                . ' data-sourcerecordid="' . (int)$sourcerecord->id . '"'
-                . ' data-cmid="' . (int)$cm->id . '">'
-                . '<i class="fa fa-align-left me-1" aria-hidden="true"></i>'
-                . get_string('generateaisummary', 'jitsi') . '</a></li>';
+            $summarypending = \mod_jitsi\local\vertex_ai::has_pending_task(
+                \mod_jitsi\task\generate_ai_summary::class,
+                (int)$sourcerecord->id
+            );
+            if ($summarypending) {
+                $aidropdownitems .= '<li><span class="dropdown-item disabled jitsi-ai-pending"' . $pendingattrs . '>'
+                    . '<i class="fa fa-spinner fa-spin me-1" aria-hidden="true"></i>'
+                    . get_string('aisummaryqueued', 'jitsi') . '</span></li>';
+            } else {
+                $aidropdownitems .= '<li><a class="dropdown-item jitsi-ai-generate" href="#"'
+                    . ' data-method="mod_jitsi_queue_ai_summary"'
+                    . ' data-sourcerecordid="' . (int)$sourcerecord->id . '"'
+                    . ' data-cmid="' . (int)$cm->id . '">'
+                    . '<i class="fa fa-align-left me-1" aria-hidden="true"></i>'
+                    . get_string('generateaisummary', 'jitsi') . '</a></li>';
+            }
         }
         if ($cangenquiz && $quizid <= 0) {
-            $aidropdownitems .= '<li><a class="dropdown-item jitsi-ai-generate" href="#"'
-                . ' data-method="mod_jitsi_queue_ai_quiz"'
-                . ' data-sourcerecordid="' . (int)$sourcerecord->id . '"'
-                . ' data-cmid="' . (int)$cm->id . '">'
-                . '<i class="fa fa-list-check me-1" aria-hidden="true"></i>'
-                . get_string('aiquizgenerate', 'jitsi') . '</a></li>';
+            $quizpending = \mod_jitsi\local\vertex_ai::has_pending_task(
+                \mod_jitsi\task\generate_ai_quiz::class,
+                (int)$sourcerecord->id
+            );
+            if ($quizpending) {
+                $aidropdownitems .= '<li><span class="dropdown-item disabled jitsi-ai-pending"' . $pendingattrs . '>'
+                    . '<i class="fa fa-spinner fa-spin me-1" aria-hidden="true"></i>'
+                    . get_string('aiquizqueued', 'jitsi') . '</span></li>';
+            } else {
+                $aidropdownitems .= '<li><a class="dropdown-item jitsi-ai-generate" href="#"'
+                    . ' data-method="mod_jitsi_queue_ai_quiz"'
+                    . ' data-sourcerecordid="' . (int)$sourcerecord->id . '"'
+                    . ' data-cmid="' . (int)$cm->id . '">'
+                    . '<i class="fa fa-list-check me-1" aria-hidden="true"></i>'
+                    . get_string('aiquizgenerate', 'jitsi') . '</a></li>';
+            }
         }
         if ($cangentrans && !$transcriptiondone) {
             if ($transcriptionstatus === 'pending') {
-                $aidropdownitems .= '<li><span class="dropdown-item disabled">'
-                    . '<i class="fa fa-microphone me-1" aria-hidden="true"></i>'
+                $aidropdownitems .= '<li><span class="dropdown-item disabled jitsi-ai-pending"' . $pendingattrs . '>'
+                    . '<i class="fa fa-spinner fa-spin me-1" aria-hidden="true"></i>'
                     . get_string('aitranscriptionqueued', 'jitsi') . '</span></li>';
             } else {
                 $aidropdownitems .= '<li><a class="dropdown-item jitsi-ai-generate" href="#"'

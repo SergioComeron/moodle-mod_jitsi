@@ -145,6 +145,29 @@ class vertex_ai {
     }
 
     /**
+     * Whether an ad-hoc AI task for a source record is still waiting in the queue.
+     *
+     * Matches the task class and the sourcerecordid inside the JSON custom data,
+     * so a queued-but-not-yet-run generation can be shown as "in progress".
+     *
+     * @param string $classname Fully qualified task class name
+     * @param int $sourcerecordid jitsi_source_record id
+     * @return bool
+     */
+    public static function has_pending_task(string $classname, int $sourcerecordid): bool {
+        global $DB;
+        $classname = '\\' . ltrim($classname, '\\');
+        // Custom data always has another key after sourcerecordid, so the comma is safe
+        // and avoids id 12 matching id 123.
+        $needle = '%"sourcerecordid":' . $sourcerecordid . ',%';
+        $sql = 'classname = :classname AND ' . $DB->sql_like('customdata', ':needle');
+        return $DB->record_exists_select('task_adhoc', $sql, [
+            'classname' => $classname,
+            'needle' => $needle,
+        ]);
+    }
+
+    /**
      * Call Vertex AI generateContent with a prompt and a media file and return the text.
      *
      * @param string $project GCP project id

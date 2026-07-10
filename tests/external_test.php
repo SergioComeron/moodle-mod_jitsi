@@ -65,6 +65,7 @@ require_once($CFG->dirroot . '/mod/jitsi/lib.php');
 #[CoversMethod(\mod_jitsi\external\queue_ai_summary::class, 'execute')]
 #[CoversMethod(\mod_jitsi\external\queue_ai_transcription::class, 'execute')]
 #[CoversMethod(\mod_jitsi\external\queue_ai_quiz::class, 'execute')]
+#[CoversMethod(\mod_jitsi\external\get_ai_status::class, 'execute')]
 #[CoversMethod(\mod_jitsi\external\add_recording_link::class, 'execute')]
 #[CoversMethod(\mod_jitsi\external\update_recording_link::class, 'execute')]
 #[CoversMethod(\mod_jitsi\external\set_recording_visibility::class, 'execute')]
@@ -1155,6 +1156,35 @@ final class external_test extends \advanced_testcase {
 
         $this->assertTrue($result['success']);
         $this->assertCount(1, \core\task\manager::get_adhoc_tasks(\mod_jitsi\task\generate_ai_summary::class));
+    }
+
+    /**
+     * Test that get_ai_status reports pending after queuing and done once generated.
+     */
+    public function test_get_ai_status_reflects_lifecycle(): void {
+        global $DB;
+        $this->resetAfterTest(true);
+        set_config('aienabled', 1, 'mod_jitsi');
+        $this->setAdminUser();
+        [$jitsi, $cm] = $this->create_jitsi_activity();
+        $srid = $this->create_gcs_source();
+
+        $status = \mod_jitsi\external\get_ai_status::execute($srid, $cm->id);
+        $this->assertSame('none', $status['summary']);
+        $this->assertSame('none', $status['quiz']);
+        $this->assertSame('none', $status['transcription']);
+
+        \mod_jitsi\external\queue_ai_summary::execute($srid, $cm->id);
+        \mod_jitsi\external\queue_ai_transcription::execute($srid, $cm->id);
+        $status = \mod_jitsi\external\get_ai_status::execute($srid, $cm->id);
+        $this->assertSame('pending', $status['summary']);
+        $this->assertSame('pending', $status['transcription']);
+
+        $DB->set_field('jitsi_source_record', 'ai_summary', 'A generated summary.', ['id' => $srid]);
+        $DB->set_field('jitsi_source_record', 'ai_quiz_id', -1, ['id' => $srid]);
+        $status = \mod_jitsi\external\get_ai_status::execute($srid, $cm->id);
+        $this->assertSame('done', $status['summary']);
+        $this->assertSame('error', $status['quiz']);
     }
 
     /**

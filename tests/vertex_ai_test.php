@@ -122,6 +122,23 @@ final class vertex_ai_test extends \advanced_testcase {
     }
 
     /**
+     * Pending-task detection matches the exact sourcerecordid in the queue.
+     */
+    public function test_has_pending_task(): void {
+        $this->resetAfterTest(true);
+
+        $task = new \mod_jitsi\task\generate_ai_summary();
+        $task->set_custom_data(['sourcerecordid' => 12, 'lang' => 'es']);
+        \core\task\manager::queue_adhoc_task($task);
+
+        $this->assertTrue(vertex_ai::has_pending_task(\mod_jitsi\task\generate_ai_summary::class, 12));
+        // Different id, prefix of a queued id, and different task class must not match.
+        $this->assertFalse(vertex_ai::has_pending_task(\mod_jitsi\task\generate_ai_summary::class, 1));
+        $this->assertFalse(vertex_ai::has_pending_task(\mod_jitsi\task\generate_ai_summary::class, 123));
+        $this->assertFalse(vertex_ai::has_pending_task(\mod_jitsi\task\generate_ai_quiz::class, 12));
+    }
+
+    /**
      * Project resolution: bucket server first, then the global gcp_project setting.
      */
     public function test_project_for(): void {

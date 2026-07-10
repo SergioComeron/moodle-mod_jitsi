@@ -241,6 +241,15 @@ $functions = [
                 'loginrequired' => true,
         ],
 
+        'mod_jitsi_get_ai_status' => [
+                'classname' => 'mod_jitsi\external\get_ai_status',
+                'methodname' => 'execute',
+                'description' => 'Get the AI generation status (summary/quiz/transcription) of a recording',
+                'type' => 'read',
+                'ajax' => true,
+                'loginrequired' => true,
+        ],
+
         'mod_jitsi_search_coursemates' => [
                 'classname' => 'mod_jitsi\external\search_coursemates',
                 'methodname' => 'execute',
