@@ -29,7 +29,7 @@ class session_page {
      *
      * @param bool $textend True on Moodle 5.0+ (text-end utility class instead of text-right)
      * @param bool $showstreaming Whether the live streaming button should be shown
-     * @param bool $showrecording Whether the Jibri recording button should be shown
+     * @param bool $showrecording Whether the Moodle recording button (GCP Jibri or 8x8 cloud) should be shown
      * @return array Template context
      */
     public static function context(bool $textend, bool $showstreaming, bool $showrecording): array {
@@ -48,7 +48,7 @@ class session_page {
      *
      * @param bool $textend True on Moodle 5.0+ (text-end utility class instead of text-right)
      * @param bool $showstreaming Whether the live streaming button should be shown
-     * @param bool $showrecording Whether the Jibri recording button should be shown
+     * @param bool $showrecording Whether the Moodle recording button (GCP Jibri or 8x8 cloud) should be shown
      * @return string
      */
     public static function render(bool $textend, bool $showstreaming, bool $showrecording): string {

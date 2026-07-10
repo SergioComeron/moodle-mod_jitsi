@@ -151,12 +151,14 @@ class session {
     public static function build_toolbar_buttons($server, \context $context, bool $isprivate, bool $jibrienabled): array {
         $servertype = $server->type;
 
+        // On 8x8/JaaS (type 2) and GCP (type 3) the Moodle toolbar record button
+        // above the iframe replaces Jitsi's own recording button.
         $record = '';
         if (
             !$isprivate &&
             get_config('mod_jitsi', 'record') == 1 &&
             has_capability('mod/jitsi:record', $context) &&
-            $servertype != 3
+            $servertype != 2 && $servertype != 3
         ) {
             $record = 'recording';
         }
@@ -452,10 +454,14 @@ class session {
                 $jitsi->sessionwithtoken == 0 &&
                 ($servertype != 3 || $jibrienabled)
             );
+            // GCP needs its Jibri recorder ready; 8x8 records in the JaaS cloud and
+            // only honours the global record setting.
+            $canrecordhere = ($servertype == 3 && $jibrienabled)
+                || ($servertype == 2 && get_config('mod_jitsi', 'record') == 1);
             $showrecording = (
                 has_capability('mod/jitsi:record', $PAGE->context) &&
-                $universal == false && $servertype == 3 &&
-                $jibrienabled && $jitsi->sessionwithtoken == 0
+                $universal == false && $canrecordhere &&
+                $jitsi->sessionwithtoken == 0
             );
         }
 

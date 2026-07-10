@@ -1550,6 +1550,26 @@ final class lib_test extends \advanced_testcase {
     }
 
     /**
+     * build_toolbar_buttons hides the recording button on 8x8/JaaS (type 2) servers too,
+     * where the Moodle-integrated record button is used instead.
+     */
+    public function test_build_toolbar_buttons_type2_omits_recording(): void {
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+        set_config('record', '1', 'mod_jitsi');
+
+        $server = (object)['type' => 2];
+        $buttons = \mod_jitsi\local\session::build_toolbar_buttons(
+            $server,
+            \context_system::instance(),
+            false,
+            false
+        );
+
+        $this->assertNotContains('recording', $buttons);
+    }
+
+    /**
      * build_config_overwrite disables chat and polls together when chat is off.
      */
     public function test_build_config_overwrite_disables_chat_and_polls(): void {
