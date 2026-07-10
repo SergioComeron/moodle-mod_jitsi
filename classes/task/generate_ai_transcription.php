@@ -60,16 +60,8 @@ class generate_ai_transcription extends \core\task\adhoc_task {
             return;
         }
 
-        $media = vertex_ai::media_for($sourcerecord);
-        if (!$media) {
+        if (!vertex_ai::supports($sourcerecord)) {
             mtrace("generate_ai_transcription: recording not supported for AI: {$sourcerecord->link}");
-            $DB->set_field('jitsi_source_record', 'ai_transcription_status', 'error', ['id' => $sourcerecord->id]);
-            return;
-        }
-
-        $project = vertex_ai::project_for($sourcerecord);
-        if (empty($project)) {
-            mtrace("generate_ai_transcription: could not determine GCP project for {$sourcerecord->link}");
             $DB->set_field('jitsi_source_record', 'ai_transcription_status', 'error', ['id' => $sourcerecord->id]);
             return;
         }
@@ -90,7 +82,7 @@ class generate_ai_transcription extends \core\task\adhoc_task {
                 . "Include all spoken content. Use chapter headings only at natural topic boundaries. "
                 . "Write everything (including chapter titles) in the following language: {$lang}.";
 
-            $transcription = vertex_ai::generate_text($project, $media, $prompt, [
+            $transcription = vertex_ai::generate_for_record($sourcerecord, $prompt, [
                 'temperature' => 0.0,
                 'maxOutputTokens' => 8192,
             ], 600);

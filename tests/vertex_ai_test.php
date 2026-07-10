@@ -122,6 +122,31 @@ final class vertex_ai_test extends \advanced_testcase {
     }
 
     /**
+     * Video URL extraction from HTML player pages (e.g. 8x8/JaaS recording links).
+     */
+    public function test_extract_video_url(): void {
+        // 8x8-style player page: pre-authenticated object storage URL in the markup.
+        $html = '<html><body><script>var src = '
+            . '"https://objectstorage.uk-london-1.oraclecloud.com/p/TOK/n/ns/b/bucket/o/rec.mp4";'
+            . '</script></body></html>';
+        $this->assertSame(
+            'https://objectstorage.uk-london-1.oraclecloud.com/p/TOK/n/ns/b/bucket/o/rec.mp4',
+            vertex_ai::extract_video_url($html)
+        );
+
+        // Standard video/source tags win, with HTML entities decoded.
+        $html = '<video controls><source src="https://cdn.example.com/rec.mp4?a=1&amp;b=2" type="video/mp4"></video>';
+        $this->assertSame('https://cdn.example.com/rec.mp4?a=1&b=2', vertex_ai::extract_video_url($html));
+
+        // Bare mp4 URL anywhere in the page.
+        $html = '<a href="https://files.example.com/download/rec.webm?tok=x">download</a>';
+        $this->assertSame('https://files.example.com/download/rec.webm?tok=x', vertex_ai::extract_video_url($html));
+
+        // Nothing that looks like a video.
+        $this->assertNull(vertex_ai::extract_video_url('<html><body>No video here</body></html>'));
+    }
+
+    /**
      * Pending-task detection matches the exact sourcerecordid in the queue.
      */
     public function test_has_pending_task(): void {

@@ -64,16 +64,8 @@ class generate_ai_quiz extends \core\task\adhoc_task {
             return;
         }
 
-        $media = vertex_ai::media_for($sourcerecord);
-        if (!$media) {
+        if (!vertex_ai::supports($sourcerecord)) {
             mtrace("generate_ai_quiz: recording not supported for AI: {$sourcerecord->link}");
-            $DB->set_field('jitsi_source_record', 'ai_quiz_id', -1, ['id' => $sourcerecord->id]);
-            return;
-        }
-
-        $project = vertex_ai::project_for($sourcerecord);
-        if (empty($project)) {
-            mtrace("generate_ai_quiz: could not determine GCP project for {$sourcerecord->link}");
             $DB->set_field('jitsi_source_record', 'ai_quiz_id', -1, ['id' => $sourcerecord->id]);
             return;
         }
@@ -90,7 +82,7 @@ class generate_ai_quiz extends \core\task\adhoc_task {
                 . "\"question\" (string with the question text) and \"correct\" (boolean, the correct answer). "
                 . "Do not include any explanation, markdown, or text outside the JSON array.";
 
-            $rawtext = vertex_ai::generate_text($project, $media, $prompt, [
+            $rawtext = vertex_ai::generate_for_record($sourcerecord, $prompt, [
                 'temperature' => 0.3,
                 'maxOutputTokens' => 2048,
             ], 300);

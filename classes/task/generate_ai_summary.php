@@ -59,25 +59,12 @@ class generate_ai_summary extends \core\task\adhoc_task {
             return;
         }
 
-        $media = vertex_ai::media_for($sourcerecord);
-        if (!$media) {
+        if (!vertex_ai::supports($sourcerecord)) {
             mtrace("generate_ai_summary: recording not supported for AI: {$sourcerecord->link}");
             $DB->set_field(
                 'jitsi_source_record',
                 'ai_summary',
                 get_string('aisummarynotavailable', 'jitsi'),
-                ['id' => $sourcerecord->id]
-            );
-            return;
-        }
-
-        $project = vertex_ai::project_for($sourcerecord);
-        if (empty($project)) {
-            mtrace("generate_ai_summary: could not determine GCP project for {$sourcerecord->link}");
-            $DB->set_field(
-                'jitsi_source_record',
-                'ai_summary',
-                get_string('aisummaryerror', 'jitsi'),
                 ['id' => $sourcerecord->id]
             );
             return;
@@ -91,7 +78,7 @@ class generate_ai_summary extends \core\task\adhoc_task {
                 . "Focus on educational content. "
                 . "Write your response in the following language: {$lang}.";
 
-            $summary = vertex_ai::generate_text($project, $media, $prompt, [
+            $summary = vertex_ai::generate_for_record($sourcerecord, $prompt, [
                 'temperature' => 0.2,
                 'maxOutputTokens' => 1024,
             ], 300);

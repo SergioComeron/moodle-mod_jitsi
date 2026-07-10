@@ -68,21 +68,33 @@ const pollTick = async() => {
     }));
     const promises = Ajax.call(requests);
     let reloadNeeded = false;
+    let anyFailed = false;
     for (let i = 0; i < keys.length; i++) {
         try {
             const status = await promises[i];
             const entry = watched.get(keys[i]);
             entry.ticks++;
-            const pending = [status.summary, status.quiz, status.transcription].includes('pending');
+            const features = ['summary', 'quiz', 'transcription'];
+            if (!entry.features) {
+                // Remember what was being generated to report its final state.
+                entry.features = features.filter((f) => status[f] === 'pending');
+            }
+            const pending = features.some((f) => status[f] === 'pending');
             if (!pending) {
                 watched.delete(keys[i]);
                 reloadNeeded = true;
+                anyFailed = anyFailed || entry.features.some((f) => status[f] === 'error');
             } else if (entry.ticks >= MAX_TICKS) {
                 watched.delete(keys[i]);
             }
         } catch (ex) {
             watched.delete(keys[i]);
         }
+    }
+    if (anyFailed) {
+        getString('aigenerationfailed', 'mod_jitsi')
+            .then((msg) => addToast(msg, {type: 'warning'}))
+            .catch(() => null);
     }
     if (watched.size === 0 && pollTimer) {
         clearInterval(pollTimer);

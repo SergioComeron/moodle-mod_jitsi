@@ -55,6 +55,7 @@ $string['aienabledex'] = 'Enable AI-powered features (summary, quiz, transcripti
 $string['aigdprnotice'] = 'When you generate AI content, the video recording is sent to Google Vertex AI ({$a}) for processing. It may contain personal data (voices and images of participants). Ensure this complies with your institution\'s data protection policy and that a Data Processing Agreement with Google Cloud is in place.';
 $string['aigdprnotice_tab'] = 'Data & Privacy';
 $string['aigdprnoticetitle'] = 'Data &amp; Privacy';
+$string['aigenerationfailed'] = 'The AI generation for this recording failed. Please try again.';
 $string['aiheading'] = 'AI Features';
 $string['aiheadingex'] = 'Configure AI-powered features for GCS recordings (summary, quiz, transcription). These features send recording content to Google Vertex AI. Ensure a Data Processing Agreement with Google Cloud is in place before enabling.';
 $string['aiquiz'] = 'AI quiz';

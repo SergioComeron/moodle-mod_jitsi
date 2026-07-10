@@ -145,6 +145,131 @@ class vertex_ai {
     }
 
     /**
+     * Extract the direct video URL from an HTML player page.
+     *
+     * Some recording links (e.g. 8x8/JaaS) point to a small HTML player page
+     * rather than the media file. The real file (a pre-authenticated object
+     * storage URL) is embedded in the markup.
+     *
+     * @param string $html Page markup
+     * @return string|null Direct video URL, or null when none was found
+     */
+    public static function extract_video_url(string $html): ?string {
+        if (preg_match('/<(?:source|video)[^>]+src=["\']([^"\']+)["\']/i', $html, $m)) {
+            $url = html_entity_decode($m[1]);
+            if (strpos($url, 'https://') === 0) {
+                return $url;
+            }
+        }
+        if (preg_match('/https:\/\/objectstorage\.[^"\'\s<>\\\\]+/i', $html, $m)) {
+            return html_entity_decode($m[0]);
+        }
+        if (preg_match('/https:\/\/[^"\'\s<>\\\\]+\.(?:mp4|webm|mov|m4v)(?:\?[^"\'\s<>\\\\]*)?/i', $html, $m)) {
+            return html_entity_decode($m[0]);
+        }
+        return null;
+    }
+
+    /**
+     * Fetch the first bytes of a URL to learn its content type.
+     *
+     * The download is capped (~256 KB) so probing a large video never pulls
+     * the whole file.
+     *
+     * @param string $url URL to probe
+     * @return array [string $body, string $contenttype]
+     * @throws \Exception when the URL cannot be fetched
+     */
+    protected static function probe_url(string $url): array {
+        $buf = '';
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS => 5,
+            CURLOPT_CONNECTTIMEOUT => 20,
+            CURLOPT_TIMEOUT => 60,
+            CURLOPT_USERAGENT => 'Moodle mod_jitsi AI resolver',
+            CURLOPT_WRITEFUNCTION => function ($ch, $data) use (&$buf) {
+                $buf .= $data;
+                // Returning 0 aborts the transfer once we have enough to sniff.
+                return strlen($buf) > 262144 ? 0 : strlen($data);
+            },
+        ]);
+        curl_exec($ch);
+        $ctype = (string)curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
+        $httpcode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        if ($httpcode >= 400 || ($httpcode === 0 && $buf === '')) {
+            throw new \Exception("Could not fetch {$url} (HTTP {$httpcode})");
+        }
+        return [$buf, $ctype];
+    }
+
+    /**
+     * Resolve an external link to a URL Vertex AI can actually ingest.
+     *
+     * Direct video/audio URLs pass through (with the served MIME type); HTML
+     * player pages are unwrapped to the embedded media URL.
+     *
+     * @param array $media ['fileuri' => string, 'mimetype' => string] from media_for()
+     * @return array Updated media descriptor
+     * @throws \Exception when no downloadable video can be resolved
+     */
+    public static function resolve_media(array $media): array {
+        [$body, $ctype] = self::probe_url($media['fileuri']);
+        $ctype = strtolower(trim(explode(';', $ctype)[0]));
+        if (strpos($ctype, 'video/') === 0 || strpos($ctype, 'audio/') === 0) {
+            $media['mimetype'] = $ctype;
+            return $media;
+        }
+        if (strpos($ctype, 'text/html') === 0) {
+            $url = self::extract_video_url($body);
+            if ($url) {
+                [, $ctype2] = self::probe_url($url);
+                $ctype2 = strtolower(trim(explode(';', $ctype2)[0]));
+                $isav = strpos($ctype2, 'video/') === 0 || strpos($ctype2, 'audio/') === 0;
+                return [
+                    'fileuri' => $url,
+                    'mimetype' => $isav ? $ctype2 : self::guess_mimetype($url),
+                ];
+            }
+            throw new \Exception("No video found in player page {$media['fileuri']}");
+        }
+        // Unknown/generic type (e.g. application/octet-stream): keep the guess.
+        return $media;
+    }
+
+    /**
+     * Generate text for a recording: resolve its media, pick the project and call Gemini.
+     *
+     * @param \stdClass $sourcerecord jitsi_source_record row
+     * @param string $prompt Text prompt sent alongside the media
+     * @param array $generationconfig generationConfig payload
+     * @param int $timeout Request timeout in seconds
+     * @return string Generated text
+     * @throws \Exception on unsupported recordings or any auth/transport/response error
+     */
+    public static function generate_for_record(
+        \stdClass $sourcerecord,
+        string $prompt,
+        array $generationconfig,
+        int $timeout = 300
+    ): string {
+        $media = self::media_for($sourcerecord);
+        if (!$media) {
+            throw new \Exception('Recording not supported for AI processing');
+        }
+        if (strpos($media['fileuri'], 'gs://') !== 0) {
+            $media = self::resolve_media($media);
+        }
+        $project = self::project_for($sourcerecord);
+        if ($project === '') {
+            throw new \Exception('Could not determine the GCP project for Vertex AI');
+        }
+        return self::generate_text($project, $media, $prompt, $generationconfig, $timeout);
+    }
+
+    /**
      * Whether an ad-hoc AI task for a source record is still waiting in the queue.
      *
      * Matches the task class and the sourcerecordid inside the JSON custom data,
