@@ -1,7 +1,18 @@
 version: 2
 updates:
+  # Dev tools (moodle-cs) at the repo root.
   - package-ecosystem: composer
     directory: "/"
+    target-branch: dev
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+
+  # Runtime dependencies (api/vendor is committed — regenerate it before merging).
+  - package-ecosystem: composer
+    directory: "/api"
+    target-branch: dev
     schedule:
       interval: weekly
     labels:

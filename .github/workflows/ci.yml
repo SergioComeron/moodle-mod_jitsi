@@ -8,8 +8,27 @@ on:
   pull_request:
     branches:
       - master
+      - dev
 
 jobs:
+  vendorsync:
+    name: api/vendor in sync with composer.lock
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Compare composer.lock against api/vendor/composer/installed.json
+        run: |
+          diff \
+            <(jq -r '.packages[] | "\(.name) \(.version)"' api/composer.lock | sort) \
+            <(jq -r '.packages[] | "\(.name) \(.version)"' api/vendor/composer/installed.json | sort) \
+          || {
+            echo "::error::api/vendor is out of sync with api/composer.lock. Run 'cd api && composer install' and commit the vendor changes."
+            exit 1
+          }
+
   codestyle:
     name: Moodle Code Style
     runs-on: ubuntu-latest
