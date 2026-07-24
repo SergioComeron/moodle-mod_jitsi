@@ -4,6 +4,7 @@
 
 ## Table of contents
 
+- [Installation](#installation)
 - [mod_jitsi Account](#mod_jitsi-account)
 - [Permissions](#permissions)
 - [Recording configuration](#recording-configuration)
@@ -55,6 +56,24 @@ Features available in the plugin:
 * **Viewing heatmap** — aggregate bar showing which parts of each recording were watched by what fraction of students, with a second bar tracking replays. Hover to see the viewer list per segment *(requires mod_jitsi Account)*
 * **Course overview** — aggregated dashboard for all Jitsi activities in a course: session stats, student engagement ranking and top recordings by viewers *(requires mod_jitsi Account)*
 * **Session usage statistics** — site-wide aggregated stats (sessions, participants, recordings) with daily breakdown *(requires mod_jitsi Account)*
+
+## Installation
+
+Install from the [Moodle Marketplace](https://marketplace.moodle.com/plugins/mod_jitsi): download the ZIP and install it from *Site administration → Plugins → Install plugins*, or unzip it into `mod/jitsi`.
+
+Alternatively, clone the repository into your Moodle directory:
+
+```bash
+git clone https://github.com/SergioComeron/moodle-mod_jitsi.git mod/jitsi
+```
+
+Composer-managed Moodle sites (Moodle 5.2 or later) can install the plugin from [Packagist](https://packagist.org/packages/sergiocomeron/moodle-mod_jitsi):
+
+```bash
+composer require sergiocomeron/moodle-mod_jitsi
+```
+
+After adding the code, visit *Site administration → Notifications* to complete the installation.
 
 ## mod_jitsi Account
 
