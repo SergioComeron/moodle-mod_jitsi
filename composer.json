@@ -1,12 +1,19 @@
 {
     "name": "sergiocomeron/moodle-mod_jitsi",
-    "description": "Moodle Jitsi activity module - dev dependencies",
+    "description": "Jitsi Meet videoconferencing activity module for Moodle: scheduled sessions, attendance, recordings (GCS/YouTube/Dropbox/JaaS) and AI features.",
+    "type": "moodle-mod",
+    "license": "GPL-3.0-or-later",
+    "keywords": ["moodle", "jitsi", "videoconference", "activity", "moodle-mod"],
+    "require": {
+        "moodle/composer-installer": "^1.0"
+    },
     "require-dev": {
         "moodlehq/moodle-cs": "*"
     },
     "config": {
         "allow-plugins": {
-            "dealerdirect/phpcodesniffer-composer-installer": true
+            "dealerdirect/phpcodesniffer-composer-installer": true,
+            "moodle/composer-installer": true
         }
     }
 }

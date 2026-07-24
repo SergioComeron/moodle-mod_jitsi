@@ -4,21 +4,74 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "8ccc4694b94279131e80fb3ea0842b1e",
-    "packages": [],
-    "packages-dev": [
+    "content-hash": "91eb5a072cd070d84be3448d925d9ecd",
+    "packages": [
         {
-            "name": "dealerdirect/phpcodesniffer-composer-installer",
-            "version": "v1.2.0",
+            "name": "moodle/composer-installer",
+            "version": "v1.2.2",
             "source": {
                 "type": "git",
-                "url": "https://github.com/PHPCSStandards/composer-installer.git",
-                "reference": "845eb62303d2ca9b289ef216356568ccc075ffd1"
+                "url": "https://github.com/moodle/composer-installer.git",
+                "reference": "c83ad89ffa7de01dadb8bddc957bae19d6bffc51"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/PHPCSStandards/composer-installer/zipball/845eb62303d2ca9b289ef216356568ccc075ffd1",
-                "reference": "845eb62303d2ca9b289ef216356568ccc075ffd1",
+                "url": "https://api.github.com/repos/moodle/composer-installer/zipball/c83ad89ffa7de01dadb8bddc957bae19d6bffc51",
+                "reference": "c83ad89ffa7de01dadb8bddc957bae19d6bffc51",
+                "shasum": ""
+            },
+            "require": {
+                "composer-plugin-api": "^2.0",
+                "composer-runtime-api": "^2.0",
+                "php": "^8.0"
+            },
+            "require-dev": {
+                "composer/composer": "^2.7.8",
+                "composer/semver": "^3.4.4",
+                "phpstan/phpstan": "^2",
+                "phpstan/phpstan-phpunit": "^2",
+                "phpunit/phpunit": "^9.6.20"
+            },
+            "type": "composer-plugin",
+            "extra": {
+                "class": "Moodle\\Composer\\Plugin",
+                "plugin-modifies-install-path": true
+            },
+            "autoload": {
+                "psr-4": {
+                    "Moodle\\Composer\\": "src/Composer"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "GPL-3.0-or-later"
+            ],
+            "description": "A Composer Installer Plugin for Moodle",
+            "keywords": [
+                "composer",
+                "installer",
+                "moodle"
+            ],
+            "support": {
+                "issues": "https://github.com/moodle/composer-installer/issues",
+                "source": "https://github.com/moodle/composer-installer/tree/v1.2.2"
+            },
+            "time": "2026-02-17T04:49:54+00:00"
+        }
+    ],
+    "packages-dev": [
+        {
+            "name": "dealerdirect/phpcodesniffer-composer-installer",
+            "version": "v1.2.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/PHPCSStandards/composer-installer.git",
+                "reference": "963f0c67bffde0eac41b56be71ac0e8ba132f0bd"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/PHPCSStandards/composer-installer/zipball/963f0c67bffde0eac41b56be71ac0e8ba132f0bd",
+                "reference": "963f0c67bffde0eac41b56be71ac0e8ba132f0bd",
                 "shasum": ""
             },
             "require": {
@@ -101,7 +154,7 @@
                     "type": "thanks_dev"
                 }
             ],
-            "time": "2025-11-11T04:32:07+00:00"
+            "time": "2026-05-06T08:26:05+00:00"
         },
         {
             "name": "moodlehq/moodle-cs",
