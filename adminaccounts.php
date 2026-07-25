@@ -78,7 +78,7 @@ class accountname_form extends moodleform {
 $PAGE->set_context(context_system::instance());
 
 $PAGE->set_url('/mod/jitsi/adminaccounts.php');
-require_login();
+require_admin();
 if ($change && confirm_sesskey($sesskey)) {
     $accounttouse = $DB->get_record('jitsi_record_account', ['id' => $change]);
     $accounttouse->inuse = 1;
@@ -151,6 +151,12 @@ $PAGE->set_title(format_string(get_string('accounts', 'jitsi')));
 $PAGE->set_heading(format_string(get_string('accounts', 'jitsi')));
 
 echo $OUTPUT->header();
+
+$settingsurl = new moodle_url('/admin/settings.php', ['section' => 'modsettingjitsi']);
+echo html_writer::div(
+    html_writer::link($settingsurl, '&laquo; ' . get_string('settings'), ['class' => 'btn btn-secondary mb-3']),
+    'mb-2'
+);
 
 if (is_siteadmin()) {
     $accounts = $DB->get_records('jitsi_record_account', []);

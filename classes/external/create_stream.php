@@ -52,15 +52,22 @@ class create_stream extends external_api {
      * @return array result
      */
     public static function execute($session, $jitsi, $userid) {
-        global $DB;
+        global $DB, $USER;
 
         $params = self::validate_parameters(
             self::execute_parameters(),
             ['session' => $session, 'jitsi' => $jitsi, 'userid' => $userid]
         );
 
-        $author = $DB->get_record('user', ['id' => $userid]);
-        $jitsiob = $DB->get_record('jitsi', ['id' => $jitsi]);
+        $jitsiob = $DB->get_record('jitsi', ['id' => $params['jitsi']], '*', MUST_EXIST);
+        $cm = get_coursemodule_from_instance('jitsi', $jitsiob->id, 0, false, MUST_EXIST);
+        $context = \context_module::instance($cm->id);
+        self::validate_context($context);
+        require_capability('mod/jitsi:record', $context);
+
+        // Never trust the client-supplied userid: the author is always the current user.
+        $userid = $USER->id;
+        $author = $DB->get_record('user', ['id' => $userid], '*', MUST_EXIST);
         if ($jitsiob->sourcerecord != null) {
             $sourcealmacenada = $DB->get_record('jitsi_source_record', ['id' => $jitsiob->sourcerecord]);
             if ($sourcealmacenada->userid != $userid) {

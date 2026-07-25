@@ -52,15 +52,29 @@ class send_error extends external_api {
      * @param int $cmid Course Module id
      */
     public static function execute($jitsi, $user, $error, $cmid) {
-        global $DB, $CFG;
+        global $DB, $CFG, $USER;
 
-        $cm = get_coursemodule_from_id('jitsi', $cmid, 0, false, MUST_EXIST);
-        $context = \context_module::instance($cmid);
+        $params = self::validate_parameters(self::execute_parameters(), [
+            'jitsi' => $jitsi,
+            'user' => $user,
+            'error' => $error,
+            'cmid' => $cmid,
+        ]);
+
+        $cm = get_coursemodule_from_id('jitsi', $params['cmid'], 0, false, MUST_EXIST);
+        $context = \context_module::instance($cm->id);
+        self::validate_context($context);
+        require_capability('mod/jitsi:view', $context);
+
         $admins = get_admins();
 
-        $jitsiob = $DB->get_record('jitsi', ['id' => $jitsi]);
-        $course = $DB->get_record('course', ['id' => $jitsiob->course]);
-        $userob = $DB->get_record('user', ['id' => $user]);
+        // Never trust the client-supplied user id: the reporter is always the current user.
+        $jitsiob = $DB->get_record('jitsi', ['id' => $params['jitsi']], '*', MUST_EXIST);
+        $course = $DB->get_record('course', ['id' => $jitsiob->course], '*', MUST_EXIST);
+        $userob = $USER;
+        $jitsi = $params['jitsi'];
+        $cmid = $params['cmid'];
+        $error = $params['error'];
         $safeerror = substr(strip_tags($error), 0, 500);
         $mensaje = "El usuario " . $userob->firstname . " " . $userob->lastname .
             " ha tenido un error al intentar grabar la sesión de jitsi con id " . $jitsi . "\nInfo:\n" . $safeerror . "\n

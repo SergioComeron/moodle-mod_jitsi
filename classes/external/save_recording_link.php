@@ -65,6 +65,13 @@ class save_recording_link extends external_api {
         // Make sure the jitsi session exists.
         $jitsirecord = $DB->get_record('jitsi', ['id' => $params['jitsi']], '*', MUST_EXIST);
 
+        // Fired from the Jitsi iframe (recordingLinkAvailable / recordingStatusChanged) on every
+        // participant's client, so require the module view capability rather than record.
+        $cm = get_coursemodule_from_instance('jitsi', $jitsirecord->id, 0, false, MUST_EXIST);
+        $context = \context_module::instance($cm->id);
+        self::validate_context($context);
+        require_capability('mod/jitsi:view', $context);
+
         // Avoid saving the same link twice for the same session.
         $existingsource = $DB->get_record_sql(
             'SELECT s.id FROM {jitsi_source_record} s

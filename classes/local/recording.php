@@ -38,6 +38,34 @@ class recording {
     }
 
     /**
+     * Whether a jitsi_record belongs to a given jitsi activity instance.
+     *
+     * Used to prevent IDOR: callers must confirm the record they are about to
+     * delete/hide/edit actually lives in the activity whose capability was checked.
+     *
+     * @param int $recordid jitsi_record id
+     * @param int $jitsiid jitsi activity instance id
+     * @return bool
+     */
+    public static function belongs_to_jitsi($recordid, $jitsiid) {
+        global $DB;
+        return $DB->record_exists('jitsi_record', ['id' => $recordid, 'jitsi' => $jitsiid]);
+    }
+
+    /**
+     * Whether a jitsi_source_record is referenced by at least one jitsi_record of a
+     * given jitsi activity instance.
+     *
+     * @param int $sourcerecordid jitsi_source_record id
+     * @param int $jitsiid jitsi activity instance id
+     * @return bool
+     */
+    public static function source_belongs_to_jitsi($sourcerecordid, $jitsiid) {
+        global $DB;
+        return $DB->record_exists('jitsi_record', ['source' => $sourcerecordid, 'jitsi' => $jitsiid]);
+    }
+
+    /**
      * Mark a recording for deletion and, when it is the last record for a YouTube
      * source, toggle the video's privacy.
      *
@@ -47,14 +75,22 @@ class recording {
     public static function mark_to_delete($idrecord, $option) {
         global $DB;
         $record = $DB->get_record('jitsi_record', ['id' => $idrecord]);
+        if (!$record) {
+            return;
+        }
         $source = $DB->get_record('jitsi_source_record', ['id' => $record->source]);
         if ($option == 1) {
             $record->deleted = 1;
         } else if ($option == 2) {
             $record->deleted = 2;
         }
-        $records = $DB->get_records('jitsi_record', ['source' => $record->source]);
-        if (count($records) == 1 && $source->type == 0) {
+        // Only toggle the YouTube video private when this is the last active record for the source.
+        $activerecords = $DB->get_records_select(
+            'jitsi_record',
+            'source = :source AND deleted = 0 AND id <> :id',
+            ['source' => $record->source, 'id' => $record->id]
+        );
+        if (empty($activerecords) && $source && $source->type == 0) {
             youtube::toggle_state($source->link);
         }
         $DB->update_record('jitsi_record', $record);

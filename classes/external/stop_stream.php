@@ -50,21 +50,33 @@ class stop_stream extends external_api {
      * @return array result
      */
     public static function execute($jitsi, $userid) {
-        global $DB;
+        global $DB, $USER;
 
         $params = self::validate_parameters(
             self::execute_parameters(),
             ['jitsi' => $jitsi, 'userid' => $userid]
         );
-        $jitsiob = $DB->get_record('jitsi', ['id' => $jitsi]);
+        $jitsiob = $DB->get_record('jitsi', ['id' => $params['jitsi']], '*', MUST_EXIST);
+        $cm = get_coursemodule_from_instance('jitsi', $jitsiob->id, 0, false, MUST_EXIST);
+        $context = \context_module::instance($cm->id);
+        self::validate_context($context);
+        require_capability('mod/jitsi:record', $context);
+
+        // Never trust the client-supplied userid.
+        $userid = $USER->id;
         $sourcealmacenada = $DB->get_record('jitsi_source_record', ['id' => $jitsiob->sourcerecord]);
+        if (!$sourcealmacenada) {
+            return ['error' => '', 'user' => $userid, 'usercomplete' => ''];
+        }
         $author = $DB->get_record('user', ['id' => $sourcealmacenada->userid]);
+        $authorname = $author ? $author->firstname . ' ' . $author->lastname : '';
+        $authorid = $author ? $author->id : 0;
 
         if ($sourcealmacenada->userid != $userid && $jitsiob->sourcerecord != null) {
             $result = [];
             $result['error'] = 'errorauthor';
-            $result['user'] = $author->id;
-            $result['usercomplete'] = $author->firstname . ' ' . $author->lastname;
+            $result['user'] = $authorid;
+            $result['usercomplete'] = $authorname;
             return $result;
         }
         $jitsiob->sourcerecord = null;
@@ -72,8 +84,8 @@ class stop_stream extends external_api {
         $result = [];
 
         $result['error'] = '';
-        $result['user'] = $author->id;
-        $result['usercomplete'] = $author->firstname . ' ' . $author->lastname;
+        $result['user'] = $authorid;
+        $result['usercomplete'] = $authorname;
         \mod_jitsi\local\youtube::make_embeddable($sourcealmacenada->link);
         return $result;
     }
