@@ -30,5 +30,6 @@ defined('MOODLE_INTERNAL') || die();
 $plugin->version = 2026072501;
 $plugin->release = '5.4.0';
 $plugin->requires = 2024100700;
+$plugin->supported = [405, 502];
 $plugin->maturity = MATURITY_STABLE;
 $plugin->component = 'mod_jitsi';
