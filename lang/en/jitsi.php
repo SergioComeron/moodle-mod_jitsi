@@ -269,6 +269,7 @@ $string['instruction'] = 'Click the button to access';
 $string['integrated'] = 'Moodle Integrated';
 $string['internalerror'] = 'Internal error. Contact with the administrator.';
 $string['inuse'] = ' <b>(in use)</b>';
+$string['invalidrecordid'] = 'The recording does not belong to this activity.';
 $string['invitations'] = 'Invitations';
 $string['invitationsnotactivated'] = 'The invitations is not activated';
 $string['invitebutton'] = 'Invite Options';

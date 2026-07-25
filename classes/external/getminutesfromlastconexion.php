@@ -49,7 +49,12 @@ class getminutesfromlastconexion extends external_api {
      * @return int
      */
     public static function execute($cmid, $user) {
-        return \mod_jitsi\local\attendance::last_connection($cmid, $user);
+        $params = self::validate_parameters(self::execute_parameters(), ['cmid' => $cmid, 'user' => $user]);
+        $cm = get_coursemodule_from_id('jitsi', $params['cmid'], 0, false, MUST_EXIST);
+        $context = \context_module::instance($cm->id);
+        self::validate_context($context);
+        require_capability('mod/jitsi:record', $context);
+        return \mod_jitsi\local\attendance::last_connection($params['cmid'], $params['user']);
     }
 
     /**

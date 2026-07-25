@@ -43,7 +43,7 @@ $sesskey = optional_param('sesskey', null, PARAM_TEXT);
 $PAGE->set_context(context_system::instance());
 
 $PAGE->set_url('/mod/jitsi/recordingmatrix.php');
-require_login();
+require_admin();
 
 if ($deletejitsisourceid && confirm_sesskey($sesskey)) {
     if (\mod_jitsi\local\youtube::delete_record($deletejitsisourceid) == true) {

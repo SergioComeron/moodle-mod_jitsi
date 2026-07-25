@@ -55,8 +55,13 @@ class stop_stream_byerror extends external_api {
             self::execute_parameters(),
             ['jitsi' => $jitsi, 'userid' => $userid]
         );
-        $jitsiob = $DB->get_record('jitsi', ['id' => $jitsi]);
-        if ($userid != $jitsiob->sourcerecord) {
+        $jitsiob = $DB->get_record('jitsi', ['id' => $params['jitsi']], '*', MUST_EXIST);
+        $cm = get_coursemodule_from_instance('jitsi', $jitsiob->id, 0, false, MUST_EXIST);
+        $context = \context_module::instance($cm->id);
+        self::validate_context($context);
+        require_capability('mod/jitsi:record', $context);
+
+        if ($jitsiob->sourcerecord != null) {
             $jitsiob->sourcerecord = null;
             $DB->update_record('jitsi', $jitsiob);
             return 'authordeleted';

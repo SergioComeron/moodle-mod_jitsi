@@ -43,7 +43,7 @@ $sesskey = optional_param('sesskey', null, PARAM_TEXT);
 $PAGE->set_context(context_system::instance());
 
 $PAGE->set_url('/mod/jitsi/adminrecord.php');
-require_login();
+require_admin();
 
 if ($deletejitsisourceid && confirm_sesskey($sesskey)) {
     $source = $DB->get_record('jitsi_source_record', ['id' => $deletejitsisourceid]);

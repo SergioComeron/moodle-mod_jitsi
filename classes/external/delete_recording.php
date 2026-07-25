@@ -65,11 +65,15 @@ class delete_recording extends external_api {
         self::validate_context($context);
         require_capability('mod/jitsi:deleterecord', $context);
 
+        if (!\mod_jitsi\local\recording::belongs_to_jitsi($params['recordid'], $jitsi->id)) {
+            throw new \moodle_exception('invalidrecordid', 'jitsi');
+        }
+
         $record = $DB->get_record('jitsi_record', ['id' => $params['recordid']], '*', MUST_EXIST);
         $source = $DB->get_record('jitsi_source_record', ['id' => $record->source]);
 
         \mod_jitsi\local\recording::mark_to_delete($params['recordid'], 1);
-        \mod_jitsi\local\recording::log_deletion($cm, $course, $jitsi, $params['recordid'], $source->link);
+        \mod_jitsi\local\recording::log_deletion($cm, $course, $jitsi, $params['recordid'], $source ? $source->link : '');
 
         return ['success' => true, 'message' => get_string('deleted')];
     }

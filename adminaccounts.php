@@ -78,7 +78,7 @@ class accountname_form extends moodleform {
 $PAGE->set_context(context_system::instance());
 
 $PAGE->set_url('/mod/jitsi/adminaccounts.php');
-require_login();
+require_admin();
 if ($change && confirm_sesskey($sesskey)) {
     $accounttouse = $DB->get_record('jitsi_record_account', ['id' => $change]);
     $accounttouse->inuse = 1;

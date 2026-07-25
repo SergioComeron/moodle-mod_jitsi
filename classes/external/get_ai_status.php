@@ -63,9 +63,14 @@ class get_ai_status extends external_api {
             'cmid' => $cmid,
         ]);
 
-        $context = \context_module::instance($params['cmid']);
+        $cm = get_coursemodule_from_id('jitsi', $params['cmid'], 0, false, MUST_EXIST);
+        $context = \context_module::instance($cm->id);
         self::validate_context($context);
         require_capability('mod/jitsi:view', $context);
+
+        if (!\mod_jitsi\local\recording::source_belongs_to_jitsi($params['sourcerecordid'], $cm->instance)) {
+            throw new \moodle_exception('invalidrecordid', 'jitsi');
+        }
 
         $sourcerecord = $DB->get_record('jitsi_source_record', ['id' => $params['sourcerecordid']], '*', MUST_EXIST);
 

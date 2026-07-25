@@ -78,16 +78,22 @@ $PAGE->set_title($jitsi->name);
 $PAGE->set_heading($jitsi->name);
 echo $OUTPUT->header();
 
-$PAGE->set_context(context_module::instance($cm->id));
+$context = context_module::instance($cm->id);
+$PAGE->set_context($context);
+
+// Never trust the client-supplied 't' flag: the moderator/teacher privileges (which drive the
+// JWT recording/streaming features) must be derived from the real capability, server-side.
+$teacher = has_capability('mod/jitsi:moderation', $context);
 
 if ($jitsi->sourcerecord != null) {
-    $contextmodule = context_module::instance($cm->id);
+    $contextmodule = $context;
 
     $sqllastparticipating = 'select timecreated from {logstore_standard_log} where contextid = '
     . $contextmodule->id . ' and (action = \'participating\' or action = \'enter\') order by timecreated DESC limit 1';
     $usersconnected = $DB->get_record_sql($sqllastparticipating);
 
     if (
+        $usersconnected &&
         ($jitsi->numberofparticipants == 1 ||
         $jitsi->numberofparticipants == 0) &&
         (getdate()[0] - $usersconnected->timecreated) > 72
