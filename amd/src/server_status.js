@@ -31,23 +31,48 @@
  */
 
 import Notification from 'core/notification';
+import {getStrings} from 'core/str';
 
 /** Poll interval in milliseconds. */
 const POLL_INTERVAL = 10000;
 
-/** Map of GCP instance status to badge appearance and button state. */
+/**
+ * Map of GCP instance status to badge appearance, emoji, localisable label key and button state.
+ * The visible label is resolved from `strings` at render time (see loadStrings).
+ */
 const STATUS_MAP = {
-    'RUNNING': {badge: 'bg-success', text: '🟢 Running', state: 'running'},
-    'STOPPED': {badge: 'bg-danger', text: '🔴 Stopped', state: 'stopped'},
-    'TERMINATED': {badge: 'bg-danger', text: '🔴 Stopped', state: 'stopped'},
-    'STOPPING': {badge: 'bg-warning', text: '🟡 Stopping...', state: 'transition'},
-    'PROVISIONING': {badge: 'bg-info', text: '🔵 Starting...', state: 'running'},
-    'STAGING': {badge: 'bg-info', text: '🔵 Starting...', state: 'running'},
-    'SUSPENDING': {badge: 'bg-warning', text: '🟡 Suspending...', state: 'transition'},
-    'SUSPENDED': {badge: 'bg-secondary', text: '⚫ Suspended', state: 'stopped'},
-    'REPAIRING': {badge: 'bg-warning', text: '🔧 Repairing...', state: 'transition'},
-    'NOT_FOUND': {badge: 'bg-dark', text: '❌ Not Found', state: 'stopped'},
-    'ERROR': {badge: 'bg-secondary', text: '⚠️ Error', state: 'stopped'},
+    'RUNNING': {badge: 'bg-success', emoji: '🟢', key: 'statusrunning', state: 'running'},
+    'STOPPED': {badge: 'bg-danger', emoji: '🔴', key: 'statusstopped', state: 'stopped'},
+    'TERMINATED': {badge: 'bg-danger', emoji: '🔴', key: 'statusstopped', state: 'stopped'},
+    'STOPPING': {badge: 'bg-warning', emoji: '🟡', key: 'statusstopping', state: 'transition'},
+    'PROVISIONING': {badge: 'bg-info', emoji: '🔵', key: 'statusstarting', state: 'running'},
+    'STAGING': {badge: 'bg-info', emoji: '🔵', key: 'statusstarting', state: 'running'},
+    'SUSPENDING': {badge: 'bg-warning', emoji: '🟡', key: 'statussuspending', state: 'transition'},
+    'SUSPENDED': {badge: 'bg-secondary', emoji: '⚫', key: 'statussuspended', state: 'stopped'},
+    'REPAIRING': {badge: 'bg-warning', emoji: '🔧', key: 'statusrepairing', state: 'transition'},
+    'NOT_FOUND': {badge: 'bg-dark', emoji: '❌', key: 'statusnotfound', state: 'stopped'},
+    'ERROR': {badge: 'bg-secondary', emoji: '⚠️', key: 'statuserror', state: 'stopped'},
+};
+
+/** Localised label per STATUS_MAP key, plus the pool-size error, populated by loadStrings(). */
+const strings = {};
+
+/**
+ * Load the status labels and the pool-size error string into the module cache.
+ *
+ * @return {Promise} Resolves once the strings are cached.
+ */
+const loadStrings = () => {
+    const keys = ['statusrunning', 'statusstopped', 'statusstopping', 'statusstarting',
+        'statussuspending', 'statussuspended', 'statusrepairing', 'statusnotfound',
+        'statuserror', 'poolsizeupdatefailed'];
+    return getStrings(keys.map((key) => ({key, component: 'mod_jitsi'})))
+        .then((values) => {
+            keys.forEach((key, i) => {
+                strings[key] = values[i];
+            });
+            return strings;
+        }).catch(Notification.exception);
 };
 
 /**
@@ -100,7 +125,7 @@ const updateStatuses = (cfg) => {
                 const entry = STATUS_MAP[status];
                 if (entry) {
                     badge.className = 'badge ' + entry.badge;
-                    badge.textContent = entry.text;
+                    badge.textContent = entry.emoji + ' ' + (strings[entry.key] || status);
                     if (status === 'ERROR' && data[id].message) {
                         badge.title = data[id].message;
                     }
@@ -131,12 +156,18 @@ const wirePoolSizeInputs = (cfg) => {
                 .then((r) => r.json())
                 .then((d) => {
                     if (d.status !== 'ok') {
-                        Notification.addNotification({message: 'Could not update pool size.', type: 'error'});
+                        Notification.addNotification({
+                            message: strings.poolsizeupdatefailed || 'Could not update pool size.',
+                            type: 'error',
+                        });
                     }
                     return;
                 })
                 .catch(() => {
-                    Notification.addNotification({message: 'Could not update pool size.', type: 'error'});
+                    Notification.addNotification({
+                        message: strings.poolsizeupdatefailed || 'Could not update pool size.',
+                        type: 'error',
+                    });
                 });
         });
     });
@@ -152,6 +183,7 @@ const wirePoolSizeInputs = (cfg) => {
  * @param {Array<number>} config.serverIds GCP server ids to poll.
  */
 export const init = (config) => {
+    loadStrings();
     wirePoolSizeInputs(config);
     if (!config.serverIds || config.serverIds.length === 0) {
         return;

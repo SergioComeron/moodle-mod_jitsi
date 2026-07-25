@@ -49,7 +49,7 @@
     <a href="{{settingsurl}}" class="btn btn-secondary me-2">{{#str}} backtosettings, mod_jitsi {{/str}}</a>
     <a href="{{addserverurl}}" class="btn btn-success me-2">{{#str}} addnewserver, mod_jitsi {{/str}}</a>
     <button id="btn-creategcpvm" type="button" class="btn btn-primary">
-        Create VM in Google Cloud <span class="badge bg-warning text-dark ms-1">BETA</span>
+        {{#str}} creategcpvm, mod_jitsi {{/str}} <span class="badge bg-warning text-dark ms-1">BETA</span>
     </button>
 </div>
 
@@ -92,17 +92,17 @@
                 <span class="badge {{statusclass}}" id="gcp-status-{{id}}" {{#statustitle}}title="{{statustitle}}"{{/statustitle}}>{{statustext}}</span>
                 {{#jibripool}}
                 <div class="mt-1">
-                    <small class="text-muted">🎥 Jibri pool (desired:
+                    <small class="text-muted">🎥 {{#str}} jibripoollabel, mod_jitsi {{/str}}:
                         <input type="number" min="1" max="10" value="{{poolsize}}" style="width:45px"
                             class="form-control form-control-sm d-inline-block p-0 ps-1 jitsi-poolsize-input"
-                            data-serverid="{{serverid}}">):</small><br>
+                            data-serverid="{{serverid}}"></small><br>
                     {{#entries}}
                     <span class="badge {{badgeclass}} me-1" title="{{title}}">{{badgetext}}</span>
-                    <a href="{{deleteurl}}" class="text-danger small me-1" title="Remove this Jibri VM">✕</a>
+                    <a href="{{deleteurl}}" class="text-danger small me-1" title="{{#str}} removejibrivm, mod_jitsi {{/str}}">✕</a>
                     {{/entries}}
                     <br>
                     <a href="{{addurl}}" class="btn btn-xs btn-outline-secondary mt-1"
-                        style="font-size:0.75rem;padding:1px 6px">+ Add Jibri</a>
+                        style="font-size:0.75rem;padding:1px 6px">+ {{#str}} addjibrishort, mod_jitsi {{/str}}</a>
                 </div>
                 {{/jibripool}}
                 {{#jibrilegacy}}
@@ -113,13 +113,13 @@
                 {{#editurl}}<a href="{{editurl}}">{{#str}} edit, core {{/str}}</a> | {{/editurl}}
                 {{#gcp}}
                 <span class="jitsi-gcp-actions" data-serverid="{{serverid}}">
-                    <a href="{{starturl}}" class="btn btn-sm btn-success jitsi-gcp-start{{^showstart}} d-none{{/showstart}}">▶️ Start</a>
-                    <a href="{{stopurl}}" class="btn btn-sm btn-warning jitsi-gcp-stop{{^showstop}} d-none{{/showstop}}">⏹️ Stop</a>
-                    <span class="badge bg-secondary jitsi-gcp-wait{{^showwait}} d-none{{/showwait}}">⏳ Please wait...</span>
+                    <a href="{{starturl}}" class="btn btn-sm btn-success jitsi-gcp-start{{^showstart}} d-none{{/showstart}}">▶️ {{#str}} startvm, mod_jitsi {{/str}}</a>
+                    <a href="{{stopurl}}" class="btn btn-sm btn-warning jitsi-gcp-stop{{^showstop}} d-none{{/showstop}}">⏹️ {{#str}} stopvm, mod_jitsi {{/str}}</a>
+                    <span class="badge bg-secondary jitsi-gcp-wait{{^showwait}} d-none{{/showwait}}">⏳ {{#str}} pleasewait, mod_jitsi {{/str}}</span>
                 </span>
                 {{/gcp}}
                 {{#gcs}} | <a href="{{url}}" class="btn btn-sm {{buttonclass}}">{{label}}</a>{{/gcs}}
-                {{#addjibriurl}} | <a href="{{addjibriurl}}" class="btn btn-sm btn-outline-info">🎥 Add Jibri</a>{{/addjibriurl}}
+                {{#addjibriurl}} | <a href="{{addjibriurl}}" class="btn btn-sm btn-outline-info">🎥 {{#str}} addjibrishort, mod_jitsi {{/str}}</a>{{/addjibriurl}}
                 {{#gcp}} | {{/gcp}}<a href="{{deleteurl}}">{{#str}} delete, core {{/str}}</a>
             </td>
         </tr>
