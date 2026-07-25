@@ -407,7 +407,13 @@ export const init = (config) => {
     // On a Jitsi recording error, drop the YouTube source and report it.
     api.addEventListener('recordingStatusChanged', (event) => {
         if (event.error) {
-            fire('mod_jitsi_delete_record_youtube', {idsource: idsource});
+            // idsource is only set for the YouTube stream flow. On a file recording
+            // error (8x8 cloud / Jibri / Dropbox) there is no YouTube source to drop,
+            // and calling delete_record_youtube with a null id (NULL_NOT_ALLOWED) would
+            // surface a false error popup that masks the real recording error.
+            if (idsource) {
+                fire('mod_jitsi_delete_record_youtube', {idsource: idsource});
+            }
             fire('mod_jitsi_send_error', {
                 jitsi: config.jitsiid,
                 user: config.userid,
