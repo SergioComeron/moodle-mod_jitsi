@@ -19,11 +19,15 @@ self.addEventListener('push', function(event) {
     }
 
     var title = data.title || 'Jitsi';
+    // The server sends absolute (wwwroot) URLs for icon/url. Fallbacks are relative to this
+    // service worker (served at <wwwroot>/mod/jitsi/push-sw.js) so they also work when Moodle
+    // is installed in a subdirectory — never hardcode a domain-root path here.
+    var iconUrl = data.icon || 'pix/icon.png';
     var options = {
         body: data.body || '',
-        icon: data.icon || '/mod/jitsi/pix/icon.png',
-        badge: '/mod/jitsi/pix/icon.png',
-        data: {url: data.url || '/'},
+        icon: iconUrl,
+        badge: iconUrl,
+        data: {url: data.url || './'},
         requireInteraction: true,
         vibrate: [200, 100, 200],
     };
@@ -35,7 +39,7 @@ self.addEventListener('notificationclick', function(event) {
     event.notification.close();
     var url = event.notification.data && event.notification.data.url
         ? event.notification.data.url
-        : '/';
+        : './';
 
     event.waitUntil(
         clients.matchAll({type: 'window', includeUncontrolled: true}).then(function(clientList) {

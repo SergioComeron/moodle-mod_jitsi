@@ -38,6 +38,9 @@ let hasVideo = false;
 /** Whether a content swap is in progress, to avoid overlapping transitions. */
 let swapping = false;
 
+/** Whether the theme is Bootstrap 5 (Moodle 5.x); drives responsive class names. */
+let bs5 = false;
+
 /**
  * Returns a promise that resolves after the given delay.
  *
@@ -54,9 +57,13 @@ const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
  */
 const showVideo = (container, link) => {
     const wrapper = document.createElement('div');
-    wrapper.className = 'embed-responsive embed-responsive-16by9';
+    // Bootstrap 5 (Moodle 5.x) renamed the responsive-embed helpers.
+    wrapper.className = bs5 ? 'ratio ratio-16x9' : 'embed-responsive embed-responsive-16by9';
     const iframe = document.createElement('iframe');
-    iframe.className = 'embed-responsive-item';
+    if (!bs5) {
+        // In BS5 the direct child of .ratio fills automatically; no item class needed.
+        iframe.className = 'embed-responsive-item';
+    }
     iframe.src = 'https://youtube.com/embed/' + encodeURIComponent(link);
     iframe.allowFullscreen = true;
     wrapper.appendChild(iframe);
@@ -91,7 +98,8 @@ const showLoading = (container, text) => {
     spinner.className = 'spinner-border';
     spinner.setAttribute('role', 'status');
     const sr = document.createElement('span');
-    sr.className = 'sr-only';
+    // Bootstrap 5 (Moodle 5.x) renamed .sr-only to .visually-hidden.
+    sr.className = bs5 ? 'visually-hidden' : 'sr-only';
     sr.textContent = text;
     spinner.appendChild(sr);
     box.appendChild(spinner);
@@ -145,9 +153,11 @@ const poll = (config) => {
  * @param {boolean} config.hasvideo Whether a video is shown on initial load.
  * @param {string} config.loadingtext Localised "loading video" message.
  * @param {string} config.norecordingtext Localised "no recording" message.
+ * @param {boolean} config.bs5 Whether the theme is Bootstrap 5 (Moodle 5.x).
  */
 export const init = (config) => {
     hasVideo = !!config.hasvideo;
     swapping = false;
+    bs5 = !!config.bs5;
     setInterval(() => poll(config), POLL_INTERVAL);
 };

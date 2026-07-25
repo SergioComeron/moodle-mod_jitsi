@@ -95,7 +95,15 @@ const loadRecordings = (editRecordId = 0) => {
     container.innerHTML = '<div class="text-center p-3">'
         + '<div class="spinner-border" role="status"></div></div>';
     return fetch(buildUrl(editRecordId), {credentials: 'same-origin'})
-        .then((r) => r.text())
+        .then((r) => {
+            // Guard against injecting a login or error page: a real error status, or a
+            // redirect (e.g. the session expired and Moodle bounced us to login), must not
+            // land its HTML inside the recordings tab.
+            if (!r.ok || r.redirected) {
+                throw new Error('Could not load recordings (HTTP ' + r.status + ')');
+            }
+            return r.text();
+        })
         .then((html) => {
             container.innerHTML = html;
             initDropboxToggle();
@@ -103,7 +111,11 @@ const loadRecordings = (editRecordId = 0) => {
             document.dispatchEvent(new CustomEvent('mod_jitsi/recordings:loaded'));
             return html;
         })
-        .catch(Notification.exception);
+        .catch((err) => {
+            // Allow a later trigger to retry instead of staying stuck on the spinner.
+            loaded = false;
+            return Notification.exception(err);
+        });
 };
 
 /**

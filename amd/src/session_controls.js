@@ -62,16 +62,35 @@ export const init = (config) => {
 
     if (config.finishAndReturn) {
         api.on('readyToClose', () => {
-            if (config.reportEnd) {
-                Ajax.call([{
-                    methodname: 'mod_jitsi_press_button_end',
-                    args: {jitsi: config.jitsiid, user: config.userid, cmid: config.cmid},
-                }])[0].fail(Notification.exception);
+            const finish = () => {
+                api.dispose();
+                if (config.closeRedirectUrl) {
+                    window.location.href = config.closeRedirectUrl;
+                }
+            };
+            if (!config.reportEnd) {
+                finish();
+                return;
             }
-            api.dispose();
-            if (config.closeRedirectUrl) {
-                window.location.href = config.closeRedirectUrl;
-            }
+            // Wait for the session-end to be recorded before navigating away, otherwise the
+            // browser can abort the in-flight request on redirect and the end is never logged.
+            // A short safety timeout still redirects if the request stalls.
+            let navigated = false;
+            const proceed = () => {
+                if (!navigated) {
+                    navigated = true;
+                    finish();
+                }
+            };
+            Ajax.call([{
+                methodname: 'mod_jitsi_press_button_end',
+                args: {jitsi: config.jitsiid, user: config.userid, cmid: config.cmid},
+            }])[0].then(proceed, (err) => {
+                Notification.exception(err);
+                proceed();
+                return err;
+            });
+            setTimeout(proceed, 2000);
         });
     }
 };

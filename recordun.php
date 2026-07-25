@@ -116,6 +116,7 @@ if (!\mod_jitsi\local\invitation::is_timed_out($jitsi)) {
         'hasvideo' => $hasvideo,
         'loadingtext' => get_string('loadingvideo', 'jitsi'),
         'norecordingtext' => get_string('norecording', 'jitsi'),
+        'bs5' => $CFG->branch >= 500,
     ]]);
 }
 
