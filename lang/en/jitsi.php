@@ -462,6 +462,7 @@ $string['recordingheatmapviewers'] = '{$a} viewers';
 $string['recordinglinksaved'] = 'Recording link saved successfully';
 $string['recordingname'] = 'Recording name (optional)';
 $string['recordingoption'] = 'Recording button (8x8/JaaS)';
+$string['recordingvmonly'] = 'stored on the recording VM — unavailable once it is stopped';
 $string['recordingoptionex'] = '<b>Jitsi interface</b> keeps the native recording button inside Jitsi, where its dialog lets users choose between the 8x8 recording service and their own Dropbox. <b>Moodle integrated</b> replaces it with a one-click record button in the Moodle toolbar above the meeting that records to the 8x8 recording service (recordings are saved in the activity automatically); if the Dropbox app credentials below are configured, a separate "Record to Dropbox" button is shown as well. Only applies to 8x8/JaaS (type 2) servers.';
 $string['recordingnoviews'] = 'No views recorded for this recording in the selected period.';
 $string['recordingnumber'] = 'Recording {$a}';

@@ -127,11 +127,23 @@ class mod_adminrecords_table extends table_sql {
      *     when downloading.
      */
     protected function col_link($values) {
+        $link = (string)$values->link;
         if ((int)$values->type === 1) {
-            // Jibri/GCS recording — link is a full URL.
-            return '<a href="' . s($values->link) . '" target="_blank">' . s($values->link) . '</a>';
+            // Jibri VM recordings live on the recorder VM's local web server, which is
+            // ephemeral: once the VM is stopped or destroyed the file is unreachable. Render
+            // it as plain, non-clickable text with a note instead of a dead link.
+            if (preg_match('#^http://\d+\.\d+\.\d+\.\d+/recordings/#', $link)) {
+                return \html_writer::span(s($link), 'text-muted') . ' '
+                    . \html_writer::tag(
+                        'small',
+                        '(' . get_string('recordingvmonly', 'jitsi') . ')',
+                        ['class' => 'text-muted fst-italic']
+                    );
+            }
+            // Durable recording links (GCS, 8x8/JaaS, Dropbox, external) stay clickable.
+            return '<a href="' . s($link) . '" target="_blank">' . s($link) . '</a>';
         }
-        return '<a href="https://youtu.be/' . s($values->link) . '" target="_blank">' . s($values->link) . '</a>';
+        return '<a href="https://youtu.be/' . s($link) . '" target="_blank">' . s($link) . '</a>';
     }
 
     /**
