@@ -58,6 +58,12 @@ $PAGE->set_heading(format_string(get_string('recordsonair', 'jitsi')));
 
 echo $OUTPUT->header();
 
+$settingsurl = new moodle_url('/admin/settings.php', ['section' => 'modsettingjitsi']);
+echo html_writer::div(
+    html_writer::link($settingsurl, '&laquo; ' . get_string('settings'), ['class' => 'btn btn-secondary mb-3']),
+    'mb-2'
+);
+
 if (is_siteadmin()) {
     $sqljitsilive = 'select {jitsi}.id,
                     {jitsi}.sourcerecord,

@@ -38,12 +38,40 @@ class mod_adminrecords_table extends table_sql {
     public function __construct($uniqueid) {
         parent::__construct($uniqueid);
         // Define the list of columns to show.
-        $columns = ['id', 'link', 'account', 'userid', 'timecreated', 'delete'];
+        $columns = ['id', 'type', 'link', 'account', 'userid', 'timecreated', 'delete'];
         $this->define_columns($columns);
 
         // Define the titles of columns to show in header.
-        $headers = ['Id', 'Link', 'Account', 'User', 'Date', 'Delete'];
+        $headers = ['Id', get_string('type', 'jitsi'), 'Link', 'Account', 'User', 'Date', 'Delete'];
         $this->define_headers($headers);
+    }
+
+    /**
+     * Render a human-readable recording type based on the source type and link pattern.
+     *
+     * @param object $values Contains object with all the values of record.
+     * @return string Recording type label.
+     */
+    protected function col_type($values) {
+        if ((int)$values->type !== 1) {
+            // Type 0 sources store a YouTube video id.
+            return 'YouTube';
+        }
+        // Type 1 sources store a full URL; distinguish the backend by its pattern.
+        $link = (string)$values->link;
+        if (strpos($link, 'storage.googleapis.com') !== false) {
+            return 'Cloud Storage (GCS)';
+        }
+        if (preg_match('#^http://\d+\.\d+\.\d+\.\d+/recordings/#', $link)) {
+            return 'Jibri (VM)';
+        }
+        if (strpos($link, '8x8.vc') !== false) {
+            return '8x8 / JaaS';
+        }
+        if (strpos($link, 'dropbox.com') !== false) {
+            return 'Dropbox';
+        }
+        return get_string('externallink', 'jitsi');
     }
 
     /**

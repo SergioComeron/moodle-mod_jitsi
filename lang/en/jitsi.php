@@ -199,6 +199,7 @@ $string['exitsession'] = 'Exit session';
 $string['experimental'] = 'Experimental';
 $string['experimentalex'] = 'These are options that we are experimenting with and that may disappear in future versions.';
 $string['externalinvitations'] = 'External invitations';
+$string['externallink'] = 'External link';
 $string['externaltoken'] = 'External token';
 $string['externaltoken_help'] = 'Use this link for guests who don\'t have a Moodle user to access.';
 $string['finish'] = 'The session has finished.';
