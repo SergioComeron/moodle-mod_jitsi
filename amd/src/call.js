@@ -191,7 +191,12 @@ const initPush = async(swUrl, vapidKey) => {
     } catch (e) {
         window.console.error('[Jitsi Push] Service worker registration failed:', e);
         if (status) {
-            status.textContent = 'Service worker error: ' + e.message;
+            getString('pushswerror', 'mod_jitsi', e.message).then((str) => {
+                status.textContent = str;
+                return str;
+            }).catch(() => {
+                return;
+            });
         }
         return;
     }
@@ -265,22 +270,25 @@ const initPush = async(swUrl, vapidKey) => {
                         args: {endpoint: sub.endpoint},
                     }]);
                 } else {
-                    setStatus('Requesting permission...');
+                    setStatus(await getString('pushrequestingpermission', 'mod_jitsi'));
                     const perm = await window.Notification.requestPermission();
 
                     if (perm !== 'granted') {
-                        setStatus(perm === 'denied' ? 'Permission denied by browser.' : 'Permission not granted.');
+                        setStatus(await getString(
+                            perm === 'denied' ? 'pushpermissiondenied' : 'pushpermissionnotgranted',
+                            'mod_jitsi'
+                        ));
                         await updateUI();
                         return;
                     }
 
-                    setStatus('Subscribing...');
+                    setStatus(await getString('pushsubscribing', 'mod_jitsi'));
                     const newSub = await swReg.pushManager.subscribe({
                         userVisibleOnly: true,
                         applicationServerKey: urlBase64ToUint8Array(vapidKey),
                     });
 
-                    setStatus('Saving subscription...');
+                    setStatus(await getString('pushsavingsubscription', 'mod_jitsi'));
                     const key = newSub.getKey('p256dh');
                     const auth = newSub.getKey('auth');
                     const toBase64Url = (buf) => {
