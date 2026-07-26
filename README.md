@@ -129,9 +129,7 @@ These are the permissions populated by default with the plugin. Most of them are
 - **Jitsi Moderation** (mod/jitsi:moderation): determines who is moderator in sessions. When "Token configuration" is set, only users with this capability are promoted as Jitsi moderators and a moderator indicator is displayed next to their name. When "Token configuration" is missing, some buttons and features like "mute-everyone" or "kick off participant" are hidden to non-moderator users, but experienced users may be able to bypass these restrictions.
 - **Record session** (mod/jitsi:record): allow to start recordings. You could create Jitsi Sessions where students could record themselves.
 - **View Jitsi** (mod/jitsi:view): set the users who can see and access Jitsi activities in the course view.
-- **Access to the attendees reports** (mod/jitsi:viewusersonsession): allows seeing who is currently in a session. You may want to allow students access to attendees reports.
 - **View recordings** (mod/jitsi:viewrecords): allows access to the Recordings tab. Disable this to hide recordings from specific roles.
-- **View external recording links** (mod/jitsi:viewexternallink): allows viewing externally-linked recordings (Dropbox, 8x8, manual links).
 - **Generate AI summary** (mod/jitsi:generateaisummary): allows generating AI-powered summaries for supported recordings (GCS and cloud recording links). Requires AI features to be enabled.
 - **Generate AI quiz** (mod/jitsi:generateaiquiz): allows generating AI-powered quizzes from supported recordings (GCS and cloud recording links). Requires AI features to be enabled.
 - **Generate AI transcription** (mod/jitsi:generateaitranscription): allows generating AI transcriptions for supported recordings (GCS and cloud recording links). Requires AI features to be enabled.

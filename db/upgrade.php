@@ -1460,5 +1460,20 @@ function xmldb_jitsi_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026050302, 'jitsi');
     }
 
+    if ($oldversion < 2026072600) {
+        // Self-heal: timeopen/minpretime were only ever added to install.xml (2019), never via an
+        // upgrade step, so a site created before then would be missing them. Add if absent.
+        $table = new xmldb_table('jitsi');
+        $timeopen = new xmldb_field('timeopen', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        if (!$dbman->field_exists($table, $timeopen)) {
+            $dbman->add_field($table, $timeopen);
+        }
+        $minpretime = new xmldb_field('minpretime', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '0');
+        if (!$dbman->field_exists($table, $minpretime)) {
+            $dbman->add_field($table, $minpretime);
+        }
+        upgrade_mod_savepoint(true, 2026072600, 'jitsi');
+    }
+
     return true;
 }

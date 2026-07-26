@@ -49,6 +49,7 @@ defined('MOODLE_INTERNAL') || die();
 // Modify capabilities as needed and remove this comment.
 $capabilities = [
     'mod/jitsi:addinstance' => [
+        'riskbitmask' => RISK_XSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_COURSE,
         'archetypes' => [
@@ -79,16 +80,6 @@ $capabilities = [
 
     'mod/jitsi:record' => [
         'captype' => 'write',
-        'contextlevel' => CONTEXT_MODULE,
-        'archetypes' => [
-            'editingteacher' => CAP_ALLOW,
-            'manager' => CAP_ALLOW,
-            'teacher' => CAP_ALLOW,
-        ],
-    ],
-
-    'mod/jitsi:viewusersonsession' => [
-        'captype' => 'read',
         'contextlevel' => CONTEXT_MODULE,
         'archetypes' => [
             'editingteacher' => CAP_ALLOW,
@@ -143,16 +134,6 @@ $capabilities = [
         'archetypes' => [
             'guest' => CAP_ALLOW,
             'user' => CAP_ALLOW,
-        ],
-    ],
-
-    'mod/jitsi:viewexternallink' => [
-        'captype' => 'write',
-        'contextlevel' => CONTEXT_MODULE,
-        'archetypes' => [
-            'editingteacher' => CAP_ALLOW,
-            'manager' => CAP_ALLOW,
-            'teacher' => CAP_ALLOW,
         ],
     ],
 

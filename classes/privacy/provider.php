@@ -64,10 +64,19 @@ class provider implements
         // AI-generated content and recording creator stored in jitsi_source_record.
         $collection->add_database_table('jitsi_source_record', [
             'userid'           => 'privacy:metadata:jitsi_source_record:userid',
+            'link'             => 'privacy:metadata:jitsi_source_record:link',
+            'timecreated'      => 'privacy:metadata:jitsi_source_record:timecreated',
             'ai_summary'       => 'privacy:metadata:jitsi_source_record:ai_summary',
             'ai_transcription' => 'privacy:metadata:jitsi_source_record:ai_transcription',
             'ai_quiz_id'       => 'privacy:metadata:jitsi_source_record:ai_quiz_id',
         ], 'privacy:metadata:jitsi_source_record');
+
+        // OAuth credentials of the linked Google/YouTube streaming account.
+        $collection->add_database_table('jitsi_record_account', [
+            'name'               => 'privacy:metadata:jitsi_record_account:name',
+            'clientaccesstoken'  => 'privacy:metadata:jitsi_record_account:clientaccesstoken',
+            'clientrefreshtoken' => 'privacy:metadata:jitsi_record_account:clientrefreshtoken',
+        ], 'privacy:metadata:jitsi_record_account');
 
         // Anonymous usage telemetry sent to the mod_jitsi Account portal.
         $collection->add_external_location_link('mod_jitsi_portal', [
@@ -112,8 +121,10 @@ class provider implements
 
         // Real-time presence of participants in jitsi sessions.
         $collection->add_database_table('jitsi_presence', [
-            'userid'    => 'privacy:metadata:jitsi_presence:userid',
-            'guestname' => 'privacy:metadata:jitsi_presence:guestname',
+            'userid'       => 'privacy:metadata:jitsi_presence:userid',
+            'guestname'    => 'privacy:metadata:jitsi_presence:guestname',
+            'timecreated'  => 'privacy:metadata:jitsi_presence:timecreated',
+            'timemodified' => 'privacy:metadata:jitsi_presence:timemodified',
         ], 'privacy:metadata:jitsi_presence');
 
         return $collection;
