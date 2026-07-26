@@ -109,7 +109,8 @@ if (
 ) {
     echo $OUTPUT->notification(get_string('urlerror', 'jitsi'), 'error');
 } else {
-    $nombre = str_replace("'", "\\'", $nombre);
+    // Do not pre-escape apostrophes: session::create() always emits $nombre via json_encode,
+    // so escaping here would double-escape it (e.g. "O'Brien" shown as "O\'Brien").
     $mail = get_config('mod_jitsi', 'sendemail') ? $USER->email : null;
     \mod_jitsi\local\session::create($teacher, $cmid, $avatar, $nombre, $session, $mail, $jitsi);
 }

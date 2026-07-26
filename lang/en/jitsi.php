@@ -235,6 +235,7 @@ $string['gcpservererror'] = 'Error checking server status: {$a}';
 $string['gcpserverinfo'] = 'GCP Auto-Managed Servers (BETA)';
 $string['gcpserverinfodetail'] = 'GCP auto-managed servers provide automatic provisioning with JWT authentication. Optionally, a dedicated Jibri recording VM can be created alongside the Jitsi server.';
 $string['gcpserverstopped'] = 'The selected Jitsi server is currently stopped. Please contact your administrator to start the server.';
+$string['gcpservertransitioning'] = 'The Jitsi server is starting up or shutting down. Please wait a moment and try again.';
 $string['gcpserviceaccountjsonfile'] = 'Service Account JSON';
 $string['gcpserviceaccountjsonfileex'] = 'Upload the Service Account JSON with permissions to manage Compute Engine.';
 $string['gcpsettingsmissing'] = 'Missing GCP settings: {$a}';

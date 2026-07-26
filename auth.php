@@ -54,7 +54,7 @@ if ($name) {
         }
     }
 
-    $accountinuse = $DB->get_record('jitsi_record_account', ['inuse' => 1]);
+    $accountinuse = $DB->get_record('jitsi_record_account', ['inuse' => 1], '*', IGNORE_MULTIPLE);
 
     unset($_SESSION[$tokensessionkey]);
     if ($accountinuse) {

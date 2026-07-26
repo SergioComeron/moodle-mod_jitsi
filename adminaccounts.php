@@ -82,7 +82,7 @@ require_admin();
 if ($change && confirm_sesskey($sesskey)) {
     $accounttouse = $DB->get_record('jitsi_record_account', ['id' => $change]);
     $accounttouse->inuse = 1;
-    $accountinuse = $DB->get_record('jitsi_record_account', ['inuse' => 1]);
+    $accountinuse = $DB->get_record('jitsi_record_account', ['inuse' => 1], '*', IGNORE_MULTIPLE);
     if ($accountinuse) {
         $accountinuse->inuse = 0;
         $DB->update_record('jitsi_record_account', $accountinuse);

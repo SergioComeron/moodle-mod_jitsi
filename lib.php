@@ -189,6 +189,16 @@ function jitsi_delete_instance($id) {
     $result = true;
     $DB->delete_records('jitsi_record', ['jitsi' => $jitsi->id]);
 
+    // Real-time presence rows are keyed by the jitsi instance id.
+    $DB->delete_records('jitsi_presence', ['jitsiid' => $jitsi->id]);
+
+    // Watched-segment and usage aggregates are keyed by the course module id.
+    $cm = get_coursemodule_from_instance('jitsi', $jitsi->id, 0, false, IGNORE_MISSING);
+    if ($cm) {
+        $DB->delete_records('jitsi_recording_segments', ['cmid' => $cm->id]);
+        $DB->delete_records('jitsi_usage_daily', ['cmid' => $cm->id]);
+    }
+
     if (! $DB->delete_records('jitsi', ['id' => $jitsi->id])) {
         $result = false;
     }

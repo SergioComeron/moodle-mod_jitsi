@@ -85,7 +85,7 @@ class create_stream extends external_api {
         }
 
         // Validate there is an active streaming account before creating any record.
-        $account = $DB->get_record('jitsi_record_account', ['inuse' => 1]);
+        $account = $DB->get_record('jitsi_record_account', ['inuse' => 1], '*', IGNORE_MULTIPLE);
         if (empty($account)) {
             return [
                 'stream' => 'nodata',

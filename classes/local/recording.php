@@ -122,6 +122,9 @@ class recording {
      */
     public static function add_link($jitsiid, $url, $name, $embed, $userid) {
         global $DB;
+        // Both inserts must succeed together: without a transaction, a failure on the second
+        // insert would leave an orphan jitsi_source_record behind.
+        $transaction = $DB->start_delegated_transaction();
         $sourcerecord = new \stdClass();
         $sourcerecord->link = $url;
         $sourcerecord->account = null;
@@ -138,7 +141,9 @@ class recording {
         $record->source = $sourcerecord->id;
         $record->visible = 1;
         $record->name = empty($name) ? userdate(time()) : $name;
-        return $DB->insert_record('jitsi_record', $record);
+        $recordid = $DB->insert_record('jitsi_record', $record);
+        $transaction->allow_commit();
+        return $recordid;
     }
 
     /**
