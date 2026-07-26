@@ -229,7 +229,13 @@ export const init = (config) => {
             const video = document.getElementById(videoId);
             if (video) {
                 video.currentTime = seconds;
-                video.play();
+                // play() rejects if autoplay is blocked; ignore it (the user can press play).
+                const playPromise = video.play();
+                if (playPromise && typeof playPromise.catch === 'function') {
+                    playPromise.catch(() => {
+                        return;
+                    });
+                }
                 video.scrollIntoView({behavior: 'smooth', block: 'center'});
             }
         }

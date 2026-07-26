@@ -463,6 +463,7 @@ $string['pushsavingsubscription'] = 'Saving subscription...';
 $string['pushsubscribing'] = 'Subscribing...';
 $string['pushswerror'] = 'Service worker error: {$a}';
 $string['recordaccounterror'] = 'Recording account error. Please try again in a few seconds.';
+$string['videonotsupported'] = 'Your browser cannot play this recording.';
 // Server management (GCP/Jibri) admin UI.
 $string['creategcpvm'] = 'Create VM in Google Cloud';
 $string['jibripoollabel'] = 'Jibri pool (desired size)';
@@ -611,27 +612,6 @@ $string['streamingoptionex'] = '<b>Jitsi interface</b> enable the "Start Live St
 $string['tablelistjitsis'] = "List with all the videos in your Streaming/Recording Accounts providers which are available to be deleted because they are no more linked in Jitsi activities in this moodle instance. You can safely delete them in order to free up space on the streaming server. The list could include videos that now are in the 'Recycle bin' in some course. It's recommended to delete just old recordings that you know won't be required. </br></br> <b>¡¡¡ WARNING!!! </b>If you have moodle backup instances you should NOT remove these videos if they are linked in other instances.";
 $string['task_aggregate_usage_stats'] = 'Aggregate Jitsi daily usage statistics';
 $string['task_send_telemetry'] = 'Send anonymous usage telemetry (opt-in)';
-$string['telemetryenabled'] = 'Share anonymous usage data';
-$string['telemetryenabledex'] = 'When enabled, a weekly ping is sent to the plugin developer to help improve mod_jitsi.<br><br>
-<strong>What is sent (all data is fully anonymous — no personal information of any kind):</strong>
-<ul>
-<li>Server type, Moodle version and plugin version</li>
-<li>Number of Jitsi activities created on the site</li>
-<li>Which optional features are enabled (AI, recording, private sessions, push notifications)</li>
-<li>Aggregated session counts for the past 7 days: number of sessions, total minutes, number of unique users, number of active activities</li>
-<li>Total number of recordings stored</li>
-<li>Peak number of simultaneous participants ever recorded in a single session</li>
-<li>Site timezone</li>
-</ul>
-<strong>What is NOT sent:</strong> names, email addresses, course names, session content, IP addresses, or any other information that could identify a person or institution. All counts are aggregate totals — individual session or user data is never transmitted. Your site is identified only by an anonymous SHA-256 hash of your Moodle URL; the original URL cannot be recovered from this hash.<br><br>
-<strong>Note:</strong> your site name and URL are stored separately when you voluntarily register your installation in the mod_jitsi Account.<br><br>
-Data is sent to <code>https://portal.sergiocomeron.com/collect.php</code>. This feature is disabled by default and can be turned off at any time.';
-$string['telemetryendpoint'] = 'Telemetry endpoint URL';
-$string['telemetryendpointex'] = 'URL of the server that receives the usage pings. Leave as default unless instructed otherwise.';
-$string['telemetryheading'] = 'Usage statistics (opt-in)';
-$string['telemetryheadingex'] = 'Help improve mod_jitsi by sharing anonymous usage data with the developer. All data is fully anonymised — only aggregate statistics are collected, never personal data. This feature is disabled by default and can be turned off at any time.';
-$string['telemetrykey'] = 'Telemetry secret key';
-$string['telemetrykeyex'] = 'Secret key used to authenticate pings to the telemetry endpoint.';
 $string['telemetrynocron'] = 'Moodle scheduled tasks (cron) have not run yet on this site, so no telemetry has been sent and your account features cannot activate. Please make sure Moodle cron is configured and running — see <a href="https://docs.moodle.org/en/Cron" target="_blank">Moodle cron setup</a>.';
 $string['telemetrynopingsoon'] = 'Cron is running but no telemetry has been sent yet. If you have just registered and confirmed your e-mail, this resolves automatically within a few hours.';
 $string['telemetrynopingtitle'] = 'No telemetry received from this site yet';

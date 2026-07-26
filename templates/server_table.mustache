@@ -95,10 +95,13 @@
                     <small class="text-muted">🎥 {{#str}} jibripoollabel, mod_jitsi {{/str}}:
                         <input type="number" min="1" max="10" value="{{poolsize}}" style="width:45px"
                             class="form-control form-control-sm d-inline-block p-0 ps-1 jitsi-poolsize-input"
+                            aria-label="{{#str}} jibripoollabel, mod_jitsi {{/str}}"
                             data-serverid="{{serverid}}"></small><br>
                     {{#entries}}
                     <span class="badge {{badgeclass}} me-1" title="{{title}}">{{badgetext}}</span>
-                    <a href="{{deleteurl}}" class="text-danger small me-1" title="{{#str}} removejibrivm, mod_jitsi {{/str}}">✕</a>
+                    <a href="{{deleteurl}}" class="text-danger small me-1"
+                        title="{{#str}} removejibrivm, mod_jitsi {{/str}}"
+                        aria-label="{{#str}} removejibrivm, mod_jitsi {{/str}}">✕</a>
                     {{/entries}}
                     <br>
                     <a href="{{addurl}}" class="btn btn-xs btn-outline-secondary mt-1"

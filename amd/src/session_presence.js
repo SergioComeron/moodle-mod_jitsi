@@ -64,7 +64,7 @@ export const init = (config) => {
     const sessionHash = generateSessionHash();
 
     // Periodically flag that this user is still participating in the session.
-    setInterval(() => {
+    const participatingTimer = setInterval(() => {
         Ajax.call([{
             methodname: 'mod_jitsi_participating_session',
             args: {jitsi: config.jitsiid, user: config.userid, cmid: config.cmid},
@@ -72,7 +72,7 @@ export const init = (config) => {
     }, PARTICIPATING_INTERVAL);
 
     // Periodic presence heartbeat.
-    setInterval(() => {
+    const heartbeatTimer = setInterval(() => {
         Ajax.call([{
             methodname: 'mod_jitsi_presence_heartbeat',
             args: {jitsiid: config.jitsiid, sessionhash: sessionHash},
@@ -95,6 +95,10 @@ export const init = (config) => {
     });
 
     api.on('videoConferenceLeft', () => {
+        // Stop the heartbeats: otherwise, when there is no redirect, this tab would keep
+        // reporting the user as present indefinitely after they left the conference.
+        clearInterval(participatingTimer);
+        clearInterval(heartbeatTimer);
         Ajax.call([{
             methodname: 'mod_jitsi_presence_leave',
             args: {jitsiid: config.jitsiid, sessionhash: sessionHash},

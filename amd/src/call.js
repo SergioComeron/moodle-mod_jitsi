@@ -94,7 +94,13 @@ const showCallModal = (response, sessionPrivUrl) => {
     // eslint-disable-next-line no-undef
     if (typeof jQuery !== 'undefined' && jQuery.fn.modal) {
         // eslint-disable-next-line no-undef
-        jQuery('#jitsi-incoming-modal').modal('show');
+        const $modal = jQuery('#jitsi-incoming-modal');
+        // Reset the "already shown" guard when the modal is dismissed, so the same caller
+        // ringing a second time re-opens the modal instead of being silently ignored.
+        $modal.off('hidden.bs.modal.jitsi').on('hidden.bs.modal.jitsi', () => {
+            shownCallerId = 0;
+        });
+        $modal.modal('show');
     } else {
         modal.style.display = 'block';
         modal.classList.add('show');
@@ -329,21 +335,30 @@ export const init = (sessionPrivUrl, swUrl, vapidKey) => {
 
     if (input && results) {
         let debounceTimer = null;
+        // Monotonic id of the latest search: a slower earlier response must not overwrite the
+        // results of a newer query.
+        let searchSeq = 0;
 
         input.addEventListener('input', () => {
             clearTimeout(debounceTimer);
             const query = input.value.trim();
 
             if (query.length < 2) {
+                searchSeq++;
                 results.innerHTML = '';
                 return;
             }
 
             debounceTimer = setTimeout(() => {
+                const seq = ++searchSeq;
                 Ajax.call([{
                     methodname: 'mod_jitsi_search_coursemates',
                     args: {query},
                 }])[0].then((response) => {
+                    if (seq !== searchSeq) {
+                        // A newer query has superseded this response; ignore it.
+                        return null;
+                    }
                     results.innerHTML = '';
 
                     if (!response.users.length) {
