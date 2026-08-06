@@ -18,9 +18,14 @@
 namespace Google\Service\Compute\Resource;
 
 use Google\Service\Compute\Operation;
+use Google\Service\Compute\Policy;
 use Google\Service\Compute\ReservationSubBlocksGetResponse;
+use Google\Service\Compute\ReservationSubBlocksGetVersionRequest;
 use Google\Service\Compute\ReservationSubBlocksListResponse;
 use Google\Service\Compute\ReservationSubBlocksReportFaultyRequest;
+use Google\Service\Compute\TestPermissionsRequest;
+use Google\Service\Compute\TestPermissionsResponse;
+use Google\Service\Compute\ZoneSetNestedPolicyRequest;
 
 /**
  * The "reservationSubBlocks" collection of methods.
@@ -45,6 +50,8 @@ class ReservationSubBlocks extends \Google\Service\Resource
    * @param string $reservationSubBlock The name of the reservation subBlock. Name
    * should conform to RFC1035 or be a resource ID.
    * @param array $optParams Optional parameters.
+   *
+   * @opt_param string view View of the subBlock.
    * @return ReservationSubBlocksGetResponse
    * @throws \Google\Service\Exception
    */
@@ -53,6 +60,63 @@ class ReservationSubBlocks extends \Google\Service\Resource
     $params = ['project' => $project, 'zone' => $zone, 'parentName' => $parentName, 'reservationSubBlock' => $reservationSubBlock];
     $params = array_merge($params, $optParams);
     return $this->call('get', [$params], ReservationSubBlocksGetResponse::class);
+  }
+  /**
+   * Gets the access control policy for a resource. May be empty if no such policy
+   * or resource exists. (reservationSubBlocks.getIamPolicy)
+   *
+   * @param string $project Project ID for this request.
+   * @param string $zone The name of the zone for this request.
+   * @param string $parentResource Name or id of parent resource of the resource
+   * for this request.
+   * @param string $resource Name or id of the resource for this request.
+   * @param array $optParams Optional parameters.
+   *
+   * @opt_param int optionsRequestedPolicyVersion Requested IAM Policy version.
+   * @return Policy
+   * @throws \Google\Service\Exception
+   */
+  public function getIamPolicy($project, $zone, $parentResource, $resource, $optParams = [])
+  {
+    $params = ['project' => $project, 'zone' => $zone, 'parentResource' => $parentResource, 'resource' => $resource];
+    $params = array_merge($params, $optParams);
+    return $this->call('getIamPolicy', [$params], Policy::class);
+  }
+  /**
+   * Allows customers to get SBOM versions of a reservation subBlock.
+   * (reservationSubBlocks.getVersion)
+   *
+   * @param string $project Project ID for this request.
+   * @param string $zone Name of the zone for this request. Zone name should
+   * conform to RFC1035.
+   * @param string $parentName The name of the parent reservation and parent
+   * block. In the format of
+   * reservations/{reservation_name}/reservationBlocks/{reservation_block_name}
+   * @param string $reservationSubBlock The name of the reservation subBlock. Name
+   * should conform to RFC1035 or be a resource ID.
+   * @param ReservationSubBlocksGetVersionRequest $postBody
+   * @param array $optParams Optional parameters.
+   *
+   * @opt_param string requestId An optional request ID to identify requests.
+   * Specify a unique request ID so that if you must retry your request, the
+   * server will know to ignore the request if it has already been completed.
+   *
+   * For example, consider a situation where you make an initial request and the
+   * request times out. If you make the request again with the same request ID,
+   * the server can check if original operation with the same request ID was
+   * received, and if so, will ignore the second request. This prevents clients
+   * from accidentally creating duplicate commitments.
+   *
+   * The request ID must be a valid UUID with the exception that zero UUID is not
+   * supported (00000000-0000-0000-0000-000000000000).
+   * @return Operation
+   * @throws \Google\Service\Exception
+   */
+  public function getVersion($project, $zone, $parentName, $reservationSubBlock, ReservationSubBlocksGetVersionRequest $postBody, $optParams = [])
+  {
+    $params = ['project' => $project, 'zone' => $zone, 'parentName' => $parentName, 'reservationSubBlock' => $reservationSubBlock, 'postBody' => $postBody];
+    $params = array_merge($params, $optParams);
+    return $this->call('getVersion', [$params], Operation::class);
   }
   /**
    * Retrieves a list of reservation subBlocks under a single reservation.
@@ -214,6 +278,46 @@ class ReservationSubBlocks extends \Google\Service\Resource
     $params = ['project' => $project, 'zone' => $zone, 'parentName' => $parentName, 'reservationSubBlock' => $reservationSubBlock, 'postBody' => $postBody];
     $params = array_merge($params, $optParams);
     return $this->call('reportFaulty', [$params], Operation::class);
+  }
+  /**
+   * Sets the access control policy on the specified resource. Replaces any
+   * existing policy. (reservationSubBlocks.setIamPolicy)
+   *
+   * @param string $project Project ID for this request.
+   * @param string $zone The name of the zone for this request.
+   * @param string $parentResource Name or id of parent resource of the resource
+   * for this request.
+   * @param string $resource Name or id of the resource for this request.
+   * @param ZoneSetNestedPolicyRequest $postBody
+   * @param array $optParams Optional parameters.
+   * @return Policy
+   * @throws \Google\Service\Exception
+   */
+  public function setIamPolicy($project, $zone, $parentResource, $resource, ZoneSetNestedPolicyRequest $postBody, $optParams = [])
+  {
+    $params = ['project' => $project, 'zone' => $zone, 'parentResource' => $parentResource, 'resource' => $resource, 'postBody' => $postBody];
+    $params = array_merge($params, $optParams);
+    return $this->call('setIamPolicy', [$params], Policy::class);
+  }
+  /**
+   * Returns permissions that a caller has on the specified resource.
+   * (reservationSubBlocks.testIamPermissions)
+   *
+   * @param string $project Project ID for this request.
+   * @param string $zone The name of the zone for this request.
+   * @param string $parentResource Name or id of parent resource of the resource
+   * for this request.
+   * @param string $resource Name or id of the resource for this request.
+   * @param TestPermissionsRequest $postBody
+   * @param array $optParams Optional parameters.
+   * @return TestPermissionsResponse
+   * @throws \Google\Service\Exception
+   */
+  public function testIamPermissions($project, $zone, $parentResource, $resource, TestPermissionsRequest $postBody, $optParams = [])
+  {
+    $params = ['project' => $project, 'zone' => $zone, 'parentResource' => $parentResource, 'resource' => $resource, 'postBody' => $postBody];
+    $params = array_merge($params, $optParams);
+    return $this->call('testIamPermissions', [$params], TestPermissionsResponse::class);
   }
 }
 

@@ -21,6 +21,8 @@ use Google\Service\Compute\Autoscaler;
 use Google\Service\Compute\AutoscalerAggregatedList;
 use Google\Service\Compute\AutoscalerList;
 use Google\Service\Compute\Operation;
+use Google\Service\Compute\TestPermissionsRequest;
+use Google\Service\Compute\TestPermissionsResponse;
 
 /**
  * The "autoscalers" collection of methods.
@@ -35,7 +37,7 @@ class Autoscalers extends \Google\Service\Resource
   /**
    * Retrieves an aggregated list of autoscalers.
    *
-   * To prevent failure, Google recommends that you set the `returnPartialSuccess`
+   * To prevent failure, it is recommended that you set the `returnPartialSuccess`
    * parameter to `true`. (autoscalers.aggregatedList)
    *
    * @param string $project Project ID for this request.
@@ -321,6 +323,24 @@ class Autoscalers extends \Google\Service\Resource
     $params = ['project' => $project, 'zone' => $zone, 'postBody' => $postBody];
     $params = array_merge($params, $optParams);
     return $this->call('patch', [$params], Operation::class);
+  }
+  /**
+   * Returns permissions that a caller has on the specified resource.
+   * (autoscalers.testIamPermissions)
+   *
+   * @param string $project Project ID for this request.
+   * @param string $zone The name of the zone for this request.
+   * @param string $resource Name or id of the resource for this request.
+   * @param TestPermissionsRequest $postBody
+   * @param array $optParams Optional parameters.
+   * @return TestPermissionsResponse
+   * @throws \Google\Service\Exception
+   */
+  public function testIamPermissions($project, $zone, $resource, TestPermissionsRequest $postBody, $optParams = [])
+  {
+    $params = ['project' => $project, 'zone' => $zone, 'resource' => $resource, 'postBody' => $postBody];
+    $params = array_merge($params, $optParams);
+    return $this->call('testIamPermissions', [$params], TestPermissionsResponse::class);
   }
   /**
    * Updates an autoscaler in the specified project using the data included in the

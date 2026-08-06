@@ -20,6 +20,42 @@ namespace Google\Service\Compute;
 class NetworkProfileProfileType extends \Google\Model
 {
   /**
+   * RDMA network.
+   */
+  public const NETWORK_TYPE_RDMA = 'RDMA';
+  /**
+   * ULL network.
+   */
+  public const NETWORK_TYPE_ULL = 'ULL';
+  /**
+   * VPC network.
+   */
+  public const NETWORK_TYPE_VPC = 'VPC';
+  /**
+   * RDMA over Falcon.
+   */
+  public const RDMA_SUBTYPE_FALCON = 'FALCON';
+  /**
+   * RDMA over Converged Ethernet (RoCE).
+   */
+  public const RDMA_SUBTYPE_ROCE = 'ROCE';
+  /**
+   * RDMA over Converged Ethernet (RoCE) for Bare Metal.
+   */
+  public const RDMA_SUBTYPE_ROCE_METAL = 'ROCE_METAL';
+  /**
+   * Exchange operator.
+   */
+  public const ULL_SUBTYPE_OPERATOR = 'OPERATOR';
+  /**
+   * Exchange participant.
+   */
+  public const ULL_SUBTYPE_PARTICIPANT = 'PARTICIPANT';
+  /**
+   * Regionally bound VPC network.
+   */
+  public const VPC_SUBTYPE_REGIONAL = 'REGIONAL';
+  /**
    * @var string
    */
   public $networkType;
@@ -37,56 +73,56 @@ class NetworkProfileProfileType extends \Google\Model
   public $vpcSubtype;
 
   /**
-   * @param string
+   * @param self::NETWORK_TYPE_* $networkType
    */
   public function setNetworkType($networkType)
   {
     $this->networkType = $networkType;
   }
   /**
-   * @return string
+   * @return self::NETWORK_TYPE_*
    */
   public function getNetworkType()
   {
     return $this->networkType;
   }
   /**
-   * @param string
+   * @param self::RDMA_SUBTYPE_* $rdmaSubtype
    */
   public function setRdmaSubtype($rdmaSubtype)
   {
     $this->rdmaSubtype = $rdmaSubtype;
   }
   /**
-   * @return string
+   * @return self::RDMA_SUBTYPE_*
    */
   public function getRdmaSubtype()
   {
     return $this->rdmaSubtype;
   }
   /**
-   * @param string
+   * @param self::ULL_SUBTYPE_* $ullSubtype
    */
   public function setUllSubtype($ullSubtype)
   {
     $this->ullSubtype = $ullSubtype;
   }
   /**
-   * @return string
+   * @return self::ULL_SUBTYPE_*
    */
   public function getUllSubtype()
   {
     return $this->ullSubtype;
   }
   /**
-   * @param string
+   * @param self::VPC_SUBTYPE_* $vpcSubtype
    */
   public function setVpcSubtype($vpcSubtype)
   {
     $this->vpcSubtype = $vpcSubtype;
   }
   /**
-   * @return string
+   * @return self::VPC_SUBTYPE_*
    */
   public function getVpcSubtype()
   {

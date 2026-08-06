@@ -19,23 +19,35 @@ namespace Google\Service\Compute;
 
 class InterconnectGroupsOperationalStatusInterconnectStatus extends \Google\Model
 {
+  public const IS_ACTIVE_ACTIVE = 'ACTIVE';
+  public const IS_ACTIVE_INACTIVE = 'INACTIVE';
+  public const IS_ACTIVE_IS_ACTIVE_UNSPECIFIED = 'IS_ACTIVE_UNSPECIFIED';
   /**
+   * Output only. Whether the Interconnect is enabled.
+   *
    * @var bool
    */
   public $adminEnabled;
   protected $diagnosticsType = InterconnectDiagnostics::class;
   protected $diagnosticsDataType = '';
   /**
+   * Output only. The URL of the Interconnect being described.
+   *
    * @var string
    */
   public $interconnect;
   /**
+   * Output only. Whether this interconnect is participating in the redundant
+   * configuration.
+   *
    * @var string
    */
   public $isActive;
 
   /**
-   * @param bool
+   * Output only. Whether the Interconnect is enabled.
+   *
+   * @param bool $adminEnabled
    */
   public function setAdminEnabled($adminEnabled)
   {
@@ -49,7 +61,10 @@ class InterconnectGroupsOperationalStatusInterconnectStatus extends \Google\Mode
     return $this->adminEnabled;
   }
   /**
-   * @param InterconnectDiagnostics
+   * Output only. The diagnostics of the Interconnect, as returned by the
+   * existing get-diagnostics method.
+   *
+   * @param InterconnectDiagnostics $diagnostics
    */
   public function setDiagnostics(InterconnectDiagnostics $diagnostics)
   {
@@ -63,7 +78,9 @@ class InterconnectGroupsOperationalStatusInterconnectStatus extends \Google\Mode
     return $this->diagnostics;
   }
   /**
-   * @param string
+   * Output only. The URL of the Interconnect being described.
+   *
+   * @param string $interconnect
    */
   public function setInterconnect($interconnect)
   {
@@ -77,14 +94,19 @@ class InterconnectGroupsOperationalStatusInterconnectStatus extends \Google\Mode
     return $this->interconnect;
   }
   /**
-   * @param string
+   * Output only. Whether this interconnect is participating in the redundant
+   * configuration.
+   *
+   * Accepted values: ACTIVE, INACTIVE, IS_ACTIVE_UNSPECIFIED
+   *
+   * @param self::IS_ACTIVE_* $isActive
    */
   public function setIsActive($isActive)
   {
     $this->isActive = $isActive;
   }
   /**
-   * @return string
+   * @return self::IS_ACTIVE_*
    */
   public function getIsActive()
   {

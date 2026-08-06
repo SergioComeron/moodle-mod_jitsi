@@ -25,52 +25,90 @@ class Router extends \Google\Collection
   protected $bgpPeersType = RouterBgpPeer::class;
   protected $bgpPeersDataType = 'array';
   /**
+   * Output only. [Output Only] Creation timestamp inRFC3339 text format.
+   *
    * @var string
    */
   public $creationTimestamp;
   /**
+   * An optional description of this resource. Provide this property when you
+   * create the resource.
+   *
    * @var string
    */
   public $description;
   /**
+   * Indicates if a router is dedicated for use with encrypted VLAN attachments
+   * (interconnectAttachments).
+   *
    * @var bool
    */
   public $encryptedInterconnectRouter;
   /**
+   * [Output Only] The unique identifier for the resource. This identifier is
+   * defined by the server.
+   *
    * @var string
    */
   public $id;
   protected $interfacesType = RouterInterface::class;
   protected $interfacesDataType = 'array';
   /**
+   * Output only. [Output Only] Type of resource. Always compute#router for
+   * routers.
+   *
    * @var string
    */
   public $kind;
   protected $md5AuthenticationKeysType = RouterMd5AuthenticationKey::class;
   protected $md5AuthenticationKeysDataType = 'array';
   /**
+   * Name of the resource. Provided by the client when the resource is created.
+   * The name must be 1-63 characters long, and comply withRFC1035.
+   * Specifically, the name must be 1-63 characters long and match the regular
+   * expression `[a-z]([-a-z0-9]*[a-z0-9])?` which means the first character
+   * must be a lowercase letter, and all following characters must be a dash,
+   * lowercase letter, or digit, except the last character, which cannot be a
+   * dash.
+   *
    * @var string
    */
   public $name;
   protected $natsType = RouterNat::class;
   protected $natsDataType = 'array';
   /**
+   * URI of the ncc_gateway to which this router associated.
+   *
+   * @var string
+   */
+  public $nccGateway;
+  /**
+   * URI of the network to which this router belongs.
+   *
    * @var string
    */
   public $network;
   protected $paramsType = RouterParams::class;
   protected $paramsDataType = '';
   /**
+   * [Output Only] URI of the region where the router resides. You must specify
+   * this field as part of the HTTP request URL. It is not settable as a field
+   * in the request body.
+   *
    * @var string
    */
   public $region;
   /**
+   * [Output Only] Server-defined URL for the resource.
+   *
    * @var string
    */
   public $selfLink;
 
   /**
-   * @param RouterBgp
+   * BGP information specific to this router.
+   *
+   * @param RouterBgp $bgp
    */
   public function setBgp(RouterBgp $bgp)
   {
@@ -84,7 +122,11 @@ class Router extends \Google\Collection
     return $this->bgp;
   }
   /**
-   * @param RouterBgpPeer[]
+   * BGP information that must be configured into the routing stack to establish
+   * BGP peering. This information must specify the peer ASN and either the
+   * interface name, IP address, or peer IP address. Please refer toRFC4273.
+   *
+   * @param RouterBgpPeer[] $bgpPeers
    */
   public function setBgpPeers($bgpPeers)
   {
@@ -98,7 +140,9 @@ class Router extends \Google\Collection
     return $this->bgpPeers;
   }
   /**
-   * @param string
+   * Output only. [Output Only] Creation timestamp inRFC3339 text format.
+   *
+   * @param string $creationTimestamp
    */
   public function setCreationTimestamp($creationTimestamp)
   {
@@ -112,7 +156,10 @@ class Router extends \Google\Collection
     return $this->creationTimestamp;
   }
   /**
-   * @param string
+   * An optional description of this resource. Provide this property when you
+   * create the resource.
+   *
+   * @param string $description
    */
   public function setDescription($description)
   {
@@ -126,7 +173,10 @@ class Router extends \Google\Collection
     return $this->description;
   }
   /**
-   * @param bool
+   * Indicates if a router is dedicated for use with encrypted VLAN attachments
+   * (interconnectAttachments).
+   *
+   * @param bool $encryptedInterconnectRouter
    */
   public function setEncryptedInterconnectRouter($encryptedInterconnectRouter)
   {
@@ -140,7 +190,10 @@ class Router extends \Google\Collection
     return $this->encryptedInterconnectRouter;
   }
   /**
-   * @param string
+   * [Output Only] The unique identifier for the resource. This identifier is
+   * defined by the server.
+   *
+   * @param string $id
    */
   public function setId($id)
   {
@@ -154,7 +207,14 @@ class Router extends \Google\Collection
     return $this->id;
   }
   /**
-   * @param RouterInterface[]
+   * Router interfaces. To create a BGP peer that uses a router interface, the
+   * interface must have one of the following fields specified:        -
+   * linkedVpnTunnel    - linkedInterconnectAttachment    - subnetwork
+   *
+   * You can create a router interface without any of these fields specified.
+   * However, you cannot create a BGP peer that uses that interface.
+   *
+   * @param RouterInterface[] $interfaces
    */
   public function setInterfaces($interfaces)
   {
@@ -168,7 +228,10 @@ class Router extends \Google\Collection
     return $this->interfaces;
   }
   /**
-   * @param string
+   * Output only. [Output Only] Type of resource. Always compute#router for
+   * routers.
+   *
+   * @param string $kind
    */
   public function setKind($kind)
   {
@@ -182,7 +245,9 @@ class Router extends \Google\Collection
     return $this->kind;
   }
   /**
-   * @param RouterMd5AuthenticationKey[]
+   * Keys used for MD5 authentication.
+   *
+   * @param RouterMd5AuthenticationKey[] $md5AuthenticationKeys
    */
   public function setMd5AuthenticationKeys($md5AuthenticationKeys)
   {
@@ -196,7 +261,15 @@ class Router extends \Google\Collection
     return $this->md5AuthenticationKeys;
   }
   /**
-   * @param string
+   * Name of the resource. Provided by the client when the resource is created.
+   * The name must be 1-63 characters long, and comply withRFC1035.
+   * Specifically, the name must be 1-63 characters long and match the regular
+   * expression `[a-z]([-a-z0-9]*[a-z0-9])?` which means the first character
+   * must be a lowercase letter, and all following characters must be a dash,
+   * lowercase letter, or digit, except the last character, which cannot be a
+   * dash.
+   *
+   * @param string $name
    */
   public function setName($name)
   {
@@ -210,7 +283,9 @@ class Router extends \Google\Collection
     return $this->name;
   }
   /**
-   * @param RouterNat[]
+   * A list of NAT services created in this router.
+   *
+   * @param RouterNat[] $nats
    */
   public function setNats($nats)
   {
@@ -224,7 +299,25 @@ class Router extends \Google\Collection
     return $this->nats;
   }
   /**
-   * @param string
+   * URI of the ncc_gateway to which this router associated.
+   *
+   * @param string $nccGateway
+   */
+  public function setNccGateway($nccGateway)
+  {
+    $this->nccGateway = $nccGateway;
+  }
+  /**
+   * @return string
+   */
+  public function getNccGateway()
+  {
+    return $this->nccGateway;
+  }
+  /**
+   * URI of the network to which this router belongs.
+   *
+   * @param string $network
    */
   public function setNetwork($network)
   {
@@ -238,7 +331,10 @@ class Router extends \Google\Collection
     return $this->network;
   }
   /**
-   * @param RouterParams
+   * Input only. [Input Only] Additional params passed with the request, but not
+   * persisted as part of resource payload.
+   *
+   * @param RouterParams $params
    */
   public function setParams(RouterParams $params)
   {
@@ -252,7 +348,11 @@ class Router extends \Google\Collection
     return $this->params;
   }
   /**
-   * @param string
+   * [Output Only] URI of the region where the router resides. You must specify
+   * this field as part of the HTTP request URL. It is not settable as a field
+   * in the request body.
+   *
+   * @param string $region
    */
   public function setRegion($region)
   {
@@ -266,7 +366,9 @@ class Router extends \Google\Collection
     return $this->region;
   }
   /**
-   * @param string
+   * [Output Only] Server-defined URL for the resource.
+   *
+   * @param string $selfLink
    */
   public function setSelfLink($selfLink)
   {

@@ -37,7 +37,7 @@ class ForwardingRules extends \Google\Service\Resource
   /**
    * Retrieves an aggregated list of forwarding rules.
    *
-   * To prevent failure, Google recommends that you set the `returnPartialSuccess`
+   * To prevent failure, it is recommended that you set the `returnPartialSuccess`
    * parameter to `true`. (forwardingRules.aggregatedList)
    *
    * @param string $project Project ID for this request.
@@ -167,6 +167,8 @@ class ForwardingRules extends \Google\Service\Resource
    * @param string $region Name of the region scoping this request.
    * @param string $forwardingRule Name of the ForwardingRule resource to return.
    * @param array $optParams Optional parameters.
+   *
+   * @opt_param string view
    * @return ForwardingRule
    * @throws \Google\Service\Exception
    */

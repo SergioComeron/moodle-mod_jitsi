@@ -29,7 +29,9 @@ class InstanceGroupManagerResizeRequestStatusErrorErrorsErrorDetails extends \Go
   protected $quotaInfoDataType = '';
 
   /**
-   * @param ErrorInfo
+   * Error information containing structured domain, reason, and metadata.
+   *
+   * @param ErrorInfo $errorInfo
    */
   public function setErrorInfo(ErrorInfo $errorInfo)
   {
@@ -43,7 +45,9 @@ class InstanceGroupManagerResizeRequestStatusErrorErrorsErrorDetails extends \Go
     return $this->errorInfo;
   }
   /**
-   * @param Help
+   * Links and information to help the user resolve the error.
+   *
+   * @param Help $help
    */
   public function setHelp(Help $help)
   {
@@ -57,7 +61,9 @@ class InstanceGroupManagerResizeRequestStatusErrorErrorsErrorDetails extends \Go
     return $this->help;
   }
   /**
-   * @param LocalizedMessage
+   * A localized human-readable error message intended for end users.
+   *
+   * @param LocalizedMessage $localizedMessage
    */
   public function setLocalizedMessage(LocalizedMessage $localizedMessage)
   {
@@ -71,7 +77,9 @@ class InstanceGroupManagerResizeRequestStatusErrorErrorsErrorDetails extends \Go
     return $this->localizedMessage;
   }
   /**
-   * @param QuotaExceededInfo
+   * Details about quota limits and metrics when a quota is exceeded.
+   *
+   * @param QuotaExceededInfo $quotaInfo
    */
   public function setQuotaInfo(QuotaExceededInfo $quotaInfo)
   {

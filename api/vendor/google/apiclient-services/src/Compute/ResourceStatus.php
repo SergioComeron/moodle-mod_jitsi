@@ -22,6 +22,10 @@ class ResourceStatus extends \Google\Model
   protected $effectiveInstanceMetadataType = ResourceStatusEffectiveInstanceMetadata::class;
   protected $effectiveInstanceMetadataDataType = '';
   /**
+   * Output only. [Output Only] The precise location of your instance within the
+   * zone's data center, including the block, sub-block, and host. The field is
+   * formatted as follows: blockId/subBlockId/hostId.
+   *
    * @var string
    */
   public $physicalHost;
@@ -31,11 +35,18 @@ class ResourceStatus extends \Google\Model
   protected $reservationConsumptionInfoDataType = '';
   protected $schedulingType = ResourceStatusScheduling::class;
   protected $schedulingDataType = '';
+  protected $shutdownDetailsType = ResourceStatusShutdownDetails::class;
+  protected $shutdownDetailsDataType = '';
   protected $upcomingMaintenanceType = UpcomingMaintenance::class;
   protected $upcomingMaintenanceDataType = '';
 
   /**
-   * @param ResourceStatusEffectiveInstanceMetadata
+   * Output only. [Output Only] Effective metadata is a field that consolidates
+   * project, zonal instance settings, and instance-level predefined metadata
+   * keys to provide the overridden value for those metadata keys at the
+   * instance level.
+   *
+   * @param ResourceStatusEffectiveInstanceMetadata $effectiveInstanceMetadata
    */
   public function setEffectiveInstanceMetadata(ResourceStatusEffectiveInstanceMetadata $effectiveInstanceMetadata)
   {
@@ -49,7 +60,11 @@ class ResourceStatus extends \Google\Model
     return $this->effectiveInstanceMetadata;
   }
   /**
-   * @param string
+   * Output only. [Output Only] The precise location of your instance within the
+   * zone's data center, including the block, sub-block, and host. The field is
+   * formatted as follows: blockId/subBlockId/hostId.
+   *
+   * @param string $physicalHost
    */
   public function setPhysicalHost($physicalHost)
   {
@@ -63,7 +78,11 @@ class ResourceStatus extends \Google\Model
     return $this->physicalHost;
   }
   /**
-   * @param ResourceStatusPhysicalHostTopology
+   * Output only. [Output Only] A series of fields containing the global name of
+   * the Compute Engine cluster, as well as the ID of the block, sub-block, and
+   * host on which the running instance is located.
+   *
+   * @param ResourceStatusPhysicalHostTopology $physicalHostTopology
    */
   public function setPhysicalHostTopology(ResourceStatusPhysicalHostTopology $physicalHostTopology)
   {
@@ -77,7 +96,10 @@ class ResourceStatus extends \Google\Model
     return $this->physicalHostTopology;
   }
   /**
-   * @param ResourceStatusReservationConsumptionInfo
+   * Output only. [Output Only] Reservation information that the instance is
+   * consuming from.
+   *
+   * @param ResourceStatusReservationConsumptionInfo $reservationConsumptionInfo
    */
   public function setReservationConsumptionInfo(ResourceStatusReservationConsumptionInfo $reservationConsumptionInfo)
   {
@@ -91,7 +113,7 @@ class ResourceStatus extends \Google\Model
     return $this->reservationConsumptionInfo;
   }
   /**
-   * @param ResourceStatusScheduling
+   * @param ResourceStatusScheduling $scheduling
    */
   public function setScheduling(ResourceStatusScheduling $scheduling)
   {
@@ -105,7 +127,23 @@ class ResourceStatus extends \Google\Model
     return $this->scheduling;
   }
   /**
-   * @param UpcomingMaintenance
+   * Output only. [Output Only] Details about the instance stopping state.
+   *
+   * @param ResourceStatusShutdownDetails $shutdownDetails
+   */
+  public function setShutdownDetails(ResourceStatusShutdownDetails $shutdownDetails)
+  {
+    $this->shutdownDetails = $shutdownDetails;
+  }
+  /**
+   * @return ResourceStatusShutdownDetails
+   */
+  public function getShutdownDetails()
+  {
+    return $this->shutdownDetails;
+  }
+  /**
+   * @param UpcomingMaintenance $upcomingMaintenance
    */
   public function setUpcomingMaintenance(UpcomingMaintenance $upcomingMaintenance)
   {

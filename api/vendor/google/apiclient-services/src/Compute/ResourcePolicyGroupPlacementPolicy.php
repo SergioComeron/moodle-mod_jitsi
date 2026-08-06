@@ -20,24 +20,77 @@ namespace Google\Service\Compute;
 class ResourcePolicyGroupPlacementPolicy extends \Google\Model
 {
   /**
+   * The interconnected chips are pre-configured at the time of VM creation.
+   */
+  public const ACCELERATOR_TOPOLOGY_MODE_AUTO_CONNECT = 'AUTO_CONNECT';
+  /**
+   * The interconnected chips are connected on demand. At the time of VM
+   * creation, the chips are not connected.
+   */
+  public const ACCELERATOR_TOPOLOGY_MODE_PROVISION_ONLY = 'PROVISION_ONLY';
+  public const COLLOCATION_COLLOCATED = 'COLLOCATED';
+  public const COLLOCATION_UNSPECIFIED_COLLOCATION = 'UNSPECIFIED_COLLOCATION';
+  /**
+   * Specifies the connection mode for the accelerator topology. If not
+   * specified, the default is AUTO_CONNECT.
+   *
+   * @var string
+   */
+  public $acceleratorTopologyMode;
+  /**
+   * The number of availability domains to spread instances across. If two
+   * instances are in different availability domain, they are not in the same
+   * low latency network.
+   *
    * @var int
    */
   public $availabilityDomainCount;
   /**
+   * Specifies network collocation
+   *
    * @var string
    */
   public $collocation;
   /**
+   * Specifies the shape of the GPU slice, in slice based GPU families eg. A4X.
+   *
    * @var string
    */
   public $gpuTopology;
   /**
+   * Number of VMs in this placement group. Google does not recommend that you
+   * use this field unless you use a compact policy and you want your policy to
+   * work only if it contains this exact number of VMs.
+   *
    * @var int
    */
   public $vmCount;
 
   /**
-   * @param int
+   * Specifies the connection mode for the accelerator topology. If not
+   * specified, the default is AUTO_CONNECT.
+   *
+   * Accepted values: AUTO_CONNECT, PROVISION_ONLY
+   *
+   * @param self::ACCELERATOR_TOPOLOGY_MODE_* $acceleratorTopologyMode
+   */
+  public function setAcceleratorTopologyMode($acceleratorTopologyMode)
+  {
+    $this->acceleratorTopologyMode = $acceleratorTopologyMode;
+  }
+  /**
+   * @return self::ACCELERATOR_TOPOLOGY_MODE_*
+   */
+  public function getAcceleratorTopologyMode()
+  {
+    return $this->acceleratorTopologyMode;
+  }
+  /**
+   * The number of availability domains to spread instances across. If two
+   * instances are in different availability domain, they are not in the same
+   * low latency network.
+   *
+   * @param int $availabilityDomainCount
    */
   public function setAvailabilityDomainCount($availabilityDomainCount)
   {
@@ -51,21 +104,27 @@ class ResourcePolicyGroupPlacementPolicy extends \Google\Model
     return $this->availabilityDomainCount;
   }
   /**
-   * @param string
+   * Specifies network collocation
+   *
+   * Accepted values: COLLOCATED, UNSPECIFIED_COLLOCATION
+   *
+   * @param self::COLLOCATION_* $collocation
    */
   public function setCollocation($collocation)
   {
     $this->collocation = $collocation;
   }
   /**
-   * @return string
+   * @return self::COLLOCATION_*
    */
   public function getCollocation()
   {
     return $this->collocation;
   }
   /**
-   * @param string
+   * Specifies the shape of the GPU slice, in slice based GPU families eg. A4X.
+   *
+   * @param string $gpuTopology
    */
   public function setGpuTopology($gpuTopology)
   {
@@ -79,7 +138,11 @@ class ResourcePolicyGroupPlacementPolicy extends \Google\Model
     return $this->gpuTopology;
   }
   /**
-   * @param int
+   * Number of VMs in this placement group. Google does not recommend that you
+   * use this field unless you use a compact policy and you want your policy to
+   * work only if it contains this exact number of VMs.
+   *
+   * @param int $vmCount
    */
   public function setVmCount($vmCount)
   {
