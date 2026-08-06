@@ -17,3 +17,10 @@ updates:
       interval: weekly
     labels:
       - dependencies
+    ignore:
+      # web-push v10 dropped PHP 8.1, which is still the minimum for Moodle 4.5
+      # (admin/environment.xml) and the plugin supports 4.5 (see version.php).
+      # Patch releases of the 9.x line still come through. Revisit when the
+      # plugin stops supporting 4.5 or raises its minimum PHP to 8.2.
+      - dependency-name: "minishlink/web-push"
+        update-types: ["version-update:semver-major"]
