@@ -45,6 +45,8 @@ class LiveBroadcastContentDetails extends \Google\Model
   public const STEREO_LAYOUT_mono = 'mono';
   public const STEREO_LAYOUT_leftRight = 'leftRight';
   public const STEREO_LAYOUT_topBottom = 'topBottom';
+  protected $availabilityConfigType = AvailabilityConfig::class;
+  protected $availabilityConfigDataType = '';
   /**
    * This value uniquely identifies the live stream bound to the broadcast.
    *
@@ -180,6 +182,24 @@ class LiveBroadcastContentDetails extends \Google\Model
    */
   public $stereoLayout;
 
+  /**
+   * Optional. The broadcast's availability config. Used to set specific region
+   * availability or block specific regions It is optional - if not set, it is
+   * not enforced.
+   *
+   * @param AvailabilityConfig $availabilityConfig
+   */
+  public function setAvailabilityConfig(AvailabilityConfig $availabilityConfig)
+  {
+    $this->availabilityConfig = $availabilityConfig;
+  }
+  /**
+   * @return AvailabilityConfig
+   */
+  public function getAvailabilityConfig()
+  {
+    return $this->availabilityConfig;
+  }
   /**
    * This value uniquely identifies the live stream bound to the broadcast.
    *

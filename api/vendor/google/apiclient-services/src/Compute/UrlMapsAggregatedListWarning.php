@@ -202,7 +202,7 @@ class UrlMapsAggregatedListWarning extends \Google\Collection
    * [Output Only] Metadata about this warning in key: value format. For
    * example:
    *
-   * "data": [   {    "key": "scope",    "value": "zones/us-east1-d"   }
+   * "data": [   {    "key": "scope",    "value": "zones/us-east1-d"   }]
    *
    * @param UrlMapsAggregatedListWarningData[] $data
    */

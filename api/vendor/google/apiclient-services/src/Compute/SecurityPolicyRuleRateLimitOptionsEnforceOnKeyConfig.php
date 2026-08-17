@@ -66,10 +66,11 @@ class SecurityPolicyRuleRateLimitOptionsEnforceOnKeyConfig extends \Google\Model
    * to ALL.     - USER_IP: The IP address of the originating client,    which
    * is resolved based on "userIpRequestHeaders" configured with the    security
    * policy. If there is no "userIpRequestHeaders" configuration    or an IP
-   * address cannot be resolved from it, the key type defaults toIP.
-   *
-   * - TLS_JA4_FINGERPRINT: JA4 TLS/SSL fingerprint if the client connects using
-   * HTTPS, HTTP/2 or HTTP/3. If not available, the key type defaults to ALL.
+   * address cannot be resolved from it, the key type defaults toIP.     - ASN:
+   * The autonomous system number of the originating    client. If not
+   * available, the key type defaults toALL.    - TLS_JA4_FINGERPRINT: JA4
+   * TLS/SSL fingerprint if the    client connects using HTTPS, HTTP/2 or
+   * HTTP/3. If not available, the    key type defaults to ALL.
    *
    * @var string
    */
@@ -121,10 +122,11 @@ class SecurityPolicyRuleRateLimitOptionsEnforceOnKeyConfig extends \Google\Model
    * to ALL.     - USER_IP: The IP address of the originating client,    which
    * is resolved based on "userIpRequestHeaders" configured with the    security
    * policy. If there is no "userIpRequestHeaders" configuration    or an IP
-   * address cannot be resolved from it, the key type defaults toIP.
-   *
-   * - TLS_JA4_FINGERPRINT: JA4 TLS/SSL fingerprint if the client connects using
-   * HTTPS, HTTP/2 or HTTP/3. If not available, the key type defaults to ALL.
+   * address cannot be resolved from it, the key type defaults toIP.     - ASN:
+   * The autonomous system number of the originating    client. If not
+   * available, the key type defaults toALL.    - TLS_JA4_FINGERPRINT: JA4
+   * TLS/SSL fingerprint if the    client connects using HTTPS, HTTP/2 or
+   * HTTP/3. If not available, the    key type defaults to ALL.
    *
    * Accepted values: ALL, HTTP_COOKIE, HTTP_HEADER, HTTP_PATH, IP, REGION_CODE,
    * SNI, TLS_JA3_FINGERPRINT, TLS_JA4_FINGERPRINT, USER_IP, XFF_IP

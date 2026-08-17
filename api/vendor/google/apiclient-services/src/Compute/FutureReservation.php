@@ -178,6 +178,8 @@ class FutureReservation extends \Google\Model
    * @var string
    */
   public $reservationName;
+  protected $resourceMetadataType = ResourceMetadata::class;
+  protected $resourceMetadataDataType = '';
   /**
    * Maintenance information for this reservation
    *
@@ -544,6 +546,25 @@ class FutureReservation extends \Google\Model
   public function getReservationName()
   {
     return $this->reservationName;
+  }
+  /**
+   * Output only. Contains standard resource metadata for an FutureReservation
+   * resource. It is populated for each instance of the FutureReservation
+   * resource, and includes the api_version the instance was retrieved through,
+   * and its canonical resource_type name.
+   *
+   * @param ResourceMetadata $resourceMetadata
+   */
+  public function setResourceMetadata(ResourceMetadata $resourceMetadata)
+  {
+    $this->resourceMetadata = $resourceMetadata;
+  }
+  /**
+   * @return ResourceMetadata
+   */
+  public function getResourceMetadata()
+  {
+    return $this->resourceMetadata;
   }
   /**
    * Maintenance information for this reservation
