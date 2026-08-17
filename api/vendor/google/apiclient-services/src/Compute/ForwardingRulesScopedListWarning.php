@@ -202,7 +202,7 @@ class ForwardingRulesScopedListWarning extends \Google\Collection
    * [Output Only] Metadata about this warning in key: value format. For
    * example:
    *
-   * "data": [   {    "key": "scope",    "value": "zones/us-east1-d"   }
+   * "data": [   {    "key": "scope",    "value": "zones/us-east1-d"   }]
    *
    * @param ForwardingRulesScopedListWarningData[] $data
    */

@@ -196,6 +196,8 @@ class Reservation extends \Google\Collection
   public $protectionTier;
   protected $reservationSharingPolicyType = AllocationReservationSharingPolicy::class;
   protected $reservationSharingPolicyDataType = '';
+  protected $resourceMetadataType = ResourceMetadata::class;
+  protected $resourceMetadataDataType = '';
   /**
    * Resource policies to be added to this reservation. The key is defined by
    * user, and the value is resource policy url. This is to define placement
@@ -567,6 +569,25 @@ class Reservation extends \Google\Collection
   public function getReservationSharingPolicy()
   {
     return $this->reservationSharingPolicy;
+  }
+  /**
+   * Output only. [Output Only] Contains standard resource metadata for an
+   * Allocation resource. It is populated for each instance of the Allocation
+   * resource, and includes the api_version the instance was retrieved through,
+   * and its canonical resource_type name.
+   *
+   * @param ResourceMetadata $resourceMetadata
+   */
+  public function setResourceMetadata(ResourceMetadata $resourceMetadata)
+  {
+    $this->resourceMetadata = $resourceMetadata;
+  }
+  /**
+   * @return ResourceMetadata
+   */
+  public function getResourceMetadata()
+  {
+    return $this->resourceMetadata;
   }
   /**
    * Resource policies to be added to this reservation. The key is defined by
