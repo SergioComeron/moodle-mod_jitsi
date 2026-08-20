@@ -181,6 +181,14 @@ class FutureReservation extends \Google\Model
   protected $resourceMetadataType = ResourceMetadata::class;
   protected $resourceMetadataDataType = '';
   /**
+   * Name of the resource intended to be delivered. Name should conform to
+   * RFC1035. This will be the name of storage pool or Exapool for persistent
+   * disk FRs.
+   *
+   * @var string
+   */
+  public $resourceName;
+  /**
    * Maintenance information for this reservation
    *
    * @var string
@@ -214,6 +222,8 @@ class FutureReservation extends \Google\Model
   protected $specificSkuPropertiesDataType = '';
   protected $statusType = FutureReservationStatus::class;
   protected $statusDataType = '';
+  protected $storagePoolPropertiesType = FutureReservationStoragePoolProperties::class;
+  protected $storagePoolPropertiesDataType = '';
   protected $timeWindowType = FutureReservationTimeWindow::class;
   protected $timeWindowDataType = '';
   /**
@@ -567,6 +577,24 @@ class FutureReservation extends \Google\Model
     return $this->resourceMetadata;
   }
   /**
+   * Name of the resource intended to be delivered. Name should conform to
+   * RFC1035. This will be the name of storage pool or Exapool for persistent
+   * disk FRs.
+   *
+   * @param string $resourceName
+   */
+  public function setResourceName($resourceName)
+  {
+    $this->resourceName = $resourceName;
+  }
+  /**
+   * @return string
+   */
+  public function getResourceName()
+  {
+    return $this->resourceName;
+  }
+  /**
    * Maintenance information for this reservation
    *
    * Accepted values: GROUPED, GROUP_MAINTENANCE_TYPE_UNSPECIFIED, INDEPENDENT
@@ -684,6 +712,22 @@ class FutureReservation extends \Google\Model
   public function getStatus()
   {
     return $this->status;
+  }
+  /**
+   * Storage pool details for the future reservation.
+   *
+   * @param FutureReservationStoragePoolProperties $storagePoolProperties
+   */
+  public function setStoragePoolProperties(FutureReservationStoragePoolProperties $storagePoolProperties)
+  {
+    $this->storagePoolProperties = $storagePoolProperties;
+  }
+  /**
+   * @return FutureReservationStoragePoolProperties
+   */
+  public function getStoragePoolProperties()
+  {
+    return $this->storagePoolProperties;
   }
   /**
    * Time window for this Future Reservation.

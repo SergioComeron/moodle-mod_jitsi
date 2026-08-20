@@ -15,31 +15,31 @@
  * the License.
  */
 
-namespace Google\Service\YouTube;
+namespace Google\Service\Storage;
 
-class ActivityContentDetailsChannelItem extends \Google\Model
+class RapidCacheConfig extends \Google\Model
 {
-  protected $resourceIdType = ResourceId::class;
-  protected $resourceIdDataType = '';
+  protected $policiesType = RapidCachePolicy::class;
+  protected $policiesDataType = 'map';
 
   /**
-   * The `resourceId` object contains information that identifies the resource
-   * that was added to the channel.
+   * A map of rapid cache IDs to the corresponding `RapidCachePolicy`
+   * configurations for a managed folder.
    *
-   * @param ResourceId $resourceId
+   * @param RapidCachePolicy[] $policies
    */
-  public function setResourceId(ResourceId $resourceId)
+  public function setPolicies($policies)
   {
-    $this->resourceId = $resourceId;
+    $this->policies = $policies;
   }
   /**
-   * @return ResourceId
+   * @return RapidCachePolicy[]
    */
-  public function getResourceId()
+  public function getPolicies()
   {
-    return $this->resourceId;
+    return $this->policies;
   }
 }
 
 // Adding a class alias for backwards compatibility with the previous class name.
-class_alias(ActivityContentDetailsChannelItem::class, 'Google_Service_YouTube_ActivityContentDetailsChannelItem');
+class_alias(RapidCacheConfig::class, 'Google_Service_Storage_RapidCacheConfig');

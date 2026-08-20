@@ -31,6 +31,13 @@ class InstanceFlexibilityPolicyInstanceSelection extends \Google\Collection
    */
   public $machineTypes;
   /**
+   * Name of the minimum CPU platform to be used by this instance selection.
+   * e.g. 'Intel Ice Lake'.
+   *
+   * @var string
+   */
+  public $minCpuPlatform;
+  /**
    * Rank when prioritizing the shape flexibilities. The instance selections
    * with rank are considered first, in the ascending order of the rank. If not
    * set, defaults to 0.
@@ -73,6 +80,23 @@ class InstanceFlexibilityPolicyInstanceSelection extends \Google\Collection
   public function getMachineTypes()
   {
     return $this->machineTypes;
+  }
+  /**
+   * Name of the minimum CPU platform to be used by this instance selection.
+   * e.g. 'Intel Ice Lake'.
+   *
+   * @param string $minCpuPlatform
+   */
+  public function setMinCpuPlatform($minCpuPlatform)
+  {
+    $this->minCpuPlatform = $minCpuPlatform;
+  }
+  /**
+   * @return string
+   */
+  public function getMinCpuPlatform()
+  {
+    return $this->minCpuPlatform;
   }
   /**
    * Rank when prioritizing the shape flexibilities. The instance selections

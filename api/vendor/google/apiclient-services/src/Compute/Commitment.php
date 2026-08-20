@@ -94,6 +94,18 @@ class Commitment extends \Google\Collection
    * CUD bucket for C4N (dual Diorite) machines.
    */
   public const TYPE_NETWORK_OPTIMIZED_C4N = 'NETWORK_OPTIMIZED_C4N';
+  /**
+   * CUD bucket for NETWORK_OPTIMIZED_U4C machines.
+   */
+  public const TYPE_NETWORK_OPTIMIZED_U4C = 'NETWORK_OPTIMIZED_U4C';
+  /**
+   * CUD bucket for NETWORK_OPTIMIZED_U4P machines.
+   */
+  public const TYPE_NETWORK_OPTIMIZED_U4P = 'NETWORK_OPTIMIZED_U4P';
+  /**
+   * CUD bucket for NETWORK_OPTIMIZED_U4S machines.
+   */
+  public const TYPE_NETWORK_OPTIMIZED_U4S = 'NETWORK_OPTIMIZED_U4S';
   public const TYPE_STORAGE_OPTIMIZED_Z3 = 'STORAGE_OPTIMIZED_Z3';
   /**
    * Note for internal users: When adding a new enum Type for v1, make sure to
@@ -727,7 +739,8 @@ class Commitment extends \Google\Collection
    * MEMORY_OPTIMIZED_X4_24TB, MEMORY_OPTIMIZED_X4_32TB,
    * MEMORY_OPTIMIZED_X4_480_6T, MEMORY_OPTIMIZED_X4_480_8T,
    * MEMORY_OPTIMIZED_X4_960_12T, MEMORY_OPTIMIZED_X4_960_16T,
-   * NETWORK_OPTIMIZED_C4N, STORAGE_OPTIMIZED_Z3, TYPE_UNSPECIFIED
+   * NETWORK_OPTIMIZED_C4N, NETWORK_OPTIMIZED_U4C, NETWORK_OPTIMIZED_U4P,
+   * NETWORK_OPTIMIZED_U4S, STORAGE_OPTIMIZED_Z3, TYPE_UNSPECIFIED
    *
    * @param self::TYPE_* $type
    */

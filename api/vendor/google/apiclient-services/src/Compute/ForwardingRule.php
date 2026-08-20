@@ -112,6 +112,8 @@ class ForwardingRule extends \Google\Collection
    * regions/region/addresses/address-name    - global/addresses/address-name
    * - address-name
    *
+   * The IP address can only be set at creation. Once set, it cannot be updated.
+   *
    * The forwarding rule's target or backendService, and in most cases, also the
    * loadBalancingScheme, determine the type of IP address that you can use. For
    * detailed information, see [IP address
@@ -119,6 +121,12 @@ class ForwardingRule extends \Google\Collection
    * rule-concepts#ip_address_specifications).
    *
    * When reading an IPAddress, the API always returns the IP address number.
+   *
+   * When creating a global external Passthrough Network Load Balancer
+   * forwarding rule (a parent forwarding rule), you must use theIPAddresses
+   * field, but the Google Cloud generated child forwarding rules set the
+   * IPAddress field instead. Refer to theavailabilityGroup field for further
+   * details.
    *
    * @var string
    */
@@ -176,8 +184,14 @@ class ForwardingRule extends \Google\Collection
   protected $attachedExtensionsDataType = 'array';
   /**
    * Identifies the backend service to which the forwarding rule sends traffic.
-   * Required for internal and external passthrough Network Load Balancers; must
-   * be omitted for all other load balancer types.
+   *
+   * It is a required field for the following load balancers:        - Internal
+   * passthrough Network Load Balancers    - Backend service-based regional
+   * external passthrough Network Load    Balancers    - Global external
+   * passthrough Network Load Balancers
+   *
+   * It cannot be set by other load balancer types and protocol forwarding
+   * rules.
    *
    * @var string
    */
@@ -322,8 +336,7 @@ class ForwardingRule extends \Google\Collection
   /**
    * Specifies the forwarding rule type.
    *
-   * For more information about forwarding rules, refer to Forwarding rule
-   * concepts.
+   * For more information, refer to  Forwarding rule product and scheme table.
    *
    * @var string
    */
@@ -342,6 +355,14 @@ class ForwardingRule extends \Google\Collection
    * For Private Service Connect forwarding rules that forward traffic to Google
    * APIs, the forwarding rule name must be a 1-20 characters string with
    * lowercase letters and numbers and must start with a letter.
+   *
+   * For global external Passthrough Network Load Balancer forwarding rules, the
+   * forwarding rule name must be 1-43 characters long. For each global external
+   * Passthrough Network Load Balancer forwarding rule (a parent forwarding
+   * rule) that you create, Google Cloud generates two output-only child
+   * forwarding rules that are named by concatenating the parent forwarding rule
+   * name with the `-ag0` and `-ag1` suffixes, respectively. Refer to
+   * theavailabilityGroup field for further details.
    *
    * @var string
    */
@@ -396,7 +417,8 @@ class ForwardingRule extends \Google\Collection
    * ports can be used. See     port specifications for details.
    *
    * For external forwarding rules, two or more forwarding rules cannot use the
-   * same [IPAddress, IPProtocol] pair, and cannot have overlappingportRanges.
+   * same [IPAddress, IPProtocol] pair (specified inIPAddress, IPAddresses,
+   * IPProtocol fields) if they have overlapping portRanges.
    *
    * For internal forwarding rules within the same VPC network, two or more
    * forwarding rules cannot use the same [IPAddress, IPProtocol] pair, and
@@ -421,7 +443,8 @@ class ForwardingRule extends \Google\Collection
    * contiguous or discontiguous.
    *
    * For external forwarding rules, two or more forwarding rules cannot use the
-   * same [IPAddress, IPProtocol] pair if they share at least one port number.
+   * same [IPAddress, IPProtocol] pair (specified inIPAddress, IPAddresses,
+   * IPProtocol fields) if they share at least one port number.
    *
    * For internal forwarding rules within the same VPC network, two or more
    * forwarding rules cannot use the same [IPAddress, IPProtocol] pair if they
@@ -533,6 +556,12 @@ class ForwardingRule extends \Google\Collection
    * target must be a service attachment. The target is not mutable once set as
    * a service attachment.
    *
+   * The following load balancers cannot set the target field (they should set
+   * the backendService field instead):        - Internal passthrough Network
+   * Load Balancers    - Backend service-based regional external passthrough
+   * Network Load    Balancers    - Global external passthrough Network Load
+   * Balancers
+   *
    * @var string
    */
   public $target;
@@ -564,6 +593,8 @@ class ForwardingRule extends \Google\Collection
    * regions/region/addresses/address-name    - global/addresses/address-name
    * - address-name
    *
+   * The IP address can only be set at creation. Once set, it cannot be updated.
+   *
    * The forwarding rule's target or backendService, and in most cases, also the
    * loadBalancingScheme, determine the type of IP address that you can use. For
    * detailed information, see [IP address
@@ -571,6 +602,12 @@ class ForwardingRule extends \Google\Collection
    * rule-concepts#ip_address_specifications).
    *
    * When reading an IPAddress, the API always returns the IP address number.
+   *
+   * When creating a global external Passthrough Network Load Balancer
+   * forwarding rule (a parent forwarding rule), you must use theIPAddresses
+   * field, but the Google Cloud generated child forwarding rules set the
+   * IPAddress field instead. Refer to theavailabilityGroup field for further
+   * details.
    *
    * @param string $iPAddress
    */
@@ -695,8 +732,14 @@ class ForwardingRule extends \Google\Collection
   }
   /**
    * Identifies the backend service to which the forwarding rule sends traffic.
-   * Required for internal and external passthrough Network Load Balancers; must
-   * be omitted for all other load balancer types.
+   *
+   * It is a required field for the following load balancers:        - Internal
+   * passthrough Network Load Balancers    - Backend service-based regional
+   * external passthrough Network Load    Balancers    - Global external
+   * passthrough Network Load Balancers
+   *
+   * It cannot be set by other load balancer types and protocol forwarding
+   * rules.
    *
    * @param string $backendService
    */
@@ -985,8 +1028,7 @@ class ForwardingRule extends \Google\Collection
   /**
    * Specifies the forwarding rule type.
    *
-   * For more information about forwarding rules, refer to Forwarding rule
-   * concepts.
+   * For more information, refer to  Forwarding rule product and scheme table.
    *
    * Accepted values: EXTERNAL, EXTERNAL_MANAGED, INTERNAL, INTERNAL_MANAGED,
    * INTERNAL_SELF_MANAGED, INVALID
@@ -1050,6 +1092,14 @@ class ForwardingRule extends \Google\Collection
    * For Private Service Connect forwarding rules that forward traffic to Google
    * APIs, the forwarding rule name must be a 1-20 characters string with
    * lowercase letters and numbers and must start with a letter.
+   *
+   * For global external Passthrough Network Load Balancer forwarding rules, the
+   * forwarding rule name must be 1-43 characters long. For each global external
+   * Passthrough Network Load Balancer forwarding rule (a parent forwarding
+   * rule) that you create, Google Cloud generates two output-only child
+   * forwarding rules that are named by concatenating the parent forwarding rule
+   * name with the `-ag0` and `-ag1` suffixes, respectively. Refer to
+   * theavailabilityGroup field for further details.
    *
    * @param string $name
    */
@@ -1147,7 +1197,8 @@ class ForwardingRule extends \Google\Collection
    * ports can be used. See     port specifications for details.
    *
    * For external forwarding rules, two or more forwarding rules cannot use the
-   * same [IPAddress, IPProtocol] pair, and cannot have overlappingportRanges.
+   * same [IPAddress, IPProtocol] pair (specified inIPAddress, IPAddresses,
+   * IPProtocol fields) if they have overlapping portRanges.
    *
    * For internal forwarding rules within the same VPC network, two or more
    * forwarding rules cannot use the same [IPAddress, IPProtocol] pair, and
@@ -1182,7 +1233,8 @@ class ForwardingRule extends \Google\Collection
    * contiguous or discontiguous.
    *
    * For external forwarding rules, two or more forwarding rules cannot use the
-   * same [IPAddress, IPProtocol] pair if they share at least one port number.
+   * same [IPAddress, IPProtocol] pair (specified inIPAddress, IPAddresses,
+   * IPProtocol fields) if they share at least one port number.
    *
    * For internal forwarding rules within the same VPC network, two or more
    * forwarding rules cannot use the same [IPAddress, IPProtocol] pair if they
@@ -1408,6 +1460,12 @@ class ForwardingRule extends \Google\Collection
    * Connect forwarding rules that forward traffic to managed services, the
    * target must be a service attachment. The target is not mutable once set as
    * a service attachment.
+   *
+   * The following load balancers cannot set the target field (they should set
+   * the backendService field instead):        - Internal passthrough Network
+   * Load Balancers    - Backend service-based regional external passthrough
+   * Network Load    Balancers    - Global external passthrough Network Load
+   * Balancers
    *
    * @param string $target
    */

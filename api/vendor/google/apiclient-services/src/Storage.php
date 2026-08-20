@@ -63,6 +63,7 @@ class Storage extends \Google\Service
   public $operations;
   public $projects_hmacKeys;
   public $projects_serviceAccount;
+  public $rapidCaches;
   public $rootUrlTemplate;
 
   /**
@@ -1071,6 +1072,29 @@ class Storage extends \Google\Service
                   'required' => true,
                 ],
                 'userProject' => [
+                  'location' => 'query',
+                  'type' => 'string',
+                ],
+              ],
+            ],'update' => [
+              'path' => 'b/{bucket}/managedFolders/{managedFolder}',
+              'httpMethod' => 'PATCH',
+              'parameters' => [
+                'bucket' => [
+                  'location' => 'path',
+                  'type' => 'string',
+                  'required' => true,
+                ],
+                'managedFolder' => [
+                  'location' => 'path',
+                  'type' => 'string',
+                  'required' => true,
+                ],
+                'ifMetagenerationMatch' => [
+                  'location' => 'query',
+                  'type' => 'string',
+                ],
+                'ifMetagenerationNotMatch' => [
                   'location' => 'query',
                   'type' => 'string',
                 ],
@@ -2256,6 +2280,89 @@ class Storage extends \Google\Service
                 'userProject' => [
                   'location' => 'query',
                   'type' => 'string',
+                ],
+              ],
+            ],
+          ]
+        ]
+    );
+    $this->rapidCaches = new Storage\Resource\RapidCaches(
+        $this,
+        $this->serviceName,
+        'rapidCaches',
+        [
+          'methods' => [
+            'disable' => [
+              'path' => 'b/{bucket}/rapidCaches/{rapidCacheId}/disable',
+              'httpMethod' => 'POST',
+              'parameters' => [
+                'bucket' => [
+                  'location' => 'path',
+                  'type' => 'string',
+                  'required' => true,
+                ],
+                'rapidCacheId' => [
+                  'location' => 'path',
+                  'type' => 'string',
+                  'required' => true,
+                ],
+              ],
+            ],'get' => [
+              'path' => 'b/{bucket}/rapidCaches/{rapidCacheId}',
+              'httpMethod' => 'GET',
+              'parameters' => [
+                'bucket' => [
+                  'location' => 'path',
+                  'type' => 'string',
+                  'required' => true,
+                ],
+                'rapidCacheId' => [
+                  'location' => 'path',
+                  'type' => 'string',
+                  'required' => true,
+                ],
+              ],
+            ],'insert' => [
+              'path' => 'b/{bucket}/rapidCaches',
+              'httpMethod' => 'POST',
+              'parameters' => [
+                'bucket' => [
+                  'location' => 'path',
+                  'type' => 'string',
+                  'required' => true,
+                ],
+              ],
+            ],'list' => [
+              'path' => 'b/{bucket}/rapidCaches',
+              'httpMethod' => 'GET',
+              'parameters' => [
+                'bucket' => [
+                  'location' => 'path',
+                  'type' => 'string',
+                  'required' => true,
+                ],
+                'pageSize' => [
+                  'location' => 'query',
+                  'type' => 'integer',
+                ],
+                'pageToken' => [
+                  'location' => 'query',
+                  'type' => 'string',
+                ],
+              ],
+            ],'update' => [
+              'path' => 'b/{bucket}/rapidCaches/{rapidCacheId}',
+              'httpMethod' => 'PATCH',
+              'parameters' => [
+                'bucket' => [
+                  'location' => 'path',
+                  'type' => 'string',
+                  'required' => true,
+                ],
+                'rapidCacheId' => [
+                  'location' => 'path',
+                  'type' => 'string',
+                  'required' => true,
                 ],
               ],
             ],

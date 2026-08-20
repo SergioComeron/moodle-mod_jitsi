@@ -106,6 +106,8 @@ class FutureReservationStatus extends \Google\Collection
    * @var string[]
    */
   public $autoCreatedReservations;
+  protected $exapoolProvisionedCapacityGbType = StoragePoolExapoolProvisionedCapacityGb::class;
+  protected $exapoolProvisionedCapacityGbDataType = '';
   protected $existingMatchingUsageInfoType = FutureReservationStatusExistingMatchingUsageInfo::class;
   protected $existingMatchingUsageInfoDataType = '';
   /**
@@ -136,6 +138,8 @@ class FutureReservationStatus extends \Google\Collection
   public $procurementStatus;
   protected $specificSkuPropertiesType = FutureReservationStatusSpecificSKUProperties::class;
   protected $specificSkuPropertiesDataType = '';
+  protected $storagePoolProvisionedCapacityType = FutureReservationStoragePoolProvisionedCapacity::class;
+  protected $storagePoolProvisionedCapacityDataType = '';
 
   /**
    * Output only. [Output Only] The current status of the requested amendment.
@@ -172,6 +176,22 @@ class FutureReservationStatus extends \Google\Collection
   public function getAutoCreatedReservations()
   {
     return $this->autoCreatedReservations;
+  }
+  /**
+   * Output only. Exapool provisioned capacities for each SKU type.
+   *
+   * @param StoragePoolExapoolProvisionedCapacityGb $exapoolProvisionedCapacityGb
+   */
+  public function setExapoolProvisionedCapacityGb(StoragePoolExapoolProvisionedCapacityGb $exapoolProvisionedCapacityGb)
+  {
+    $this->exapoolProvisionedCapacityGb = $exapoolProvisionedCapacityGb;
+  }
+  /**
+   * @return StoragePoolExapoolProvisionedCapacityGb
+   */
+  public function getExapoolProvisionedCapacityGb()
+  {
+    return $this->exapoolProvisionedCapacityGb;
   }
   /**
    * Output only. [Output Only] Represents the existing matching usage for the
@@ -281,6 +301,22 @@ class FutureReservationStatus extends \Google\Collection
   public function getSpecificSkuProperties()
   {
     return $this->specificSkuProperties;
+  }
+  /**
+   * Output only. Storage pool provisioned capacities for each SKU type.
+   *
+   * @param FutureReservationStoragePoolProvisionedCapacity $storagePoolProvisionedCapacity
+   */
+  public function setStoragePoolProvisionedCapacity(FutureReservationStoragePoolProvisionedCapacity $storagePoolProvisionedCapacity)
+  {
+    $this->storagePoolProvisionedCapacity = $storagePoolProvisionedCapacity;
+  }
+  /**
+   * @return FutureReservationStoragePoolProvisionedCapacity
+   */
+  public function getStoragePoolProvisionedCapacity()
+  {
+    return $this->storagePoolProvisionedCapacity;
   }
 }
 
