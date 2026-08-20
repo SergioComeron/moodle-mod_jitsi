@@ -264,8 +264,10 @@ class Instance extends \Google\Collection
    *
    * zones/zone/machineTypes/custom-CPUS-MEMORY
    *
-   * For example: zones/us-central1-f/machineTypes/custom-4-5120 For a full list
-   * of restrictions, read theSpecifications for custom machine types.
+   * For example: zones/us-central1-f/machineTypes/custom-4-5120
+   *
+   * For a full list of restrictions, read theSpecifications for custom machine
+   * types.
    *
    * @var string
    */
@@ -789,8 +791,10 @@ class Instance extends \Google\Collection
    *
    * zones/zone/machineTypes/custom-CPUS-MEMORY
    *
-   * For example: zones/us-central1-f/machineTypes/custom-4-5120 For a full list
-   * of restrictions, read theSpecifications for custom machine types.
+   * For example: zones/us-central1-f/machineTypes/custom-4-5120
+   *
+   * For a full list of restrictions, read theSpecifications for custom machine
+   * types.
    *
    * @param string $machineType
    */

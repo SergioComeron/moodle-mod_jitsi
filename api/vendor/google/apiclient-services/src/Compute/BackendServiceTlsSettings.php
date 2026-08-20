@@ -30,6 +30,38 @@ class BackendServiceTlsSettings extends \Google\Collection
    */
   public $authenticationConfig;
   /**
+   * Assigns the Managed Identity for the BackendService Workload.
+   *
+   * Use this property to configure the load balancer back-end to use
+   * certificates and roots of trust provisioned by the Managed Workload
+   * Identity system.
+   *
+   *  The `identity` property is the fully-specified SPIFFE ID to use in the
+   * SVID presented by the Load Balancer Workload.
+   *
+   *  The SPIFFE ID must be a resource starting with the `trustDomain` property
+   * value, followed by the path to the Managed Workload Identity.
+   *
+   *  Supported SPIFFE ID format:         - ns//sa/
+   *
+   * The Trust Domain within the Managed Identity must refer to a valid Workload
+   * Identity Pool. The TrustConfig and CertificateIssuanceConfig will be
+   * inherited from the Workload Identity Pool.
+   *
+   *  Restrictions:         - If you set the `identity` property, you cannot
+   * manually set    the following fields:         - tlsSettings.sni       -
+   * tlsSettings.subjectAltNames       - tlsSettings.authenticationConfig
+   *
+   * When defining a `identity` for a RegionBackendServices, the corresponding
+   * Workload Identity Pool must have a ca_pool configured in the same region.
+   *
+   *  The system will set up a read-onlytlsSettings.authenticationConfig for the
+   * Managed Identity.
+   *
+   * @var string
+   */
+  public $identity;
+  /**
    * Server Name Indication - see RFC3546 section 3.1. If set, the load balancer
    * sends this string as the SNI hostname in the TLS connection to the backend,
    * and requires that this string match a Subject Alternative Name (SAN) in the
@@ -63,6 +95,48 @@ class BackendServiceTlsSettings extends \Google\Collection
   public function getAuthenticationConfig()
   {
     return $this->authenticationConfig;
+  }
+  /**
+   * Assigns the Managed Identity for the BackendService Workload.
+   *
+   * Use this property to configure the load balancer back-end to use
+   * certificates and roots of trust provisioned by the Managed Workload
+   * Identity system.
+   *
+   *  The `identity` property is the fully-specified SPIFFE ID to use in the
+   * SVID presented by the Load Balancer Workload.
+   *
+   *  The SPIFFE ID must be a resource starting with the `trustDomain` property
+   * value, followed by the path to the Managed Workload Identity.
+   *
+   *  Supported SPIFFE ID format:         - ns//sa/
+   *
+   * The Trust Domain within the Managed Identity must refer to a valid Workload
+   * Identity Pool. The TrustConfig and CertificateIssuanceConfig will be
+   * inherited from the Workload Identity Pool.
+   *
+   *  Restrictions:         - If you set the `identity` property, you cannot
+   * manually set    the following fields:         - tlsSettings.sni       -
+   * tlsSettings.subjectAltNames       - tlsSettings.authenticationConfig
+   *
+   * When defining a `identity` for a RegionBackendServices, the corresponding
+   * Workload Identity Pool must have a ca_pool configured in the same region.
+   *
+   *  The system will set up a read-onlytlsSettings.authenticationConfig for the
+   * Managed Identity.
+   *
+   * @param string $identity
+   */
+  public function setIdentity($identity)
+  {
+    $this->identity = $identity;
+  }
+  /**
+   * @return string
+   */
+  public function getIdentity()
+  {
+    return $this->identity;
   }
   /**
    * Server Name Indication - see RFC3546 section 3.1. If set, the load balancer

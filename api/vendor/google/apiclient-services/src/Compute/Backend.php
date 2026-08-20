@@ -70,9 +70,10 @@ class Backend extends \Google\Collection
    * handle additional traffic or is fully loaded. For usage guidelines, see
    * Connection balancing mode.
    *
-   * Backends must use compatible balancing modes. For more information, see
-   * Supported balancing modes and target capacity settings and Restrictions and
-   * guidance for instance groups.
+   * Backends must use compatible balancing modes. Backends of a backend service
+   * may use different balancing modes. For more information, see  Supported
+   * balancing modes and target capacity settings and Restrictions and guidance
+   * for instance groups.
    *
    * Note: Currently, if you use the API to configure incompatible balancing
    * modes, the configuration might be accepted even though it has no impact and
@@ -111,6 +112,9 @@ class Backend extends \Google\Collection
   /**
    * This field designates whether this is a failover backend. More than one
    * failover backend can be configured for a given BackendService.
+   *
+   * This field can only be used for a regional external Passthrough Network
+   * Load Balancer or a regional internal Passthrough Network Load Balancer.
    *
    * @var bool
    */
@@ -226,6 +230,11 @@ class Backend extends \Google\Collection
    * would be used and traffic would be    assigned based on the load balancing
    * algorithm you use. This is the    default
    *
+   * For global external Passthrough Network Load Balancers, the following
+   * restrictions apply:        - At most one backend can be marked as
+   * PREFERRED.    - PREFERRED and DEFAULT backends cannot reside    in the same
+   * Cloud region.
+   *
    * @var string
    */
   public $preference;
@@ -239,9 +248,10 @@ class Backend extends \Google\Collection
    * handle additional traffic or is fully loaded. For usage guidelines, see
    * Connection balancing mode.
    *
-   * Backends must use compatible balancing modes. For more information, see
-   * Supported balancing modes and target capacity settings and Restrictions and
-   * guidance for instance groups.
+   * Backends must use compatible balancing modes. Backends of a backend service
+   * may use different balancing modes. For more information, see  Supported
+   * balancing modes and target capacity settings and Restrictions and guidance
+   * for instance groups.
    *
    * Note: Currently, if you use the API to configure incompatible balancing
    * modes, the configuration might be accepted even though it has no impact and
@@ -326,6 +336,9 @@ class Backend extends \Google\Collection
   /**
    * This field designates whether this is a failover backend. More than one
    * failover backend can be configured for a given BackendService.
+   *
+   * This field can only be used for a regional external Passthrough Network
+   * Load Balancer or a regional internal Passthrough Network Load Balancer.
    *
    * @param bool $failover
    */
@@ -574,6 +587,11 @@ class Backend extends \Google\Collection
    * preferred backends don't have enough    capacity, backends in this layer
    * would be used and traffic would be    assigned based on the load balancing
    * algorithm you use. This is the    default
+   *
+   * For global external Passthrough Network Load Balancers, the following
+   * restrictions apply:        - At most one backend can be marked as
+   * PREFERRED.    - PREFERRED and DEFAULT backends cannot reside    in the same
+   * Cloud region.
    *
    * Accepted values: DEFAULT, PREFERENCE_UNSPECIFIED, PREFERRED
    *

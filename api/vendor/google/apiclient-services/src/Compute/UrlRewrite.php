@@ -62,6 +62,8 @@ class UrlRewrite extends \Google\Model
    * @var string
    */
   public $pathTemplateRewrite;
+  protected $regexRewriteType = RegexRewrite::class;
+  protected $regexRewriteDataType = '';
 
   /**
    * Before forwarding the request to the selected service, the request's host
@@ -135,6 +137,23 @@ class UrlRewrite extends \Google\Model
   public function getPathTemplateRewrite()
   {
     return $this->pathTemplateRewrite;
+  }
+  /**
+   * The regex rewrite to be applied to the URL. Only one ofpathPrefixRewrite,
+   * pathTemplateRewrite, orregexRewrite may be specified.
+   *
+   * @param RegexRewrite $regexRewrite
+   */
+  public function setRegexRewrite(RegexRewrite $regexRewrite)
+  {
+    $this->regexRewrite = $regexRewrite;
+  }
+  /**
+   * @return RegexRewrite
+   */
+  public function getRegexRewrite()
+  {
+    return $this->regexRewrite;
   }
 }
 
