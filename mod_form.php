@@ -219,6 +219,16 @@ class mod_jitsi_mod_form extends moodleform_mod {
             $mform->setType('token', PARAM_TEXT);
         }
 
+        $mform->addElement('header', 'actaheader', get_string('actaheading', 'jitsi'));
+        $mform->addElement(
+            'passwordunmask',
+            'actaapikey',
+            get_string('actaapikeyactivity', 'jitsi'),
+            ['size' => 40, 'autocomplete' => 'off']
+        );
+        $mform->setType('actaapikey', PARAM_RAW_TRIMMED);
+        $mform->addHelpButton('actaapikey', 'actaapikeyactivity', 'jitsi');
+
         $this->standard_coursemodule_elements();
         $this->add_action_buttons();
     }
@@ -388,5 +398,7 @@ class mod_jitsi_mod_form extends moodleform_mod {
         }
         // Always start the session picker empty — the raw token is not useful to display.
         $defaultvalues['tokeninvitacion'] = '';
+        // Never pre-fill the BYOK key in the form.
+        $defaultvalues['actaapikey'] = '';
     }
 }

@@ -90,7 +90,10 @@ function jitsi_add_instance($jitsi, $mform = null) {
     $time = time();
     $jitsi->timecreated = $time;
     $cmid = $jitsi->coursemodule;
+    $actaapikey = isset($jitsi->actaapikey) ? (string)$jitsi->actaapikey : '';
+    unset($jitsi->actaapikey);
     $jitsi->id = $DB->insert_record('jitsi', $jitsi);
+    \mod_jitsi\local\acta::save_activity_key((int)$jitsi->id, $actaapikey);
     jitsi_update_calendar($jitsi, $cmid);
     return $jitsi->id;
 }
@@ -113,6 +116,9 @@ function jitsi_update_instance($jitsi, $mform = null) {
     $jitsi->timemodified = time();
     $jitsi->id = $jitsi->instance;
     $cmid = $jitsi->coursemodule;
+    $actaapikey = isset($jitsi->actaapikey) ? (string)$jitsi->actaapikey : '';
+    unset($jitsi->actaapikey);
+    \mod_jitsi\local\acta::save_activity_key((int)$jitsi->id, $actaapikey);
 
     $result = $DB->update_record('jitsi', $jitsi);
     jitsi_update_calendar($jitsi, $cmid);
@@ -188,6 +194,8 @@ function jitsi_delete_instance($id) {
 
     $result = true;
     $DB->delete_records('jitsi_record', ['jitsi' => $jitsi->id]);
+    $DB->delete_records('jitsi_session_acta', ['jitsi' => $jitsi->id]);
+    \mod_jitsi\local\acta::delete_activity_key((int)$jitsi->id);
 
     if (! $DB->delete_records('jitsi', ['id' => $jitsi->id])) {
         $result = false;

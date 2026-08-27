@@ -194,9 +194,21 @@ final class lib_test extends \advanced_testcase {
 
         $this->assertTrue($DB->record_exists('jitsi_record', ['jitsi' => $jitsi->id]));
 
+        $DB->insert_record('jitsi_session_acta', [
+            'jitsi' => $jitsi->id,
+            'cmid' => $jitsi->cmid,
+            'userid' => 0,
+            'sessionstart' => time() - 60,
+            'sessionend' => time(),
+            'status' => 'ready',
+            'timecreated' => time(),
+            'timemodified' => time(),
+        ]);
+
         jitsi_delete_instance($jitsi->id);
 
         $this->assertFalse($DB->record_exists('jitsi_record', ['jitsi' => $jitsi->id]));
+        $this->assertFalse($DB->record_exists('jitsi_session_acta', ['jitsi' => $jitsi->id]));
     }
 
     /**

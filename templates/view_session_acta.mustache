@@ -1,0 +1,110 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template mod_jitsi/view_session_acta
+
+    Session minutes (acta) block on the activity view session tab.
+
+    Context variables:
+    * title string
+    * items array
+    * hasitems bool
+    * empty bool
+    * emptylabel string
+    * cangenerate bool
+    * generateurl string
+    * generatelabel string
+    * privacynote string
+
+    Example context (json):
+    {
+        "title": "Session minutes",
+        "items": [{
+            "dates": "1 Jan 2026 – 1 Jan 2026",
+            "statuspending": false,
+            "statuserror": false,
+            "statusready": true,
+            "summary": "The class reviewed equations.",
+            "attendees": [{"name": "Ada Lovelace", "minutes": 12}],
+            "hasattendees": true,
+            "actionitems": [{"text": "Finish exercise 3"}],
+            "hasactionitems": true,
+            "noactionitems": false,
+            "sourcelabel": "Generated from the session transcript",
+            "error": ""
+        }],
+        "hasitems": true,
+        "empty": false,
+        "emptylabel": "No minutes yet.",
+        "cangenerate": true,
+        "generateurl": "#",
+        "generatelabel": "Generate minutes",
+        "privacynote": "Only attendance and an existing transcript are sent."
+    }
+}}
+<section class="mod-jitsi-acta mt-4" aria-labelledby="jitsi-acta-title">
+    <h3 id="jitsi-acta-title" class="h4">{{title}}</h3>
+    {{#hasitems}}
+        {{#items}}
+            <article class="card mb-3">
+                <div class="card-body">
+                    <p class="text-muted small mb-2">{{dates}} · {{sourcelabel}}</p>
+                    {{#statuspending}}
+                        <p class="mb-2">{{#str}}actagenerating, jitsi{{/str}}</p>
+                    {{/statuspending}}
+                    {{#statuserror}}
+                        <div class="alert alert-warning mb-2">{{error}}</div>
+                    {{/statuserror}}
+                    {{#statusready}}
+                        <h4 class="h6">{{#str}}actasummary, jitsi{{/str}}</h4>
+                        <div class="mb-3">{{{summary}}}</div>
+                    {{/statusready}}
+                    {{#hasattendees}}
+                        <h4 class="h6">{{#str}}actaattendance, jitsi{{/str}}</h4>
+                        <ul class="mb-3">
+                            {{#attendees}}
+                                <li>{{name}} ({{minutes}})</li>
+                            {{/attendees}}
+                        </ul>
+                    {{/hasattendees}}
+                    {{#statusready}}
+                        <h4 class="h6">{{#str}}actaactionitems, jitsi{{/str}}</h4>
+                        {{#hasactionitems}}
+                            <ul class="mb-0">
+                                {{#actionitems}}
+                                    <li>{{text}}</li>
+                                {{/actionitems}}
+                            </ul>
+                        {{/hasactionitems}}
+                        {{#noactionitems}}
+                            <p class="text-muted mb-0">{{#str}}actaactionitemsnone, jitsi{{/str}}</p>
+                        {{/noactionitems}}
+                    {{/statusready}}
+                </div>
+            </article>
+        {{/items}}
+    {{/hasitems}}
+    {{#empty}}
+        <p class="text-muted">{{emptylabel}}</p>
+    {{/empty}}
+    {{#cangenerate}}
+        <p>
+            <a class="btn btn-secondary" href="{{generateurl}}">{{generatelabel}}</a>
+        </p>
+    {{/cangenerate}}
+    <p class="small text-muted">{{privacynote}}</p>
+</section>

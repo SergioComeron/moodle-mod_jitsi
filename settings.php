@@ -771,6 +771,53 @@ if ($ADMIN->fulltree) {
         )
     );
 
+    // Session minutes (acta) — BYOK only; independent of Vertex AI recording features.
+    $settings->add(
+        new admin_setting_heading(
+            'jitsiactaheading',
+            get_string('actaheading', 'jitsi'),
+            get_string('actaheadingex', 'jitsi')
+        )
+    );
+
+    $settings->add(
+        new admin_setting_configcheckbox(
+            'mod_jitsi/actaenabled',
+            get_string('actaenabled', 'jitsi'),
+            get_string('actaenabledex', 'jitsi'),
+            0
+        )
+    );
+
+    $settings->add(
+        new admin_setting_configpasswordunmask(
+            'mod_jitsi/acta_apikey',
+            get_string('actaapikey', 'jitsi'),
+            get_string('actaapikeyex', 'jitsi'),
+            ''
+        )
+    );
+
+    $settings->add(
+        new admin_setting_configtext(
+            'mod_jitsi/acta_api_endpoint',
+            get_string('actaapiendpoint', 'jitsi'),
+            get_string('actaapiendpointex', 'jitsi'),
+            'https://api.openai.com/v1',
+            PARAM_URL
+        )
+    );
+
+    $settings->add(
+        new admin_setting_configtext(
+            'mod_jitsi/acta_api_model',
+            get_string('actaapimodel', 'jitsi'),
+            get_string('actaapimodelex', 'jitsi'),
+            'gpt-4o-mini',
+            PARAM_TEXT
+        )
+    );
+
     // Experimental Section.
     $settings->add(
         new admin_setting_heading(

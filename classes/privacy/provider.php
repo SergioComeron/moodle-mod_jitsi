@@ -61,6 +61,19 @@ class provider implements
             'recording' => 'privacy:metadata:vertexai:recording',
         ], 'privacy:metadata:vertexai');
 
+        // Session minutes sent to a site/activity BYOK OpenAI-compatible endpoint.
+        $collection->add_external_location_link('actallm', [
+            'transcript' => 'privacy:metadata:actallm:transcript',
+            'attendance' => 'privacy:metadata:actallm:attendance',
+        ], 'privacy:metadata:actallm');
+
+        $collection->add_database_table('jitsi_session_acta', [
+            'userid'          => 'privacy:metadata:jitsi_session_acta:userid',
+            'attendancejson'  => 'privacy:metadata:jitsi_session_acta:attendancejson',
+            'summary'         => 'privacy:metadata:jitsi_session_acta:summary',
+            'actionitems'     => 'privacy:metadata:jitsi_session_acta:actionitems',
+        ], 'privacy:metadata:jitsi_session_acta');
+
         // AI-generated content and recording creator stored in jitsi_source_record.
         $collection->add_database_table('jitsi_source_record', [
             'userid'           => 'privacy:metadata:jitsi_source_record:userid',
@@ -160,6 +173,21 @@ class provider implements
             ['ctxmodule' => CONTEXT_MODULE, 'userid' => $userid]
         );
 
+        // Table jitsi_session_acta: teacher who triggered it, or a named attendee.
+        $contextlist->add_from_sql(
+            'SELECT ctx.id
+               FROM {context} ctx
+               JOIN {course_modules} cm ON cm.id = ctx.instanceid AND ctx.contextlevel = :ctxmodule
+               JOIN {jitsi_session_acta} sa ON sa.cmid = cm.id
+              WHERE sa.userid = :userid
+                 OR ' . $DB->sql_like('sa.attendancejson', ':needle'),
+            [
+                'ctxmodule' => CONTEXT_MODULE,
+                'userid' => $userid,
+                'needle' => '%"userid":' . $userid . ',%',
+            ]
+        );
+
         // Table jitsi_source_record: CONTEXT_MODULE via jitsi_record join.
         $contextlist->add_from_sql(
             'SELECT ctx.id
@@ -217,6 +245,12 @@ class provider implements
                 'SELECT jp.userid FROM {jitsi_presence} jp
                    JOIN {course_modules} cm ON cm.instance = jp.jitsiid
                   WHERE cm.id = :cmid AND jp.userid != 0',
+                ['cmid' => $context->instanceid]
+            );
+
+            $userlist->add_from_sql(
+                'userid',
+                'SELECT sa.userid FROM {jitsi_session_acta} sa WHERE sa.cmid = :cmid AND sa.userid != 0',
                 ['cmid' => $context->instanceid]
             );
 
@@ -296,6 +330,34 @@ class provider implements
                     );
                 }
 
+                $actas = $DB->get_records_select(
+                    'jitsi_session_acta',
+                    'cmid = :cmid AND (userid = :userid OR ' . $DB->sql_like('attendancejson', ':needle') . ')',
+                    [
+                        'cmid' => $context->instanceid,
+                        'userid' => $userid,
+                        'needle' => '%"userid":' . $userid . ',%',
+                    ]
+                );
+                if ($actas) {
+                    $export = [];
+                    foreach ($actas as $acta) {
+                        $export[] = (object)[
+                            'userid' => $acta->userid,
+                            'sessionstart' => $acta->sessionstart,
+                            'sessionend' => $acta->sessionend,
+                            'attendancejson' => $acta->attendancejson,
+                            'summary' => $acta->summary,
+                            'actionitems' => $acta->actionitems,
+                            'status' => $acta->status,
+                        ];
+                    }
+                    writer::with_context($context)->export_data(
+                        [get_string('privacy:metadata:jitsi_session_acta', 'jitsi')],
+                        (object)['actas' => $export]
+                    );
+                }
+
                 // Table jitsi_source_record.
                 $records = $DB->get_records_sql(
                     'SELECT sr.id, sr.link, sr.timecreated, sr.userid, sr.type
@@ -348,6 +410,7 @@ class provider implements
             $cmid = $context->instanceid;
             $DB->delete_records('jitsi_usage_daily', ['cmid' => $cmid]);
             $DB->delete_records('jitsi_recording_segments', ['cmid' => $cmid]);
+            $DB->delete_records('jitsi_session_acta', ['cmid' => $cmid]);
             $DB->execute(
                 'DELETE FROM {jitsi_presence}
                   WHERE jitsiid IN (SELECT cm.instance FROM {course_modules} cm WHERE cm.id = :cmid)',
@@ -384,6 +447,7 @@ class provider implements
                 $cmid = $context->instanceid;
                 $DB->delete_records('jitsi_usage_daily', ['userid' => $userid, 'cmid' => $cmid]);
                 $DB->delete_records('jitsi_recording_segments', ['userid' => $userid, 'cmid' => $cmid]);
+                self::anonymise_acta_user($userid, $cmid);
                 $DB->execute(
                     'DELETE FROM {jitsi_presence}
                       WHERE userid = :userid
@@ -440,6 +504,9 @@ class provider implements
                 "userid $insql AND cmid = :cmid",
                 array_merge($inparams, ['cmid' => $cmid])
             );
+            foreach ($userids as $userid) {
+                self::anonymise_acta_user((int)$userid, $cmid);
+            }
             $DB->execute(
                 "DELETE FROM {jitsi_presence}
                   WHERE userid $insql
@@ -463,6 +530,38 @@ class provider implements
             );
         } else if ($context->contextlevel == CONTEXT_USER) {
             $DB->delete_records_select('jitsi_push_subscriptions', "userid $insql", $inparams);
+        }
+    }
+
+    /**
+     * Remove a user from session minutes without deleting the whole acta.
+     *
+     * @param int $userid User id
+     * @param int $cmid Course module id
+     */
+    protected static function anonymise_acta_user(int $userid, int $cmid): void {
+        global $DB;
+
+        $DB->set_field('jitsi_session_acta', 'userid', 0, ['cmid' => $cmid, 'userid' => $userid]);
+        $actas = $DB->get_records_select(
+            'jitsi_session_acta',
+            'cmid = :cmid AND ' . $DB->sql_like('attendancejson', ':needle'),
+            ['cmid' => $cmid, 'needle' => '%"userid":' . $userid . ',%']
+        );
+        foreach ($actas as $acta) {
+            $attendees = json_decode((string)$acta->attendancejson, true);
+            if (!is_array($attendees)) {
+                continue;
+            }
+            $filtered = [];
+            foreach ($attendees as $attendee) {
+                if ((int)($attendee['userid'] ?? 0) === $userid) {
+                    continue;
+                }
+                $filtered[] = $attendee;
+            }
+            $acta->attendancejson = json_encode($filtered);
+            $DB->update_record('jitsi_session_acta', $acta);
         }
     }
 }

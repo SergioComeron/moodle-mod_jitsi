@@ -136,6 +136,17 @@ $context = context_module::instance($cm->id);
 if (!has_capability('mod/jitsi:view', $context)) {
     notice(get_string('noviewpermission', 'jitsi'));
 }
+
+$generateacta = optional_param('generateacta', 0, PARAM_INT);
+if ($generateacta && confirm_sesskey()) {
+    require_capability('mod/jitsi:moderation', $context);
+    $queued = \mod_jitsi\local\acta::queue_from_session_end($jitsi, (int)$cm->id, true);
+    $redirecturl = new moodle_url('/mod/jitsi/view.php', ['id' => $cm->id, 'tab' => 'session']);
+    if ($queued) {
+        redirect($redirecturl, get_string('actaqueued', 'jitsi'));
+    }
+    redirect($redirecturl, get_string('actanotavailable', 'jitsi'));
+}
 $moderation = false;
 if (has_capability('mod/jitsi:moderation', $context)) {
     $moderation = true;
@@ -409,6 +420,11 @@ echo $OUTPUT->render_from_template('mod_jitsi/view_session_card', [
     'inviteurl' => $inviteurl,
     'invitelabel' => get_string('sendinvitation', 'jitsi'),
 ]);
+
+$actacontext = \mod_jitsi\local\acta::export_for_view($jitsi, $cm, $context);
+if ($actacontext) {
+    echo $OUTPUT->render_from_template('mod_jitsi/view_session_acta', $actacontext);
+}
 
 echo '</div>';
 

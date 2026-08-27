@@ -183,4 +183,43 @@ final class report_templates_test extends \advanced_testcase {
         $this->assertStringContainsString('Activity overview', $html);
         $this->assertStringContainsString('students-nodata', $html);
     }
+
+    /**
+     * The session minutes template renders summary, attendance and pendientes.
+     */
+    public function test_session_acta_renders(): void {
+        global $OUTPUT;
+        $this->resetAfterTest(true);
+        $html = $OUTPUT->render_from_template('mod_jitsi/view_session_acta', [
+            'title' => 'Session minutes',
+            'items' => [[
+                'dates' => '1 Jan 2026 – 1 Jan 2026',
+                'statuspending' => false,
+                'statuserror' => false,
+                'statusready' => true,
+                'summary' => 'The class reviewed equations.',
+                'attendees' => [['name' => 'Ada Lovelace', 'minutes' => 12]],
+                'hasattendees' => true,
+                'actionitems' => [['text' => 'Finish exercise 3']],
+                'hasactionitems' => true,
+                'noactionitems' => false,
+                'sourcelabel' => 'Generated from the session transcript',
+                'error' => '',
+            ]],
+            'hasitems' => true,
+            'empty' => false,
+            'emptylabel' => 'No minutes yet.',
+            'cangenerate' => true,
+            'generateurl' => 'https://example.com/mod/jitsi/view.php?id=1&generateacta=1',
+            'generatelabel' => 'Generate minutes',
+            'privacynote' => 'Only attendance and an existing transcript are sent.',
+        ]);
+
+        $this->assertStringContainsString('Session minutes', $html);
+        $this->assertStringContainsString('The class reviewed equations.', $html);
+        $this->assertStringContainsString('Ada Lovelace', $html);
+        $this->assertStringContainsString('Finish exercise 3', $html);
+        $this->assertStringContainsString('generateacta=1', $html);
+        $this->assertStringContainsString('Only attendance and an existing transcript are sent.', $html);
+    }
 }

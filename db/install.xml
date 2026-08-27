@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<XMLDB PATH="mod/jitsi/db" VERSION="2025122000" COMMENT="XMLDB file for Moodle mod/jitsi"
+<XMLDB PATH="mod/jitsi/db" VERSION="2026082700" COMMENT="XMLDB file for Moodle mod/jitsi"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
 >
@@ -210,6 +210,32 @@
       <INDEXES>
         <INDEX NAME="userid_sourcerecordid_cmid" UNIQUE="true" FIELDS="userid, sourcerecordid, cmid"/>
         <INDEX NAME="sourcerecordid_cmid" UNIQUE="false" FIELDS="sourcerecordid, cmid"/>
+      </INDEXES>
+    </TABLE>
+    <TABLE NAME="jitsi_session_acta" COMMENT="AI-generated session minutes (acta) stored after a session ends">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="jitsi" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Jitsi activity instance id"/>
+        <FIELD NAME="cmid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Course module id"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Teacher who ended the session"/>
+        <FIELD NAME="sessionstart" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="sessionend" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="attendancejson" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="JSON list of attendees from existing participating logs"/>
+        <FIELD NAME="summary" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Short AI summary of the session"/>
+        <FIELD NAME="actionitems" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="JSON list of pending follow-ups"/>
+        <FIELD NAME="source" TYPE="char" LENGTH="20" NOTNULL="false" SEQUENCE="false" COMMENT="transcript or metadata"/>
+        <FIELD NAME="status" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="pending" SEQUENCE="false" COMMENT="pending, ready or error"/>
+        <FIELD NAME="error" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="jitsi" TYPE="foreign" FIELDS="jitsi" REFTABLE="jitsi" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="jitsi_status" UNIQUE="false" FIELDS="jitsi, status"/>
+        <INDEX NAME="cmid" UNIQUE="false" FIELDS="cmid"/>
       </INDEXES>
     </TABLE>
     <TABLE NAME="jitsi_presence" COMMENT="Real-time presence of participants in jitsi sessions">

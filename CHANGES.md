@@ -1,4 +1,15 @@
 # Changelog
+## v5.4.1
+# Added
+
+ * Session minutes (acta) MVP: after a teacher hangs up, store a short summary, attendance and pendientes
+ * BYOK OpenAI-compatible settings (site key and optional activity key); feature stays off without a key
+# Changed
+
+ * Report session end on readyToClose even when finish-and-return is off, so minutes can attach to the existing hang-up hook
+
+---
+
 ## v5.4.0
 # Added
 

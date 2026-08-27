@@ -12,3 +12,7 @@
     max-width: calc(90vh * 16 / 9);
     max-height: calc(90vh);
 }
+
+.path-mod-jitsi .mod-jitsi-acta .card {
+    max-width: 48rem;
+}

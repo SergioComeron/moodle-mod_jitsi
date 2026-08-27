@@ -554,8 +554,9 @@ class session {
         ];
         $PAGE->requires->js_call_amd('mod_jitsi/session_presence', 'init', [$presenceconfig]);
 
-        // Password auto-fill and finish-and-return redirect live in the
-        // mod_jitsi/session_controls AMD module (both are settings-gated).
+        // Password auto-fill, hang-up reporting and finish-and-return live in
+        // the mod_jitsi/session_controls AMD module. Hang-up is always reported
+        // so session minutes can attach to the existing press_button_end hook.
         $password = get_config('mod_jitsi', 'password');
         $finishandreturn = (get_config('mod_jitsi', 'finishandreturn') == 1);
         $closeredirecturl = null;
@@ -568,17 +569,15 @@ class session {
                 $closeredirecturl = $CFG->wwwroot . "/mod/jitsi/viewpriv.php?user=" . $user;
             }
         }
-        if (($password != null && $password !== '') || $finishandreturn) {
-            $PAGE->requires->js_call_amd('mod_jitsi/session_controls', 'init', [[
-                'jitsiid' => (int) $jitsi->id,
-                'userid' => (int) $USER->id,
-                'cmid' => (int) $cmid,
-                'password' => ($password != null && $password !== '') ? $password : null,
-                'finishAndReturn' => $finishandreturn,
-                'reportEnd' => true,
-                'closeRedirectUrl' => $closeredirecturl,
-            ]]);
-        }
+        $PAGE->requires->js_call_amd('mod_jitsi/session_controls', 'init', [[
+            'jitsiid' => (int) $jitsi->id,
+            'userid' => (int) $USER->id,
+            'cmid' => (int) $cmid,
+            'password' => ($password != null && $password !== '') ? $password : null,
+            'finishAndReturn' => $finishandreturn,
+            'reportEnd' => true,
+            'closeRedirectUrl' => $closeredirecturl,
+        ]]);
 
         if ($user == null) {
             // Toolbar-button audit lives in the mod_jitsi/session_buttons AMD module.
