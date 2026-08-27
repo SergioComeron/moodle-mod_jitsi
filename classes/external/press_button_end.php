@@ -61,6 +61,13 @@ class press_button_end extends external_api {
         $event->add_record_snapshot('course', $course);
         $event->add_record_snapshot('jitsi', $jitsiob);
         $event->trigger();
+
+        // Optional session minutes: never blocks hang-up if BYOK is off or generation fails.
+        try {
+            \mod_jitsi\local\acta::queue_from_session_end($jitsiob, (int)$cmid);
+        } catch (\Throwable $e) {
+            debugging('mod_jitsi acta queue failed: ' . $e->getMessage(), DEBUG_DEVELOPER);
+        }
     }
 
     /**

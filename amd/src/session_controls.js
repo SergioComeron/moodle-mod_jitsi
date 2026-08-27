@@ -16,9 +16,9 @@
 /**
  * AMD module: settings-driven controls for an active Jitsi session.
  *
- * Wires up two optional, configuration-gated behaviours on the conference api:
+ * Wires up optional behaviours on the conference api:
  *  - auto-fill the room password (for moderators and on passwordRequired), and
- *  - report the session end and redirect away when the meeting is closed (finish-and-return).
+ *  - report the session end (press_button_end) and optionally redirect on close.
  *
  * @module     mod_jitsi/session_controls
  * @copyright  2024 Sergio Comerón <sergiocomeron@icloud.com>
@@ -60,7 +60,8 @@ export const init = (config) => {
         });
     }
 
-    if (config.finishAndReturn) {
+    const shouldRedirect = config.finishAndReturn && !!config.closeRedirectUrl;
+    if (config.reportEnd || shouldRedirect) {
         api.on('readyToClose', () => {
             if (config.reportEnd) {
                 Ajax.call([{
@@ -69,7 +70,7 @@ export const init = (config) => {
                 }])[0].fail(Notification.exception);
             }
             api.dispose();
-            if (config.closeRedirectUrl) {
+            if (shouldRedirect) {
                 window.location.href = config.closeRedirectUrl;
             }
         });

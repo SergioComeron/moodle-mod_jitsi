@@ -1460,5 +1460,31 @@ function xmldb_jitsi_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026050302, 'jitsi');
     }
 
+    if ($oldversion < 2026082701) {
+        $table = new xmldb_table('jitsi_session_acta');
+        $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE);
+        $table->add_field('jitsi', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL);
+        $table->add_field('cmid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL);
+        $table->add_field('userid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('sessionstart', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL);
+        $table->add_field('sessionend', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL);
+        $table->add_field('attendancejson', XMLDB_TYPE_TEXT);
+        $table->add_field('summary', XMLDB_TYPE_TEXT);
+        $table->add_field('actionitems', XMLDB_TYPE_TEXT);
+        $table->add_field('source', XMLDB_TYPE_CHAR, '20');
+        $table->add_field('status', XMLDB_TYPE_CHAR, '20', null, XMLDB_NOTNULL, null, 'pending');
+        $table->add_field('error', XMLDB_TYPE_TEXT);
+        $table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL);
+        $table->add_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL);
+        $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+        $table->add_key('jitsi', XMLDB_KEY_FOREIGN, ['jitsi'], 'jitsi', ['id']);
+        $table->add_index('jitsi_status', XMLDB_INDEX_NOTUNIQUE, ['jitsi', 'status']);
+        $table->add_index('cmid', XMLDB_INDEX_NOTUNIQUE, ['cmid']);
+        if (!$dbman->table_exists($table)) {
+            $dbman->create_table($table);
+        }
+        upgrade_mod_savepoint(true, 2026082701, 'jitsi');
+    }
+
     return true;
 }
