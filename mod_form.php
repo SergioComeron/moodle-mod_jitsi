@@ -220,6 +220,10 @@ class mod_jitsi_mod_form extends moodleform_mod {
         }
 
         $mform->addElement('header', 'actaheader', get_string('actaheading', 'jitsi'));
+        $mform->addElement('advcheckbox', 'showacta', get_string('actashow', 'jitsi'));
+        $mform->setDefault('showacta', 1);
+        $mform->setType('showacta', PARAM_INT);
+        $mform->addHelpButton('showacta', 'actashow', 'jitsi');
         $mform->addElement(
             'passwordunmask',
             'actaapikey',

@@ -98,6 +98,19 @@ class acta {
     }
 
     /**
+     * Whether this activity publishes the acta on the session tab.
+     *
+     * Missing showacta (pre-upgrade objects) is treated as on, matching the
+     * field default. Hang-up still queues when this is off.
+     *
+     * @param \stdClass $jitsi Jitsi instance
+     * @return bool
+     */
+    public static function is_shown(\stdClass $jitsi): bool {
+        return !isset($jitsi->showacta) || (int)$jitsi->showacta === 1;
+    }
+
+    /**
      * Persist or clear an activity-level BYOK key.
      *
      * @param int $jitsiid Jitsi instance id
@@ -456,14 +469,11 @@ class acta {
      * @return array|null Null when the section should be hidden
      */
     public static function export_for_view(\stdClass $jitsi, \stdClass $cm, \context $context): ?array {
-        if (!has_capability('mod/jitsi:viewattendance', $context)) {
+        if (!self::is_shown($jitsi) || !self::is_available($jitsi)
+                || !has_capability('mod/jitsi:viewacta', $context)) {
             return null;
         }
         $records = self::list_for_activity((int)$jitsi->id);
-        $available = self::is_available($jitsi);
-        if (!$records && !$available) {
-            return null;
-        }
 
         $items = [];
         foreach ($records as $record) {
@@ -502,9 +512,9 @@ class acta {
             'title' => get_string('actatitle', 'jitsi'),
             'items' => $items,
             'hasitems' => !empty($items),
-            'empty' => empty($items) && $available,
+            'empty' => empty($items),
             'emptylabel' => get_string('actaempty', 'jitsi'),
-            'cangenerate' => $available && has_capability('mod/jitsi:moderation', $context),
+            'cangenerate' => has_capability('mod/jitsi:moderation', $context),
             'generateurl' => (new \moodle_url('/mod/jitsi/view.php', [
                 'id' => $cm->id,
                 'generateacta' => 1,

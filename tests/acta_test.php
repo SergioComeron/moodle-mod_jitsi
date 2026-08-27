@@ -415,7 +415,7 @@ final class acta_test extends \advanced_testcase {
     }
 
     /**
-     * Teachers see the acta block; students with only view do not.
+     * Teachers with viewacta see the acta block; students do not.
      */
     public function test_export_for_view_is_teacher_only(): void {
         $this->resetAfterTest();
@@ -428,10 +428,81 @@ final class acta_test extends \advanced_testcase {
         $cm = get_coursemodule_from_instance('jitsi', $jitsi->id, $course->id, false, MUST_EXIST);
         $context = \context_module::instance($cm->id);
 
+        $this->assertSame(1, (int)$jitsi->showacta);
+        $this->assertTrue(has_capability('mod/jitsi:viewacta', $context));
+        $this->assertNotNull(acta::export_for_view($jitsi, $cm, $context));
+
+        $teacher = $this->getDataGenerator()->create_and_enrol($course, 'teacher');
+        $this->setUser($teacher);
+        $this->assertTrue(has_capability('mod/jitsi:viewacta', $context));
         $this->assertNotNull(acta::export_for_view($jitsi, $cm, $context));
 
         $student = $this->getDataGenerator()->create_and_enrol($course, 'student');
         $this->setUser($student);
+        $this->assertFalse(has_capability('mod/jitsi:viewacta', $context));
+        $this->assertNull(acta::export_for_view($jitsi, $cm, $context));
+    }
+
+    /**
+     * Unchecking showacta hides the block for everyone, including teachers.
+     */
+    public function test_export_for_view_hidden_when_showacta_off(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+        set_config('actaenabled', 1, 'mod_jitsi');
+        set_config('acta_apikey', 'sk-site', 'mod_jitsi');
+
+        $course = $this->getDataGenerator()->create_course();
+        $jitsi = $this->getDataGenerator()->create_module('jitsi', [
+            'course' => $course->id,
+            'showacta' => 0,
+        ]);
+        $cm = get_coursemodule_from_instance('jitsi', $jitsi->id, $course->id, false, MUST_EXIST);
+        $context = \context_module::instance($cm->id);
+
+        $this->assertFalse(acta::is_shown($jitsi));
+        $this->assertTrue(acta::is_available($jitsi));
+        $this->assertTrue(has_capability('mod/jitsi:viewacta', $context));
+        $this->assertNull(acta::export_for_view($jitsi, $cm, $context));
+    }
+
+    /**
+     * Hang-up still queues minutes when the activity checkbox is off.
+     */
+    public function test_hangup_still_queues_when_showacta_off(): void {
+        global $DB;
+        $this->resetAfterTest();
+        $this->setAdminUser();
+        set_config('actaenabled', 1, 'mod_jitsi');
+        set_config('acta_apikey', 'sk-site', 'mod_jitsi');
+
+        $course = $this->getDataGenerator()->create_course();
+        $jitsi = $this->getDataGenerator()->create_module('jitsi', [
+            'course' => $course->id,
+            'showacta' => 0,
+        ]);
+        $cm = get_coursemodule_from_instance('jitsi', $jitsi->id, $course->id, false, MUST_EXIST);
+
+        \mod_jitsi\external\press_button_end::execute($jitsi->id, 0, $cm->id);
+
+        $this->assertTrue($DB->record_exists('jitsi_session_acta', ['jitsi' => $jitsi->id, 'status' => 'pending']));
+        $this->assertNull(acta::export_for_view($jitsi, $cm, \context_module::instance($cm->id)));
+    }
+
+    /**
+     * Without a usable LLM the block stays hidden even if the checkbox is on.
+     */
+    public function test_export_for_view_hidden_when_not_available(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $course = $this->getDataGenerator()->create_course();
+        $jitsi = $this->getDataGenerator()->create_module('jitsi', ['course' => $course->id]);
+        $cm = get_coursemodule_from_instance('jitsi', $jitsi->id, $course->id, false, MUST_EXIST);
+        $context = \context_module::instance($cm->id);
+
+        $this->assertTrue(acta::is_shown($jitsi));
+        $this->assertFalse(acta::is_available($jitsi));
         $this->assertNull(acta::export_for_view($jitsi, $cm, $context));
     }
 }

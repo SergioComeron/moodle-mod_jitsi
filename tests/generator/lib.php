@@ -65,6 +65,9 @@ class mod_jitsi_generator extends testing_module_generator {
         if (!isset($record->numberofparticipants)) {
             $record->numberofparticipants = 0;
         }
+        if (!isset($record->showacta)) {
+            $record->showacta = 1;
+        }
 
         return parent::create_instance($record, $options);
     }

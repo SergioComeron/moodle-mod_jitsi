@@ -34,6 +34,7 @@ class backup_jitsi_activity_structure_step extends backup_activity_structure_ste
 
         $jitsi = new backup_nested_element('jitsi', ['id'], ['name', 'intro', 'introformat',
             'timeopen', 'timeclose', 'validitytime', 'minpretime', 'token', 'completionminutes',
+            'showacta',
         ]);
         $sources = new backup_nested_element('sources');
         $source = new backup_nested_element('source', ['id'], ['link', 'account', 'timecreated', 'userid']);
