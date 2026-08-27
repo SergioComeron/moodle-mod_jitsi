@@ -26,7 +26,6 @@
  */
 
 require_once(dirname($_SERVER['SCRIPT_FILENAME'], 3) . '/config.php'); // phpcs:ignore moodle.Files.RequireLogin.Missing
-require_once(dirname(dirname(dirname(__FILE__))) . '/lib/moodlelib.php');
 require_once(dirname(__FILE__) . '/lib.php');
 
 // This page is accessible to external guests via invitation link — require_login is intentionally omitted.
