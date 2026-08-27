@@ -20,6 +20,8 @@ use mod_jitsi\local\acta;
 use mod_jitsi\local\acta_llm;
 use PHPUnit\Framework\Attributes\CoversClass;
 
+defined('MOODLE_INTERNAL') || die();
+
 /**
  * Tests for session minutes (acta).
  *
