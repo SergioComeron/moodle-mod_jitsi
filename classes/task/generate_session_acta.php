@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Ad-hoc task to generate session minutes (acta) via a BYOK LLM.
+ * Ad-hoc task to generate session minutes (acta) via Vertex or BYOK.
  *
  * @package    mod_jitsi
  * @copyright  2026 Sergio Comerón Sánchez-Paniagua <sergiocomeron@icloud.com>

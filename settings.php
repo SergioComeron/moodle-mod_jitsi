@@ -771,7 +771,8 @@ if ($ADMIN->fulltree) {
         )
     );
 
-    // Session minutes (acta) — BYOK only; independent of Vertex AI recording features.
+    // Session minutes (acta). Vertex is used automatically when already configured;
+    // BYOK fields remain for sites without Vertex. No provider selector.
     $settings->add(
         new admin_setting_heading(
             'jitsiactaheading',

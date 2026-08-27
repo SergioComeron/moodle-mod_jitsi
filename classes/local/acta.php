@@ -27,24 +27,53 @@ class acta {
     /** Gap in seconds that splits participating pings into separate sessions. */
     public const SESSION_GAP = 1800;
 
-    /** Maximum transcript characters sent to the BYOK LLM. */
+    /** Maximum transcript characters sent to the LLM. */
     public const MAX_TRANSCRIPT_CHARS = 50000;
+
+    /** Existing site Vertex AI setup (gcp_project + service-account JSON). */
+    public const PROVIDER_VERTEX = 'vertex';
+
+    /** Site or activity OpenAI-compatible BYOK key. */
+    public const PROVIDER_BYOK = 'byok';
+
+    /**
+     * Which LLM to use when acta is enabled. Not an admin setting.
+     *
+     * Vertex wins when the existing site Vertex setup is usable. Otherwise the
+     * site or activity BYOK key is used. If neither is available, acta stays off.
+     *
+     * @param \stdClass $jitsi Jitsi instance
+     * @return string|null PROVIDER_VERTEX, PROVIDER_BYOK, or null
+     */
+    public static function provider(\stdClass $jitsi): ?string {
+        if ((string)get_config('mod_jitsi', 'actaenabled') !== '1') {
+            return null;
+        }
+        if (vertex_ai::is_configured()) {
+            return self::PROVIDER_VERTEX;
+        }
+        if (self::credentials($jitsi) !== null) {
+            return self::PROVIDER_BYOK;
+        }
+        return null;
+    }
 
     /**
      * Resolve BYOK credentials for an activity.
      *
-     * An activity-level key wins. Otherwise the site key is used only when the
-     * site admin has enabled the feature. No key means the feature is off.
+     * Requires the site enable toggle. An activity-level key wins over the site
+     * key. Used only when Vertex is not configured.
      *
      * @param \stdClass $jitsi Jitsi instance
      * @return array|null {apikey, endpoint, model} or null when unavailable
      */
     public static function credentials(\stdClass $jitsi): ?array {
+        if ((string)get_config('mod_jitsi', 'actaenabled') !== '1') {
+            return null;
+        }
         $activitykey = trim((string)get_config('mod_jitsi', 'acta_apikey_' . $jitsi->id));
-        $siteenabled = (string)get_config('mod_jitsi', 'actaenabled') === '1';
         $sitekey = trim((string)get_config('mod_jitsi', 'acta_apikey'));
-
-        $apikey = $activitykey !== '' ? $activitykey : ($siteenabled ? $sitekey : '');
+        $apikey = $activitykey !== '' ? $activitykey : $sitekey;
         if ($apikey === '') {
             return null;
         }
@@ -65,7 +94,7 @@ class acta {
      * @return bool
      */
     public static function is_available(\stdClass $jitsi): bool {
-        return self::credentials($jitsi) !== null;
+        return self::provider($jitsi) !== null;
     }
 
     /**
@@ -235,8 +264,8 @@ class acta {
     /**
      * Queue minutes generation after a teacher hangs up (or a manual request).
      *
-     * No-ops when BYOK is off, the user is not a moderator, or a matching acta
-     * already exists (unless $force is true).
+     * No-ops when acta has no usable LLM (neither Vertex nor BYOK), the user
+     * is not a moderator, or a matching acta already exists (unless $force).
      *
      * @param \stdClass $jitsi Jitsi instance
      * @param int $cmid Course module id
@@ -323,8 +352,7 @@ class acta {
             return;
         }
 
-        $credentials = self::credentials($jitsi);
-        if ($credentials === null) {
+        if ($completer === null && self::provider($jitsi) === null) {
             $acta->status = 'error';
             $acta->error = get_string('actanotavailable', 'jitsi');
             $acta->timemodified = time();
@@ -341,15 +369,7 @@ class acta {
 
         try {
             if ($completer === null) {
-                $completer = static function (string $system, string $user) use ($credentials): string {
-                    return acta_llm::complete(
-                        $credentials['apikey'],
-                        $credentials['endpoint'],
-                        $credentials['model'],
-                        $system,
-                        $user
-                    );
-                };
+                $completer = self::default_completer($jitsi);
             }
             $raw = $completer($prompt['system'], $prompt['user']);
             $parsed = acta_llm::parse_json_object($raw);
@@ -381,6 +401,38 @@ class acta {
 
         $acta->timemodified = time();
         $DB->update_record('jitsi_session_acta', $acta);
+    }
+
+    /**
+     * Default LLM completer: Vertex when configured, otherwise BYOK.
+     *
+     * @param \stdClass $jitsi Jitsi instance
+     * @return callable
+     */
+    protected static function default_completer(\stdClass $jitsi): callable {
+        $provider = self::provider($jitsi);
+        if ($provider === self::PROVIDER_VERTEX) {
+            return static function (string $system, string $user): string {
+                $text = vertex_ai::generate_from_text($system . "\n\n" . $user);
+                if ($text === null || $text === '') {
+                    throw new \moodle_exception('actallmempty', 'jitsi');
+                }
+                return $text;
+            };
+        }
+        $credentials = self::credentials($jitsi);
+        if ($credentials === null) {
+            throw new \moodle_exception('actanotavailable', 'jitsi');
+        }
+        return static function (string $system, string $user) use ($credentials): string {
+            return acta_llm::complete(
+                $credentials['apikey'],
+                $credentials['endpoint'],
+                $credentials['model'],
+                $system,
+                $user
+            );
+        };
     }
 
     /**

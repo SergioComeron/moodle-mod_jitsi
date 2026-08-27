@@ -145,6 +145,87 @@ class vertex_ai {
     }
 
     /**
+     * Whether the existing site Vertex setup is usable for text generation.
+     *
+     * Requires a resolvable GCP project (gcp_project or a server gcpproject)
+     * and the uploaded service-account JSON already used by recording AI.
+     * ADC-only sites without that file are treated as not configured so acta
+     * can fall back to BYOK. Independent of the recording aienabled toggle.
+     *
+     * @return bool
+     */
+    public static function is_configured(): bool {
+        if (self::project_for((object)['link' => '']) === '') {
+            return false;
+        }
+        return self::service_account_json() !== '';
+    }
+
+    /**
+     * Service-account JSON from the existing Moodle file area, if uploaded.
+     *
+     * @return string Raw JSON or empty when missing or not valid JSON
+     */
+    public static function service_account_json(): string {
+        $fs = get_file_storage();
+        $ctx = \context_system::instance();
+        $files = $fs->get_area_files(
+            $ctx->id,
+            'mod_jitsi',
+            'gcpserviceaccountjson',
+            0,
+            'itemid, filepath, filename',
+            false
+        );
+        if (empty($files)) {
+            return '';
+        }
+        $file = reset($files);
+        $content = trim($file->get_content());
+        if ($content === '') {
+            return '';
+        }
+        $decoded = json_decode($content, true);
+        if (!is_array($decoded) || $decoded === []) {
+            return '';
+        }
+        return $content;
+    }
+
+    /**
+     * Text-only generateContent using the existing Vertex project and credentials.
+     *
+     * Does not send recordings or media. Returns null when Vertex is not
+     * configured or the call fails, so callers can stay silent.
+     *
+     * @param string $prompt Combined system + user text
+     * @param int $maxoutputtokens generationConfig.maxOutputTokens
+     * @return string|null Generated text, or null when unused/failed
+     */
+    public static function generate_from_text(string $prompt, int $maxoutputtokens = 2048): ?string {
+        if (!self::is_configured()) {
+            return null;
+        }
+        $project = self::project_for((object)['link' => '']);
+        try {
+            $text = self::call_generate_content($project, [
+                'contents' => [[
+                    'role' => 'user',
+                    'parts' => [['text' => $prompt]],
+                ]],
+                'generationConfig' => [
+                    'temperature' => 0.2,
+                    'maxOutputTokens' => $maxoutputtokens,
+                ],
+            ], 120);
+            return $text !== '' ? $text : null;
+        } catch (\Throwable $e) {
+            debugging('mod_jitsi Vertex text generation failed: ' . $e->getMessage(), DEBUG_DEVELOPER);
+            return null;
+        }
+    }
+
+    /**
      * Extract the direct video URL from an HTML player page.
      *
      * Some recording links (e.g. 8x8/JaaS) point to a small HTML player page
@@ -270,6 +351,81 @@ class vertex_ai {
     }
 
     /**
+     * POST generateContent and return the first candidate text.
+     *
+     * @param string $project GCP project id
+     * @param array $payload Full generateContent JSON body
+     * @param int $timeout Request timeout in seconds
+     * @return string Generated text
+     * @throws \Exception on any auth, transport or response error
+     */
+    protected static function call_generate_content(string $project, array $payload, int $timeout): string {
+        global $CFG;
+
+        $autoloaders = [
+            $CFG->dirroot . '/mod/jitsi/api/vendor/autoload.php',
+            $CFG->dirroot . '/mod/jitsi/vendor/autoload.php',
+            $CFG->dirroot . '/vendor/autoload.php',
+        ];
+        foreach ($autoloaders as $autoload) {
+            if (file_exists($autoload)) {
+                require_once($autoload);
+                break;
+            }
+        }
+        if (!class_exists('Google\\Client')) {
+            throw new \Exception('Google API client not available');
+        }
+
+        $client = new \Google\Client();
+        $client->addScope('https://www.googleapis.com/auth/cloud-platform');
+
+        $json = self::service_account_json();
+        if ($json !== '') {
+            $client->setAuthConfig(json_decode($json, true));
+        } else {
+            $client->useApplicationDefaultCredentials();
+        }
+
+        $accesstoken = $client->fetchAccessTokenWithAssertion();
+        if (empty($accesstoken['access_token'])) {
+            throw new \Exception('Could not obtain access token for Vertex AI');
+        }
+
+        $location = get_config('mod_jitsi', 'vertexairegion') ?: 'europe-west1';
+        $endpoint = "https://{$location}-aiplatform.googleapis.com/v1/projects/{$project}"
+            . "/locations/{$location}/publishers/google/models/" . self::MODEL . ':generateContent';
+
+        $ch = curl_init($endpoint);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Authorization: Bearer ' . $accesstoken['access_token'],
+            'Content-Type: application/json',
+        ]);
+        curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
+        $response = curl_exec($ch);
+        $curlerror = curl_error($ch);
+        $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false || $httpcode === 0) {
+            throw new \Exception("Curl error: {$curlerror}");
+        }
+        if ($httpcode !== 200) {
+            throw new \Exception("Vertex AI returned HTTP {$httpcode}: {$response}");
+        }
+
+        $result = json_decode($response, true);
+        $text = $result['candidates'][0]['content']['parts'][0]['text'] ?? null;
+        if (empty($text)) {
+            throw new \Exception('Empty response from Vertex AI: ' . $response);
+        }
+        return $text;
+    }
+
+    /**
      * Whether an ad-hoc AI task for a source record is still waiting in the queue.
      *
      * Matches the task class and the sourcerecordid inside the JSON custom data,
@@ -310,59 +466,7 @@ class vertex_ai {
         array $generationconfig,
         int $timeout = 300
     ): string {
-        global $CFG;
-
-        $autoloaders = [
-            $CFG->dirroot . '/mod/jitsi/api/vendor/autoload.php',
-            $CFG->dirroot . '/mod/jitsi/vendor/autoload.php',
-            $CFG->dirroot . '/vendor/autoload.php',
-        ];
-        foreach ($autoloaders as $autoload) {
-            if (file_exists($autoload)) {
-                require_once($autoload);
-                break;
-            }
-        }
-        if (!class_exists('Google\\Client')) {
-            throw new \Exception('Google API client not available');
-        }
-
-        $client = new \Google\Client();
-        $client->addScope('https://www.googleapis.com/auth/cloud-platform');
-
-        // Use service account JSON from Moodle file storage if available.
-        $fs = get_file_storage();
-        $ctx = \context_system::instance();
-        $files = $fs->get_area_files(
-            $ctx->id,
-            'mod_jitsi',
-            'gcpserviceaccountjson',
-            0,
-            'itemid, filepath, filename',
-            false
-        );
-        if (!empty($files)) {
-            $file = reset($files);
-            $key = json_decode($file->get_content(), true);
-            if (is_array($key)) {
-                $client->setAuthConfig($key);
-            } else {
-                $client->useApplicationDefaultCredentials();
-            }
-        } else {
-            $client->useApplicationDefaultCredentials();
-        }
-
-        $accesstoken = $client->fetchAccessTokenWithAssertion();
-        if (empty($accesstoken['access_token'])) {
-            throw new \Exception('Could not obtain access token for Vertex AI');
-        }
-
-        $location = get_config('mod_jitsi', 'vertexairegion') ?: 'europe-west1';
-        $endpoint = "https://{$location}-aiplatform.googleapis.com/v1/projects/{$project}"
-            . "/locations/{$location}/publishers/google/models/" . self::MODEL . ':generateContent';
-
-        $body = json_encode([
+        return self::call_generate_content($project, [
             'contents' => [
                 [
                     'role' => 'user',
@@ -378,34 +482,6 @@ class vertex_ai {
                 ],
             ],
             'generationConfig' => $generationconfig,
-        ]);
-
-        $ch = curl_init($endpoint);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Authorization: Bearer ' . $accesstoken['access_token'],
-            'Content-Type: application/json',
-        ]);
-        curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
-        $response = curl_exec($ch);
-        $curlerror = curl_error($ch);
-        $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if ($response === false || $httpcode === 0) {
-            throw new \Exception("Curl error: {$curlerror}");
-        }
-        if ($httpcode !== 200) {
-            throw new \Exception("Vertex AI returned HTTP {$httpcode}: {$response}");
-        }
-
-        $result = json_decode($response, true);
-        $text = $result['candidates'][0]['content']['parts'][0]['text'] ?? null;
-        if (empty($text)) {
-            throw new \Exception('Empty response from Vertex AI: ' . $response);
-        }
-        return $text;
+        ], $timeout);
     }
 }

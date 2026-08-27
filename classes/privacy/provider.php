@@ -56,9 +56,11 @@ class provider implements
             'email'    => 'privacy:metadata:jitsi:email',
         ], 'privacy:metadata:jitsi');
 
-        // Recording content sent to Google Vertex AI for AI feature generation.
+        // Recording AI plus session minutes when the existing Vertex setup is used.
         $collection->add_external_location_link('vertexai', [
             'recording' => 'privacy:metadata:vertexai:recording',
+            'transcript' => 'privacy:metadata:vertexai:transcript',
+            'attendance' => 'privacy:metadata:vertexai:attendance',
         ], 'privacy:metadata:vertexai');
 
         // Session minutes sent to a site/activity BYOK OpenAI-compatible endpoint.

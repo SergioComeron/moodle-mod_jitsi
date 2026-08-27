@@ -171,6 +171,62 @@ final class vertex_ai_test extends \advanced_testcase {
     }
 
     /**
+     * Vertex is configured only with a resolvable project and uploaded service-account JSON.
+     */
+    public function test_is_configured_requires_project_and_service_account(): void {
+        $this->resetAfterTest(true);
+
+        $this->assertFalse(vertex_ai::is_configured());
+        $this->assertNull(vertex_ai::generate_from_text('hello'));
+
+        set_config('gcp_project', 'acta-test-project', 'mod_jitsi');
+        $this->assertFalse(vertex_ai::is_configured());
+
+        $fs = get_file_storage();
+        $syscontext = \context_system::instance();
+        $fs->create_file_from_string([
+            'contextid' => $syscontext->id,
+            'component' => 'mod_jitsi',
+            'filearea' => 'gcpserviceaccountjson',
+            'itemid' => 0,
+            'filepath' => '/',
+            'filename' => 'service-account.json',
+        ], '{"type":"service_account","project_id":"acta-test-project"}');
+
+        $this->assertTrue(vertex_ai::is_configured());
+        $this->assertNotSame('', vertex_ai::service_account_json());
+    }
+
+    /**
+     * A project on a Jitsi server is enough when gcp_project is empty.
+     */
+    public function test_is_configured_accepts_server_project(): void {
+        global $DB;
+        $this->resetAfterTest(true);
+
+        $DB->insert_record('jitsi_servers', (object)[
+            'name'         => 'GCP server',
+            'type'         => 3,
+            'timecreated'  => time(),
+            'timemodified' => time(),
+            'gcpproject'   => 'server-only-project',
+        ]);
+        $fs = get_file_storage();
+        $syscontext = \context_system::instance();
+        $fs->create_file_from_string([
+            'contextid' => $syscontext->id,
+            'component' => 'mod_jitsi',
+            'filearea' => 'gcpserviceaccountjson',
+            'itemid' => 0,
+            'filepath' => '/',
+            'filename' => 'service-account.json',
+        ], '{"type":"service_account"}');
+
+        $this->assertSame('server-only-project', vertex_ai::project_for((object)['link' => '']));
+        $this->assertTrue(vertex_ai::is_configured());
+    }
+
+    /**
      * Project resolution: bucket server first, then the global gcp_project setting.
      */
     public function test_project_for(): void {

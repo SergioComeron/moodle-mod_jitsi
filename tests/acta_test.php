@@ -18,6 +18,7 @@ namespace mod_jitsi;
 
 use mod_jitsi\local\acta;
 use mod_jitsi\local\acta_llm;
+use mod_jitsi\local\vertex_ai;
 use PHPUnit\Framework\Attributes\CoversClass;
 
 defined('MOODLE_INTERNAL') || die();
@@ -32,6 +33,23 @@ defined('MOODLE_INTERNAL') || die();
 #[CoversClass(acta::class)]
 #[CoversClass(acta_llm::class)]
 final class acta_test extends \advanced_testcase {
+    /**
+     * Store the existing Vertex service-account JSON and a GCP project.
+     */
+    protected function store_vertex_service_account(): void {
+        set_config('gcp_project', 'acta-test-project', 'mod_jitsi');
+        $fs = get_file_storage();
+        $syscontext = \context_system::instance();
+        $fs->create_file_from_string([
+            'contextid' => $syscontext->id,
+            'component' => 'mod_jitsi',
+            'filearea' => 'gcpserviceaccountjson',
+            'itemid' => 0,
+            'filepath' => '/',
+            'filename' => 'service-account.json',
+        ], '{"type":"service_account","project_id":"acta-test-project"}');
+    }
+
     /**
      * Insert a participating log used by the existing attendance counters.
      *
@@ -58,7 +76,7 @@ final class acta_test extends \advanced_testcase {
     }
 
     /**
-     * Without a BYOK key the feature stays off.
+     * Without Vertex or a BYOK key the feature stays off.
      */
     public function test_unavailable_without_key(): void {
         $this->resetAfterTest();
@@ -66,12 +84,13 @@ final class acta_test extends \advanced_testcase {
         $jitsi = $this->getDataGenerator()->create_module('jitsi', ['course' => $course->id]);
 
         $this->assertFalse(acta::is_available($jitsi));
+        $this->assertNull(acta::provider($jitsi));
         $this->assertNull(acta::credentials($jitsi));
         $this->assertSame(0, acta::queue_from_session_end($jitsi, (int)$jitsi->cmid));
     }
 
     /**
-     * Site enable without a key still leaves the feature off.
+     * Site enable without Vertex or a key still leaves the feature off.
      */
     public function test_site_enable_without_key_stays_off(): void {
         $this->resetAfterTest();
@@ -79,28 +98,94 @@ final class acta_test extends \advanced_testcase {
         $course = $this->getDataGenerator()->create_course();
         $jitsi = $this->getDataGenerator()->create_module('jitsi', ['course' => $course->id]);
         $this->assertFalse(acta::is_available($jitsi));
+        $this->assertNull(acta::provider($jitsi));
+        $this->assertFalse(vertex_ai::is_configured());
     }
 
     /**
-     * An activity-level key is enough even when the site toggle is off.
+     * An activity-level key is used when acta is enabled and Vertex is not configured.
      */
     public function test_activity_key_enables_feature(): void {
         $this->resetAfterTest();
+        set_config('actaenabled', 1, 'mod_jitsi');
         $course = $this->getDataGenerator()->create_course();
         $jitsi = $this->getDataGenerator()->create_module('jitsi', ['course' => $course->id]);
         acta::save_activity_key((int)$jitsi->id, 'sk-activity');
+        $this->assertSame(acta::PROVIDER_BYOK, acta::provider($jitsi));
         $creds = acta::credentials($jitsi);
         $this->assertNotNull($creds);
         $this->assertSame('sk-activity', $creds['apikey']);
     }
 
     /**
-     * Hang-up without a key does not create an acta and still fires the audit event.
+     * An activity key alone does not enable acta while the site toggle is off.
+     */
+    public function test_activity_key_without_site_enable_stays_off(): void {
+        $this->resetAfterTest();
+        $course = $this->getDataGenerator()->create_course();
+        $jitsi = $this->getDataGenerator()->create_module('jitsi', ['course' => $course->id]);
+        acta::save_activity_key((int)$jitsi->id, 'sk-activity');
+        $this->assertNull(acta::provider($jitsi));
+        $this->assertNull(acta::credentials($jitsi));
+        $this->assertFalse(acta::is_available($jitsi));
+    }
+
+    /**
+     * Vertex configured (existing project + service-account JSON) wins over BYOK.
+     */
+    public function test_provider_prefers_vertex_over_byok(): void {
+        $this->resetAfterTest();
+        set_config('actaenabled', 1, 'mod_jitsi');
+        set_config('acta_apikey', 'sk-site', 'mod_jitsi');
+        $this->store_vertex_service_account();
+
+        $course = $this->getDataGenerator()->create_course();
+        $jitsi = $this->getDataGenerator()->create_module('jitsi', ['course' => $course->id]);
+
+        $this->assertTrue(vertex_ai::is_configured());
+        $this->assertSame(acta::PROVIDER_VERTEX, acta::provider($jitsi));
+        $this->assertTrue(acta::is_available($jitsi));
+        $this->assertNotNull(acta::credentials($jitsi));
+    }
+
+    /**
+     * Without Vertex, a site BYOK key is the backend.
+     */
+    public function test_provider_byok_when_vertex_not_configured(): void {
+        $this->resetAfterTest();
+        set_config('actaenabled', 1, 'mod_jitsi');
+        set_config('acta_apikey', 'sk-site', 'mod_jitsi');
+        $course = $this->getDataGenerator()->create_course();
+        $jitsi = $this->getDataGenerator()->create_module('jitsi', ['course' => $course->id]);
+
+        $this->assertFalse(vertex_ai::is_configured());
+        $this->assertSame(acta::PROVIDER_BYOK, acta::provider($jitsi));
+        $this->assertTrue(acta::is_available($jitsi));
+    }
+
+    /**
+     * Vertex without a BYOK key still enables acta.
+     */
+    public function test_provider_vertex_without_byok(): void {
+        $this->resetAfterTest();
+        set_config('actaenabled', 1, 'mod_jitsi');
+        $this->store_vertex_service_account();
+        $course = $this->getDataGenerator()->create_course();
+        $jitsi = $this->getDataGenerator()->create_module('jitsi', ['course' => $course->id]);
+
+        $this->assertSame(acta::PROVIDER_VERTEX, acta::provider($jitsi));
+        $this->assertNull(acta::credentials($jitsi));
+        $this->assertTrue(acta::is_available($jitsi));
+    }
+
+    /**
+     * Hang-up without Vertex or a key does not create an acta and still fires the audit event.
      */
     public function test_hangup_without_key_does_not_create_acta(): void {
         global $DB;
         $this->resetAfterTest();
         $this->setAdminUser();
+        set_config('actaenabled', 1, 'mod_jitsi');
         $course = $this->getDataGenerator()->create_course();
         $jitsi = $this->getDataGenerator()->create_module('jitsi', ['course' => $course->id]);
         $cm = get_coursemodule_from_instance('jitsi', $jitsi->id, $course->id, false, MUST_EXIST);
@@ -112,6 +197,59 @@ final class acta_test extends \advanced_testcase {
         $this->assertCount(1, $events);
         $this->assertInstanceOf(\mod_jitsi\event\jitsi_press_button_end::class, $events[0]);
         $this->assertFalse($DB->record_exists('jitsi_session_acta', ['jitsi' => $jitsi->id]));
+        $this->assertEmpty(\core\task\manager::get_adhoc_tasks(\mod_jitsi\task\generate_session_acta::class));
+    }
+
+    /**
+     * A teacher hang-up with Vertex configured (no BYOK) queues minutes.
+     */
+    public function test_teacher_hangup_queues_acta_with_vertex(): void {
+        global $DB;
+        $this->resetAfterTest();
+        $this->setAdminUser();
+        set_config('actaenabled', 1, 'mod_jitsi');
+        $this->store_vertex_service_account();
+
+        $course = $this->getDataGenerator()->create_course();
+        $jitsi = $this->getDataGenerator()->create_module('jitsi', ['course' => $course->id]);
+        $cm = get_coursemodule_from_instance('jitsi', $jitsi->id, $course->id, false, MUST_EXIST);
+        $this->assertSame(acta::PROVIDER_VERTEX, acta::provider($jitsi));
+
+        \mod_jitsi\external\press_button_end::execute($jitsi->id, 0, $cm->id);
+
+        $this->assertTrue($DB->record_exists('jitsi_session_acta', ['jitsi' => $jitsi->id, 'status' => 'pending']));
+        $tasks = \core\task\manager::get_adhoc_tasks(\mod_jitsi\task\generate_session_acta::class);
+        $this->assertNotEmpty($tasks);
+    }
+
+    /**
+     * generate() with neither Vertex nor BYOK does not throw and does not invent minutes.
+     */
+    public function test_generate_without_llm_does_not_block(): void {
+        global $DB;
+        $this->resetAfterTest();
+        $this->setAdminUser();
+        $course = $this->getDataGenerator()->create_course();
+        $jitsi = $this->getDataGenerator()->create_module('jitsi', ['course' => $course->id]);
+        $cm = get_coursemodule_from_instance('jitsi', $jitsi->id, $course->id, false, MUST_EXIST);
+
+        $actaid = (int)$DB->insert_record('jitsi_session_acta', (object)[
+            'jitsi' => $jitsi->id,
+            'cmid' => $cm->id,
+            'userid' => 2,
+            'sessionstart' => time() - 60,
+            'sessionend' => time(),
+            'status' => 'pending',
+            'timecreated' => time(),
+            'timemodified' => time(),
+        ]);
+
+        acta::generate($actaid);
+
+        $acta = $DB->get_record('jitsi_session_acta', ['id' => $actaid], '*', MUST_EXIST);
+        $this->assertSame('error', $acta->status);
+        $this->assertNotEmpty($acta->error);
+        $this->assertEmpty($acta->summary);
     }
 
     /**
