@@ -20,6 +20,10 @@ namespace Google\Service\Compute;
 class Reservation extends \Google\Collection
 {
   /**
+   * Bare Metal Secure AI.
+   */
+  public const CONFIDENTIAL_COMPUTE_TYPE_CONFIDENTIAL_COMPUTE_TYPE_BMSAI = 'CONFIDENTIAL_COMPUTE_TYPE_BMSAI';
+  /**
    * Intel Trust Domain Extensions.
    */
   public const CONFIDENTIAL_COMPUTE_TYPE_CONFIDENTIAL_COMPUTE_TYPE_TDX = 'CONFIDENTIAL_COMPUTE_TYPE_TDX';

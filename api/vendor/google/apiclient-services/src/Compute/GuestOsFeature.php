@@ -31,6 +31,11 @@ class GuestOsFeature extends \Google\Model
   public const TYPE_SEV_LIVE_MIGRATABLE_V2 = 'SEV_LIVE_MIGRATABLE_V2';
   public const TYPE_SEV_SNP_CAPABLE = 'SEV_SNP_CAPABLE';
   public const TYPE_SNP_SVSM_CAPABLE = 'SNP_SVSM_CAPABLE';
+  /**
+   * Indicates the guest OS is safe for free page reporting (FPR) during
+   * suspend.
+   */
+  public const TYPE_SUSPEND_SAFE_FPR = 'SUSPEND_SAFE_FPR';
   public const TYPE_TDX_CAPABLE = 'TDX_CAPABLE';
   public const TYPE_UEFI_COMPATIBLE = 'UEFI_COMPATIBLE';
   public const TYPE_VIRTIO_SCSI_MULTIQUEUE = 'VIRTIO_SCSI_MULTIQUEUE';
@@ -41,7 +46,7 @@ class GuestOsFeature extends \Google\Model
    * VIRTIO_SCSI_MULTIQUEUE    - WINDOWS    - MULTI_IP_SUBNET    -
    * UEFI_COMPATIBLE    - GVNIC    - SEV_CAPABLE    - SUSPEND_RESUME_COMPATIBLE
    * - SEV_LIVE_MIGRATABLE_V2    - SEV_SNP_CAPABLE    - TDX_CAPABLE    - IDPF
-   * - SNP_SVSM_CAPABLE    - CCA_CAPABLE
+   * - SNP_SVSM_CAPABLE    - CCA_CAPABLE    - SUSPEND_SAFE_FPR
    *
    * For more information, see Enabling guest operating system features.
    *
@@ -55,15 +60,15 @@ class GuestOsFeature extends \Google\Model
    * VIRTIO_SCSI_MULTIQUEUE    - WINDOWS    - MULTI_IP_SUBNET    -
    * UEFI_COMPATIBLE    - GVNIC    - SEV_CAPABLE    - SUSPEND_RESUME_COMPATIBLE
    * - SEV_LIVE_MIGRATABLE_V2    - SEV_SNP_CAPABLE    - TDX_CAPABLE    - IDPF
-   * - SNP_SVSM_CAPABLE    - CCA_CAPABLE
+   * - SNP_SVSM_CAPABLE    - CCA_CAPABLE    - SUSPEND_SAFE_FPR
    *
    * For more information, see Enabling guest operating system features.
    *
    * Accepted values: BARE_METAL_LINUX_COMPATIBLE, CCA_CAPABLE,
    * FEATURE_TYPE_UNSPECIFIED, GVNIC, IDPF, MULTI_IP_SUBNET, SECURE_BOOT,
    * SEV_CAPABLE, SEV_LIVE_MIGRATABLE, SEV_LIVE_MIGRATABLE_V2, SEV_SNP_CAPABLE,
-   * SNP_SVSM_CAPABLE, TDX_CAPABLE, UEFI_COMPATIBLE, VIRTIO_SCSI_MULTIQUEUE,
-   * WINDOWS
+   * SNP_SVSM_CAPABLE, SUSPEND_SAFE_FPR, TDX_CAPABLE, UEFI_COMPATIBLE,
+   * VIRTIO_SCSI_MULTIQUEUE, WINDOWS
    *
    * @param self::TYPE_* $type
    */

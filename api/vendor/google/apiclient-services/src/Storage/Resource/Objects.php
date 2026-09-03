@@ -66,8 +66,13 @@ class Objects extends \Google\Service\Resource
    *
    * @opt_param string destinationPredefinedAcl Apply a predefined set of access
    * controls to the destination object.
-   * @opt_param string dropContextGroups Specifies which groups of Object Contexts
-   * from the source object(s) should be dropped from the destination object.
+   * @opt_param string dropContextGroups Specifies which object context groups to
+   * drop from the source object(s) during a compose operation. The accepted value
+   * is 'custom'. Destination contexts behave as follows: - When request body
+   * contexts are provided, they override all source contexts. - When no request
+   * body contexts are provided, source contexts are preserved unless
+   * 'dropContextGroups' contains 'custom', in which case all contexts are
+   * dropped.
    * @opt_param string ifGenerationMatch Makes the operation conditional on
    * whether the object's current generation matches the given value. Setting to 0
    * makes the operation succeed only if there are no live versions of the object.
@@ -529,8 +534,13 @@ class Objects extends \Google\Service\Resource
    * object metadata's kms_key_name value, if any.
    * @opt_param string destinationPredefinedAcl Apply a predefined set of access
    * controls to the destination object.
-   * @opt_param string dropContextGroups Specifies which groups of Object Contexts
-   * from the source object should be dropped from the destination object.
+   * @opt_param string dropContextGroups Specifies which object context groups to
+   * drop from the source object during a copy operation. The accepted value is
+   * 'custom'. Destination contexts behave as follows: - When request body
+   * contexts are provided, they override all source contexts. - When no request
+   * body contexts are provided, source contexts are preserved unless
+   * 'dropContextGroups' contains 'custom', in which case all contexts are
+   * dropped.
    * @opt_param string ifGenerationMatch Makes the operation conditional on
    * whether the object's current generation matches the given value. Setting to 0
    * makes the operation succeed only if there are no live versions of the object.

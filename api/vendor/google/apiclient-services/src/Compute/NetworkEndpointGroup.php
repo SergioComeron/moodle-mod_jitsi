@@ -24,6 +24,12 @@ class NetworkEndpointGroup extends \Google\Model
    */
   public const NETWORK_ENDPOINT_TYPE_GCE_VM_IP = 'GCE_VM_IP';
   /**
+   * The network endpoint for targeting a specific network interface of a VM
+   * instance in configurations with multiple network interfaces on the same
+   * network.
+   */
+  public const NETWORK_ENDPOINT_TYPE_GCE_VM_IP_DEDICATED_BACKEND = 'GCE_VM_IP_DEDICATED_BACKEND';
+  /**
    * The network endpoint is represented by IP address and port pair.
    */
   public const NETWORK_ENDPOINT_TYPE_GCE_VM_IP_PORT = 'GCE_VM_IP_PORT';
@@ -387,9 +393,9 @@ class NetworkEndpointGroup extends \Google\Model
    * INTERNET_FQDN_PORT,INTERNET_IP_PORT, SERVERLESS,PRIVATE_SERVICE_CONNECT,
    * GCE_VM_IP_PORTMAP.
    *
-   * Accepted values: GCE_VM_IP, GCE_VM_IP_PORT, GCE_VM_IP_PORTMAP,
-   * INTERNET_FQDN_PORT, INTERNET_IP_PORT, NON_GCP_PRIVATE_IP_PORT,
-   * PRIVATE_SERVICE_CONNECT, SERVERLESS
+   * Accepted values: GCE_VM_IP, GCE_VM_IP_DEDICATED_BACKEND, GCE_VM_IP_PORT,
+   * GCE_VM_IP_PORTMAP, INTERNET_FQDN_PORT, INTERNET_IP_PORT,
+   * NON_GCP_PRIVATE_IP_PORT, PRIVATE_SERVICE_CONNECT, SERVERLESS
    *
    * @param self::NETWORK_ENDPOINT_TYPE_* $networkEndpointType
    */

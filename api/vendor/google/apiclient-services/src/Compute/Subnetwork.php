@@ -83,6 +83,19 @@ class Subnetwork extends \Google\Collection
    */
   public const RESOLVE_SUBNET_MASK_ARP_ALL_RANGES = 'ARP_ALL_RANGES';
   /**
+   * VMs will receive an ARP response from a VM instance owning the target IP
+   * address within the subnetwork's primary CIDR range, if such a VM instance
+   * exists and is running.
+   */
+  public const RESOLVE_SUBNET_MASK_ARP_BROADCAST_PRIMARY_RANGE = 'ARP_BROADCAST_PRIMARY_RANGE';
+  /**
+   * Combines ARP_BROADCAST_PRIMARY_RANGE with MAC learning. Enables cache
+   * mapping between IP addresses and custom MAC addresses of instances and use
+   * of it to set the correct destination MAC address. If this option is chosen,
+   * the subnetwork must have /24 or a smaller CIDR range.
+   */
+  public const RESOLVE_SUBNET_MASK_ARP_BROADCAST_PRIMARY_RANGE_WITH_LEARNING = 'ARP_BROADCAST_PRIMARY_RANGE_WITH_LEARNING';
+  /**
    * Only the primary range of the VM NIC will respond to ARP.
    */
   public const RESOLVE_SUBNET_MASK_ARP_PRIMARY_RANGE = 'ARP_PRIMARY_RANGE';
@@ -850,7 +863,8 @@ class Subnetwork extends \Google\Collection
   /**
    * Configures subnet mask resolution for this subnetwork.
    *
-   * Accepted values: ARP_ALL_RANGES, ARP_PRIMARY_RANGE
+   * Accepted values: ARP_ALL_RANGES, ARP_BROADCAST_PRIMARY_RANGE,
+   * ARP_BROADCAST_PRIMARY_RANGE_WITH_LEARNING, ARP_PRIMARY_RANGE
    *
    * @param self::RESOLVE_SUBNET_MASK_* $resolveSubnetMask
    */

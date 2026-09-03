@@ -2,7 +2,7 @@
     "require": {
         "google/apiclient": "^2.19.0",
         "php": "^8.0",
-        "google/apiclient-services": "^0.456.0",
+        "google/apiclient-services": "^0.457.0",
         "minishlink/web-push": "^9.0",
         "guzzlehttp/psr7": "^2.11"
     },

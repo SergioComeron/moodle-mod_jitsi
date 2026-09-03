@@ -337,6 +337,12 @@ class Interconnect extends \Google\Collection
    */
   public $selfLink;
   /**
+   * Output only. Server-defined URL for this resource with the resource id.
+   *
+   * @var string
+   */
+  public $selfLinkWithId;
+  /**
    * Output only. [Output Only] The current state of Interconnect functionality,
    * which can take one of the following values:        - ACTIVE: The
    * Interconnect is valid, turned up and ready to use.    Attachments may be
@@ -999,6 +1005,22 @@ class Interconnect extends \Google\Collection
   public function getSelfLink()
   {
     return $this->selfLink;
+  }
+  /**
+   * Output only. Server-defined URL for this resource with the resource id.
+   *
+   * @param string $selfLinkWithId
+   */
+  public function setSelfLinkWithId($selfLinkWithId)
+  {
+    $this->selfLinkWithId = $selfLinkWithId;
+  }
+  /**
+   * @return string
+   */
+  public function getSelfLinkWithId()
+  {
+    return $this->selfLinkWithId;
   }
   /**
    * Output only. [Output Only] The current state of Interconnect functionality,
