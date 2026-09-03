@@ -18934,6 +18934,35 @@ class Compute extends \Google\Service
                   'required' => true,
                 ],
               ],
+            ],'getHealth' => [
+              'path' => 'projects/{project}/zones/{zone}/{+parentName}/reservationSlots/{reservationSlot}/getHealth',
+              'httpMethod' => 'POST',
+              'parameters' => [
+                'project' => [
+                  'location' => 'path',
+                  'type' => 'string',
+                  'required' => true,
+                ],
+                'zone' => [
+                  'location' => 'path',
+                  'type' => 'string',
+                  'required' => true,
+                ],
+                'parentName' => [
+                  'location' => 'path',
+                  'type' => 'string',
+                  'required' => true,
+                ],
+                'reservationSlot' => [
+                  'location' => 'path',
+                  'type' => 'string',
+                  'required' => true,
+                ],
+                'requestId' => [
+                  'location' => 'query',
+                  'type' => 'string',
+                ],
+              ],
             ],'getVersion' => [
               'path' => 'projects/{project}/zones/{zone}/{+parentName}/reservationSlots/{reservationSlot}/getVersion',
               'httpMethod' => 'POST',

@@ -135,6 +135,31 @@ class ManagedInstance extends \Google\Collection
    * The instance has stopped (either by explicit action or underlying failure).
    */
   public const INSTANCE_STATUS_TERMINATED = 'TERMINATED';
+  /**
+   * The managed instance will eventually be ABANDONED, i.e. dissociated from
+   * the managed instance group.
+   */
+  public const TARGET_STATUS_ABANDONED = 'ABANDONED';
+  /**
+   * The managed instance will eventually be DELETED.
+   */
+  public const TARGET_STATUS_DELETED = 'DELETED';
+  /**
+   * Only present to map the STATUS_INVALID value.
+   */
+  public const TARGET_STATUS_INVALID = 'INVALID';
+  /**
+   * The managed instance will eventually reach status RUNNING.
+   */
+  public const TARGET_STATUS_RUNNING = 'RUNNING';
+  /**
+   * The managed instance will eventually reach status TERMINATED.
+   */
+  public const TARGET_STATUS_STOPPED = 'STOPPED';
+  /**
+   * The managed instance will eventually reach status SUSPENDED.
+   */
+  public const TARGET_STATUS_SUSPENDED = 'SUSPENDED';
   protected $collection_key = 'instanceHealth';
   /**
    * Output only. [Output Only] The current action that the managed instance
@@ -203,6 +228,14 @@ class ManagedInstance extends \Google\Collection
   protected $schedulingDataType = '';
   protected $shutdownDetailsType = ManagedInstanceShutdownDetails::class;
   protected $shutdownDetailsDataType = '';
+  /**
+   * Output only. The eventual status of the instance. The instance group
+   * manager will not be identified as stable till each managed instance reaches
+   * its targetStatus.
+   *
+   * @var string
+   */
+  public $targetStatus;
   protected $versionType = ManagedInstanceVersion::class;
   protected $versionDataType = '';
 
@@ -434,6 +467,26 @@ class ManagedInstance extends \Google\Collection
   public function getShutdownDetails()
   {
     return $this->shutdownDetails;
+  }
+  /**
+   * Output only. The eventual status of the instance. The instance group
+   * manager will not be identified as stable till each managed instance reaches
+   * its targetStatus.
+   *
+   * Accepted values: ABANDONED, DELETED, INVALID, RUNNING, STOPPED, SUSPENDED
+   *
+   * @param self::TARGET_STATUS_* $targetStatus
+   */
+  public function setTargetStatus($targetStatus)
+  {
+    $this->targetStatus = $targetStatus;
+  }
+  /**
+   * @return self::TARGET_STATUS_*
+   */
+  public function getTargetStatus()
+  {
+    return $this->targetStatus;
   }
   /**
    * Output only. [Output Only] Intended version of this instance.

@@ -61,6 +61,8 @@ class Operation extends \Google\Collection
   public $endTime;
   protected $errorType = OperationError::class;
   protected $errorDataType = '';
+  protected $getHealthOperationMetadataType = GetHealthOperationMetadata::class;
+  protected $getHealthOperationMetadataDataType = '';
   protected $getVersionOperationMetadataType = GetVersionOperationMetadata::class;
   protected $getVersionOperationMetadataDataType = '';
   /**
@@ -283,6 +285,22 @@ class Operation extends \Google\Collection
   public function getError()
   {
     return $this->error;
+  }
+  /**
+   * Output only. Metadata for GetHealth operations.
+   *
+   * @param GetHealthOperationMetadata $getHealthOperationMetadata
+   */
+  public function setGetHealthOperationMetadata(GetHealthOperationMetadata $getHealthOperationMetadata)
+  {
+    $this->getHealthOperationMetadata = $getHealthOperationMetadata;
+  }
+  /**
+   * @return GetHealthOperationMetadata
+   */
+  public function getGetHealthOperationMetadata()
+  {
+    return $this->getHealthOperationMetadata;
   }
   /**
    * @param GetVersionOperationMetadata $getVersionOperationMetadata
