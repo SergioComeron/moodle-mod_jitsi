@@ -33,6 +33,8 @@ use Google\Service\Compute\TestPermissionsResponse;
  */
 class LicenseCodes extends \Google\Service\Resource
 {
+  protected $apiVersion = '2026-09-01';
+
   /**
    * Return a specified license code. License codes are mirrored across all
    * projects that have permissions to read the License Code. Caution* This

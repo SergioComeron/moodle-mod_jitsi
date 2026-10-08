@@ -39,10 +39,14 @@ class RouterNatRule extends \Google\Model
    *
    * `destination.ip == '1.1.0.1' || destination.ip == '8.8.8.8'`
    *
-   * The following example is a valid match expression for private NAT:
+   * The following examples are valid match expressions for private NAT:
    *
-   * `nexthop.hub == '//networkconnectivity.googleapis.com/projects/my-
+   * (NAT 44) `nexthop.hub == '//networkconnectivity.googleapis.com/projects/my-
    * project/locations/global/hubs/hub-1'`
+   *
+   * `nexthop.is_hybrid`
+   *
+   * (NAT 64) `isIPv6(source.ip)`
    *
    * @var string
    */
@@ -100,10 +104,14 @@ class RouterNatRule extends \Google\Model
    *
    * `destination.ip == '1.1.0.1' || destination.ip == '8.8.8.8'`
    *
-   * The following example is a valid match expression for private NAT:
+   * The following examples are valid match expressions for private NAT:
    *
-   * `nexthop.hub == '//networkconnectivity.googleapis.com/projects/my-
+   * (NAT 44) `nexthop.hub == '//networkconnectivity.googleapis.com/projects/my-
    * project/locations/global/hubs/hub-1'`
+   *
+   * `nexthop.is_hybrid`
+   *
+   * (NAT 64) `isIPv6(source.ip)`
    *
    * @param string $match
    */

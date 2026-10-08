@@ -25,6 +25,18 @@ class ReservationSubBlocksReportFaultyRequestFaultReason extends \Google\Model
    */
   public const BEHAVIOR_GPU_ERROR = 'GPU_ERROR';
   /**
+   * The subBlock experienced an NVSwitch controller error.
+   */
+  public const BEHAVIOR_NVSWITCH_FAULT_CONTROLLER_ERROR = 'NVSWITCH_FAULT_CONTROLLER_ERROR';
+  /**
+   * The subBlock experienced NVSwitch degraded bandwidth.
+   */
+  public const BEHAVIOR_NVSWITCH_FAULT_DEGRADED_BANDWIDTH = 'NVSWITCH_FAULT_DEGRADED_BANDWIDTH';
+  /**
+   * The subBlock experienced an NVSwitch switch error.
+   */
+  public const BEHAVIOR_NVSWITCH_FAULT_SWITCH_ERROR = 'NVSWITCH_FAULT_SWITCH_ERROR';
+  /**
    * The subBlock experienced performance issues.
    */
   public const BEHAVIOR_PERFORMANCE = 'PERFORMANCE';
@@ -52,8 +64,10 @@ class ReservationSubBlocksReportFaultyRequestFaultReason extends \Google\Model
   /**
    * The behavior of the fault experienced with the subBlock.
    *
-   * Accepted values: FAULT_BEHAVIOR_UNSPECIFIED, GPU_ERROR, PERFORMANCE,
-   * SILENT_DATA_CORRUPTION, SWITCH_FAILURE
+   * Accepted values: FAULT_BEHAVIOR_UNSPECIFIED, GPU_ERROR,
+   * NVSWITCH_FAULT_CONTROLLER_ERROR, NVSWITCH_FAULT_DEGRADED_BANDWIDTH,
+   * NVSWITCH_FAULT_SWITCH_ERROR, PERFORMANCE, SILENT_DATA_CORRUPTION,
+   * SWITCH_FAILURE
    *
    * @param self::BEHAVIOR_* $behavior
    */

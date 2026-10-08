@@ -2065,6 +2065,34 @@ class Storage extends \Google\Service
                   'type' => 'string',
                 ],
               ],
+            ],'viewFullContext' => [
+              'path' => 'b/{bucket}/o/{object}/viewFullContext',
+              'httpMethod' => 'GET',
+              'parameters' => [
+                'bucket' => [
+                  'location' => 'path',
+                  'type' => 'string',
+                  'required' => true,
+                ],
+                'object' => [
+                  'location' => 'path',
+                  'type' => 'string',
+                  'required' => true,
+                ],
+                'contextKey' => [
+                  'location' => 'query',
+                  'type' => 'string',
+                  'required' => true,
+                ],
+                'generation' => [
+                  'location' => 'query',
+                  'type' => 'string',
+                ],
+                'userProject' => [
+                  'location' => 'query',
+                  'type' => 'string',
+                ],
+              ],
             ],
           ]
         ]

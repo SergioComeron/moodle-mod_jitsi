@@ -20,6 +20,8 @@ namespace Google\Service\Compute;
 class SecurityPolicyRulePreconfiguredWafConfigExclusion extends \Google\Collection
 {
   protected $collection_key = 'targetRuleIds';
+  protected $requestBodiesToExcludeType = SecurityPolicyRulePreconfiguredWafConfigExclusionFieldParams::class;
+  protected $requestBodiesToExcludeDataType = 'array';
   protected $requestCookiesToExcludeType = SecurityPolicyRulePreconfiguredWafConfigExclusionFieldParams::class;
   protected $requestCookiesToExcludeDataType = 'array';
   protected $requestHeadersToExcludeType = SecurityPolicyRulePreconfiguredWafConfigExclusionFieldParams::class;
@@ -43,6 +45,23 @@ class SecurityPolicyRulePreconfiguredWafConfigExclusion extends \Google\Collecti
    */
   public $targetRuleSet;
 
+  /**
+   * A list of request body fields to be excluded from inspection during
+   * preconfigured WAF evaluation.
+   *
+   * @param SecurityPolicyRulePreconfiguredWafConfigExclusionFieldParams[] $requestBodiesToExclude
+   */
+  public function setRequestBodiesToExclude($requestBodiesToExclude)
+  {
+    $this->requestBodiesToExclude = $requestBodiesToExclude;
+  }
+  /**
+   * @return SecurityPolicyRulePreconfiguredWafConfigExclusionFieldParams[]
+   */
+  public function getRequestBodiesToExclude()
+  {
+    return $this->requestBodiesToExclude;
+  }
   /**
    * A list of request cookie names whose value will be excluded from inspection
    * during preconfigured WAF evaluation.

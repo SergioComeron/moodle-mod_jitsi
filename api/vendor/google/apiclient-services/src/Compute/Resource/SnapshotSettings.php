@@ -30,6 +30,8 @@ use Google\Service\Compute\SnapshotSettings as SnapshotSettingsModel;
  */
 class SnapshotSettings extends \Google\Service\Resource
 {
+  protected $apiVersion = '2026-09-01';
+
   /**
    * Get snapshot settings. (snapshotSettings.get)
    *
