@@ -20,12 +20,21 @@ namespace Google\Service\Compute;
 class InstanceGroupManagerInstanceFlexibilityPolicyInstanceSelection extends \Google\Collection
 {
   protected $collection_key = 'machineTypes';
+  protected $disksType = AttachedDisk::class;
+  protected $disksDataType = 'array';
   /**
    * Full machine-type names, e.g. "n1-standard-16".
    *
    * @var string[]
    */
   public $machineTypes;
+  /**
+   * Name of the minimum CPU platform to be used by this instance selection.
+   * e.g. 'Intel Ice Lake'.
+   *
+   * @var string
+   */
+  public $minCpuPlatform;
   /**
    * Preference of this instance selection. Lower number means higher
    * preference. MIG will first try to create a VM based on the machine-type
@@ -36,6 +45,22 @@ class InstanceGroupManagerInstanceFlexibilityPolicyInstanceSelection extends \Go
    */
   public $rank;
 
+  /**
+   * List of disks to be attached to the instances created from this selection.
+   *
+   * @param AttachedDisk[] $disks
+   */
+  public function setDisks($disks)
+  {
+    $this->disks = $disks;
+  }
+  /**
+   * @return AttachedDisk[]
+   */
+  public function getDisks()
+  {
+    return $this->disks;
+  }
   /**
    * Full machine-type names, e.g. "n1-standard-16".
    *
@@ -51,6 +76,23 @@ class InstanceGroupManagerInstanceFlexibilityPolicyInstanceSelection extends \Go
   public function getMachineTypes()
   {
     return $this->machineTypes;
+  }
+  /**
+   * Name of the minimum CPU platform to be used by this instance selection.
+   * e.g. 'Intel Ice Lake'.
+   *
+   * @param string $minCpuPlatform
+   */
+  public function setMinCpuPlatform($minCpuPlatform)
+  {
+    $this->minCpuPlatform = $minCpuPlatform;
+  }
+  /**
+   * @return string
+   */
+  public function getMinCpuPlatform()
+  {
+    return $this->minCpuPlatform;
   }
   /**
    * Preference of this instance selection. Lower number means higher

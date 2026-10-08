@@ -43,6 +43,8 @@ use Google\Service\Compute\VmEndpointNatMappingsList;
  */
 class Routers extends \Google\Service\Resource
 {
+  protected $apiVersion = '2026-09-01';
+
   /**
    * Retrieves an aggregated list of routers.
    *
@@ -121,13 +123,6 @@ class Routers extends \Google\Service\Resource
    * @opt_param string pageToken Specifies a page token to use. Set `pageToken` to
    * the `nextPageToken` returned by a previous list request to get the next page
    * of results.
-   * @opt_param bool returnPartialSuccess Opt-in for partial success behavior
-   * which provides partial results in case of failure. The default value is
-   * false.
-   *
-   * For example, when partial success behavior is enabled, aggregatedList for a
-   * single zone scope either returns all resources in the zone or no resources,
-   * with an error code.
    * @opt_param string serviceProjectNumber The Shared VPC service project id or
    * service project number for which aggregated list request is invoked for
    * subnetworks list-usable api.
@@ -364,13 +359,6 @@ class Routers extends \Google\Service\Resource
    * @opt_param string pageToken Specifies a page token to use. Set `pageToken` to
    * the `nextPageToken` returned by a previous list request to get the next page
    * of results.
-   * @opt_param bool returnPartialSuccess Opt-in for partial success behavior
-   * which provides partial results in case of failure. The default value is
-   * false.
-   *
-   * For example, when partial success behavior is enabled, aggregatedList for a
-   * single zone scope either returns all resources in the zone or no resources,
-   * with an error code.
    * @return VmEndpointNatMappingsList
    * @throws \Google\Service\Exception
    */
@@ -517,13 +505,6 @@ class Routers extends \Google\Service\Resource
    * @opt_param string pageToken Specifies a page token to use. Set `pageToken` to
    * the `nextPageToken` returned by a previous list request to get the next page
    * of results.
-   * @opt_param bool returnPartialSuccess Opt-in for partial success behavior
-   * which provides partial results in case of failure. The default value is
-   * false.
-   *
-   * For example, when partial success behavior is enabled, aggregatedList for a
-   * single zone scope either returns all resources in the zone or no resources,
-   * with an error code.
    * @return RouterList
    * @throws \Google\Service\Exception
    */
@@ -613,13 +594,6 @@ class Routers extends \Google\Service\Resource
    * given name. Name should conform to RFC1035.
    * @opt_param bool policyApplied When true, the method returns post-policy
    * routes. Otherwise, it returns pre-policy routes.
-   * @opt_param bool returnPartialSuccess Opt-in for partial success behavior
-   * which provides partial results in case of failure. The default value is
-   * false.
-   *
-   * For example, when partial success behavior is enabled, aggregatedList for a
-   * single zone scope either returns all resources in the zone or no resources,
-   * with an error code.
    * @opt_param string routeType (Required) limit results to this type of route
    * (either LEARNED or ADVERTISED)
    * @return RoutersListBgpRoutes
@@ -703,13 +677,6 @@ class Routers extends \Google\Service\Resource
    * @opt_param string pageToken Specifies a page token to use. Set `pageToken` to
    * the `nextPageToken` returned by a previous list request to get the next page
    * of results.
-   * @opt_param bool returnPartialSuccess Opt-in for partial success behavior
-   * which provides partial results in case of failure. The default value is
-   * false.
-   *
-   * For example, when partial success behavior is enabled, aggregatedList for a
-   * single zone scope either returns all resources in the zone or no resources,
-   * with an error code.
    * @return RoutersListNamedSets
    * @throws \Google\Service\Exception
    */
@@ -791,13 +758,6 @@ class Routers extends \Google\Service\Resource
    * @opt_param string pageToken Specifies a page token to use. Set `pageToken` to
    * the `nextPageToken` returned by a previous list request to get the next page
    * of results.
-   * @opt_param bool returnPartialSuccess Opt-in for partial success behavior
-   * which provides partial results in case of failure. The default value is
-   * false.
-   *
-   * For example, when partial success behavior is enabled, aggregatedList for a
-   * single zone scope either returns all resources in the zone or no resources,
-   * with an error code.
    * @return RoutersListRoutePolicies
    * @throws \Google\Service\Exception
    */

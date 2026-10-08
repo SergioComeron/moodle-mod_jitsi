@@ -20,6 +20,7 @@ namespace Google\Service\Storage\Resource;
 use Google\Service\Storage\BulkRestoreObjectsRequest;
 use Google\Service\Storage\ComposeRequest;
 use Google\Service\Storage\GoogleLongrunningOperation;
+use Google\Service\Storage\ObjectFullContext;
 use Google\Service\Storage\Objects as ObjectsModel;
 use Google\Service\Storage\Policy;
 use Google\Service\Storage\RewriteResponse;
@@ -679,6 +680,30 @@ class Objects extends \Google\Service\Resource
     $params = ['bucket' => $bucket, 'object' => $object, 'postBody' => $postBody];
     $params = array_merge($params, $optParams);
     return $this->call('update', [$params], StorageObject::class);
+  }
+  /**
+   * Retrieves a specific object context with its extended data for a given
+   * object. (objects.viewFullContext)
+   *
+   * @param string $bucket Name of the bucket in which the object resides.
+   * @param string $object Name of the object. For information about how to URL
+   * encode object names to be path safe, see [Encoding URI Path
+   * Parts](https://cloud.google.com/storage/docs/request-endpoints#encoding).
+   * @param string $contextKey Key identifying the object context to retrieve.
+   * @param array $optParams Optional parameters.
+   *
+   * @opt_param string generation If present, selects a specific revision of this
+   * object (as opposed to the latest version, the default).
+   * @opt_param string userProject The project to be billed for this request.
+   * Required for Requester Pays buckets.
+   * @return ObjectFullContext
+   * @throws \Google\Service\Exception
+   */
+  public function viewFullContext($bucket, $object, $contextKey, $optParams = [])
+  {
+    $params = ['bucket' => $bucket, 'object' => $object, 'contextKey' => $contextKey];
+    $params = array_merge($params, $optParams);
+    return $this->call('viewFullContext', [$params], ObjectFullContext::class);
   }
 }
 

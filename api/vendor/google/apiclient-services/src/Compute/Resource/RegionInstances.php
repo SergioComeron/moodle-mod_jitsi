@@ -30,6 +30,8 @@ use Google\Service\Compute\Operation;
  */
 class RegionInstances extends \Google\Service\Resource
 {
+  protected $apiVersion = '2026-09-01';
+
   /**
    * Creates multiple instances in a given region. Count specifies the number of
    * instances to create. (regionInstances.bulkInsert)
