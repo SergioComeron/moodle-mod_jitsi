@@ -337,6 +337,8 @@ class Instances extends \Google\Service\Resource
    * @param string $instance Name of the instance resource to delete.
    * @param array $optParams Optional parameters.
    *
+   * @opt_param bool noGracefulShutdown If set to true, Graceful Shutdown is
+   * skipped.
    * @opt_param string requestId An optional request ID to identify requests.
    * Specify a unique request ID so that if you must retry your request, the
    * server will know to ignore the request if it has already been completed.
@@ -1534,6 +1536,8 @@ class Instances extends \Google\Service\Resource
    * any attached Local SSD disks. If false, Local SSD data will be preserved when
    * the instance is suspended. If true, the contents of any attached Local SSD
    * disks will be discarded.
+   * @opt_param bool noGracefulShutdown If set to true, Graceful Shutdown is
+   * skipped.
    * @opt_param string requestId An optional request ID to identify requests.
    * Specify a unique request ID so that if you must retry your request, the
    * server will know to ignore the request if it has already been completed.
@@ -1624,6 +1628,8 @@ class Instances extends \Google\Service\Resource
    * @param Instance $postBody
    * @param array $optParams Optional parameters.
    *
+   * @opt_param bool discardLocalSsd Whether to discard local SSDs from the
+   * instance during restart default value is false.
    * @opt_param string minimalAction Specifies the action to take when updating an
    * instance even if the updated properties do not require it. If not specified,
    * then Compute Engine acts based on the minimum action that the updated

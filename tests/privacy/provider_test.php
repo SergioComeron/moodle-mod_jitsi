@@ -87,6 +87,49 @@ final class provider_test extends \advanced_testcase {
     }
 
     /**
+     * Insert a presence row for a user in this activity.
+     *
+     * @param int $userid
+     */
+    private function add_presence(int $userid): void {
+        global $DB;
+        $DB->insert_record('jitsi_presence', (object)[
+            'jitsiid'      => $this->jitsi->id,
+            'userid'       => $userid,
+            'sessionhash'  => 'hash' . $userid,
+            'guestname'    => null,
+            'timecreated'  => time(),
+            'timemodified' => time(),
+        ]);
+    }
+
+    /**
+     * Insert a recording (source + linking jitsi_record) authored by a user in this activity.
+     *
+     * @param int $userid
+     */
+    private function add_recording(int $userid): void {
+        global $DB;
+        $srid = $DB->insert_record('jitsi_source_record', (object)[
+            'link'        => 'https://storage.googleapis.com/bucket/rec' . $userid . '.mp4',
+            'account'     => null,
+            'timecreated' => time(),
+            'userid'      => $userid,
+            'embed'       => 0,
+            'maxparticipants' => 0,
+            'type'        => 1,
+            'timeexpires' => 0,
+        ]);
+        $DB->insert_record('jitsi_record', (object)[
+            'jitsi'   => $this->jitsi->id,
+            'source'  => $srid,
+            'deleted' => 0,
+            'visible' => 1,
+            'name'    => 'rec',
+        ]);
+    }
+
+    /**
      * The provider implements every declared interface, so the privacy
      * subsystem reports the component as compliant.
      *
@@ -119,6 +162,37 @@ final class provider_test extends \advanced_testcase {
         // Context ids come back as strings from get_contextids(); compare loosely.
         $this->assertContainsEquals($this->context->id, $contextids);
         $this->assertContainsEquals($usercontext->id, $contextids);
+    }
+
+    /**
+     * get_contexts_for_userid resolves the module context from presence data alone.
+     *
+     * Regression guard: this query joined on cm.instance = ctx.instanceid, but for a module
+     * context ctx.instanceid is cm.id, so the module context was never returned and GDPR
+     * export/delete of presence was silently incomplete. Tested in isolation (no other
+     * table's data) so it fails if the presence join regresses.
+     */
+    public function test_get_contexts_for_userid_presence_only(): void {
+        $user = $this->getDataGenerator()->create_user();
+        $this->add_presence($user->id);
+
+        $contextids = provider::get_contexts_for_userid($user->id)->get_contextids();
+
+        $this->assertContainsEquals($this->context->id, $contextids);
+    }
+
+    /**
+     * get_contexts_for_userid resolves the module context from recording authorship alone.
+     *
+     * Same regression guard as presence, for the jitsi_source_record join. Tested in isolation.
+     */
+    public function test_get_contexts_for_userid_recording_only(): void {
+        $user = $this->getDataGenerator()->create_user();
+        $this->add_recording($user->id);
+
+        $contextids = provider::get_contexts_for_userid($user->id)->get_contextids();
+
+        $this->assertContainsEquals($this->context->id, $contextids);
     }
 
     /**

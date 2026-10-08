@@ -690,9 +690,9 @@ final class external_test extends \advanced_testcase {
      */
     public function test_get_presence_count_returns_active(): void {
         $this->resetAfterTest(true);
-        $user = $this->getDataGenerator()->create_user();
-        $this->setUser($user);
         [$jitsi, $cm] = $this->create_jitsi_activity();
+        $user = $this->getDataGenerator()->create_and_enrol(get_course($cm->course), 'student');
+        $this->setUser($user);
 
         \mod_jitsi\external\presence_join::execute($jitsi->id, 'hashaaa1');
         \mod_jitsi\external\presence_join::execute($jitsi->id, 'hashaaa2');
@@ -706,8 +706,9 @@ final class external_test extends \advanced_testcase {
     public function test_get_presence_users_returns_names(): void {
         $this->resetAfterTest(true);
         $user = $this->getDataGenerator()->create_user(['firstname' => 'Ada', 'lastname' => 'Lovelace']);
-        $this->setUser($user);
         [$jitsi, $cm] = $this->create_jitsi_activity();
+        $this->getDataGenerator()->enrol_user($user->id, $cm->course, 'student');
+        $this->setUser($user);
 
         \mod_jitsi\external\presence_join::execute($jitsi->id, 'hashaaa1');
         $users = \mod_jitsi\external\get_presence_users::execute($jitsi->id);
@@ -1037,11 +1038,15 @@ final class external_test extends \advanced_testcase {
     /**
      * Create a GCS source record (storage.googleapis.com link) and return its id.
      *
+     * When a jitsi instance id is given, also create the linking jitsi_record so the
+     * source belongs to that activity (as it always does in production).
+     *
+     * @param int $jitsiid Jitsi instance id to link the source to (0 = do not link).
      * @return int sourcerecord id
      */
-    protected function create_gcs_source(): int {
+    protected function create_gcs_source(int $jitsiid = 0): int {
         global $DB, $USER;
-        return (int)$DB->insert_record('jitsi_source_record', (object)[
+        $srid = (int)$DB->insert_record('jitsi_source_record', (object)[
             'link'            => 'https://storage.googleapis.com/bucket/rec.mp4',
             'timecreated'     => time(),
             'userid'          => $USER->id,
@@ -1051,6 +1056,16 @@ final class external_test extends \advanced_testcase {
             'timeexpires'     => 0,
             'ai_quiz_id'      => 0,
         ]);
+        if ($jitsiid) {
+            $DB->insert_record('jitsi_record', (object)[
+                'jitsi'   => $jitsiid,
+                'source'  => $srid,
+                'deleted' => 0,
+                'visible' => 1,
+                'name'    => 'rec',
+            ]);
+        }
+        return $srid;
     }
 
     /**
@@ -1061,7 +1076,7 @@ final class external_test extends \advanced_testcase {
         set_config('aienabled', 1, 'mod_jitsi');
         $this->setAdminUser();
         [$jitsi, $cm] = $this->create_jitsi_activity();
-        $srid = $this->create_gcs_source();
+        $srid = $this->create_gcs_source($jitsi->id);
 
         $result = \mod_jitsi\external\queue_ai_summary::execute($srid, $cm->id);
 
@@ -1079,7 +1094,7 @@ final class external_test extends \advanced_testcase {
         set_config('aienabled', 1, 'mod_jitsi');
         $this->setAdminUser();
         [$jitsi, $cm] = $this->create_jitsi_activity();
-        $srid = $this->create_gcs_source();
+        $srid = $this->create_gcs_source($jitsi->id);
 
         $result = \mod_jitsi\external\queue_ai_transcription::execute($srid, $cm->id);
 
@@ -1097,7 +1112,7 @@ final class external_test extends \advanced_testcase {
         set_config('aienabled', 1, 'mod_jitsi');
         $this->setAdminUser();
         [$jitsi, $cm] = $this->create_jitsi_activity();
-        $srid = $this->create_gcs_source();
+        $srid = $this->create_gcs_source($jitsi->id);
 
         $result = \mod_jitsi\external\queue_ai_quiz::execute($srid, $cm->id);
 
@@ -1125,6 +1140,9 @@ final class external_test extends \advanced_testcase {
             'timeexpires'     => 0,
             'ai_quiz_id'      => 0,
         ]);
+        $DB->insert_record('jitsi_record', (object)[
+            'jitsi' => $jitsi->id, 'source' => $srid, 'deleted' => 0, 'visible' => 1, 'name' => 'r',
+        ]);
 
         $result = \mod_jitsi\external\queue_ai_summary::execute($srid, $cm->id);
 
@@ -1151,6 +1169,9 @@ final class external_test extends \advanced_testcase {
             'timeexpires'     => time() + DAYSECS,
             'ai_quiz_id'      => 0,
         ]);
+        $DB->insert_record('jitsi_record', (object)[
+            'jitsi' => $jitsi->id, 'source' => $srid, 'deleted' => 0, 'visible' => 1, 'name' => 'r',
+        ]);
 
         $result = \mod_jitsi\external\queue_ai_summary::execute($srid, $cm->id);
 
@@ -1167,7 +1188,7 @@ final class external_test extends \advanced_testcase {
         set_config('aienabled', 1, 'mod_jitsi');
         $this->setAdminUser();
         [$jitsi, $cm] = $this->create_jitsi_activity();
-        $srid = $this->create_gcs_source();
+        $srid = $this->create_gcs_source($jitsi->id);
 
         $status = \mod_jitsi\external\get_ai_status::execute($srid, $cm->id);
         $this->assertSame('none', $status['summary']);
@@ -1205,6 +1226,9 @@ final class external_test extends \advanced_testcase {
             'type'            => 1,
             'timeexpires'     => time() - DAYSECS,
             'ai_quiz_id'      => 0,
+        ]);
+        $DB->insert_record('jitsi_record', (object)[
+            'jitsi' => $jitsi->id, 'source' => $srid, 'deleted' => 0, 'visible' => 1, 'name' => 'r',
         ]);
 
         $result = \mod_jitsi\external\queue_ai_summary::execute($srid, $cm->id);
@@ -1307,5 +1331,65 @@ final class external_test extends \advanced_testcase {
 
         $this->expectException(\required_capability_exception::class);
         \mod_jitsi\external\add_recording_link::execute($cm->id, 'https://example.com/a.mp4', 'R', 0);
+    }
+
+    /**
+     * Test delete_recording refuses to delete a recording that belongs to another activity (IDOR).
+     */
+    public function test_delete_recording_rejects_foreign_record(): void {
+        $this->resetAfterTest(true);
+        [$jitsia, $cma] = $this->create_jitsi_activity();
+        $jitsib = $this->getDataGenerator()->create_module('jitsi', ['course' => $cma->course]);
+        $teacher = $this->getDataGenerator()->create_and_enrol(get_course($cma->course), 'editingteacher');
+        $this->setUser($teacher);
+        // Record lives in activity B, attacker holds capability on activity A.
+        $foreignrecordid = \mod_jitsi\local\recording::add_link($jitsib->id, 'https://example.com/b.mp4', 'R', 0, $teacher->id);
+
+        $this->expectException(\moodle_exception::class);
+        \mod_jitsi\external\delete_recording::execute($cma->id, $foreignrecordid);
+    }
+
+    /**
+     * Test set_recording_visibility refuses a recording from another activity (IDOR).
+     */
+    public function test_set_recording_visibility_rejects_foreign_record(): void {
+        $this->resetAfterTest(true);
+        [$jitsia, $cma] = $this->create_jitsi_activity();
+        $jitsib = $this->getDataGenerator()->create_module('jitsi', ['course' => $cma->course]);
+        $teacher = $this->getDataGenerator()->create_and_enrol(get_course($cma->course), 'editingteacher');
+        $this->setUser($teacher);
+        $foreignrecordid = \mod_jitsi\local\recording::add_link($jitsib->id, 'https://example.com/b.mp4', 'R', 0, $teacher->id);
+
+        $this->expectException(\moodle_exception::class);
+        \mod_jitsi\external\set_recording_visibility::execute($cma->id, $foreignrecordid, 0);
+    }
+
+    /**
+     * Test queue_ai_summary refuses a source that belongs to another activity (IDOR).
+     */
+    public function test_queue_ai_summary_rejects_foreign_source(): void {
+        $this->resetAfterTest(true);
+        set_config('aienabled', 1, 'mod_jitsi');
+        [$jitsia, $cma] = $this->create_jitsi_activity();
+        $jitsib = $this->getDataGenerator()->create_module('jitsi', ['course' => $cma->course]);
+        $teacher = $this->getDataGenerator()->create_and_enrol(get_course($cma->course), 'editingteacher');
+        $this->setUser($teacher);
+        $srid = $this->create_gcs_source($jitsib->id);
+
+        $this->expectException(\moodle_exception::class);
+        \mod_jitsi\external\queue_ai_summary::execute($srid, $cma->id);
+    }
+
+    /**
+     * Test get_presence_users denies a user without access to the activity.
+     */
+    public function test_get_presence_users_requires_capability(): void {
+        $this->resetAfterTest(true);
+        [$jitsi, $cm] = $this->create_jitsi_activity();
+        $outsider = $this->getDataGenerator()->create_user();
+        $this->setUser($outsider);
+
+        $this->expectException(\moodle_exception::class);
+        \mod_jitsi\external\get_presence_users::execute($jitsi->id);
     }
 }

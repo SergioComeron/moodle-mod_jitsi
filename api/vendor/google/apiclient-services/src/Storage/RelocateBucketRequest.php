@@ -22,16 +22,31 @@ class RelocateBucketRequest extends \Google\Model
   protected $destinationCustomPlacementConfigType = RelocateBucketRequestDestinationCustomPlacementConfig::class;
   protected $destinationCustomPlacementConfigDataType = '';
   /**
+   * Resource name of a Cloud KMS key, of the form projects/my-
+   * project/locations/global/keyRings/my-kr/cryptoKeys/my-key. If set, is used
+   * to encrypt all objects in the destination bucket.
+   *
+   * @var string
+   */
+  public $destinationKmsKeyName;
+  /**
+   * The new location the bucket will be relocated to.
+   *
    * @var string
    */
   public $destinationLocation;
   /**
+   * If true, validate the operation, but do not actually relocate the bucket.
+   *
    * @var bool
    */
   public $validateOnly;
 
   /**
-   * @param RelocateBucketRequestDestinationCustomPlacementConfig
+   * The bucket's new custom placement configuration if relocating to a Custom
+   * Dual Region.
+   *
+   * @param RelocateBucketRequestDestinationCustomPlacementConfig $destinationCustomPlacementConfig
    */
   public function setDestinationCustomPlacementConfig(RelocateBucketRequestDestinationCustomPlacementConfig $destinationCustomPlacementConfig)
   {
@@ -45,7 +60,27 @@ class RelocateBucketRequest extends \Google\Model
     return $this->destinationCustomPlacementConfig;
   }
   /**
-   * @param string
+   * Resource name of a Cloud KMS key, of the form projects/my-
+   * project/locations/global/keyRings/my-kr/cryptoKeys/my-key. If set, is used
+   * to encrypt all objects in the destination bucket.
+   *
+   * @param string $destinationKmsKeyName
+   */
+  public function setDestinationKmsKeyName($destinationKmsKeyName)
+  {
+    $this->destinationKmsKeyName = $destinationKmsKeyName;
+  }
+  /**
+   * @return string
+   */
+  public function getDestinationKmsKeyName()
+  {
+    return $this->destinationKmsKeyName;
+  }
+  /**
+   * The new location the bucket will be relocated to.
+   *
+   * @param string $destinationLocation
    */
   public function setDestinationLocation($destinationLocation)
   {
@@ -59,7 +94,9 @@ class RelocateBucketRequest extends \Google\Model
     return $this->destinationLocation;
   }
   /**
-   * @param bool
+   * If true, validate the operation, but do not actually relocate the bucket.
+   *
+   * @param bool $validateOnly
    */
   public function setValidateOnly($validateOnly)
   {

@@ -161,6 +161,39 @@ final class lib_test extends \advanced_testcase {
     }
 
     /**
+     * Test that jitsi_delete_instance also removes the instance's presence, recording
+     * segments and usage aggregates instead of leaving them orphaned.
+     */
+    public function test_delete_instance_cleans_related_tables(): void {
+        global $DB;
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+
+        $course = $this->getDataGenerator()->create_course();
+        $jitsi = $this->getDataGenerator()->create_module('jitsi', ['course' => $course->id]);
+        $now = time();
+
+        $DB->insert_record('jitsi_presence', (object)[
+            'jitsiid' => $jitsi->id, 'userid' => 2, 'sessionhash' => 'h1',
+            'guestname' => null, 'timecreated' => $now, 'timemodified' => $now,
+        ]);
+        $DB->insert_record('jitsi_recording_segments', (object)[
+            'userid' => 2, 'sourcerecordid' => 1, 'cmid' => $jitsi->cmid,
+            'segments' => '[[0,10]]', 'timecreated' => $now, 'timemodified' => $now,
+        ]);
+        $DB->insert_record('jitsi_usage_daily', (object)[
+            'daykey' => 20260101, 'userid' => 2, 'cmid' => $jitsi->cmid,
+            'courseid' => $course->id, 'categoryid' => $course->category, 'sessions' => 1, 'minutes' => 5,
+        ]);
+
+        jitsi_delete_instance($jitsi->id);
+
+        $this->assertFalse($DB->record_exists('jitsi_presence', ['jitsiid' => $jitsi->id]));
+        $this->assertFalse($DB->record_exists('jitsi_recording_segments', ['cmid' => $jitsi->cmid]));
+        $this->assertFalse($DB->record_exists('jitsi_usage_daily', ['cmid' => $jitsi->cmid]));
+    }
+
+    /**
      * Test that jitsi_delete_instance returns false for a non-existent ID.
      */
     public function test_delete_instance_returns_false_for_nonexistent(): void {

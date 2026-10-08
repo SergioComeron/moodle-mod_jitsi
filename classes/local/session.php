@@ -367,6 +367,11 @@ class session {
         if ($serverstatus['status'] === 'stopped') {
             echo $OUTPUT->notification(get_string('gcpserverstopped', 'jitsi'), 'error');
             return null;
+        } else if ($serverstatus['status'] === 'transitioning') {
+            // Server is starting up or shutting down (STAGING/STOPPING/PROVISIONING/SUSPENDING):
+            // do not let the user into a half-started instance.
+            echo $OUTPUT->notification(get_string('gcpservertransitioning', 'jitsi'), 'warning');
+            return null;
         } else if ($serverstatus['status'] === 'error') {
             $errormsg = isset($serverstatus['message']) ? $serverstatus['message'] : 'Unknown error';
             echo $OUTPUT->notification(get_string('gcpservererror', 'jitsi', $errormsg), 'error');
@@ -444,7 +449,7 @@ class session {
         $jibrienabled = ($servertype == 3 && \mod_jitsi\local\jibri::is_ready($server));
         $buttons = self::build_toolbar_buttons($server, $PAGE->context, false, $jibrienabled);
 
-        $account = $DB->get_record('jitsi_record_account', ['inuse' => 1]);
+        $account = $DB->get_record('jitsi_record_account', ['inuse' => 1], '*', IGNORE_MULTIPLE);
 
         $showstreaming = false;
         $showrecording = false;

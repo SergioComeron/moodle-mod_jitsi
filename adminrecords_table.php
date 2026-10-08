@@ -38,12 +38,40 @@ class mod_adminrecords_table extends table_sql {
     public function __construct($uniqueid) {
         parent::__construct($uniqueid);
         // Define the list of columns to show.
-        $columns = ['id', 'link', 'account', 'userid', 'timecreated', 'delete'];
+        $columns = ['id', 'type', 'link', 'account', 'userid', 'timecreated', 'delete'];
         $this->define_columns($columns);
 
         // Define the titles of columns to show in header.
-        $headers = ['Id', 'Link', 'Account', 'User', 'Date', 'Delete'];
+        $headers = ['Id', get_string('type', 'jitsi'), 'Link', 'Account', 'User', 'Date', 'Delete'];
         $this->define_headers($headers);
+    }
+
+    /**
+     * Render a human-readable recording type based on the source type and link pattern.
+     *
+     * @param object $values Contains object with all the values of record.
+     * @return string Recording type label.
+     */
+    protected function col_type($values) {
+        if ((int)$values->type !== 1) {
+            // Type 0 sources store a YouTube video id.
+            return 'YouTube';
+        }
+        // Type 1 sources store a full URL; distinguish the backend by its pattern.
+        $link = (string)$values->link;
+        if (strpos($link, 'storage.googleapis.com') !== false) {
+            return 'Cloud Storage (GCS)';
+        }
+        if (preg_match('#^http://\d+\.\d+\.\d+\.\d+/recordings/#', $link)) {
+            return 'Jibri (VM)';
+        }
+        if (strpos($link, '8x8.vc') !== false) {
+            return '8x8 / JaaS';
+        }
+        if (strpos($link, 'dropbox.com') !== false) {
+            return 'Dropbox';
+        }
+        return get_string('externallink', 'jitsi');
     }
 
     /**
@@ -99,11 +127,23 @@ class mod_adminrecords_table extends table_sql {
      *     when downloading.
      */
     protected function col_link($values) {
+        $link = (string)$values->link;
         if ((int)$values->type === 1) {
-            // Jibri/GCS recording — link is a full URL.
-            return '<a href="' . s($values->link) . '" target="_blank">' . s($values->link) . '</a>';
+            // Jibri VM recordings live on the recorder VM's local web server, which is
+            // ephemeral: once the VM is stopped or destroyed the file is unreachable. Render
+            // it as plain, non-clickable text with a note instead of a dead link.
+            if (preg_match('#^http://\d+\.\d+\.\d+\.\d+/recordings/#', $link)) {
+                return \html_writer::span(s($link), 'text-muted') . ' '
+                    . \html_writer::tag(
+                        'small',
+                        '(' . get_string('recordingvmonly', 'jitsi') . ')',
+                        ['class' => 'text-muted fst-italic']
+                    );
+            }
+            // Durable recording links (GCS, 8x8/JaaS, Dropbox, external) stay clickable.
+            return '<a href="' . s($link) . '" target="_blank">' . s($link) . '</a>';
         }
-        return '<a href="https://youtu.be/' . s($values->link) . '" target="_blank">' . s($values->link) . '</a>';
+        return '<a href="https://youtu.be/' . s($link) . '" target="_blank">' . s($link) . '</a>';
     }
 
     /**

@@ -36,16 +36,28 @@ if (!get_config('mod_jitsi', 'privatesessions')) {
 $PAGE->set_title(get_string('callsomeone', 'jitsi'));
 $PAGE->set_heading(get_string('callsomeone', 'jitsi'));
 
-// Generate VAPID keys if not yet created.
+// Generate VAPID keys if not yet created. Serialise generation with a lock so two concurrent
+// requests can't each mint (and overwrite) a key pair — which would invalidate any subscription
+// created with the losing public key.
 $vapidpublickey = get_config('mod_jitsi', 'vapid_public_key');
 if (!$vapidpublickey) {
-    $autoloader = __DIR__ . '/api/vendor/autoload.php';
-    if (file_exists($autoloader)) {
-        require_once($autoloader);
-        $keys = \Minishlink\WebPush\VAPID::createVapidKeys();
-        set_config('vapid_public_key', $keys['publicKey'], 'mod_jitsi');
-        set_config('vapid_private_key', $keys['privateKey'], 'mod_jitsi');
-        $vapidpublickey = $keys['publicKey'];
+    $lockfactory = \core\lock\lock_config::get_lock_factory('mod_jitsi_vapid');
+    $lock = $lockfactory->get_lock('vapidkeys', 10);
+    if ($lock) {
+        try {
+            // Re-check inside the lock: another request may have just generated them.
+            $vapidpublickey = get_config('mod_jitsi', 'vapid_public_key');
+            $autoloader = __DIR__ . '/api/vendor/autoload.php';
+            if (!$vapidpublickey && file_exists($autoloader)) {
+                require_once($autoloader);
+                $keys = \Minishlink\WebPush\VAPID::createVapidKeys();
+                set_config('vapid_public_key', $keys['publicKey'], 'mod_jitsi');
+                set_config('vapid_private_key', $keys['privateKey'], 'mod_jitsi');
+                $vapidpublickey = $keys['publicKey'];
+            }
+        } finally {
+            $lock->release();
+        }
     }
 }
 

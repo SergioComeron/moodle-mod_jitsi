@@ -102,7 +102,7 @@ $functions = [
                 'description' => 'Create a stream',
                 'type' => 'write',
                 'ajax' => true,
-                'loginrequired' => false,
+                'loginrequired' => true,
                 'services' => [MOODLE_OFFICIAL_MOBILE_SERVICE, 'local_mobile'],
         ],
 
@@ -131,7 +131,7 @@ $functions = [
                 'description' => 'Send error to admin',
                 'type' => 'read',
                 'ajax' => true,
-                'loginrequired' => false,
+                'loginrequired' => true,
                 'services' => [MOODLE_OFFICIAL_MOBILE_SERVICE, 'local_mobile'],
         ],
 
@@ -141,7 +141,7 @@ $functions = [
                 'description' => 'Stop stream',
                 'type' => 'write',
                 'ajax' => true,
-                'loginrequired' => false,
+                'loginrequired' => true,
                 'services' => [MOODLE_OFFICIAL_MOBILE_SERVICE, 'local_mobile'],
         ],
 
@@ -151,7 +151,7 @@ $functions = [
                 'description' => 'Stop stream by error',
                 'type' => 'write',
                 'ajax' => true,
-                'loginrequired' => false,
+                'loginrequired' => true,
                 'services' => [MOODLE_OFFICIAL_MOBILE_SERVICE, 'local_mobile'],
         ],
 
@@ -161,7 +161,7 @@ $functions = [
                 'description' => 'Update Participatns',
                 'type' => 'write',
                 'ajax' => true,
-                'loginrequired' => false,
+                'loginrequired' => true,
                 'services' => [MOODLE_OFFICIAL_MOBILE_SERVICE, 'local_mobile'],
         ],
 
@@ -181,7 +181,7 @@ $functions = [
                 'description' => 'Get minutes from last conexion',
                 'type' => 'read',
                 'ajax' => true,
-                'loginrequired' => false,
+                'loginrequired' => true,
                 'services' => [MOODLE_OFFICIAL_MOBILE_SERVICE, 'local_mobile'],
         ],
 
@@ -191,7 +191,7 @@ $functions = [
                 'description' => 'Stop stream by error',
                 'type' => 'write',
                 'ajax' => true,
-                'loginrequired' => false,
+                'loginrequired' => true,
                 'services' => [MOODLE_OFFICIAL_MOBILE_SERVICE, 'local_mobile'],
         ],
 
@@ -201,7 +201,7 @@ $functions = [
                 'description' => 'Save a recording link received from Jitsi recordingLinkAvailable event',
                 'type' => 'write',
                 'ajax' => true,
-                'loginrequired' => false,
+                'loginrequired' => true,
                 'services' => [MOODLE_OFFICIAL_MOBILE_SERVICE, 'local_mobile'],
         ],
 
@@ -372,7 +372,7 @@ $functions = [
                 'description' => 'Get active participant count from presence table',
                 'type' => 'read',
                 'ajax' => true,
-                'loginrequired' => false,
+                'loginrequired' => true,
         ],
 
         'mod_jitsi_get_presence_users' => [
@@ -381,7 +381,7 @@ $functions = [
                 'description' => 'Get names of active participants from presence table',
                 'type' => 'read',
                 'ajax' => true,
-                'loginrequired' => false,
+                'loginrequired' => true,
         ],
 
         'mod_jitsi_set_jibri_recording' => [

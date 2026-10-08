@@ -199,6 +199,7 @@ $string['exitsession'] = 'Exit session';
 $string['experimental'] = 'Experimental';
 $string['experimentalex'] = 'These are options that we are experimenting with and that may disappear in future versions.';
 $string['externalinvitations'] = 'External invitations';
+$string['externallink'] = 'External link';
 $string['externaltoken'] = 'External token';
 $string['externaltoken_help'] = 'Use this link for guests who don\'t have a Moodle user to access.';
 $string['finish'] = 'The session has finished.';
@@ -234,6 +235,7 @@ $string['gcpservererror'] = 'Error checking server status: {$a}';
 $string['gcpserverinfo'] = 'GCP Auto-Managed Servers (BETA)';
 $string['gcpserverinfodetail'] = 'GCP auto-managed servers provide automatic provisioning with JWT authentication. Optionally, a dedicated Jibri recording VM can be created alongside the Jitsi server.';
 $string['gcpserverstopped'] = 'The selected Jitsi server is currently stopped. Please contact your administrator to start the server.';
+$string['gcpservertransitioning'] = 'The Jitsi server is starting up or shutting down. Please wait a moment and try again.';
 $string['gcpserviceaccountjsonfile'] = 'Service Account JSON';
 $string['gcpserviceaccountjsonfileex'] = 'Upload the Service Account JSON with permissions to manage Compute Engine.';
 $string['gcpsettingsmissing'] = 'Missing GCP settings: {$a}';
@@ -269,6 +271,7 @@ $string['instruction'] = 'Click the button to access';
 $string['integrated'] = 'Moodle Integrated';
 $string['internalerror'] = 'Internal error. Contact with the administrator.';
 $string['inuse'] = ' <b>(in use)</b>';
+$string['invalidrecordid'] = 'The recording does not belong to this activity.';
 $string['invitations'] = 'Invitations';
 $string['invitationsnotactivated'] = 'The invitations is not activated';
 $string['invitebutton'] = 'Invite Options';
@@ -301,9 +304,7 @@ $string['jitsi:record'] = 'Record session';
 $string['jitsi:sharedesktop'] = 'Share Desktop';
 $string['jitsi:view'] = 'View Jitsi';
 $string['jitsi:viewattendance'] = 'View attendance report';
-$string['jitsi:viewexternallink'] = 'View external link';
 $string['jitsi:viewrecords'] = 'View records';
-$string['jitsi:viewusersonsession'] = 'Access to the attendees reports';
 $string['jitsi_recording_statistics'] = 'Jitsi Recording Statistics';
 $string['jitsiinterface'] = 'Jitsi interface';
 $string['jitsiname'] = 'Session name';
@@ -398,7 +399,13 @@ $string['privacy:metadata:jitsi:email'] = 'The user email is sent to the Jitsi s
 $string['privacy:metadata:jitsi:username'] = 'The username is sent from moodle to show to the other users of the Jitsi session';
 $string['privacy:metadata:jitsi_presence'] = 'Real-time presence records tracking which users are currently in a Jitsi session.';
 $string['privacy:metadata:jitsi_presence:guestname'] = 'Display name provided by a guest user (only set when userid is 0).';
+$string['privacy:metadata:jitsi_presence:timecreated'] = 'Time the user first joined the session (their presence row was created).';
+$string['privacy:metadata:jitsi_presence:timemodified'] = 'Time of the user\'s last presence heartbeat in the session.';
 $string['privacy:metadata:jitsi_presence:userid'] = 'The ID of the Moodle user in the session (0 for guests).';
+$string['privacy:metadata:jitsi_record_account'] = 'OAuth credentials of the Google/YouTube account linked for streaming and recording.';
+$string['privacy:metadata:jitsi_record_account:clientaccesstoken'] = 'OAuth access token used to publish recordings to the linked Google/YouTube account.';
+$string['privacy:metadata:jitsi_record_account:clientrefreshtoken'] = 'OAuth refresh token used to renew access to the linked Google/YouTube account.';
+$string['privacy:metadata:jitsi_record_account:name'] = 'Display name of the linked streaming/recording account.';
 $string['privacy:metadata:jitsi_push_subscriptions'] = 'Web Push subscription credentials stored to send private-session notifications to the user\'s browser.';
 $string['privacy:metadata:jitsi_push_subscriptions:authkey'] = 'The VAPID authentication key for the push subscription (base64url-encoded).';
 $string['privacy:metadata:jitsi_push_subscriptions:endpoint'] = 'The push service endpoint URL provided by the user\'s browser.';
@@ -412,6 +419,8 @@ $string['privacy:metadata:jitsi_source_record'] = 'AI-generated content derived 
 $string['privacy:metadata:jitsi_source_record:ai_quiz_id'] = 'Course module ID of the Moodle quiz automatically generated from the recording content.';
 $string['privacy:metadata:jitsi_source_record:ai_summary'] = 'AI-generated text summary of the recording content.';
 $string['privacy:metadata:jitsi_source_record:ai_transcription'] = 'AI-generated full transcription of the recording audio, including timestamps and chapter headings.';
+$string['privacy:metadata:jitsi_source_record:link'] = 'URL of the recording (YouTube video id, GCS object, or external link).';
+$string['privacy:metadata:jitsi_source_record:timecreated'] = 'Time the recording was created.';
 $string['privacy:metadata:jitsi_source_record:userid'] = 'The ID of the Moodle user who initiated the recording session.';
 $string['privacy:metadata:jitsi_tutoring_schedule'] = 'Tutoring availability schedule set by teachers for private session bookings.';
 $string['privacy:metadata:jitsi_tutoring_schedule:timeend'] = 'End of the availability slot in seconds from midnight (teacher\'s timezone).';
@@ -447,6 +456,42 @@ $string['pushnotificationtitle'] = 'Incoming call';
 $string['raisehand'] = 'Raise hand button';
 $string['raisehandex'] = 'Show the raisehad button to all users. When users raise their hands they can access to the participants panel. If you hide the participants panels may be you should hide this button.';
 $string['reactions'] = 'Reactions';
+$string['pushpermissiondenied'] = 'Permission denied by browser.';
+$string['pushpermissionnotgranted'] = 'Permission not granted.';
+$string['pushrequestingpermission'] = 'Requesting permission...';
+$string['pushsavingsubscription'] = 'Saving subscription...';
+$string['pushsubscribing'] = 'Subscribing...';
+$string['pushswerror'] = 'Service worker error: {$a}';
+$string['recordaccounterror'] = 'Recording account error. Please try again in a few seconds.';
+$string['videonotsupported'] = 'Your browser cannot play this recording.';
+// Server management (GCP/Jibri) admin UI.
+$string['creategcpvm'] = 'Create VM in Google Cloud';
+$string['jibripoollabel'] = 'Jibri pool (desired size)';
+$string['removejibrivm'] = 'Remove this Jibri VM';
+$string['addjibrishort'] = 'Add Jibri';
+$string['startvm'] = 'Start';
+$string['stopvm'] = 'Stop';
+$string['pleasewait'] = 'Please wait...';
+$string['addjibriintro'] = 'This will create a dedicated Jibri recording VM alongside your existing Jitsi server. Two steps are required:';
+$string['addjibristep1'] = 'Run the script below on your Jitsi VM';
+$string['addjibristep1detail'] = 'reconfigures Prosody and Jicofo to accept Jibri connections.';
+$string['addjibristep2'] = 'Click "Confirm"';
+$string['addjibristep2detail'] = 'Moodle will create and configure the Jibri VM in GCP automatically.';
+$string['addjibriscripttitle'] = 'Reconfiguration script for the Jitsi VM';
+$string['copyscript'] = 'Copy script';
+$string['jibrimachinetype'] = 'Jibri VM machine type';
+$string['jibrimachinemin'] = 'Minimum recommended: n2-standard-4 (4 vCPUs, 16 GB RAM).';
+$string['confirmcreatejibrivm'] = 'Confirm — Create Jibri VM';
+$string['statusrunning'] = 'Running';
+$string['statusstopped'] = 'Stopped';
+$string['statusstopping'] = 'Stopping...';
+$string['statusstarting'] = 'Starting...';
+$string['statussuspending'] = 'Suspending...';
+$string['statussuspended'] = 'Suspended';
+$string['statusrepairing'] = 'Repairing...';
+$string['statusnotfound'] = 'Not found';
+$string['statuserror'] = 'Error';
+$string['poolsizeupdatefailed'] = 'Could not update pool size.';
 $string['reactionsex'] = 'Shows sound emoticons of applause, surprise, etc ... "Raise hand button" enabled is required';
 $string['record'] = 'Record';
 $string['recordbtn'] = 'Record';
@@ -460,6 +505,7 @@ $string['recordingheatmapviewers'] = '{$a} viewers';
 $string['recordinglinksaved'] = 'Recording link saved successfully';
 $string['recordingname'] = 'Recording name (optional)';
 $string['recordingoption'] = 'Recording button (8x8/JaaS)';
+$string['recordingvmonly'] = 'stored on the recording VM — unavailable once it is stopped';
 $string['recordingoptionex'] = '<b>Jitsi interface</b> keeps the native recording button inside Jitsi, where its dialog lets users choose between the 8x8 recording service and their own Dropbox. <b>Moodle integrated</b> replaces it with a one-click record button in the Moodle toolbar above the meeting that records to the 8x8 recording service (recordings are saved in the activity automatically); if the Dropbox app credentials below are configured, a separate "Record to Dropbox" button is shown as well. Only applies to 8x8/JaaS (type 2) servers.';
 $string['recordingnoviews'] = 'No views recorded for this recording in the selected period.';
 $string['recordingnumber'] = 'Recording {$a}';
@@ -566,27 +612,6 @@ $string['streamingoptionex'] = '<b>Jitsi interface</b> enable the "Start Live St
 $string['tablelistjitsis'] = "List with all the videos in your Streaming/Recording Accounts providers which are available to be deleted because they are no more linked in Jitsi activities in this moodle instance. You can safely delete them in order to free up space on the streaming server. The list could include videos that now are in the 'Recycle bin' in some course. It's recommended to delete just old recordings that you know won't be required. </br></br> <b>¡¡¡ WARNING!!! </b>If you have moodle backup instances you should NOT remove these videos if they are linked in other instances.";
 $string['task_aggregate_usage_stats'] = 'Aggregate Jitsi daily usage statistics';
 $string['task_send_telemetry'] = 'Send anonymous usage telemetry (opt-in)';
-$string['telemetryenabled'] = 'Share anonymous usage data';
-$string['telemetryenabledex'] = 'When enabled, a weekly ping is sent to the plugin developer to help improve mod_jitsi.<br><br>
-<strong>What is sent (all data is fully anonymous — no personal information of any kind):</strong>
-<ul>
-<li>Server type, Moodle version and plugin version</li>
-<li>Number of Jitsi activities created on the site</li>
-<li>Which optional features are enabled (AI, recording, private sessions, push notifications)</li>
-<li>Aggregated session counts for the past 7 days: number of sessions, total minutes, number of unique users, number of active activities</li>
-<li>Total number of recordings stored</li>
-<li>Peak number of simultaneous participants ever recorded in a single session</li>
-<li>Site timezone</li>
-</ul>
-<strong>What is NOT sent:</strong> names, email addresses, course names, session content, IP addresses, or any other information that could identify a person or institution. All counts are aggregate totals — individual session or user data is never transmitted. Your site is identified only by an anonymous SHA-256 hash of your Moodle URL; the original URL cannot be recovered from this hash.<br><br>
-<strong>Note:</strong> your site name and URL are stored separately when you voluntarily register your installation in the mod_jitsi Account.<br><br>
-Data is sent to <code>https://portal.sergiocomeron.com/collect.php</code>. This feature is disabled by default and can be turned off at any time.';
-$string['telemetryendpoint'] = 'Telemetry endpoint URL';
-$string['telemetryendpointex'] = 'URL of the server that receives the usage pings. Leave as default unless instructed otherwise.';
-$string['telemetryheading'] = 'Usage statistics (opt-in)';
-$string['telemetryheadingex'] = 'Help improve mod_jitsi by sharing anonymous usage data with the developer. All data is fully anonymised — only aggregate statistics are collected, never personal data. This feature is disabled by default and can be turned off at any time.';
-$string['telemetrykey'] = 'Telemetry secret key';
-$string['telemetrykeyex'] = 'Secret key used to authenticate pings to the telemetry endpoint.';
 $string['telemetrynocron'] = 'Moodle scheduled tasks (cron) have not run yet on this site, so no telemetry has been sent and your account features cannot activate. Please make sure Moodle cron is configured and running — see <a href="https://docs.moodle.org/en/Cron" target="_blank">Moodle cron setup</a>.';
 $string['telemetrynopingsoon'] = 'Cron is running but no telemetry has been sent yet. If you have just registered and confirmed your e-mail, this resolves automatically within a few hours.';
 $string['telemetrynopingtitle'] = 'No telemetry received from this site yet';

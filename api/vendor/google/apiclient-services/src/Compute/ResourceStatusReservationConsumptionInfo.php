@@ -20,12 +20,32 @@ namespace Google\Service\Compute;
 class ResourceStatusReservationConsumptionInfo extends \Google\Model
 {
   /**
+   * Output only. [Output Only] The full resource name of the reservation that
+   * this instance is consuming from.
+   *
    * @var string
    */
   public $consumedReservation;
+  /**
+   * Output only. [Output Only] The full resource name of the reservation block
+   * that this instance is consuming from.
+   *
+   * @var string
+   */
+  public $consumedReservationBlock;
+  /**
+   * Output only. [Output Only] The full resource name of the reservation sub-
+   * block that this instance is consuming from.
+   *
+   * @var string
+   */
+  public $consumedReservationSubBlock;
 
   /**
-   * @param string
+   * Output only. [Output Only] The full resource name of the reservation that
+   * this instance is consuming from.
+   *
+   * @param string $consumedReservation
    */
   public function setConsumedReservation($consumedReservation)
   {
@@ -37,6 +57,40 @@ class ResourceStatusReservationConsumptionInfo extends \Google\Model
   public function getConsumedReservation()
   {
     return $this->consumedReservation;
+  }
+  /**
+   * Output only. [Output Only] The full resource name of the reservation block
+   * that this instance is consuming from.
+   *
+   * @param string $consumedReservationBlock
+   */
+  public function setConsumedReservationBlock($consumedReservationBlock)
+  {
+    $this->consumedReservationBlock = $consumedReservationBlock;
+  }
+  /**
+   * @return string
+   */
+  public function getConsumedReservationBlock()
+  {
+    return $this->consumedReservationBlock;
+  }
+  /**
+   * Output only. [Output Only] The full resource name of the reservation sub-
+   * block that this instance is consuming from.
+   *
+   * @param string $consumedReservationSubBlock
+   */
+  public function setConsumedReservationSubBlock($consumedReservationSubBlock)
+  {
+    $this->consumedReservationSubBlock = $consumedReservationSubBlock;
+  }
+  /**
+   * @return string
+   */
+  public function getConsumedReservationSubBlock()
+  {
+    return $this->consumedReservationSubBlock;
   }
 }
 

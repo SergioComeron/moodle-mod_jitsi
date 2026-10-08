@@ -56,6 +56,7 @@ class update_recording_link extends external_api {
      * @return array
      */
     public static function execute($cmid, $recordid, $url, $name = '', $embed = 0) {
+        global $DB;
         $params = self::validate_parameters(self::execute_parameters(), [
             'cmid' => $cmid,
             'recordid' => $recordid,
@@ -65,12 +66,17 @@ class update_recording_link extends external_api {
         ]);
 
         $cm = get_coursemodule_from_id('jitsi', $params['cmid'], 0, false, MUST_EXIST);
+        $jitsi = $DB->get_record('jitsi', ['id' => $cm->instance], '*', MUST_EXIST);
         $context = \context_module::instance($cm->id);
         self::validate_context($context);
         require_capability('mod/jitsi:record', $context);
 
         if (empty($params['url'])) {
             return ['success' => false, 'message' => get_string('error')];
+        }
+
+        if (!\mod_jitsi\local\recording::belongs_to_jitsi($params['recordid'], $jitsi->id)) {
+            throw new \moodle_exception('invalidrecordid', 'jitsi');
         }
 
         \mod_jitsi\local\recording::update_link($params['recordid'], $params['url'], $params['name'], $params['embed']);

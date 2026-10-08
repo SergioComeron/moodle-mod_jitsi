@@ -31,7 +31,7 @@ class google {
      */
     public static function get_client() {
         global $DB;
-        $account = $DB->get_record('jitsi_record_account', ['inuse' => 1]);
+        $account = $DB->get_record('jitsi_record_account', ['inuse' => 1], '*', IGNORE_MULTIPLE);
         return self::get_client_by_account($account);
     }
 
@@ -122,7 +122,7 @@ class google {
         $sql = 'select * from {jitsi_record_account} where {jitsi_record_account}.inqueue = 1 and
          {jitsi_record_account}.clientaccesstoken != \'\' and {jitsi_record_account}.clientrefreshtoken != \'\' order by id asc';
         $accounts = $DB->get_records_sql($sql);
-        $accountinuse = $DB->get_record('jitsi_record_account', ['inuse' => 1]);
+        $accountinuse = $DB->get_record('jitsi_record_account', ['inuse' => 1], '*', IGNORE_MULTIPLE);
         if ($accounts == null) {
             return $accountinuse->id;
         }

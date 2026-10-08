@@ -112,26 +112,44 @@ $PAGE->set_url('/mod/jitsi/view.php', ['id' => $cm->id]);
 $PAGE->set_title(format_string($jitsi->name));
 $PAGE->set_heading(format_string($course->fullname));
 
+$context = context_module::instance($cm->id);
+
 if ($deletejitsirecordid && confirm_sesskey($sesskey)) {
-    \mod_jitsi\local\recording::mark_to_delete($deletejitsirecordid, 1);
+    require_capability('mod/jitsi:deleterecord', $context);
+    if (!\mod_jitsi\local\recording::belongs_to_jitsi($deletejitsirecordid, $jitsi->id)) {
+        throw new \moodle_exception('invalidrecordid', 'jitsi');
+    }
     $record = $DB->get_record('jitsi_record', ['id' => $deletejitsirecordid]);
-    $source = $DB->get_record('jitsi_source_record', ['id' => $record->source]);
-    \mod_jitsi\local\recording::log_deletion($cm, $course, $jitsi, $deletejitsirecordid, $source->link);
+    $source = $record ? $DB->get_record('jitsi_source_record', ['id' => $record->source]) : false;
+    \mod_jitsi\local\recording::mark_to_delete($deletejitsirecordid, 1);
+    \mod_jitsi\local\recording::log_deletion(
+        $cm,
+        $course,
+        $jitsi,
+        $deletejitsirecordid,
+        $source ? $source->link : ''
+    );
 
     redirect($PAGE->url, get_string('deleted'));
 }
 
 if ($hidejitsirecordid && confirm_sesskey($sesskey)) {
+    require_capability('mod/jitsi:hide', $context);
+    if (!\mod_jitsi\local\recording::belongs_to_jitsi($hidejitsirecordid, $jitsi->id)) {
+        throw new \moodle_exception('invalidrecordid', 'jitsi');
+    }
     \mod_jitsi\local\recording::set_visibility($hidejitsirecordid, 0);
     redirect($PAGE->url, get_string('updated', 'jitsi'));
 }
 
 if ($showjitsirecordid && confirm_sesskey($sesskey)) {
+    require_capability('mod/jitsi:hide', $context);
+    if (!\mod_jitsi\local\recording::belongs_to_jitsi($showjitsirecordid, $jitsi->id)) {
+        throw new \moodle_exception('invalidrecordid', 'jitsi');
+    }
     \mod_jitsi\local\recording::set_visibility($showjitsirecordid, 1);
     redirect($PAGE->url, get_string('updated', 'jitsi'));
 }
-
-$context = context_module::instance($cm->id);
 
 if (!has_capability('mod/jitsi:view', $context)) {
     notice(get_string('noviewpermission', 'jitsi'));
@@ -209,6 +227,9 @@ if ($saverecordedit && !$errorborrado && confirm_sesskey()) {
     $recordingname = optional_param('recordingname', '', PARAM_TEXT);
     $embedrecording = optional_param('embedrecording', 0, PARAM_INT);
     if ($editingrecordid && !empty($recordingurl)) {
+        if (!\mod_jitsi\local\recording::belongs_to_jitsi($editingrecordid, $jitsiid)) {
+            throw new \moodle_exception('invalidrecordid', 'jitsi');
+        }
         \mod_jitsi\local\recording::update_link($editingrecordid, $recordingurl, $recordingname, $embedrecording);
         $redirecturl = new moodle_url('/mod/jitsi/view.php', ['id' => $id, 'tab' => 'record']);
         redirect($redirecturl, get_string('updated', 'jitsi'));

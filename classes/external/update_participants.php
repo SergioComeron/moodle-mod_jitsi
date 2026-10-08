@@ -56,8 +56,12 @@ class update_participants extends external_api {
             self::execute_parameters(),
             ['jitsi' => $jitsi, 'numberofparticipants' => $numberofparticipants],
         );
+        $jitsiob = $DB->get_record('jitsi', ['id' => $params['jitsi']], '*', MUST_EXIST);
+        $cm = get_coursemodule_from_instance('jitsi', $jitsiob->id, 0, false, MUST_EXIST);
+        $context = \context_module::instance($cm->id);
+        self::validate_context($context);
+        require_capability('mod/jitsi:view', $context);
         if ($numberofparticipants >= 0) {
-            $jitsiob = $DB->get_record('jitsi', ['id' => $jitsi]);
             if ($numberofparticipants != $jitsiob->numberofparticipants) {
                 $jitsiob->numberofparticipants = $numberofparticipants;
                 $DB->update_record('jitsi', $jitsiob);

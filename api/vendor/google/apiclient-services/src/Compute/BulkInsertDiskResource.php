@@ -19,13 +19,64 @@ namespace Google\Service\Compute;
 
 class BulkInsertDiskResource extends \Google\Model
 {
+  protected $instantSnapshotGroupParametersType = InstantSnapshotGroupParameters::class;
+  protected $instantSnapshotGroupParametersDataType = '';
+  protected $snapshotGroupParametersType = SnapshotGroupParameters::class;
+  protected $snapshotGroupParametersDataType = '';
   /**
+   * The URL of the DiskConsistencyGroupPolicy for the group of disks to clone.
+   * This may be a full or partial URL, such as:              -         https://
+   * www.googleapis.com/compute/v1/projects/project/regions/region/resourcePolic
+   * ies/resourcePolicy            -
+   * projects/project/regions/region/resourcePolicies/resourcePolicy
+   * -         regions/region/resourcePolicies/resourcePolicy
+   *
    * @var string
    */
   public $sourceConsistencyGroupPolicy;
 
   /**
-   * @param string
+   * The parameters for the instant snapshot group.
+   *
+   * @param InstantSnapshotGroupParameters $instantSnapshotGroupParameters
+   */
+  public function setInstantSnapshotGroupParameters(InstantSnapshotGroupParameters $instantSnapshotGroupParameters)
+  {
+    $this->instantSnapshotGroupParameters = $instantSnapshotGroupParameters;
+  }
+  /**
+   * @return InstantSnapshotGroupParameters
+   */
+  public function getInstantSnapshotGroupParameters()
+  {
+    return $this->instantSnapshotGroupParameters;
+  }
+  /**
+   * The parameters for the snapshot group. The usage of snapshot group feature
+   * is restricted.
+   *
+   * @param SnapshotGroupParameters $snapshotGroupParameters
+   */
+  public function setSnapshotGroupParameters(SnapshotGroupParameters $snapshotGroupParameters)
+  {
+    $this->snapshotGroupParameters = $snapshotGroupParameters;
+  }
+  /**
+   * @return SnapshotGroupParameters
+   */
+  public function getSnapshotGroupParameters()
+  {
+    return $this->snapshotGroupParameters;
+  }
+  /**
+   * The URL of the DiskConsistencyGroupPolicy for the group of disks to clone.
+   * This may be a full or partial URL, such as:              -         https://
+   * www.googleapis.com/compute/v1/projects/project/regions/region/resourcePolic
+   * ies/resourcePolicy            -
+   * projects/project/regions/region/resourcePolicies/resourcePolicy
+   * -         regions/region/resourcePolicies/resourcePolicy
+   *
+   * @param string $sourceConsistencyGroupPolicy
    */
   public function setSourceConsistencyGroupPolicy($sourceConsistencyGroupPolicy)
   {

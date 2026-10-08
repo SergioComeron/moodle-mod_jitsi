@@ -31,33 +31,33 @@
     }
 }}
 <div class="alert alert-info mb-3">
-    <p>This will create a dedicated Jibri recording VM alongside your existing Jitsi server.
-        Two steps are required:</p>
+    <p>{{#str}} addjibriintro, mod_jitsi {{/str}}</p>
     <ol>
-        <li><strong>Run the script below on your Jitsi VM</strong>
-            — reconfigures Prosody and Jicofo to accept Jibri connections.</li>
-        <li><strong>Click "Confirm"</strong>
-            — Moodle will create and configure the Jibri VM in GCP automatically.</li>
+        <li><strong>{{#str}} addjibristep1, mod_jitsi {{/str}}</strong>
+            — {{#str}} addjibristep1detail, mod_jitsi {{/str}}</li>
+        <li><strong>{{#str}} addjibristep2, mod_jitsi {{/str}}</strong>
+            — {{#str}} addjibristep2detail, mod_jitsi {{/str}}</li>
     </ol>
 </div>
 
 <div class="mb-4">
-    <h5>Reconfiguration script for the Jitsi VM</h5>
+    <h5>{{#str}} addjibriscripttitle, mod_jitsi {{/str}}</h5>
     <p class="text-muted small"><code>ssh user@{{hostname}} 'sudo bash -s' &lt; script.sh</code></p>
     <pre id="jibri-reconfig-script" class="bg-dark text-light p-3 rounded"
         style="max-height:300px; overflow-y:auto; font-size:0.8em;">{{script}}</pre>
-    <button type="button" class="btn btn-sm btn-outline-secondary mb-3" id="copy-reconfig-script">Copy script</button>
+    <button type="button" class="btn btn-sm btn-outline-secondary mb-3" id="copy-reconfig-script">
+        {{#str}} copyscript, mod_jitsi {{/str}}</button>
 </div>
 
 <form method="post" action="{{confirmurl}}">
     <input type="hidden" name="sesskey" value="{{sesskey}}">
     <div class="mb-4">
-        <label class="form-label fw-semibold" for="jibri-machine">Jibri VM machine type</label>
+        <label class="form-label fw-semibold" for="jibri-machine">{{#str}} jibrimachinetype, mod_jitsi {{/str}}</label>
         <input type="text" id="jibri-machine" name="jibrimachinetype" value="n2-standard-4" class="form-control mb-1">
-        <small class="text-muted">Minimum recommended: <code>n2-standard-4</code> (4 vCPUs, 16 GB RAM).</small>
+        <small class="text-muted">{{#str}} jibrimachinemin, mod_jitsi {{/str}}</small>
     </div>
     <div>
-        <button type="submit" class="btn btn-primary me-2">Confirm — Create Jibri VM</button>
+        <button type="submit" class="btn btn-primary me-2">{{#str}} confirmcreatejibrivm, mod_jitsi {{/str}}</button>
         <a href="{{cancelurl}}" class="btn btn-secondary">{{#str}} cancel, core {{/str}}</a>
     </div>
 </form>

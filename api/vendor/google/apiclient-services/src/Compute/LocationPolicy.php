@@ -17,17 +17,53 @@
 
 namespace Google\Service\Compute;
 
-class LocationPolicy extends \Google\Model
+class LocationPolicy extends \Google\Collection
 {
+  /**
+   * GCE picks zones for creating VM instances to fulfill the requested number
+   * of VMs within present resource constraints and to maximize utilization of
+   * unused zonal reservations. Recommended for batch workloads that do not
+   * require high availability.
+   */
+  public const TARGET_SHAPE_ANY = 'ANY';
+  /**
+   * GCE always selects a single zone for all the VMs, optimizing for resource
+   * quotas, available reservations and general capacity. Recommended for batch
+   * workloads that cannot tollerate distribution over multiple zones. This the
+   * default shape in Bulk Insert and Capacity Advisor APIs.
+   */
+  public const TARGET_SHAPE_ANY_SINGLE_ZONE = 'ANY_SINGLE_ZONE';
+  /**
+   * GCE prioritizes acquisition of resources, scheduling VMs in zones where
+   * resources are available while distributing VMs as evenly as possible across
+   * allowed zones to minimize the impact of zonal failure. Recommended for
+   * highly available serving workloads.
+   */
+  public const TARGET_SHAPE_BALANCED = 'BALANCED';
+  protected $collection_key = 'zones';
   protected $locationsType = LocationPolicyLocation::class;
   protected $locationsDataType = 'map';
   /**
+   * Strategy for distributing VMs across zones in a region.
+   *
    * @var string
    */
   public $targetShape;
+  protected $zonesType = LocationPolicyZoneConfiguration::class;
+  protected $zonesDataType = 'array';
 
   /**
-   * @param LocationPolicyLocation[]
+   * Location configurations mapped by location name. Currently only zone names
+   * are supported and must be represented as valid internal URLs, such as
+   * zones/us-central1-a. The bulkInsert operation doesn't create instances in
+   * an AI zone, even if an AI zone is available in the specified region. For
+   * example, if you set a DENY preference for us-central1-a, Compute Engine
+   * will consider us-central1-b and us-central1-c for instance creation, but
+   * not us-central1-ai1a. Also, you can't use the locations[] configuration to
+   * allow instance creation in an AI zone. To include an AI zone in bulkInsert
+   * operations, use the locationPolicy.zones[] field.
+   *
+   * @param LocationPolicyLocation[] $locations
    */
   public function setLocations($locations)
   {
@@ -41,18 +77,40 @@ class LocationPolicy extends \Google\Model
     return $this->locations;
   }
   /**
-   * @param string
+   * Strategy for distributing VMs across zones in a region.
+   *
+   * Accepted values: ANY, ANY_SINGLE_ZONE, BALANCED
+   *
+   * @param self::TARGET_SHAPE_* $targetShape
    */
   public function setTargetShape($targetShape)
   {
     $this->targetShape = $targetShape;
   }
   /**
-   * @return string
+   * @return self::TARGET_SHAPE_*
    */
   public function getTargetShape()
   {
     return $this->targetShape;
+  }
+  /**
+   * The bulkInsert operation applies any preferences set in the locations field
+   * to the specific zones listed in the zones field if the same zones are
+   * specified in both fields.
+   *
+   * @param LocationPolicyZoneConfiguration[] $zones
+   */
+  public function setZones($zones)
+  {
+    $this->zones = $zones;
+  }
+  /**
+   * @return LocationPolicyZoneConfiguration[]
+   */
+  public function getZones()
+  {
+    return $this->zones;
   }
 }
 

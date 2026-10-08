@@ -62,7 +62,6 @@ class userstocall_form extends moodleform {
 global $USER, $DB, $PAGE, $CFG;
 
 $userid = required_param('user', PARAM_INT);
-$fromuserid = optional_param('fromuser', null, PARAM_INT);
 $userstocall = optional_param_array('userstocall', null, PARAM_RAW);
 
 $user = $DB->get_record('user', ['id' => $userid]);
@@ -85,43 +84,9 @@ echo $OUTPUT->header();
 echo $OUTPUT->heading(get_string('privatesession', 'jitsi', $user->firstname));
 
 if (get_config('mod_jitsi', 'privatesessions')) {
-    if ($USER->id == $user->id) {
-        $moderation = 1;
-    } else {
-        $moderation = 0;
-    }
-
-    $nom = null;
-    switch (get_config('mod_jitsi', 'id')) {
-        case 'username':
-            $nom = $USER->username;
-            break;
-        case 'nameandsurname':
-            $nom = $USER->firstname . ' ' . $USER->lastname;
-            break;
-        case 'alias':
-            break;
-    }
-    $sessionoptionsparam = ['$course->shortname', '$jitsi->id', '$jitsi->name'];
-    $fieldssessionname = get_config('mod_jitsi', 'sesionname');
-
-    $allowed = explode(',', $fieldssessionname);
-    $max = count($allowed);
-
-    if ($fromuserid) {
-        $sesparam = $SITE->shortname . '-' . $user->username . '-' . $fromuserid;
-    } else {
-        $sesparam = $SITE->shortname . '-' . $user->username . '-' . $USER->id;
-    }
-    $avatar = $CFG->wwwroot . '/user/pix.php/' . $USER->id . '/f1.jpg';
-
-    $urlparams = [
-        'avatar' => $avatar,
-        'nom' => $nom,
-        'ses' => $sesparam,
-        't' => $moderation,
-        'u' => $userid,
-    ];
+    // sessionpriv.php only reads the 'peer' parameter; it recomputes the room name,
+    // display name, avatar and moderator flag itself from the current user and the peer.
+    $urlparams = ['peer' => $userid];
 
     if ($USER->id != $user->id) {
         echo "<div class=\"alert alert-warning\" role=\"alert\">";

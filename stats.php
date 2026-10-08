@@ -85,6 +85,12 @@ $mform = new datesearchstats_form();
 
 echo $OUTPUT->header();
 
+$settingsurl = new moodle_url('/admin/settings.php', ['section' => 'modsettingjitsi']);
+echo html_writer::div(
+    html_writer::link($settingsurl, '&laquo; ' . get_string('settings'), ['class' => 'btn btn-secondary mb-3']),
+    'mb-2'
+);
+
 echo $OUTPUT->heading(get_string('jitsi_recording_statistics', 'jitsi'));
 
 $totalrecordings = $DB->count_records('jitsi_record');

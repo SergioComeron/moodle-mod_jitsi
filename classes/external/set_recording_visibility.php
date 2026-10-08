@@ -52,6 +52,7 @@ class set_recording_visibility extends external_api {
      * @return array
      */
     public static function execute($cmid, $recordid, $visible) {
+        global $DB;
         $params = self::validate_parameters(self::execute_parameters(), [
             'cmid' => $cmid,
             'recordid' => $recordid,
@@ -59,9 +60,14 @@ class set_recording_visibility extends external_api {
         ]);
 
         $cm = get_coursemodule_from_id('jitsi', $params['cmid'], 0, false, MUST_EXIST);
+        $jitsi = $DB->get_record('jitsi', ['id' => $cm->instance], '*', MUST_EXIST);
         $context = \context_module::instance($cm->id);
         self::validate_context($context);
         require_capability('mod/jitsi:hide', $context);
+
+        if (!\mod_jitsi\local\recording::belongs_to_jitsi($params['recordid'], $jitsi->id)) {
+            throw new \moodle_exception('invalidrecordid', 'jitsi');
+        }
 
         \mod_jitsi\local\recording::set_visibility($params['recordid'], $params['visible']);
 

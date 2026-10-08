@@ -20,12 +20,34 @@ namespace Google\Service\Compute;
 class InterconnectLocationCrossSiteInterconnectInfo extends \Google\Model
 {
   /**
+   * Output only. The remote location for Cross-Site Interconnect wires. This
+   * specifies an InterconnectLocation city (metropolitan area designator),
+   * which itself may match multiple InterconnectLocations.
+   *
    * @var string
    */
   public $city;
+  /**
+   * Output only. The maximum unmetered bandwidth for dynamic paths allowable
+   * per WireGroup for this metro.
+   *
+   * @var string
+   */
+  public $maxDynamicPathBandwidthGbps;
+  /**
+   * Output only. The maximum unmetered bandwidth for fixed paths allowable per
+   * WireGroup for this metro.
+   *
+   * @var string
+   */
+  public $maxFixedPathBandwidthGbps;
 
   /**
-   * @param string
+   * Output only. The remote location for Cross-Site Interconnect wires. This
+   * specifies an InterconnectLocation city (metropolitan area designator),
+   * which itself may match multiple InterconnectLocations.
+   *
+   * @param string $city
    */
   public function setCity($city)
   {
@@ -37,6 +59,40 @@ class InterconnectLocationCrossSiteInterconnectInfo extends \Google\Model
   public function getCity()
   {
     return $this->city;
+  }
+  /**
+   * Output only. The maximum unmetered bandwidth for dynamic paths allowable
+   * per WireGroup for this metro.
+   *
+   * @param string $maxDynamicPathBandwidthGbps
+   */
+  public function setMaxDynamicPathBandwidthGbps($maxDynamicPathBandwidthGbps)
+  {
+    $this->maxDynamicPathBandwidthGbps = $maxDynamicPathBandwidthGbps;
+  }
+  /**
+   * @return string
+   */
+  public function getMaxDynamicPathBandwidthGbps()
+  {
+    return $this->maxDynamicPathBandwidthGbps;
+  }
+  /**
+   * Output only. The maximum unmetered bandwidth for fixed paths allowable per
+   * WireGroup for this metro.
+   *
+   * @param string $maxFixedPathBandwidthGbps
+   */
+  public function setMaxFixedPathBandwidthGbps($maxFixedPathBandwidthGbps)
+  {
+    $this->maxFixedPathBandwidthGbps = $maxFixedPathBandwidthGbps;
+  }
+  /**
+   * @return string
+   */
+  public function getMaxFixedPathBandwidthGbps()
+  {
+    return $this->maxFixedPathBandwidthGbps;
   }
 }
 

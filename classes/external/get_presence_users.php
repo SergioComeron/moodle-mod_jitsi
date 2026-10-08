@@ -51,6 +51,11 @@ class get_presence_users extends external_api {
     public static function execute($jitsiid) {
         global $DB;
         $params = self::validate_parameters(self::execute_parameters(), ['jitsiid' => $jitsiid]);
+        $jitsiob = $DB->get_record('jitsi', ['id' => $params['jitsiid']], '*', MUST_EXIST);
+        $cm = get_coursemodule_from_instance('jitsi', $jitsiob->id, 0, false, MUST_EXIST);
+        $context = \context_module::instance($cm->id);
+        self::validate_context($context);
+        require_capability('mod/jitsi:view', $context);
         $threshold = time() - 90;
         $rows = $DB->get_records_select(
             'jitsi_presence',

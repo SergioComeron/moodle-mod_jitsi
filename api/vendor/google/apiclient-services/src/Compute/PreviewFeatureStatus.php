@@ -20,10 +20,15 @@ namespace Google\Service\Compute;
 class PreviewFeatureStatus extends \Google\Model
 {
   /**
+   * Output only. [Output Only] The description of the feature.
+   *
    * @var string
    */
   public $description;
   /**
+   * Output only. [Output Only] Link to the public documentation for the
+   * feature.
+   *
    * @var string
    */
   public $helpLink;
@@ -31,7 +36,9 @@ class PreviewFeatureStatus extends \Google\Model
   protected $releaseStatusDataType = '';
 
   /**
-   * @param string
+   * Output only. [Output Only] The description of the feature.
+   *
+   * @param string $description
    */
   public function setDescription($description)
   {
@@ -45,7 +52,10 @@ class PreviewFeatureStatus extends \Google\Model
     return $this->description;
   }
   /**
-   * @param string
+   * Output only. [Output Only] Link to the public documentation for the
+   * feature.
+   *
+   * @param string $helpLink
    */
   public function setHelpLink($helpLink)
   {
@@ -59,7 +69,7 @@ class PreviewFeatureStatus extends \Google\Model
     return $this->helpLink;
   }
   /**
-   * @param PreviewFeatureStatusReleaseStatus
+   * @param PreviewFeatureStatusReleaseStatus $releaseStatus
    */
   public function setReleaseStatus(PreviewFeatureStatusReleaseStatus $releaseStatus)
   {

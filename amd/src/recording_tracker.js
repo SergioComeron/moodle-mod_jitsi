@@ -113,8 +113,10 @@ const saveSegments = (video) => {
         return;
     }
     const merged = mergeSegments(t.segments.slice());
-    const sessionMerged = mergeSegments(t.sessionSegs.slice());
-    t.sessionSegs = [];
+    // Snapshot exactly what we send; clear it only once the save succeeds, so a failed request
+    // doesn't lose this session's segments (and any added meanwhile are preserved).
+    const sentCount = t.sessionSegs.length;
+    const sessionMerged = mergeSegments(t.sessionSegs.slice(0, sentCount));
     Ajax.call([{
         methodname: 'mod_jitsi_save_recording_segments',
         args: {
@@ -126,9 +128,12 @@ const saveSegments = (video) => {
             session_segments: JSON.stringify(sessionMerged)
         }
     }])[0].then((result) => {
-        if (result.success && result.segments) {
-            t.segments = JSON.parse(result.segments);
-            updateBar(video.dataset.sourcerecordid, t.segments, getDuration(video, t));
+        if (result.success) {
+            t.sessionSegs = t.sessionSegs.slice(sentCount);
+            if (result.segments) {
+                t.segments = JSON.parse(result.segments);
+                updateBar(video.dataset.sourcerecordid, t.segments, getDuration(video, t));
+            }
         }
         return result;
     }).catch(() => {

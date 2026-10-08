@@ -19,15 +19,52 @@ namespace Google\Service\YouTube;
 
 class ThirdPartyLinkSnippet extends \Google\Model
 {
+  public const TYPE_linkUnspecified = 'linkUnspecified';
+  /**
+   * A link that is connecting (or about to connect) a channel with a store on a
+   * merchandising platform in order to enable retail commerce capabilities for
+   * that channel on YouTube.
+   */
+  public const TYPE_channelToStoreLink = 'channelToStoreLink';
+  /**
+   * A link that is connecting (or about to connect) a channel with an affiliate
+   * program of a partner to enable that channel to earn commissions from that
+   * partner through affiliate links.
+   */
+  public const TYPE_channelToAffiliateProgramLink = 'channelToAffiliateProgramLink';
+  protected $channelToAffiliateProgramLinkType = ChannelToAffiliateProgramLinkDetails::class;
+  protected $channelToAffiliateProgramLinkDataType = '';
   protected $channelToStoreLinkType = ChannelToStoreLinkDetails::class;
   protected $channelToStoreLinkDataType = '';
   /**
+   * Type of the link named after the entities that are being linked.
+   *
    * @var string
    */
   public $type;
 
   /**
-   * @param ChannelToStoreLinkDetails
+   * Information specific to a link between a channel and an affiliate program
+   * of a partner.
+   *
+   * @param ChannelToAffiliateProgramLinkDetails $channelToAffiliateProgramLink
+   */
+  public function setChannelToAffiliateProgramLink(ChannelToAffiliateProgramLinkDetails $channelToAffiliateProgramLink)
+  {
+    $this->channelToAffiliateProgramLink = $channelToAffiliateProgramLink;
+  }
+  /**
+   * @return ChannelToAffiliateProgramLinkDetails
+   */
+  public function getChannelToAffiliateProgramLink()
+  {
+    return $this->channelToAffiliateProgramLink;
+  }
+  /**
+   * Information specific to a link between a channel and a store on a
+   * merchandising platform.
+   *
+   * @param ChannelToStoreLinkDetails $channelToStoreLink
    */
   public function setChannelToStoreLink(ChannelToStoreLinkDetails $channelToStoreLink)
   {
@@ -41,14 +78,19 @@ class ThirdPartyLinkSnippet extends \Google\Model
     return $this->channelToStoreLink;
   }
   /**
-   * @param string
+   * Type of the link named after the entities that are being linked.
+   *
+   * Accepted values: linkUnspecified, channelToStoreLink,
+   * channelToAffiliateProgramLink
+   *
+   * @param self::TYPE_* $type
    */
   public function setType($type)
   {
     $this->type = $type;
   }
   /**
-   * @return string
+   * @return self::TYPE_*
    */
   public function getType()
   {

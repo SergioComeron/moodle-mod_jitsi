@@ -64,10 +64,19 @@ class provider implements
         // AI-generated content and recording creator stored in jitsi_source_record.
         $collection->add_database_table('jitsi_source_record', [
             'userid'           => 'privacy:metadata:jitsi_source_record:userid',
+            'link'             => 'privacy:metadata:jitsi_source_record:link',
+            'timecreated'      => 'privacy:metadata:jitsi_source_record:timecreated',
             'ai_summary'       => 'privacy:metadata:jitsi_source_record:ai_summary',
             'ai_transcription' => 'privacy:metadata:jitsi_source_record:ai_transcription',
             'ai_quiz_id'       => 'privacy:metadata:jitsi_source_record:ai_quiz_id',
         ], 'privacy:metadata:jitsi_source_record');
+
+        // OAuth credentials of the linked Google/YouTube streaming account.
+        $collection->add_database_table('jitsi_record_account', [
+            'name'               => 'privacy:metadata:jitsi_record_account:name',
+            'clientaccesstoken'  => 'privacy:metadata:jitsi_record_account:clientaccesstoken',
+            'clientrefreshtoken' => 'privacy:metadata:jitsi_record_account:clientrefreshtoken',
+        ], 'privacy:metadata:jitsi_record_account');
 
         // Anonymous usage telemetry sent to the mod_jitsi Account portal.
         $collection->add_external_location_link('mod_jitsi_portal', [
@@ -112,8 +121,10 @@ class provider implements
 
         // Real-time presence of participants in jitsi sessions.
         $collection->add_database_table('jitsi_presence', [
-            'userid'    => 'privacy:metadata:jitsi_presence:userid',
-            'guestname' => 'privacy:metadata:jitsi_presence:guestname',
+            'userid'       => 'privacy:metadata:jitsi_presence:userid',
+            'guestname'    => 'privacy:metadata:jitsi_presence:guestname',
+            'timecreated'  => 'privacy:metadata:jitsi_presence:timecreated',
+            'timemodified' => 'privacy:metadata:jitsi_presence:timemodified',
         ], 'privacy:metadata:jitsi_presence');
 
         return $collection;
@@ -150,25 +161,27 @@ class provider implements
             ['ctxmodule' => CONTEXT_MODULE, 'userid' => $userid]
         );
 
-        // Table jitsi_presence: CONTEXT_MODULE via jitsi instance id.
+        // Table jitsi_presence: CONTEXT_MODULE. For a module context, ctx.instanceid is cm.id.
         $contextlist->add_from_sql(
             'SELECT ctx.id
                FROM {context} ctx
-               JOIN {course_modules} cm ON cm.instance = ctx.instanceid AND ctx.contextlevel = :ctxmodule
+               JOIN {course_modules} cm ON cm.id = ctx.instanceid AND ctx.contextlevel = :ctxmodule
+               JOIN {modules} m ON m.id = cm.module AND m.name = :modname
                JOIN {jitsi_presence} jp ON jp.jitsiid = cm.instance
               WHERE jp.userid = :userid AND jp.userid != 0',
-            ['ctxmodule' => CONTEXT_MODULE, 'userid' => $userid]
+            ['ctxmodule' => CONTEXT_MODULE, 'modname' => 'jitsi', 'userid' => $userid]
         );
 
-        // Table jitsi_source_record: CONTEXT_MODULE via jitsi_record join.
+        // Table jitsi_source_record: CONTEXT_MODULE via jitsi_record join. ctx.instanceid is cm.id.
         $contextlist->add_from_sql(
             'SELECT ctx.id
                FROM {context} ctx
-               JOIN {course_modules} cm ON cm.instance = ctx.instanceid AND ctx.contextlevel = :ctxmodule
+               JOIN {course_modules} cm ON cm.id = ctx.instanceid AND ctx.contextlevel = :ctxmodule
+               JOIN {modules} m ON m.id = cm.module AND m.name = :modname
                JOIN {jitsi_record} jr ON jr.jitsi = cm.instance
                JOIN {jitsi_source_record} sr ON sr.id = jr.source
               WHERE sr.userid = :userid',
-            ['ctxmodule' => CONTEXT_MODULE, 'userid' => $userid]
+            ['ctxmodule' => CONTEXT_MODULE, 'modname' => 'jitsi', 'userid' => $userid]
         );
 
         // Table jitsi_tutoring_schedule: CONTEXT_COURSE via courseid.
@@ -345,6 +358,9 @@ class provider implements
         global $DB;
 
         if ($context->contextlevel == CONTEXT_MODULE) {
+            if (!self::is_jitsi_module_context($context)) {
+                return;
+            }
             $cmid = $context->instanceid;
             $DB->delete_records('jitsi_usage_daily', ['cmid' => $cmid]);
             $DB->delete_records('jitsi_recording_segments', ['cmid' => $cmid]);
@@ -381,6 +397,9 @@ class provider implements
 
         foreach ($contextlist->get_contexts() as $context) {
             if ($context->contextlevel == CONTEXT_MODULE) {
+                if (!self::is_jitsi_module_context($context)) {
+                    continue;
+                }
                 $cmid = $context->instanceid;
                 $DB->delete_records('jitsi_usage_daily', ['userid' => $userid, 'cmid' => $cmid]);
                 $DB->delete_records('jitsi_recording_segments', ['userid' => $userid, 'cmid' => $cmid]);
@@ -429,6 +448,9 @@ class provider implements
         [$insql, $inparams] = $DB->get_in_or_equal($userids, SQL_PARAMS_NAMED);
 
         if ($context->contextlevel == CONTEXT_MODULE) {
+            if (!self::is_jitsi_module_context($context)) {
+                return;
+            }
             $cmid = $context->instanceid;
             $DB->delete_records_select(
                 'jitsi_usage_daily',
@@ -464,5 +486,25 @@ class provider implements
         } else if ($context->contextlevel == CONTEXT_USER) {
             $DB->delete_records_select('jitsi_push_subscriptions', "userid $insql", $inparams);
         }
+    }
+
+    /**
+     * Whether a module context actually belongs to a mod_jitsi instance.
+     *
+     * The privacy subsystem calls the delete methods for this provider on every module
+     * deletion, so we must make sure we only touch data for jitsi modules and never
+     * collide with another module whose instance id coincides with a jitsi instance id.
+     *
+     * @param \context $context A CONTEXT_MODULE context.
+     * @return bool
+     */
+    protected static function is_jitsi_module_context(\context $context): bool {
+        global $DB;
+        return $DB->record_exists_sql(
+            'SELECT 1 FROM {course_modules} cm
+               JOIN {modules} m ON m.id = cm.module
+              WHERE cm.id = :cmid AND m.name = :modname',
+            ['cmid' => $context->instanceid, 'modname' => 'jitsi']
+        );
     }
 }

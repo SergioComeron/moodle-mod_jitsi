@@ -59,6 +59,13 @@ class cron_task_delete extends \core\task\scheduled_task {
         mtrace("Deleting until: " . userdate(time() - get_config('mod_jitsi', 'videosexpiry')));
         foreach ($recordstodelete as $recordtodelete) {
             $source = $DB->get_record('jitsi_source_record', ['id' => $recordtodelete->source]);
+            if (!$source) {
+                // Orphan jitsi_record pointing at a missing source: clean it up and move on
+                // instead of fataling on every cron run and blocking the rest of the queue.
+                mtrace("Orphan record {$recordtodelete->id}: source {$recordtodelete->source} missing, removing record.");
+                $DB->delete_records('jitsi_record', ['id' => $recordtodelete->id]);
+                continue;
+            }
             if (($source->timecreated < time() - get_config('mod_jitsi', 'videosexpiry'))) {
                 // Delete AI-generated quiz if present.
                 if (!empty($source->ai_quiz_id) && (int)$source->ai_quiz_id > 0) {

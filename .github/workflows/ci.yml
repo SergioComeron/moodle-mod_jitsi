@@ -9,6 +9,9 @@ on:
     branches:
       - master
       - dev
+  workflow_dispatch:      # Relanzar a mano (p. ej. si una caida de Actions
+                          # se come el evento push):
+                          #   gh workflow run ci.yml --ref dev
 
 jobs:
   vendorsync:

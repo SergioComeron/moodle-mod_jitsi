@@ -43,7 +43,7 @@ $sesskey = optional_param('sesskey', null, PARAM_TEXT);
 $PAGE->set_context(context_system::instance());
 
 $PAGE->set_url('/mod/jitsi/recordingmatrix.php');
-require_login();
+require_admin();
 
 if ($deletejitsisourceid && confirm_sesskey($sesskey)) {
     if (\mod_jitsi\local\youtube::delete_record($deletejitsisourceid) == true) {
@@ -57,6 +57,12 @@ $PAGE->set_title(format_string(get_string('recordsonair', 'jitsi')));
 $PAGE->set_heading(format_string(get_string('recordsonair', 'jitsi')));
 
 echo $OUTPUT->header();
+
+$settingsurl = new moodle_url('/admin/settings.php', ['section' => 'modsettingjitsi']);
+echo html_writer::div(
+    html_writer::link($settingsurl, '&laquo; ' . get_string('settings'), ['class' => 'btn btn-secondary mb-3']),
+    'mb-2'
+);
 
 if (is_siteadmin()) {
     $sqljitsilive = 'select {jitsi}.id,

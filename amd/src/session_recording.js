@@ -90,6 +90,7 @@ export const init = (config) => {
         internalerror: '',
         wasbloquedby: '',
         beingrecorded: '',
+        recordaccounterror: '',
     };
     getStrings([
         {key: 'preparing', component: 'mod_jitsi'},
@@ -98,13 +99,16 @@ export const init = (config) => {
         {key: 'internalerror', component: 'mod_jitsi'},
         {key: 'recordingwasbloquedby', component: 'mod_jitsi'},
         {key: 'sessionisbeingrecorded', component: 'mod_jitsi'},
-    ]).then(([preparing, bloquedby, streamingstarting, internalerror, wasbloquedby, beingrecorded]) => {
+        {key: 'recordaccounterror', component: 'mod_jitsi'},
+    ]).then(([preparing, bloquedby, streamingstarting, internalerror, wasbloquedby, beingrecorded,
+        recordaccounterror]) => {
         str.preparing = preparing;
         str.bloquedby = bloquedby;
         str.streamingstarting = streamingstarting;
         str.internalerror = internalerror;
         str.wasbloquedby = wasbloquedby;
         str.beingrecorded = beingrecorded;
+        str.recordaccounterror = recordaccounterror;
         return str;
     }).catch(Notification.exception);
 
@@ -169,7 +173,7 @@ export const init = (config) => {
                 setControlsDisabled(false);
             } else if (response.error === 'erroryoutube') {
                 fire('mod_jitsi_delete_record_youtube', {idsource: idsource});
-                setState('<div class="alert alert-light" role="alert">ERROR RECORD ACCOUNT. TRY AGAIN IN A FEW SECONDS</div>');
+                setState('<div class="alert alert-light" role="alert">' + str.recordaccounterror + '</div>');
                 fire('mod_jitsi_stop_stream_byerror', {jitsi: config.jitsiid, userid: config.userid});
                 setControlsDisabled(false);
             } else if (response.error === 'erroraccount') {
@@ -407,7 +411,13 @@ export const init = (config) => {
     // On a Jitsi recording error, drop the YouTube source and report it.
     api.addEventListener('recordingStatusChanged', (event) => {
         if (event.error) {
-            fire('mod_jitsi_delete_record_youtube', {idsource: idsource});
+            // idsource is only set for the YouTube stream flow. On a file recording
+            // error (8x8 cloud / Jibri / Dropbox) there is no YouTube source to drop,
+            // and calling delete_record_youtube with a null id (NULL_NOT_ALLOWED) would
+            // surface a false error popup that masks the real recording error.
+            if (idsource) {
+                fire('mod_jitsi_delete_record_youtube', {idsource: idsource});
+            }
             fire('mod_jitsi_send_error', {
                 jitsi: config.jitsiid,
                 user: config.userid,

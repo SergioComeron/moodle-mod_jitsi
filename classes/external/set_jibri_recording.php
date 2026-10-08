@@ -54,6 +54,8 @@ class set_jibri_recording extends external_api {
             self::execute_parameters(),
             ['jitsiid' => $jitsiid, 'recording' => $recording]
         );
+        // Fired from the Jitsi iframe on every participant's client (including anonymous
+        // invitation guests), so this stays login-optional. It only toggles a status flag.
         $jitsiob = $DB->get_record('jitsi', ['id' => $params['jitsiid']]);
         if ($jitsiob) {
             $jitsiob->status = $params['recording'] ? 'recording' : null;

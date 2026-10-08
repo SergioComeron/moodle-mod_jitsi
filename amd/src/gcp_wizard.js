@@ -57,6 +57,21 @@ const showModal = () => {
     backdrop = document.createElement('div');
     backdrop.className = 'modal-backdrop fade show';
     document.body.appendChild(backdrop);
+    // Accessibility: move focus into the dialog and let Escape close it.
+    modalEl.setAttribute('tabindex', '-1');
+    modalEl.focus();
+    document.addEventListener('keydown', onKeydown);
+};
+
+/**
+ * Close the modal when Escape is pressed.
+ *
+ * @param {KeyboardEvent} e The keydown event.
+ */
+const onKeydown = (e) => {
+    if (e.key === 'Escape') {
+        closeModal();
+    }
 };
 
 /**
@@ -64,6 +79,7 @@ const showModal = () => {
  */
 const closeModal = () => {
     cancelled = true;
+    document.removeEventListener('keydown', onKeydown);
     if (modalEl) {
         modalEl.classList.remove('show');
         modalEl.style.display = 'none';
@@ -134,11 +150,16 @@ const wireCopyButton = (id, text, label) => {
     const btn = document.getElementById(id);
     if (btn && navigator.clipboard) {
         btn.addEventListener('click', () => {
-            navigator.clipboard.writeText(text);
-            btn.textContent = '✓ Copied!';
-            setTimeout(() => {
-                btn.textContent = label;
-            }, 2000);
+            navigator.clipboard.writeText(text).then(() => {
+                btn.textContent = '✓ Copied!';
+                setTimeout(() => {
+                    btn.textContent = label;
+                }, 2000);
+                return;
+            }).catch(() => {
+                // Clipboard permission denied; leave the button label unchanged.
+                return;
+            });
         });
     }
 };
