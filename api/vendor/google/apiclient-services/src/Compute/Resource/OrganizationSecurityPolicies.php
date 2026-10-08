@@ -35,6 +35,8 @@ use Google\Service\Compute\SecurityPolicyRule;
  */
 class OrganizationSecurityPolicies extends \Google\Service\Resource
 {
+  protected $apiVersion = '2026-09-01';
+
   /**
    * Inserts an association for the specified security policy.
    *
@@ -350,13 +352,6 @@ class OrganizationSecurityPolicies extends \Google\Service\Resource
    * the `nextPageToken` returned by a previous list request to get the next page
    * of results.
    * @opt_param string parentId Parent ID for this request.
-   * @opt_param bool returnPartialSuccess Opt-in for partial success behavior
-   * which provides partial results in case of failure. The default value is
-   * false.
-   *
-   * For example, when partial success behavior is enabled, aggregatedList for a
-   * single zone scope either returns all resources in the zone or no resources,
-   * with an error code.
    * @return SecurityPolicyList
    * @throws \Google\Service\Exception
    */
@@ -456,13 +451,6 @@ class OrganizationSecurityPolicies extends \Google\Service\Resource
    * the `nextPageToken` returned by a previous list request to get the next page
    * of results.
    * @opt_param string parentId Parent ID for this request.
-   * @opt_param bool returnPartialSuccess Opt-in for partial success behavior
-   * which provides partial results in case of failure. The default value is
-   * false.
-   *
-   * For example, when partial success behavior is enabled, aggregatedList for a
-   * single zone scope either returns all resources in the zone or no resources,
-   * with an error code.
    * @return SecurityPoliciesListPreconfiguredExpressionSetsResponse
    * @throws \Google\Service\Exception
    */

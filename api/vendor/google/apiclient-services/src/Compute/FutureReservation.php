@@ -90,6 +90,13 @@ class FutureReservation extends \Google\Model
    * @var bool
    */
   public $autoDeleteAutoCreatedReservations;
+  /**
+   * Full or partial URL of an existing future reservation to indicate intent
+   * for reserving capacity in the same cluster as the colocation resource.
+   *
+   * @var string
+   */
+  public $colocationResource;
   protected $commitmentInfoType = FutureReservationCommitmentInfo::class;
   protected $commitmentInfoDataType = '';
   /**
@@ -312,6 +319,23 @@ class FutureReservation extends \Google\Model
   public function getAutoDeleteAutoCreatedReservations()
   {
     return $this->autoDeleteAutoCreatedReservations;
+  }
+  /**
+   * Full or partial URL of an existing future reservation to indicate intent
+   * for reserving capacity in the same cluster as the colocation resource.
+   *
+   * @param string $colocationResource
+   */
+  public function setColocationResource($colocationResource)
+  {
+    $this->colocationResource = $colocationResource;
+  }
+  /**
+   * @return string
+   */
+  public function getColocationResource()
+  {
+    return $this->colocationResource;
   }
   /**
    * If not present, then FR will not deliver a new commitment or update an

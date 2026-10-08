@@ -32,6 +32,9 @@ class CommentSnippet extends \Google\Model
    * The comment is unfit for display.
    */
   public const MODERATION_STATUS_rejected = 'rejected';
+  /**
+   * The entity has not been rated.
+   */
   public const VIEWER_RATING_none = 'none';
   /**
    * The entity is liked.
@@ -76,6 +79,15 @@ class CommentSnippet extends \Google\Model
    */
   public $channelId;
   /**
+   * Output only. The URL of the image or animated GIF attached to the comment,
+   * if any. This property is only present when a comment contains an image or
+   * GIF. The URL is served as a signed link with a six-hour time to live (TTL)
+   * and expires six hours after retrieval.
+   *
+   * @var string
+   */
+  public $imageUrl;
+  /**
    * The total number of likes this comment has received.
    *
    * @var string
@@ -94,12 +106,6 @@ class CommentSnippet extends \Google\Model
    * @var string
    */
   public $parentId;
-  /**
-   * The ID of the post the comment refers to, if any.
-   *
-   * @var string
-   */
-  public $postId;
   /**
    * The date and time when the comment was originally published.
    *
@@ -241,6 +247,25 @@ class CommentSnippet extends \Google\Model
     return $this->channelId;
   }
   /**
+   * Output only. The URL of the image or animated GIF attached to the comment,
+   * if any. This property is only present when a comment contains an image or
+   * GIF. The URL is served as a signed link with a six-hour time to live (TTL)
+   * and expires six hours after retrieval.
+   *
+   * @param string $imageUrl
+   */
+  public function setImageUrl($imageUrl)
+  {
+    $this->imageUrl = $imageUrl;
+  }
+  /**
+   * @return string
+   */
+  public function getImageUrl()
+  {
+    return $this->imageUrl;
+  }
+  /**
    * The total number of likes this comment has received.
    *
    * @param string $likeCount
@@ -290,22 +315,6 @@ class CommentSnippet extends \Google\Model
   public function getParentId()
   {
     return $this->parentId;
-  }
-  /**
-   * The ID of the post the comment refers to, if any.
-   *
-   * @param string $postId
-   */
-  public function setPostId($postId)
-  {
-    $this->postId = $postId;
-  }
-  /**
-   * @return string
-   */
-  public function getPostId()
-  {
-    return $this->postId;
   }
   /**
    * The date and time when the comment was originally published.

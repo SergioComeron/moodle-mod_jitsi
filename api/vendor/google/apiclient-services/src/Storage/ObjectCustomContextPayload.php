@@ -26,6 +26,12 @@ class ObjectCustomContextPayload extends \Google\Model
    */
   public $createTime;
   /**
+   * The type URL of the object context's extended data.
+   *
+   * @var string
+   */
+  public $extendedDataTypeUrl;
+  /**
    * The time at which the object context was last updated in RFC 3339 format.
    *
    * @var string
@@ -53,6 +59,22 @@ class ObjectCustomContextPayload extends \Google\Model
   public function getCreateTime()
   {
     return $this->createTime;
+  }
+  /**
+   * The type URL of the object context's extended data.
+   *
+   * @param string $extendedDataTypeUrl
+   */
+  public function setExtendedDataTypeUrl($extendedDataTypeUrl)
+  {
+    $this->extendedDataTypeUrl = $extendedDataTypeUrl;
+  }
+  /**
+   * @return string
+   */
+  public function getExtendedDataTypeUrl()
+  {
+    return $this->extendedDataTypeUrl;
   }
   /**
    * The time at which the object context was last updated in RFC 3339 format.

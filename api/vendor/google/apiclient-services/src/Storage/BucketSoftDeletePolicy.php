@@ -27,6 +27,8 @@ class BucketSoftDeletePolicy extends \Google\Model
    * @var string
    */
   public $effectiveTime;
+  protected $hardDeletePauseType = BucketSoftDeletePolicyHardDeletePause::class;
+  protected $hardDeletePauseDataType = '';
   /**
    * The duration in seconds that soft-deleted objects in the bucket will be
    * retained and cannot be permanently deleted.
@@ -52,6 +54,24 @@ class BucketSoftDeletePolicy extends \Google\Model
   public function getEffectiveTime()
   {
     return $this->effectiveTime;
+  }
+  /**
+   * The bucket's hard delete pause configuration. If set, soft-deleted objects
+   * in the bucket will not be permanently deleted until the hard delete pause
+   * is disabled.
+   *
+   * @param BucketSoftDeletePolicyHardDeletePause $hardDeletePause
+   */
+  public function setHardDeletePause(BucketSoftDeletePolicyHardDeletePause $hardDeletePause)
+  {
+    $this->hardDeletePause = $hardDeletePause;
+  }
+  /**
+   * @return BucketSoftDeletePolicyHardDeletePause
+   */
+  public function getHardDeletePause()
+  {
+    return $this->hardDeletePause;
   }
   /**
    * The duration in seconds that soft-deleted objects in the bucket will be
