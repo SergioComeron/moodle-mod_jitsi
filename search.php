@@ -113,7 +113,7 @@ class datesearch_form extends moodleform {
 $PAGE->set_context(context_system::instance());
 
 $PAGE->set_url('/mod/jitsi/search.php');
-require_login();
+require_admin();
 
 $timestart = optional_param_array('timestart', 0, PARAM_INT);
 $timeend = optional_param_array('timeend', 0, PARAM_INT);
