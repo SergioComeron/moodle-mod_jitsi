@@ -68,7 +68,8 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16
+        # Moodle 5.3 requires PostgreSQL 17. Earlier branches stay on 16.
+        image: ${{ matrix.moodle-branch == 'MOODLE_503_STABLE' && 'postgres:17' || 'postgres:16' }}
         env:
           POSTGRES_USER: 'postgres'
           POSTGRES_HOST_AUTH_METHOD: 'trust'
@@ -142,7 +143,8 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16
+        # Moodle 5.3 requires PostgreSQL 17. Earlier branches stay on 16.
+        image: ${{ matrix.moodle-branch == 'MOODLE_503_STABLE' && 'postgres:17' || 'postgres:16' }}
         env:
           POSTGRES_USER: 'postgres'
           POSTGRES_HOST_AUTH_METHOD: 'trust'
