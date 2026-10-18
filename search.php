@@ -58,10 +58,10 @@ class datesearch_form extends moodleform {
         $mform->addElement(
             'date_time_selector',
             'timestart',
-            get_string('from'),
+            get_string('from', 'jitsi'),
             ['defaulttime' => $defaulttimestart]
         );
-        $mform->addElement('date_time_selector', 'timeend', get_string('to'));
+        $mform->addElement('date_time_selector', 'timeend', get_string('to', 'jitsi'));
 
         $usersid = $DB->get_records_sql('SELECT DISTINCT userid FROM {jitsi_source_record}');
         $users = [];

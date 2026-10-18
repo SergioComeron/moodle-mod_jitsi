@@ -20,7 +20,7 @@ Feature: Admin-only pages reject non-admin users
       | page                                     | text                    |
       | /mod/jitsi/auth.php?name=TestAccount     | jitsi_oauth_id          |
       | /mod/jitsi/search.php                    | Recorders               |
-      | /mod/jitsi/adminaccounts.php             | Add account             |
+      | /mod/jitsi/adminaccounts.php             | At least one account is required |
       | /mod/jitsi/adminrecord.php               | available to be deleted |
       | /mod/jitsi/recordingmatrix.php           | No recordings available |
 

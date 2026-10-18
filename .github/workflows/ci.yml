@@ -99,6 +99,7 @@ jobs:
           - MOODLE_405_STABLE
           - MOODLE_501_STABLE
           - MOODLE_502_STABLE
+          - MOODLE_503_STABLE
         db:
           - pgsql
           - mysqli
@@ -160,6 +161,7 @@ jobs:
           - MOODLE_405_STABLE
           - MOODLE_501_STABLE
           - MOODLE_502_STABLE
+          - MOODLE_503_STABLE
 
     steps:
       - name: Checkout mod_jitsi
