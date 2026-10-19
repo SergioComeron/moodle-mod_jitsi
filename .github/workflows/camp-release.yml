@@ -1,115 +1,11 @@
-# camp release workflow — copy to .github/workflows/camp-release.yml in your
-# plugin repository. Publishing to camp then means: git tag v1.2.3 && git push --tags
-#
-# What it does on every version tag:
-#   1. checks your repo has a listing manifest (fails with instructions if not),
-#   2. runs the same label heuristics and security lint camp CI runs, so you
-#      see findings before reviewers do (warn-only here),
-#   3. builds the canonical ZIP and computes your release record with camp
-#      tools — the identical code path camp CI verifies against,
-#   4. opens a pull request against the camp index with the new release
-#      appended to your plugin's entry.
-#
-# NOTE: the personal-access-token PR flow is the bootstrap mechanism. A
-# registry-side publishing design that would retire the token is under
-# discussion (camp-registry/camp-index#66).
-
 name: Publish release to camp
-
 on:
   push:
     tags: ["v*"]
-  workflow_dispatch: {}   # backfill an old release: run at the existing tag
-                          #   gh workflow run camp-release.yml --ref v1.1.0
-
-# The job only reads this repository; everything it writes goes to your
-# camp-index fork via CAMP_INDEX_TOKEN, which never needs to exist as a
-# workflow permission.
+  workflow_dispatch: {}
 permissions:
   contents: read
-
-env:
-  CAMP_INDEX_REPO: camp-registry/camp-index  # the camp index repository
-  # Both values below are optional overrides — with them empty
-  # (recommended), everything is read from your version.php at the tag:
-  #   COMPONENT        ← $plugin->component (your frankenstyle name)
-  #   SUPPORTED_MOODLE ← the $plugin->supported range when declared,
-  #                      else the single branch $plugin->requires maps
-  #                      to. Set it only when version.php can't say what
-  #                      you mean (e.g. a non-contiguous set "4.1,4.4").
-  COMPONENT: ""
-  SUPPORTED_MOODLE: ""
-
+  id-token: write
 jobs:
-  publish:
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Check out plugin at the tag
-        uses: actions/checkout@v7
-        with:
-          path: plugin
-          fetch-depth: 0
-
-      # No token: the index is public, and checkout would otherwise persist
-      # the credential into the working copy for every later step to read.
-      - name: Check out camp index
-        uses: actions/checkout@v7
-        with:
-          repository: ${{ env.CAMP_INDEX_REPO }}
-          path: index-repo
-
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-
-      - name: Install camp tools
-        run: pip install --quiet "git+https://github.com/camp-registry/camp-tools@v0.2.28"
-
-      - name: Resolve component name
-        run: |
-          if [ -z "${COMPONENT}" ]; then
-            COMPONENT=$(sed -nE 's/.*\$plugin->component[[:space:]]*=[[:space:]]*.?([a-z][a-z0-9_]*).?[[:space:]]*;.*/\1/p' plugin/version.php | head -1)
-          fi
-          if [ -z "${COMPONENT}" ]; then
-            echo "::error::COMPONENT is empty and \$plugin->component was not found in version.php — set one of them"
-            exit 1
-          fi
-          echo "COMPONENT=${COMPONENT}" >> "$GITHUB_ENV"
-          echo "component: ${COMPONENT}"
-
-      - name: Require a listing manifest
-        run: camp scaffold plugin --check
-
-      - name: Label heuristics + security lint (warn-only preview)
-        run: |
-          camp lint-labels plugin || true
-          camp audit plugin || true
-
-      - name: Compute and append the release record
-        run: |
-          plugintype="${COMPONENT%%_*}"
-          camp release "index-repo/plugins/${plugintype}/${COMPONENT}.yml" \
-            "${GITHUB_REF_NAME}" --source ./plugin \
-            ${SUPPORTED_MOODLE:+--supported-moodle "${SUPPORTED_MOODLE}"}
-
-      - name: Open index pull request
-        uses: peter-evans/create-pull-request@v8
-        with:
-          # The template calls for CAMP_INDEX_TOKEN (classic PAT with
-          # public_repo scope; fine-grained tokens 403 on this step). We
-          # reuse PAT_TOKEN: already a classic repo-scoped PAT in this
-          # repository's secrets (bump-version pushes tags with it).
-          token: ${{ secrets.PAT_TOKEN }}
-          path: index-repo
-          # Everyone publishes from a fork, index maintainers included.
-          # Fork camp-registry/camp-index once (keeping it in sync is NOT
-          # required); the default below assumes the fork lives under the
-          # same account/org as this plugin repo and is named camp-index.
-          push-to-fork: ${{ github.repository_owner }}/camp-index
-          branch: release/${{ env.COMPONENT }}-${{ github.ref_name }}
-          commit-message: "${{ env.COMPONENT }}: release ${{ github.ref_name }}"
-          title: "${{ env.COMPONENT }}: release ${{ github.ref_name }}"
-          body: |
-            Automated release PR from ${{ github.repository }} @ ${{ github.ref_name }}.
-            camp CI will independently rebuild the artifact from the tag and
-            verify the recorded hashes before this can merge.
+  camp:
+    uses: camp-registry/camp-workflows/.github/workflows/release.yml@v1
