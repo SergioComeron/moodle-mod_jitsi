@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to release (e.g. v4.3.0)'
+        description: 'Tag to release (e.g. v5.5.0)'
         required: true
 
 jobs:
@@ -19,8 +19,23 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
+      - name: Resolve release tag
+        id: tag
+        env:
+          TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+        run: |
+          TAG="${TAG//[[:space:]]/}"
+          if [[ ! "$TAG" =~ ^v[0-9] ]]; then
+            echo "::error::Tag '${TAG}' is not a release tag. Enter a tag such as v5.5.0."
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Releasing $TAG"
+
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.tag.outputs.tag }}
 
       - name: Extract plugin metadata from version.php
         id: meta
@@ -33,9 +48,10 @@ jobs:
 
       - name: Extract release notes from CHANGES.md
         id: notes
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
         run: |
           # Extrae el bloque del tag actual (entre el primer ## y el siguiente)
-          TAG="${{ github.ref_name }}"
           NOTES=$(awk "/^## $TAG/{found=1; next} found && /^## v[0-9]/{exit} found{print}" CHANGES.md)
           if [ -z "$NOTES" ]; then
             NOTES="Release $TAG"
@@ -56,43 +72,46 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.tag.outputs.tag }}
           files: mod_jitsi.zip
           body_path: /tmp/release_notes.txt
 
-      - name: Publish to Moodle Plugins Directory
+      - name: Publish to Moodle Marketplace
+        env:
+          MKPL_TOKEN: ${{ secrets.MOODLE_MARKETPLACE_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
         run: |
-          ZIP_URL="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/mod_jitsi.zip"
-          RELEASE_NOTES=$(cat /tmp/release_notes.txt)
-
-          echo "Publicando versión ${{ steps.meta.outputs.plugin_release }} (build ${{ steps.meta.outputs.plugin_version }}) con ZIP: $ZIP_URL"
-
-          # Wait for GitHub CDN to make the release asset available
-          echo "Waiting 60s for release to propagate on GitHub CDN..."
-          sleep 60
-
-          # Verify ZIP is accessible before calling moodle.org
-          HTTP_STATUS=$(curl -sIL -o /dev/null -w "%{http_code}" "$ZIP_URL")
-          echo "ZIP URL HTTP status: $HTTP_STATUS"
-          if [ "$HTTP_STATUS" != "200" ]; then
-            echo "ERROR: ZIP not accessible (HTTP $HTTP_STATUS). Aborting."
+          if [[ -z "${MKPL_TOKEN}" ]]; then
+            echo "::error::Repository secret MOODLE_MARKETPLACE_TOKEN is empty."
             exit 1
           fi
 
-          RESPONSE=$(curl -s -X POST "https://moodle.org/webservice/rest/server.php" \
-            --data-urlencode "wstoken=${{ secrets.MOODLE_ORG_TOKEN }}" \
-            --data-urlencode "wsfunction=local_plugins_add_version" \
-            --data-urlencode "moodlewsrestformat=json" \
-            --data-urlencode "frankenstyle=mod_jitsi" \
-            --data-urlencode "zipurl=$ZIP_URL" \
-            --data-urlencode "version=${{ steps.meta.outputs.plugin_version }}" \
-            --data-urlencode "releasename=${{ steps.meta.outputs.plugin_release }}" \
-            --data-urlencode "releasenotes=$RELEASE_NOTES")
+          echo "Submitting mod_jitsi.zip for ${TAG} to Moodle Marketplace"
 
-          echo "Respuesta: $RESPONSE"
+          HTTP_STATUS=$(curl -sS --retry 3 --retry-delay 2 \
+            -o response.json -w "%{http_code}" \
+            -X POST \
+            -H "Authorization: Bearer ${MKPL_TOKEN}" \
+            -F "file=@mod_jitsi.zip;type=application/zip" \
+            -F "releaseNotes=</tmp/release_notes.txt" \
+            --form-string "vcsRepositoryUrl=https://github.com/${GITHUB_REPOSITORY}" \
+            --form-string "vcsTag=${TAG}" \
+            "https://marketplace.moodle.com/api/plugins/mod_jitsi/versions")
 
-          if echo "$RESPONSE" | grep -q '"exception"'; then
-            echo "ERROR al publicar en el directorio de plugins de Moodle"
+          echo "Response HTTP status: ${HTTP_STATUS}"
+          if jq . response.json >/dev/null 2>&1; then
+            jq . response.json
+          else
+            cat response.json
+          fi
+
+          if [[ "${HTTP_STATUS}" != "201" ]]; then
+            echo "::error::Moodle Marketplace rejected the version (HTTP ${HTTP_STATUS})."
+            if jq -e '.violations' response.json >/dev/null 2>&1; then
+              echo "Validation violations:"
+              jq '.violations' response.json
+            fi
             exit 1
           fi
 
-          echo "Plugin publicado correctamente en moodle.org"
+          echo "Submitted version $(jq -r '.version' response.json), status $(jq -r '.status' response.json)"
