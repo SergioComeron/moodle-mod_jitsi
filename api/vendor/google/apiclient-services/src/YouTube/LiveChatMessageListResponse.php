@@ -39,7 +39,7 @@ class LiveChatMessageListResponse extends \Google\Collection
   protected $itemsDataType = 'array';
   /**
    * Identifies what kind of resource this is. Value: the fixed string
-   * "youtube#liveChatMessageListResponse".
+   * `"youtube#liveChatMessageListResponse"`.
    *
    * @var string
    */
@@ -65,7 +65,7 @@ class LiveChatMessageListResponse extends \Google\Collection
   protected $tokenPaginationType = TokenPagination::class;
   protected $tokenPaginationDataType = '';
   /**
-   * The visitorId identifies the visitor.
+   * Identifies the visitor.
    *
    * @deprecated
    * @var string
@@ -138,7 +138,7 @@ class LiveChatMessageListResponse extends \Google\Collection
   }
   /**
    * Identifies what kind of resource this is. Value: the fixed string
-   * "youtube#liveChatMessageListResponse".
+   * `"youtube#liveChatMessageListResponse"`.
    *
    * @param string $kind
    */
@@ -232,7 +232,7 @@ class LiveChatMessageListResponse extends \Google\Collection
     return $this->tokenPagination;
   }
   /**
-   * The visitorId identifies the visitor.
+   * Identifies the visitor.
    *
    * @deprecated
    * @param string $visitorId

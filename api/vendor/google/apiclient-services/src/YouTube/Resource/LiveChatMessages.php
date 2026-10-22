@@ -31,7 +31,8 @@ use Google\Service\YouTube\LiveChatMessageListResponse;
 class LiveChatMessages extends \Google\Service\Resource
 {
   /**
-   * Deletes a chat message. (liveChatMessages.delete)
+   * Deletes a chat message. A call to this method has a quota cost of 20 units.
+   * (liveChatMessages.delete)
    *
    * @param string $id
    * @param array $optParams Optional parameters.
@@ -44,12 +45,13 @@ class LiveChatMessages extends \Google\Service\Resource
     return $this->call('delete', [$params]);
   }
   /**
-   * Inserts a new resource into this collection. (liveChatMessages.insert)
+   * Inserts a new resource into this collection. A call to this method has a
+   * quota cost of 20 units. (liveChatMessages.insert)
    *
-   * @param string|array $part The *part* parameter serves two purposes. It
-   * identifies the properties that the write operation will set as well as the
-   * properties that the API response will include. Set the parameter value to
-   * snippet.
+   * @param string|array $part The `part` parameter serves two purposes. It
+   * identifies the properties that the write operation sets as well as the
+   * properties that the API response includes. Set the parameter value to
+   * `snippet`.
    * @param LiveChatMessage $postBody
    * @param array $optParams Optional parameters.
    * @return LiveChatMessage
@@ -62,24 +64,24 @@ class LiveChatMessages extends \Google\Service\Resource
     return $this->call('insert', [$params], LiveChatMessage::class);
   }
   /**
-   * Retrieves a list of resources, possibly filtered.
-   * (liveChatMessages.listLiveChatMessages)
+   * Retrieves a list of resources, possibly filtered. A call to this method has a
+   * quota cost of 5 units. (liveChatMessages.listLiveChatMessages)
    *
-   * @param string $liveChatId The id of the live chat for which comments should
+   * @param string $liveChatId The ID of the live chat for which messages should
    * be returned.
-   * @param string|array $part The *part* parameter specifies the liveChatComment
-   * resource parts that the API response will include. Supported values are id,
-   * snippet, and authorDetails.
+   * @param string|array $part The `part` parameter specifies the
+   * `liveChatMessage` resource parts that the API response includes. Supported
+   * values are `id`, `snippet`, and `authorDetails`.
    * @param array $optParams Optional parameters.
    *
    * @opt_param string hl Specifies the localization language in which the system
    * messages should be returned.
-   * @opt_param string maxResults The *maxResults* parameter specifies the maximum
+   * @opt_param string maxResults The `maxResults` parameter specifies the maximum
    * number of items that should be returned in the result set. Not used in the
    * streaming RPC.
-   * @opt_param string pageToken The *pageToken* parameter identifies a specific
+   * @opt_param string pageToken The `pageToken` parameter identifies a specific
    * page in the result set that should be returned. In an API response, the
-   * nextPageToken property identify other pages that could be retrieved.
+   * `nextPageToken` property identifies other pages that could be retrieved.
    * @opt_param string profileImageSize Specifies the size of the profile image
    * that should be returned for each user.
    * @return LiveChatMessageListResponse
@@ -92,12 +94,13 @@ class LiveChatMessages extends \Google\Service\Resource
     return $this->call('list', [$params], LiveChatMessageListResponse::class);
   }
   /**
-   * Transition a durable chat event. (liveChatMessages.transition)
+   * Transitions a durable chat event. A call to this method has a quota cost of
+   * 20 units. (liveChatMessages.transition)
    *
    * @param array $optParams Optional parameters.
    *
-   * @opt_param string id The ID that uniquely identify the chat message event to
-   * transition.
+   * @opt_param string id The ID that uniquely identifies the chat message event
+   * to transition.
    * @opt_param string status The status to which the chat event is going to
    * transition.
    * @return LiveChatMessage

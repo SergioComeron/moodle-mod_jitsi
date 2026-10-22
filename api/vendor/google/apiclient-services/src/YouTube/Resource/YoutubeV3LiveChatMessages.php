@@ -30,24 +30,24 @@ use Google\Service\YouTube\LiveChatMessageListResponse;
 class YoutubeV3LiveChatMessages extends \Google\Service\Resource
 {
   /**
-   * Allows a user to load live chat through a server-streamed RPC.
-   * (messages.stream)
+   * Allows a user to load live chat through a server-streamed RPC. A call to this
+   * method has a quota cost of 5 units. (messages.stream)
    *
    * @param array $optParams Optional parameters.
    *
    * @opt_param string hl Specifies the localization language in which the system
    * messages should be returned.
-   * @opt_param string liveChatId The id of the live chat for which comments
+   * @opt_param string liveChatId The ID of the live chat for which messages
    * should be returned.
-   * @opt_param string maxResults The *maxResults* parameter specifies the maximum
+   * @opt_param string maxResults The `maxResults` parameter specifies the maximum
    * number of items that should be returned in the result set. Not used in the
    * streaming RPC.
-   * @opt_param string pageToken The *pageToken* parameter identifies a specific
+   * @opt_param string pageToken The `pageToken` parameter identifies a specific
    * page in the result set that should be returned. In an API response, the
-   * nextPageToken property identify other pages that could be retrieved.
-   * @opt_param string part The *part* parameter specifies the liveChatComment
-   * resource parts that the API response will include. Supported values are id,
-   * snippet, and authorDetails.
+   * `nextPageToken` property identifies other pages that could be retrieved.
+   * @opt_param string part The `part` parameter specifies the `liveChatMessage`
+   * resource parts that the API response includes. Supported values are `id`,
+   * `snippet`, and `authorDetails`.
    * @opt_param string profileImageSize Specifies the size of the profile image
    * that should be returned for each user.
    * @return LiveChatMessageListResponse

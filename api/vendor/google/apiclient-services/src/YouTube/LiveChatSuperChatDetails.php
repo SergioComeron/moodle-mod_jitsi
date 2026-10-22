@@ -39,7 +39,7 @@ class LiveChatSuperChatDetails extends \Google\Model
   public $currency;
   /**
    * The tier in which the amount belongs. Lower amounts belong to lower tiers.
-   * The lowest tier is 1.
+   * The lowest tier is `1`.
    *
    * @var string
    */
@@ -101,7 +101,7 @@ class LiveChatSuperChatDetails extends \Google\Model
   }
   /**
    * The tier in which the amount belongs. Lower amounts belong to lower tiers.
-   * The lowest tier is 1.
+   * The lowest tier is `1`.
    *
    * @param string $tier
    */

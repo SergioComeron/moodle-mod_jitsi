@@ -22,8 +22,8 @@ class LiveChatUserBannedMessageDetails extends \Google\Model
   public const BAN_TYPE_permanent = 'permanent';
   public const BAN_TYPE_temporary = 'temporary';
   /**
-   * The duration of the ban. This property is only present if the banType is
-   * temporary.
+   * The duration of the ban. This property is only present if the `banType` is
+   * `temporary`.
    *
    * @var string
    */
@@ -38,8 +38,8 @@ class LiveChatUserBannedMessageDetails extends \Google\Model
   protected $bannedUserDetailsDataType = '';
 
   /**
-   * The duration of the ban. This property is only present if the banType is
-   * temporary.
+   * The duration of the ban. This property is only present if the `banType` is
+   * `temporary`.
    *
    * @param string $banDurationSeconds
    */

@@ -41,7 +41,7 @@ class LiveChatSuperStickerDetails extends \Google\Model
   protected $superStickerMetadataDataType = '';
   /**
    * The tier in which the amount belongs. Lower amounts belong to lower tiers.
-   * The lowest tier is 1.
+   * The lowest tier is `1`.
    *
    * @var string
    */
@@ -113,7 +113,7 @@ class LiveChatSuperStickerDetails extends \Google\Model
   }
   /**
    * The tier in which the amount belongs. Lower amounts belong to lower tiers.
-   * The lowest tier is 1.
+   * The lowest tier is `1`.
    *
    * @param string $tier
    */
