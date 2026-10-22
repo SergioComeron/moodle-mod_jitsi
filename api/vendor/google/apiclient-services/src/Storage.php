@@ -53,7 +53,6 @@ class Storage extends \Google\Service
   public $anywhereCaches;
   public $bucketAccessControls;
   public $buckets;
-  public $channels;
   public $defaultObjectAccessControls;
   public $folders;
   public $managedFolders;
@@ -626,20 +625,6 @@ class Storage extends \Google\Service
                   'type' => 'string',
                 ],
               ],
-            ],
-          ]
-        ]
-    );
-    $this->channels = new Storage\Resource\Channels(
-        $this,
-        $this->serviceName,
-        'channels',
-        [
-          'methods' => [
-            'stop' => [
-              'path' => 'channels/stop',
-              'httpMethod' => 'POST',
-              'parameters' => [],
             ],
           ]
         ]

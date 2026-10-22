@@ -166,7 +166,7 @@ class LiveChatMessageSnippet extends \Google\Model
   }
   /**
    * Details about the funding event, this is only set if the type is
-   * 'fanFundingEvent'.
+   * `fanFundingEvent`.
    *
    * @deprecated
    * @param LiveChatFanFundingEventDetails $fanFundingEventDetails
@@ -184,7 +184,7 @@ class LiveChatMessageSnippet extends \Google\Model
     return $this->fanFundingEventDetails;
   }
   /**
-   * Details about the gift event, this is only set if the type is 'giftEvent'.
+   * Details about the gift event, this is only set if the type is `giftEvent`.
    *
    * @param LiveChatGiftDetails $giftDetails
    */
@@ -201,7 +201,7 @@ class LiveChatMessageSnippet extends \Google\Model
   }
   /**
    * Details about the Gift Membership Received event, this is only set if the
-   * type is 'giftMembershipReceivedEvent'.
+   * type is `giftMembershipReceivedEvent`.
    *
    * @param LiveChatGiftMembershipReceivedDetails $giftMembershipReceivedDetails
    */
@@ -248,7 +248,7 @@ class LiveChatMessageSnippet extends \Google\Model
   }
   /**
    * Details about the Member Milestone Chat event, this is only set if the type
-   * is 'memberMilestoneChatEvent'.
+   * is `memberMilestoneChatEvent`.
    *
    * @param LiveChatMemberMilestoneChatDetails $memberMilestoneChatDetails
    */
@@ -265,7 +265,7 @@ class LiveChatMessageSnippet extends \Google\Model
   }
   /**
    * Details about the Membership Gifting event, this is only set if the type is
-   * 'membershipGiftingEvent'.
+   * `membershipGiftingEvent`.
    *
    * @param LiveChatMembershipGiftingDetails $membershipGiftingDetails
    */
@@ -314,8 +314,7 @@ class LiveChatMessageSnippet extends \Google\Model
   }
   /**
    * Details about the New Member Announcement event, this is only set if the
-   * type is 'newSponsorEvent'. Please note that "member" is the new term for
-   * "sponsor".
+   * type is `newSponsorEvent`. The term "member" replaces "sponsor".
    *
    * @param LiveChatNewSponsorDetails $newSponsorDetails
    */
@@ -331,7 +330,7 @@ class LiveChatMessageSnippet extends \Google\Model
     return $this->newSponsorDetails;
   }
   /**
-   * Details about the poll event, this is only set if the type is 'pollEvent'.
+   * Details about the poll event, this is only set if the type is `pollEvent`.
    *
    * @param LiveChatPollDetails $pollDetails
    */
@@ -364,7 +363,7 @@ class LiveChatMessageSnippet extends \Google\Model
   }
   /**
    * Details about the Super Chat event, this is only set if the type is
-   * 'superChatEvent'.
+   * `superChatEvent`.
    *
    * @param LiveChatSuperChatDetails $superChatDetails
    */
@@ -381,7 +380,7 @@ class LiveChatMessageSnippet extends \Google\Model
   }
   /**
    * Details about the Super Sticker event, this is only set if the type is
-   * 'superStickerEvent'.
+   * `superStickerEvent`.
    *
    * @param LiveChatSuperStickerDetails $superStickerDetails
    */
@@ -398,7 +397,7 @@ class LiveChatMessageSnippet extends \Google\Model
   }
   /**
    * Details about the text message, this is only set if the type is
-   * 'textMessageEvent'.
+   * `textMessageEvent`.
    *
    * @param LiveChatTextMessageDetails $textMessageDetails
    */

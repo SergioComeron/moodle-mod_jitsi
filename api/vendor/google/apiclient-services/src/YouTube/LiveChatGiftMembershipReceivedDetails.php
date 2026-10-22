@@ -22,7 +22,7 @@ class LiveChatGiftMembershipReceivedDetails extends \Google\Model
   /**
    * The ID of the membership gifting message that is related to this gift
    * membership. This ID will always refer to a message whose type is
-   * 'membershipGiftingEvent'.
+   * `membershipGiftingEvent`.
    *
    * @var string
    */
@@ -48,7 +48,7 @@ class LiveChatGiftMembershipReceivedDetails extends \Google\Model
   /**
    * The ID of the membership gifting message that is related to this gift
    * membership. This ID will always refer to a message whose type is
-   * 'membershipGiftingEvent'.
+   * `membershipGiftingEvent`.
    *
    * @param string $associatedMembershipGiftingMessageId
    */

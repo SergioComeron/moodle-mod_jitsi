@@ -129,7 +129,7 @@ class VideoStatus extends \Google\Model
   public $embeddable;
   /**
    * This value explains why a video failed to upload. This property is only
-   * present if the uploadStatus property indicates that the upload failed.
+   * present if the `uploadStatus` property indicates that the upload failed.
    *
    * @var string
    */
@@ -145,7 +145,12 @@ class VideoStatus extends \Google\Model
    */
   public $madeForKids;
   /**
-   * The video's privacy status.
+   * The video's privacy status. In a `videos.insert` request, if you don't
+   * specify a value for this property, the uploaded video's privacy status
+   * defaults to `public`. Certain uploads might default to `private` based on
+   * creator account settings, as explained in the [YouTube Help
+   * Center](https://support.google.com/youtube/answer/157177). Videos uploaded
+   * from unverified API projects are not restricted to private viewing mode.
    *
    * @var string
    */
@@ -168,8 +173,8 @@ class VideoStatus extends \Google\Model
   public $publishAt;
   /**
    * This value explains why YouTube rejected an uploaded video. This property
-   * is only present if the uploadStatus property indicates that the upload was
-   * rejected.
+   * is only present if the `uploadStatus` property indicates that the upload
+   * was rejected.
    *
    * @var string
    */
@@ -220,7 +225,7 @@ class VideoStatus extends \Google\Model
   }
   /**
    * This value explains why a video failed to upload. This property is only
-   * present if the uploadStatus property indicates that the upload failed.
+   * present if the `uploadStatus` property indicates that the upload failed.
    *
    * Accepted values: conversion, invalidFile, emptyFile, tooSmall, codec,
    * uploadAborted
@@ -271,7 +276,12 @@ class VideoStatus extends \Google\Model
     return $this->madeForKids;
   }
   /**
-   * The video's privacy status.
+   * The video's privacy status. In a `videos.insert` request, if you don't
+   * specify a value for this property, the uploaded video's privacy status
+   * defaults to `public`. Certain uploads might default to `private` based on
+   * creator account settings, as explained in the [YouTube Help
+   * Center](https://support.google.com/youtube/answer/157177). Videos uploaded
+   * from unverified API projects are not restricted to private viewing mode.
    *
    * Accepted values: public, unlisted, private
    *
@@ -326,8 +336,8 @@ class VideoStatus extends \Google\Model
   }
   /**
    * This value explains why YouTube rejected an uploaded video. This property
-   * is only present if the uploadStatus property indicates that the upload was
-   * rejected.
+   * is only present if the `uploadStatus` property indicates that the upload
+   * was rejected.
    *
    * Accepted values: copyright, inappropriate, duplicate, termsOfUse,
    * uploaderAccountSuspended, length, claim, uploaderAccountClosed, trademark,
