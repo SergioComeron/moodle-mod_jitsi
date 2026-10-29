@@ -34,7 +34,8 @@ class LiveBroadcastSnippet extends \Google\Model
    */
   public $actualStartTime;
   /**
-   * The YouTube video category associated with the video broadcast.
+   * The YouTube [video category](https://developers.google.com/youtube/data/ref
+   * erence/rest/v3/videoCategories/list) associated with the video broadcast.
    *
    * @var string
    */
@@ -48,8 +49,9 @@ class LiveBroadcastSnippet extends \Google\Model
   public $channelId;
   /**
    * The broadcast's description. As with the title, you can set this field by
-   * modifying the broadcast resource or by setting the description field of the
-   * corresponding video resource.
+   * modifying the broadcast resource or by setting the [`description`](https://
+   * developers.google.com/youtube/data/reference/rest/v3/videos#snippet.descrip
+   * tion) field of the corresponding video resource.
    *
    * @var string
    */
@@ -90,7 +92,9 @@ class LiveBroadcastSnippet extends \Google\Model
   /**
    * The broadcast's title. Note that the broadcast represents exactly one
    * YouTube video. You can set this field by modifying the broadcast resource
-   * or by setting the title field of the corresponding video resource.
+   * or by setting the [`title`](https://developers.google.com/youtube/data/refe
+   * rence/rest/v3/videos#snippet.title) field of the corresponding video
+   * resource.
    *
    * @var string
    */
@@ -131,7 +135,8 @@ class LiveBroadcastSnippet extends \Google\Model
     return $this->actualStartTime;
   }
   /**
-   * The YouTube video category associated with the video broadcast.
+   * The YouTube [video category](https://developers.google.com/youtube/data/ref
+   * erence/rest/v3/videoCategories/list) associated with the video broadcast.
    *
    * @param string $categoryId
    */
@@ -165,8 +170,9 @@ class LiveBroadcastSnippet extends \Google\Model
   }
   /**
    * The broadcast's description. As with the title, you can set this field by
-   * modifying the broadcast resource or by setting the description field of the
-   * corresponding video resource.
+   * modifying the broadcast resource or by setting the [`description`](https://
+   * developers.google.com/youtube/data/reference/rest/v3/videos#snippet.descrip
+   * tion) field of the corresponding video resource.
    *
    * @param string $description
    */
@@ -283,7 +289,9 @@ class LiveBroadcastSnippet extends \Google\Model
   /**
    * The broadcast's title. Note that the broadcast represents exactly one
    * YouTube video. You can set this field by modifying the broadcast resource
-   * or by setting the title field of the corresponding video resource.
+   * or by setting the [`title`](https://developers.google.com/youtube/data/refe
+   * rence/rest/v3/videos#snippet.title) field of the corresponding video
+   * resource.
    *
    * @param string $title
    */

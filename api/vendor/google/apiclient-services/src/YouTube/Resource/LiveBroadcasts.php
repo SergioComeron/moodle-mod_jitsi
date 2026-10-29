@@ -52,21 +52,22 @@ class LiveBroadcasts extends \Google\Service\Resource
    * channel. The CMS account that the user authenticates with must be linked to
    * the specified YouTube content owner.
    * @opt_param string onBehalfOfContentOwnerChannel This parameter can only be
-   * used in a properly authorized request. *Note:* This parameter is intended
-   * exclusively for YouTube content partners. The *onBehalfOfContentOwnerChannel*
-   * parameter specifies the YouTube channel ID of the channel to which a video is
-   * being added. This parameter is required when a request specifies a value for
-   * the onBehalfOfContentOwner parameter, and it can only be used in conjunction
-   * with that parameter. In addition, the request must be authorized using a CMS
-   * account that is linked to the content owner that the onBehalfOfContentOwner
-   * parameter specifies. Finally, the channel that the
-   * onBehalfOfContentOwnerChannel parameter value specifies must be linked to the
-   * content owner that the onBehalfOfContentOwner parameter specifies. This
-   * parameter is intended for YouTube content partners that own and manage many
-   * different YouTube channels. It allows content owners to authenticate once and
-   * perform actions on behalf of the channel specified in the parameter value,
-   * without having to provide authentication credentials for each separate
-   * channel.
+   * used in a properly [authorized
+   * request](https://developers.google.com/youtube/data/guides/authentication).
+   * *Note:* This parameter is intended exclusively for YouTube content partners.
+   * The *onBehalfOfContentOwnerChannel* parameter specifies the YouTube channel
+   * ID of the channel to which a video is being added. This parameter is required
+   * when a request specifies a value for the onBehalfOfContentOwner parameter,
+   * and it can only be used in conjunction with that parameter. In addition, the
+   * request must be authorized using a CMS account that is linked to the content
+   * owner that the onBehalfOfContentOwner parameter specifies. Finally, the
+   * channel that the onBehalfOfContentOwnerChannel parameter value specifies must
+   * be linked to the content owner that the onBehalfOfContentOwner parameter
+   * specifies. This parameter is intended for YouTube content partners that own
+   * and manage many different YouTube channels. It allows content owners to
+   * authenticate once and perform actions on behalf of the channel specified in
+   * the parameter value, without having to provide authentication credentials for
+   * each separate channel.
    * @opt_param string streamId Stream to bind, if not set unbind the current one.
    * @return LiveBroadcast
    * @throws \Google\Service\Exception
@@ -94,21 +95,22 @@ class LiveBroadcasts extends \Google\Service\Resource
    * channel. The CMS account that the user authenticates with must be linked to
    * the specified YouTube content owner.
    * @opt_param string onBehalfOfContentOwnerChannel This parameter can only be
-   * used in a properly authorized request. *Note:* This parameter is intended
-   * exclusively for YouTube content partners. The *onBehalfOfContentOwnerChannel*
-   * parameter specifies the YouTube channel ID of the channel to which a video is
-   * being added. This parameter is required when a request specifies a value for
-   * the onBehalfOfContentOwner parameter, and it can only be used in conjunction
-   * with that parameter. In addition, the request must be authorized using a CMS
-   * account that is linked to the content owner that the onBehalfOfContentOwner
-   * parameter specifies. Finally, the channel that the
-   * onBehalfOfContentOwnerChannel parameter value specifies must be linked to the
-   * content owner that the onBehalfOfContentOwner parameter specifies. This
-   * parameter is intended for YouTube content partners that own and manage many
-   * different YouTube channels. It allows content owners to authenticate once and
-   * perform actions on behalf of the channel specified in the parameter value,
-   * without having to provide authentication credentials for each separate
-   * channel.
+   * used in a properly [authorized
+   * request](https://developers.google.com/youtube/data/guides/authentication).
+   * *Note:* This parameter is intended exclusively for YouTube content partners.
+   * The *onBehalfOfContentOwnerChannel* parameter specifies the YouTube channel
+   * ID of the channel to which a video is being added. This parameter is required
+   * when a request specifies a value for the onBehalfOfContentOwner parameter,
+   * and it can only be used in conjunction with that parameter. In addition, the
+   * request must be authorized using a CMS account that is linked to the content
+   * owner that the onBehalfOfContentOwner parameter specifies. Finally, the
+   * channel that the onBehalfOfContentOwnerChannel parameter value specifies must
+   * be linked to the content owner that the onBehalfOfContentOwner parameter
+   * specifies. This parameter is intended for YouTube content partners that own
+   * and manage many different YouTube channels. It allows content owners to
+   * authenticate once and perform actions on behalf of the channel specified in
+   * the parameter value, without having to provide authentication credentials for
+   * each separate channel.
    * @throws \Google\Service\Exception
    */
   public function delete($id, $optParams = [])
@@ -139,21 +141,22 @@ class LiveBroadcasts extends \Google\Service\Resource
    * channel. The CMS account that the user authenticates with must be linked to
    * the specified YouTube content owner.
    * @opt_param string onBehalfOfContentOwnerChannel This parameter can only be
-   * used in a properly authorized request. *Note:* This parameter is intended
-   * exclusively for YouTube content partners. The *onBehalfOfContentOwnerChannel*
-   * parameter specifies the YouTube channel ID of the channel to which a video is
-   * being added. This parameter is required when a request specifies a value for
-   * the onBehalfOfContentOwner parameter, and it can only be used in conjunction
-   * with that parameter. In addition, the request must be authorized using a CMS
-   * account that is linked to the content owner that the onBehalfOfContentOwner
-   * parameter specifies. Finally, the channel that the
-   * onBehalfOfContentOwnerChannel parameter value specifies must be linked to the
-   * content owner that the onBehalfOfContentOwner parameter specifies. This
-   * parameter is intended for YouTube content partners that own and manage many
-   * different YouTube channels. It allows content owners to authenticate once and
-   * perform actions on behalf of the channel specified in the parameter value,
-   * without having to provide authentication credentials for each separate
-   * channel.
+   * used in a properly [authorized
+   * request](https://developers.google.com/youtube/data/guides/authentication).
+   * *Note:* This parameter is intended exclusively for YouTube content partners.
+   * The *onBehalfOfContentOwnerChannel* parameter specifies the YouTube channel
+   * ID of the channel to which a video is being added. This parameter is required
+   * when a request specifies a value for the onBehalfOfContentOwner parameter,
+   * and it can only be used in conjunction with that parameter. In addition, the
+   * request must be authorized using a CMS account that is linked to the content
+   * owner that the onBehalfOfContentOwner parameter specifies. Finally, the
+   * channel that the onBehalfOfContentOwnerChannel parameter value specifies must
+   * be linked to the content owner that the onBehalfOfContentOwner parameter
+   * specifies. This parameter is intended for YouTube content partners that own
+   * and manage many different YouTube channels. It allows content owners to
+   * authenticate once and perform actions on behalf of the channel specified in
+   * the parameter value, without having to provide authentication credentials for
+   * each separate channel.
    * @return LiveBroadcast
    * @throws \Google\Service\Exception
    */
@@ -182,21 +185,22 @@ class LiveBroadcasts extends \Google\Service\Resource
    * channel. The CMS account that the user authenticates with must be linked to
    * the specified YouTube content owner.
    * @opt_param string onBehalfOfContentOwnerChannel This parameter can only be
-   * used in a properly authorized request. *Note:* This parameter is intended
-   * exclusively for YouTube content partners. The *onBehalfOfContentOwnerChannel*
-   * parameter specifies the YouTube channel ID of the channel to which a video is
-   * being added. This parameter is required when a request specifies a value for
-   * the onBehalfOfContentOwner parameter, and it can only be used in conjunction
-   * with that parameter. In addition, the request must be authorized using a CMS
-   * account that is linked to the content owner that the onBehalfOfContentOwner
-   * parameter specifies. Finally, the channel that the
-   * onBehalfOfContentOwnerChannel parameter value specifies must be linked to the
-   * content owner that the onBehalfOfContentOwner parameter specifies. This
-   * parameter is intended for YouTube content partners that own and manage many
-   * different YouTube channels. It allows content owners to authenticate once and
-   * perform actions on behalf of the channel specified in the parameter value,
-   * without having to provide authentication credentials for each separate
-   * channel.
+   * used in a properly [authorized
+   * request](https://developers.google.com/youtube/data/guides/authentication).
+   * *Note:* This parameter is intended exclusively for YouTube content partners.
+   * The *onBehalfOfContentOwnerChannel* parameter specifies the YouTube channel
+   * ID of the channel to which a video is being added. This parameter is required
+   * when a request specifies a value for the onBehalfOfContentOwner parameter,
+   * and it can only be used in conjunction with that parameter. In addition, the
+   * request must be authorized using a CMS account that is linked to the content
+   * owner that the onBehalfOfContentOwner parameter specifies. Finally, the
+   * channel that the onBehalfOfContentOwnerChannel parameter value specifies must
+   * be linked to the content owner that the onBehalfOfContentOwner parameter
+   * specifies. This parameter is intended for YouTube content partners that own
+   * and manage many different YouTube channels. It allows content owners to
+   * authenticate once and perform actions on behalf of the channel specified in
+   * the parameter value, without having to provide authentication credentials for
+   * each separate channel.
    * @opt_param string part The *part* parameter specifies a comma-separated list
    * of one or more liveBroadcast resource properties that the API response will
    * include. The part names that you can include in the parameter value are id,
@@ -240,21 +244,22 @@ class LiveBroadcasts extends \Google\Service\Resource
    * channel. The CMS account that the user authenticates with must be linked to
    * the specified YouTube content owner.
    * @opt_param string onBehalfOfContentOwnerChannel This parameter can only be
-   * used in a properly authorized request. *Note:* This parameter is intended
-   * exclusively for YouTube content partners. The *onBehalfOfContentOwnerChannel*
-   * parameter specifies the YouTube channel ID of the channel to which a video is
-   * being added. This parameter is required when a request specifies a value for
-   * the onBehalfOfContentOwner parameter, and it can only be used in conjunction
-   * with that parameter. In addition, the request must be authorized using a CMS
-   * account that is linked to the content owner that the onBehalfOfContentOwner
-   * parameter specifies. Finally, the channel that the
-   * onBehalfOfContentOwnerChannel parameter value specifies must be linked to the
-   * content owner that the onBehalfOfContentOwner parameter specifies. This
-   * parameter is intended for YouTube content partners that own and manage many
-   * different YouTube channels. It allows content owners to authenticate once and
-   * perform actions on behalf of the channel specified in the parameter value,
-   * without having to provide authentication credentials for each separate
-   * channel.
+   * used in a properly [authorized
+   * request](https://developers.google.com/youtube/data/guides/authentication).
+   * *Note:* This parameter is intended exclusively for YouTube content partners.
+   * The *onBehalfOfContentOwnerChannel* parameter specifies the YouTube channel
+   * ID of the channel to which a video is being added. This parameter is required
+   * when a request specifies a value for the onBehalfOfContentOwner parameter,
+   * and it can only be used in conjunction with that parameter. In addition, the
+   * request must be authorized using a CMS account that is linked to the content
+   * owner that the onBehalfOfContentOwner parameter specifies. Finally, the
+   * channel that the onBehalfOfContentOwnerChannel parameter value specifies must
+   * be linked to the content owner that the onBehalfOfContentOwner parameter
+   * specifies. This parameter is intended for YouTube content partners that own
+   * and manage many different YouTube channels. It allows content owners to
+   * authenticate once and perform actions on behalf of the channel specified in
+   * the parameter value, without having to provide authentication credentials for
+   * each separate channel.
    * @opt_param string pageToken The *pageToken* parameter identifies a specific
    * page in the result set that should be returned. In an API response, the
    * nextPageToken and prevPageToken properties identify other pages that could be
@@ -291,21 +296,22 @@ class LiveBroadcasts extends \Google\Service\Resource
    * channel. The CMS account that the user authenticates with must be linked to
    * the specified YouTube content owner.
    * @opt_param string onBehalfOfContentOwnerChannel This parameter can only be
-   * used in a properly authorized request. *Note:* This parameter is intended
-   * exclusively for YouTube content partners. The *onBehalfOfContentOwnerChannel*
-   * parameter specifies the YouTube channel ID of the channel to which a video is
-   * being added. This parameter is required when a request specifies a value for
-   * the onBehalfOfContentOwner parameter, and it can only be used in conjunction
-   * with that parameter. In addition, the request must be authorized using a CMS
-   * account that is linked to the content owner that the onBehalfOfContentOwner
-   * parameter specifies. Finally, the channel that the
-   * onBehalfOfContentOwnerChannel parameter value specifies must be linked to the
-   * content owner that the onBehalfOfContentOwner parameter specifies. This
-   * parameter is intended for YouTube content partners that own and manage many
-   * different YouTube channels. It allows content owners to authenticate once and
-   * perform actions on behalf of the channel specified in the parameter value,
-   * without having to provide authentication credentials for each separate
-   * channel.
+   * used in a properly [authorized
+   * request](https://developers.google.com/youtube/data/guides/authentication).
+   * *Note:* This parameter is intended exclusively for YouTube content partners.
+   * The *onBehalfOfContentOwnerChannel* parameter specifies the YouTube channel
+   * ID of the channel to which a video is being added. This parameter is required
+   * when a request specifies a value for the onBehalfOfContentOwner parameter,
+   * and it can only be used in conjunction with that parameter. In addition, the
+   * request must be authorized using a CMS account that is linked to the content
+   * owner that the onBehalfOfContentOwner parameter specifies. Finally, the
+   * channel that the onBehalfOfContentOwnerChannel parameter value specifies must
+   * be linked to the content owner that the onBehalfOfContentOwner parameter
+   * specifies. This parameter is intended for YouTube content partners that own
+   * and manage many different YouTube channels. It allows content owners to
+   * authenticate once and perform actions on behalf of the channel specified in
+   * the parameter value, without having to provide authentication credentials for
+   * each separate channel.
    * @return LiveBroadcast
    * @throws \Google\Service\Exception
    */
@@ -346,21 +352,22 @@ class LiveBroadcasts extends \Google\Service\Resource
    * channel. The CMS account that the user authenticates with must be linked to
    * the specified YouTube content owner.
    * @opt_param string onBehalfOfContentOwnerChannel This parameter can only be
-   * used in a properly authorized request. *Note:* This parameter is intended
-   * exclusively for YouTube content partners. The *onBehalfOfContentOwnerChannel*
-   * parameter specifies the YouTube channel ID of the channel to which a video is
-   * being added. This parameter is required when a request specifies a value for
-   * the onBehalfOfContentOwner parameter, and it can only be used in conjunction
-   * with that parameter. In addition, the request must be authorized using a CMS
-   * account that is linked to the content owner that the onBehalfOfContentOwner
-   * parameter specifies. Finally, the channel that the
-   * onBehalfOfContentOwnerChannel parameter value specifies must be linked to the
-   * content owner that the onBehalfOfContentOwner parameter specifies. This
-   * parameter is intended for YouTube content partners that own and manage many
-   * different YouTube channels. It allows content owners to authenticate once and
-   * perform actions on behalf of the channel specified in the parameter value,
-   * without having to provide authentication credentials for each separate
-   * channel.
+   * used in a properly [authorized
+   * request](https://developers.google.com/youtube/data/guides/authentication).
+   * *Note:* This parameter is intended exclusively for YouTube content partners.
+   * The *onBehalfOfContentOwnerChannel* parameter specifies the YouTube channel
+   * ID of the channel to which a video is being added. This parameter is required
+   * when a request specifies a value for the onBehalfOfContentOwner parameter,
+   * and it can only be used in conjunction with that parameter. In addition, the
+   * request must be authorized using a CMS account that is linked to the content
+   * owner that the onBehalfOfContentOwner parameter specifies. Finally, the
+   * channel that the onBehalfOfContentOwnerChannel parameter value specifies must
+   * be linked to the content owner that the onBehalfOfContentOwner parameter
+   * specifies. This parameter is intended for YouTube content partners that own
+   * and manage many different YouTube channels. It allows content owners to
+   * authenticate once and perform actions on behalf of the channel specified in
+   * the parameter value, without having to provide authentication credentials for
+   * each separate channel.
    * @return LiveBroadcast
    * @throws \Google\Service\Exception
    */

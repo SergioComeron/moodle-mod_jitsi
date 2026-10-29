@@ -398,8 +398,8 @@ class Video extends \Google\Model
     return $this->suggestions;
   }
   /**
-   * The topicDetails object encapsulates information about Freebase topics
-   * associated with the video.
+   * The topicDetails object encapsulates information about
+   * [Freebase](http://www.freebase.com) topics associated with the video.
    *
    * @param VideoTopicDetails $topicDetails
    */

@@ -20,8 +20,10 @@ namespace Google\Service\YouTube;
 class MonitorStreamInfo extends \Google\Model
 {
   /**
-   * If you have set the enableMonitorStream property to true, then this
-   * property determines the length of the live broadcast delay.
+   * If you have set the [`enableMonitorStream`](https://developers.google.com/y
+   * outube/data/live/reference/rest/v3/liveBroadcasts#contentDetails.monitorStr
+   * eam.enableMonitorStream) property to true, then this property determines
+   * the length of the live broadcast delay.
    *
    * @var string
    */
@@ -47,8 +49,10 @@ class MonitorStreamInfo extends \Google\Model
   public $enableMonitorStream;
 
   /**
-   * If you have set the enableMonitorStream property to true, then this
-   * property determines the length of the live broadcast delay.
+   * If you have set the [`enableMonitorStream`](https://developers.google.com/y
+   * outube/data/live/reference/rest/v3/liveBroadcasts#contentDetails.monitorStr
+   * eam.enableMonitorStream) property to true, then this property determines
+   * the length of the live broadcast delay.
    *
    * @param string $broadcastStreamDelayMs
    */

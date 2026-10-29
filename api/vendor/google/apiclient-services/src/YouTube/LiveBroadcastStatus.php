@@ -89,8 +89,9 @@ class LiveBroadcastStatus extends \Google\Model
    */
   public const RECORDING_STATUS_recorded = 'recorded';
   /**
-   * The broadcast's status. The status can be updated using the API's
-   * liveBroadcasts.transition method.
+   * The broadcast's status. The status can be updated using the API's [`liveBro
+   * adcasts.transition`](https://developers.google.com/youtube/data/live/refere
+   * nce/rest/v3/liveBroadcasts/transition) method.
    *
    * @var string
    */
@@ -112,8 +113,9 @@ class LiveBroadcastStatus extends \Google\Model
    * The broadcast's privacy status. Note that the broadcast represents exactly
    * one YouTube video, so the privacy settings are identical to those supported
    * for videos. In addition, you can set this field by modifying the broadcast
-   * resource or by setting the privacyStatus field of the corresponding video
-   * resource.
+   * resource or by setting the [`privacyStatus`](https://developers.google.com/
+   * youtube/data/reference/rest/v3/videos#status.privacyStatus) field of the
+   * corresponding video resource.
    *
    * @var string
    */
@@ -133,8 +135,9 @@ class LiveBroadcastStatus extends \Google\Model
   public $selfDeclaredMadeForKids;
 
   /**
-   * The broadcast's status. The status can be updated using the API's
-   * liveBroadcasts.transition method.
+   * The broadcast's status. The status can be updated using the API's [`liveBro
+   * adcasts.transition`](https://developers.google.com/youtube/data/live/refere
+   * nce/rest/v3/liveBroadcasts/transition) method.
    *
    * Accepted values: lifeCycleStatusUnspecified, created, ready, testing, live,
    * complete, revoked, testStarting, liveStarting
@@ -191,8 +194,9 @@ class LiveBroadcastStatus extends \Google\Model
    * The broadcast's privacy status. Note that the broadcast represents exactly
    * one YouTube video, so the privacy settings are identical to those supported
    * for videos. In addition, you can set this field by modifying the broadcast
-   * resource or by setting the privacyStatus field of the corresponding video
-   * resource.
+   * resource or by setting the [`privacyStatus`](https://developers.google.com/
+   * youtube/data/reference/rest/v3/videos#status.privacyStatus) field of the
+   * corresponding video resource.
    *
    * Accepted values: public, unlisted, private
    *

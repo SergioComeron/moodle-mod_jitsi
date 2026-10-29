@@ -25,6 +25,8 @@ class VpnTunnelCipherSuite extends \Google\Model
   protected $phase2DataType = '';
 
   /**
+   * Cipher algorithms for IKE phase 1.
+   *
    * @param VpnTunnelPhase1Algorithms $phase1
    */
   public function setPhase1(VpnTunnelPhase1Algorithms $phase1)
@@ -39,6 +41,8 @@ class VpnTunnelCipherSuite extends \Google\Model
     return $this->phase1;
   }
   /**
+   * Cipher algorithms for IKE phase 2.
+   *
    * @param VpnTunnelPhase2Algorithms $phase2
    */
   public function setPhase2(VpnTunnelPhase2Algorithms $phase2)

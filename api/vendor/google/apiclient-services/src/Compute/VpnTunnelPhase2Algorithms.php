@@ -21,19 +21,27 @@ class VpnTunnelPhase2Algorithms extends \Google\Collection
 {
   protected $collection_key = 'pfs';
   /**
+   * Encryption algorithms for IKE phase 2.
+   *
    * @var string[]
    */
   public $encryption;
   /**
+   * Integrity algorithms for IKE phase 2.
+   *
    * @var string[]
    */
   public $integrity;
   /**
+   * Perfect Forward Secrecy (PFS) groups for IKE phase 2.
+   *
    * @var string[]
    */
   public $pfs;
 
   /**
+   * Encryption algorithms for IKE phase 2.
+   *
    * @param string[] $encryption
    */
   public function setEncryption($encryption)
@@ -48,6 +56,8 @@ class VpnTunnelPhase2Algorithms extends \Google\Collection
     return $this->encryption;
   }
   /**
+   * Integrity algorithms for IKE phase 2.
+   *
    * @param string[] $integrity
    */
   public function setIntegrity($integrity)
@@ -62,6 +72,8 @@ class VpnTunnelPhase2Algorithms extends \Google\Collection
     return $this->integrity;
   }
   /**
+   * Perfect Forward Secrecy (PFS) groups for IKE phase 2.
+   *
    * @param string[] $pfs
    */
   public function setPfs($pfs)
