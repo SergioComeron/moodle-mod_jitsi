@@ -154,8 +154,12 @@ class Scheduling extends \Google\Collection
    */
   public $provisioningModel;
   /**
-   * Default is false and there will be 120 seconds between GCE ACPI G2 Soft Off
-   * and ACPI G3 Mechanical Off for Standard VMs and 30 seconds for Spot VMs.
+   * Defines whether GCE ACPI G2 Soft Off signal should be skipped during
+   * shutdown operation of VM.
+   *
+   * Default is false, meaning there will be 120 seconds between GCE ACPI G2
+   * Soft Off and ACPI G3 Mechanical Off for Standard VMs and 30 seconds for
+   * Spot VMs.
    *
    * @var bool
    */
@@ -456,8 +460,12 @@ class Scheduling extends \Google\Collection
     return $this->provisioningModel;
   }
   /**
-   * Default is false and there will be 120 seconds between GCE ACPI G2 Soft Off
-   * and ACPI G3 Mechanical Off for Standard VMs and 30 seconds for Spot VMs.
+   * Defines whether GCE ACPI G2 Soft Off signal should be skipped during
+   * shutdown operation of VM.
+   *
+   * Default is false, meaning there will be 120 seconds between GCE ACPI G2
+   * Soft Off and ACPI G3 Mechanical Off for Standard VMs and 30 seconds for
+   * Spot VMs.
    *
    * @param bool $skipGuestOsShutdown
    */

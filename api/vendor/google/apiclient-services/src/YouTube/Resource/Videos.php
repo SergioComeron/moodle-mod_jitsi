@@ -146,21 +146,22 @@ class Videos extends \Google\Service\Resource
    * channel. The CMS account that the user authenticates with must be linked to
    * the specified YouTube content owner.
    * @opt_param string onBehalfOfContentOwnerChannel This parameter can only be
-   * used in a properly authorized request. *Note:* This parameter is intended
-   * exclusively for YouTube content partners. The *onBehalfOfContentOwnerChannel*
-   * parameter specifies the YouTube channel ID of the channel to which a video is
-   * being added. This parameter is required when a request specifies a value for
-   * the onBehalfOfContentOwner parameter, and it can only be used in conjunction
-   * with that parameter. In addition, the request must be authorized using a CMS
-   * account that is linked to the content owner that the onBehalfOfContentOwner
-   * parameter specifies. Finally, the channel that the
-   * onBehalfOfContentOwnerChannel parameter value specifies must be linked to the
-   * content owner that the onBehalfOfContentOwner parameter specifies. This
-   * parameter is intended for YouTube content partners that own and manage many
-   * different YouTube channels. It allows content owners to authenticate once and
-   * perform actions on behalf of the channel specified in the parameter value,
-   * without having to provide authentication credentials for each separate
-   * channel.
+   * used in a properly [authorized
+   * request](https://developers.google.com/youtube/data/guides/authentication).
+   * *Note:* This parameter is intended exclusively for YouTube content partners.
+   * The *onBehalfOfContentOwnerChannel* parameter specifies the YouTube channel
+   * ID of the channel to which a video is being added. This parameter is required
+   * when a request specifies a value for the onBehalfOfContentOwner parameter,
+   * and it can only be used in conjunction with that parameter. In addition, the
+   * request must be authorized using a CMS account that is linked to the content
+   * owner that the onBehalfOfContentOwner parameter specifies. Finally, the
+   * channel that the onBehalfOfContentOwnerChannel parameter value specifies must
+   * be linked to the content owner that the onBehalfOfContentOwner parameter
+   * specifies. This parameter is intended for YouTube content partners that own
+   * and manage many different YouTube channels. It allows content owners to
+   * authenticate once and perform actions on behalf of the channel specified in
+   * the parameter value, without having to provide authentication credentials for
+   * each separate channel.
    * @opt_param bool stabilize Should stabilize be applied to the upload.
    * @return Video
    * @throws \Google\Service\Exception
@@ -194,9 +195,12 @@ class Videos extends \Google\Service\Resource
    * @opt_param int maxHeight
    * @opt_param string maxResults The *maxResults* parameter specifies the maximum
    * number of items that should be returned in the result set. *Note:* This
-   * parameter is supported for use in conjunction with the myRating and chart
-   * parameters, but it is not supported for use in conjunction with the id
-   * parameter.
+   * parameter is supported for use in conjunction with the [`myRating`](https://d
+   * evelopers.google.com/youtube/data/reference/rest/v3/videos/list#myRating) and
+   * [`chart`](https://developers.google.com/youtube/data/reference/rest/v3/videos
+   * /list#chart) parameters, but it is not supported for use in conjunction with
+   * the [`id`](https://developers.google.com/youtube/data/reference/rest/v3/video
+   * s/list#id) parameter.
    * @opt_param int maxWidth Return the player with maximum height specified in
    * @opt_param string myRating Return videos liked/disliked by the authenticated
    * user. Does not support RateType.RATED_TYPE_NONE.
@@ -214,8 +218,11 @@ class Videos extends \Google\Service\Resource
    * page in the result set that should be returned. In an API response, the
    * nextPageToken and prevPageToken properties identify other pages that could be
    * retrieved. *Note:* This parameter is supported for use in conjunction with
-   * the myRating and chart parameters, but it is not supported for use in
-   * conjunction with the id parameter.
+   * the [`myRating`](https://developers.google.com/youtube/data/reference/rest/v3
+   * /videos/list#myRating) and [`chart`](https://developers.google.com/youtube/da
+   * ta/reference/rest/v3/videos/list#chart) parameters, but it is not supported
+   * for use in conjunction with the [`id`](https://developers.google.com/youtube/
+   * data/reference/rest/v3/videos/list#id) parameter.
    * @opt_param string regionCode Use a chart that is specific to the specified
    * region
    * @opt_param string videoCategoryId Use chart that is specific to the specified

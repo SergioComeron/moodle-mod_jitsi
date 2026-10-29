@@ -48,7 +48,9 @@ class LiveBroadcastContentDetails extends \Google\Model
   protected $availabilityConfigType = AvailabilityConfig::class;
   protected $availabilityConfigDataType = '';
   /**
-   * This value uniquely identifies the live stream bound to the broadcast.
+   * This value uniquely identifies the [`live stream`](https://developers.googl
+   * e.com/youtube/data/live/reference/rest/v3/liveStreams) bound to the
+   * broadcast.
    *
    * @var string
    */
@@ -137,9 +139,11 @@ class LiveBroadcastContentDetails extends \Google\Model
   /**
    * The mesh for projecting the video if projection is mesh. The mesh value
    * must be a UTF-8 string containing the base-64 encoding of 3D mesh data that
-   * follows the Spherical Video V2 RFC specification for an mshp box, excluding
-   * the box size and type but including the following four reserved zero bytes
-   * for the version and flags.
+   * follows the [Spherical Video V2 RFC
+   * specification](https://github.com/google/spatial-
+   * media/blob/master/docs/spherical-video-v2-rfc.md) for an mshp box,
+   * excluding the box size and type but including the following four reserved
+   * zero bytes for the version and flags.
    *
    * @var string
    */
@@ -166,10 +170,13 @@ class LiveBroadcastContentDetails extends \Google\Model
   public $recordFromStart;
   /**
    * This setting indicates whether the broadcast should automatically begin
-   * with an in-stream slate when you update the broadcast's status to live.
-   * After updating the status, you then need to send a liveCuepoints.insert
-   * request that sets the cuepoint's eventState to end to remove the in-stream
-   * slate and make your broadcast stream visible to viewers.
+   * with an [in-stream
+   * slate](https://developers.google.com/youtube/data/live/getting-
+   * started#Displaying_Slates) when you update the broadcast's status to live.
+   * After updating the status, you then need to send a [`liveCuepoints.insert`]
+   * (https://developers.google.com/youtube/data/live/reference/rest/v3/liveCuep
+   * oints/insert) request that sets the cuepoint's eventState to end to remove
+   * the in-stream slate and make your broadcast stream visible to viewers.
    *
    * @deprecated
    * @var bool
@@ -201,7 +208,9 @@ class LiveBroadcastContentDetails extends \Google\Model
     return $this->availabilityConfig;
   }
   /**
-   * This value uniquely identifies the live stream bound to the broadcast.
+   * This value uniquely identifies the [`live stream`](https://developers.googl
+   * e.com/youtube/data/live/reference/rest/v3/liveStreams) bound to the
+   * broadcast.
    *
    * @param string $boundStreamId
    */
@@ -404,9 +413,11 @@ class LiveBroadcastContentDetails extends \Google\Model
   /**
    * The mesh for projecting the video if projection is mesh. The mesh value
    * must be a UTF-8 string containing the base-64 encoding of 3D mesh data that
-   * follows the Spherical Video V2 RFC specification for an mshp box, excluding
-   * the box size and type but including the following four reserved zero bytes
-   * for the version and flags.
+   * follows the [Spherical Video V2 RFC
+   * specification](https://github.com/google/spatial-
+   * media/blob/master/docs/spherical-video-v2-rfc.md) for an mshp box,
+   * excluding the box size and type but including the following four reserved
+   * zero bytes for the version and flags.
    *
    * @param string $mesh
    */
@@ -481,10 +492,13 @@ class LiveBroadcastContentDetails extends \Google\Model
   }
   /**
    * This setting indicates whether the broadcast should automatically begin
-   * with an in-stream slate when you update the broadcast's status to live.
-   * After updating the status, you then need to send a liveCuepoints.insert
-   * request that sets the cuepoint's eventState to end to remove the in-stream
-   * slate and make your broadcast stream visible to viewers.
+   * with an [in-stream
+   * slate](https://developers.google.com/youtube/data/live/getting-
+   * started#Displaying_Slates) when you update the broadcast's status to live.
+   * After updating the status, you then need to send a [`liveCuepoints.insert`]
+   * (https://developers.google.com/youtube/data/live/reference/rest/v3/liveCuep
+   * oints/insert) request that sets the cuepoint's eventState to end to remove
+   * the in-stream slate and make your broadcast stream visible to viewers.
    *
    * @deprecated
    * @param bool $startWithSlate

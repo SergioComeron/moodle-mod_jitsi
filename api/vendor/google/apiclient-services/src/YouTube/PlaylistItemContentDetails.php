@@ -47,8 +47,9 @@ class PlaylistItemContentDetails extends \Google\Model
    */
   public $startAt;
   /**
-   * The ID that YouTube uses to uniquely identify a video. To retrieve the
-   * video resource, set the id query parameter to this value in your API
+   * The ID that YouTube uses to uniquely identify a video. To [retrieve the
+   * `video` resource](https://developers.google.com/youtube/data/reference/rest
+   * /v3/videos/list), set the id query parameter to this value in your API
    * request.
    *
    * @var string
@@ -121,8 +122,9 @@ class PlaylistItemContentDetails extends \Google\Model
     return $this->startAt;
   }
   /**
-   * The ID that YouTube uses to uniquely identify a video. To retrieve the
-   * video resource, set the id query parameter to this value in your API
+   * The ID that YouTube uses to uniquely identify a video. To [retrieve the
+   * `video` resource](https://developers.google.com/youtube/data/reference/rest
+   * /v3/videos/list), set the id query parameter to this value in your API
    * request.
    *
    * @param string $videoId

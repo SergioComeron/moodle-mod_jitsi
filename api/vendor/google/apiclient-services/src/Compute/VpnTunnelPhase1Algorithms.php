@@ -21,23 +21,33 @@ class VpnTunnelPhase1Algorithms extends \Google\Collection
 {
   protected $collection_key = 'prf';
   /**
+   * Diffie-Hellman groups for IKE phase 1.
+   *
    * @var string[]
    */
   public $dh;
   /**
+   * Encryption algorithms for IKE phase 1.
+   *
    * @var string[]
    */
   public $encryption;
   /**
+   * Integrity algorithms for IKE phase 1.
+   *
    * @var string[]
    */
   public $integrity;
   /**
+   * Pseudo-random functions (PRF) for IKE phase 1.
+   *
    * @var string[]
    */
   public $prf;
 
   /**
+   * Diffie-Hellman groups for IKE phase 1.
+   *
    * @param string[] $dh
    */
   public function setDh($dh)
@@ -52,6 +62,8 @@ class VpnTunnelPhase1Algorithms extends \Google\Collection
     return $this->dh;
   }
   /**
+   * Encryption algorithms for IKE phase 1.
+   *
    * @param string[] $encryption
    */
   public function setEncryption($encryption)
@@ -66,6 +78,8 @@ class VpnTunnelPhase1Algorithms extends \Google\Collection
     return $this->encryption;
   }
   /**
+   * Integrity algorithms for IKE phase 1.
+   *
    * @param string[] $integrity
    */
   public function setIntegrity($integrity)
@@ -80,6 +94,8 @@ class VpnTunnelPhase1Algorithms extends \Google\Collection
     return $this->integrity;
   }
   /**
+   * Pseudo-random functions (PRF) for IKE phase 1.
+   *
    * @param string[] $prf
    */
   public function setPrf($prf)

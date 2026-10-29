@@ -37,7 +37,8 @@ class VideoSnippet extends \Google\Collection
   public const LIVE_BROADCAST_CONTENT_completed = 'completed';
   protected $collection_key = 'tags';
   /**
-   * The YouTube video category associated with the video.
+   * The YouTube [video category](https://developers.google.com/youtube/data/ref
+   * erence/rest/v3/videoCategories/list) associated with the video.
    *
    * @var string
    */
@@ -106,7 +107,8 @@ class VideoSnippet extends \Google\Collection
   public $title;
 
   /**
-   * The YouTube video category associated with the video.
+   * The YouTube [video category](https://developers.google.com/youtube/data/ref
+   * erence/rest/v3/videoCategories/list) associated with the video.
    *
    * @param string $categoryId
    */

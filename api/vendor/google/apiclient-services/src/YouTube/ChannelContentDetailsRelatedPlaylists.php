@@ -21,33 +21,41 @@ class ChannelContentDetailsRelatedPlaylists extends \Google\Model
 {
   /**
    * The ID of the playlist that contains the channel"s favorite videos. Use the
-   * playlistItems.insert and playlistItems.delete to add or remove items from
-   * that list.
+   * [`playlistItems.insert`](https://developers.google.com/youtube/data/referen
+   * ce/rest/v3/playlistItems/insert) and [`playlistItems.delete`](https://devel
+   * opers.google.com/youtube/data/reference/rest/v3/playlistItems/delete) to
+   * add or remove items from that list.
    *
    * @deprecated
    * @var string
    */
   public $favorites;
   /**
-   * The ID of the playlist that contains the channel"s liked videos. Use the
-   * playlistItems.insert and playlistItems.delete to add or remove items from
-   * that list.
+   * The ID of the playlist that contains the channel"s liked videos. Use the [`
+   * playlistItems.insert`](https://developers.google.com/youtube/data/reference
+   * /rest/v3/playlistItems/insert) and [`playlistItems.delete`](https://develop
+   * ers.google.com/youtube/data/reference/rest/v3/playlistItems/delete) to add
+   * or remove items from that list.
    *
    * @var string
    */
   public $likes;
   /**
    * The ID of the playlist that contains the channel"s uploaded videos. Use the
-   * videos.insert method to upload new videos and the videos.delete method to
-   * delete previously uploaded videos.
+   * [`videos.insert`](https://developers.google.com/youtube/data/reference/rest
+   * /v3/videos/insert) method to upload new videos and the [`videos.delete`](ht
+   * tps://developers.google.com/youtube/data/reference/rest/v3/videos/delete)
+   * method to delete previously uploaded videos.
    *
    * @var string
    */
   public $uploads;
   /**
-   * The ID of the playlist that contains the channel"s watch history. Use the
-   * playlistItems.insert and playlistItems.delete to add or remove items from
-   * that list.
+   * The ID of the playlist that contains the channel"s watch history. Use the [
+   * `playlistItems.insert`](https://developers.google.com/youtube/data/referenc
+   * e/rest/v3/playlistItems/insert) and [`playlistItems.delete`](https://develo
+   * pers.google.com/youtube/data/reference/rest/v3/playlistItems/delete) to add
+   * or remove items from that list.
    *
    * @deprecated
    * @var string
@@ -55,8 +63,10 @@ class ChannelContentDetailsRelatedPlaylists extends \Google\Model
   public $watchHistory;
   /**
    * The ID of the playlist that contains the channel"s watch later playlist.
-   * Use the playlistItems.insert and playlistItems.delete to add or remove
-   * items from that list.
+   * Use the [`playlistItems.insert`](https://developers.google.com/youtube/data
+   * /reference/rest/v3/playlistItems/insert) and [`playlistItems.delete`](https
+   * ://developers.google.com/youtube/data/reference/rest/v3/playlistItems/delet
+   * e) to add or remove items from that list.
    *
    * @deprecated
    * @var string
@@ -65,8 +75,10 @@ class ChannelContentDetailsRelatedPlaylists extends \Google\Model
 
   /**
    * The ID of the playlist that contains the channel"s favorite videos. Use the
-   * playlistItems.insert and playlistItems.delete to add or remove items from
-   * that list.
+   * [`playlistItems.insert`](https://developers.google.com/youtube/data/referen
+   * ce/rest/v3/playlistItems/insert) and [`playlistItems.delete`](https://devel
+   * opers.google.com/youtube/data/reference/rest/v3/playlistItems/delete) to
+   * add or remove items from that list.
    *
    * @deprecated
    * @param string $favorites
@@ -84,9 +96,11 @@ class ChannelContentDetailsRelatedPlaylists extends \Google\Model
     return $this->favorites;
   }
   /**
-   * The ID of the playlist that contains the channel"s liked videos. Use the
-   * playlistItems.insert and playlistItems.delete to add or remove items from
-   * that list.
+   * The ID of the playlist that contains the channel"s liked videos. Use the [`
+   * playlistItems.insert`](https://developers.google.com/youtube/data/reference
+   * /rest/v3/playlistItems/insert) and [`playlistItems.delete`](https://develop
+   * ers.google.com/youtube/data/reference/rest/v3/playlistItems/delete) to add
+   * or remove items from that list.
    *
    * @param string $likes
    */
@@ -103,8 +117,10 @@ class ChannelContentDetailsRelatedPlaylists extends \Google\Model
   }
   /**
    * The ID of the playlist that contains the channel"s uploaded videos. Use the
-   * videos.insert method to upload new videos and the videos.delete method to
-   * delete previously uploaded videos.
+   * [`videos.insert`](https://developers.google.com/youtube/data/reference/rest
+   * /v3/videos/insert) method to upload new videos and the [`videos.delete`](ht
+   * tps://developers.google.com/youtube/data/reference/rest/v3/videos/delete)
+   * method to delete previously uploaded videos.
    *
    * @param string $uploads
    */
@@ -120,9 +136,11 @@ class ChannelContentDetailsRelatedPlaylists extends \Google\Model
     return $this->uploads;
   }
   /**
-   * The ID of the playlist that contains the channel"s watch history. Use the
-   * playlistItems.insert and playlistItems.delete to add or remove items from
-   * that list.
+   * The ID of the playlist that contains the channel"s watch history. Use the [
+   * `playlistItems.insert`](https://developers.google.com/youtube/data/referenc
+   * e/rest/v3/playlistItems/insert) and [`playlistItems.delete`](https://develo
+   * pers.google.com/youtube/data/reference/rest/v3/playlistItems/delete) to add
+   * or remove items from that list.
    *
    * @deprecated
    * @param string $watchHistory
@@ -141,8 +159,10 @@ class ChannelContentDetailsRelatedPlaylists extends \Google\Model
   }
   /**
    * The ID of the playlist that contains the channel"s watch later playlist.
-   * Use the playlistItems.insert and playlistItems.delete to add or remove
-   * items from that list.
+   * Use the [`playlistItems.insert`](https://developers.google.com/youtube/data
+   * /reference/rest/v3/playlistItems/insert) and [`playlistItems.delete`](https
+   * ://developers.google.com/youtube/data/reference/rest/v3/playlistItems/delet
+   * e) to add or remove items from that list.
    *
    * @deprecated
    * @param string $watchLater
