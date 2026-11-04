@@ -29,6 +29,9 @@ use core_external\external_value;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class participating_session extends external_api {
+    /** @var int Minimum seconds between two participation rows of the same user in the same activity. */
+    const MIN_INTERVAL = 55;
+
     /**
      * Returns description of method parameters.
      *
@@ -48,20 +51,40 @@ class participating_session extends external_api {
      * @param int $jitsi Jitsi session id
      * @param int $user User id
      * @param int $cmid Course Module id
+     * @return string 'ok' if the participation was recorded, 'ignored' if it came too soon
      */
     public static function execute($jitsi, $user, $cmid) {
-        global $DB;
-        $context = \context_module::instance($cmid);
-        $jitsiob = $DB->get_record('jitsi', ['id' => $jitsi]);
-        $course = $DB->get_record('course', ['id' => $jitsiob->course]);
+        global $DB, $USER;
+
+        $params = self::validate_parameters(
+            self::execute_parameters(),
+            ['jitsi' => $jitsi, 'user' => $user, 'cmid' => $cmid]
+        );
+        // The 'user' parameter is ignored: the event is always logged for the current user.
+        [$jitsiob, $cm, $course, $context] = \mod_jitsi\local\external_access::validate_activity(
+            $params['jitsi'],
+            $params['cmid']
+        );
+        // Each row counts as one minute of attendance: accept at most one per user and activity per minute.
+        $last = $DB->get_field_sql(
+            "SELECT MAX(timecreated) FROM {logstore_standard_log}
+              WHERE userid = :userid AND contextlevel = :contextlevel
+                AND contextinstanceid = :cmid AND action = 'participating'",
+            ['userid' => $USER->id, 'contextlevel' => CONTEXT_MODULE, 'cmid' => $cm->id]
+        );
+        if ($last && (time() - $last) < self::MIN_INTERVAL) {
+            return 'ignored';
+        }
+
         $event = \mod_jitsi\event\jitsi_session_participating::create([
-            'objectid' => $jitsi,
+            'objectid' => $jitsiob->id,
             'context' => $context,
         ]);
         $event->add_record_snapshot('course', $course);
         $event->add_record_snapshot('jitsi', $jitsiob);
         $event->trigger();
-        \mod_jitsi\local\attendance::update_completion(get_coursemodule_from_id('jitsi', $cmid, 0, false, MUST_EXIST));
+        \mod_jitsi\local\attendance::update_completion($cm);
+        return 'ok';
     }
 
     /**

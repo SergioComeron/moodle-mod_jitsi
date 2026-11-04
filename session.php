@@ -37,32 +37,20 @@ if ($state == null) {
     $courseid = required_param('courseid', PARAM_INT);
     $cmid = required_param('cmid', PARAM_INT);
     $nombre = required_param('nom', PARAM_TEXT);
-    $session = required_param('ses', PARAM_TEXT);
-    $avatar = get_config('mod_jitsi', 'showavatars') == true ? required_param('avatar', PARAM_TEXT) : null;
-    $teacher = required_param('t', PARAM_BOOL);
 } else {
     $paramdecode = \mod_jitsi\local\util::base64url_decode($state);
     $parametrosarray = explode("&", $paramdecode);
-    $avatararray = $parametrosarray[0];
     $nomarray = $parametrosarray[1];
-    $sessionarray = $parametrosarray[2];
     $coursearray = $parametrosarray[3];
     $cmidarray = $parametrosarray[4];
-    $tarray = $parametrosarray[5];
     $statesesarray = $parametrosarray[6];
-    $avatara = explode("=", $avatararray);
     $nombrea = explode("=", $nomarray);
-    $sessiona = explode("=", $sessionarray);
     $courseida = explode("=", $coursearray);
     $cmida = explode("=", $cmidarray);
-    $teachera = explode("=", $tarray);
     $statesesa = explode("=", $statesesarray);
-    $avatar = $avatara[1];
     $nombre = $nombrea[1];
-    $session = $sessiona[1];
     $courseid = $courseida[1];
     $cmid = $cmida[1];
-    $teacher = $teachera[1];
     $stateses = $statesesa[1];
 }
 
@@ -80,6 +68,14 @@ echo $OUTPUT->header();
 
 $context = context_module::instance($cm->id);
 $PAGE->set_context($context);
+
+// Never trust the client-supplied room ('ses'), avatar or 't' flag: the room is derived from the
+// validated course module and the avatar from the logged-in user.
+$session = \mod_jitsi\local\room::for_activity($jitsi, $course);
+if ($session === null) {
+    throw new moodle_exception('invalidcoursemodule');
+}
+$avatar = get_config('mod_jitsi', 'showavatars') ? $CFG->wwwroot . '/user/pix.php/' . $USER->id . '/f1.jpg' : null;
 
 // Never trust the client-supplied 't' flag: the moderator/teacher privileges (which drive the
 // JWT recording/streaming features) must be derived from the real capability, server-side.

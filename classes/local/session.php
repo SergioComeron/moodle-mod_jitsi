@@ -24,6 +24,9 @@ namespace mod_jitsi\local;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class session {
+    /** @var int Lifetime in seconds of the JaaS (8x8) tokens, which are scoped to a single room. */
+    const JAAS_TOKEN_LIFETIME = 4 * 3600;
+
     /**
      * Build the room name and (optionally) the signed JWT for a session, per server type.
      *
@@ -65,9 +68,9 @@ class session {
             $payload = json_encode([
                 'iss' => 'chat',
                 'aud' => 'jitsi',
-                'exp' => time() + 24 * 3600,
+                'exp' => time() + self::JAAS_TOKEN_LIFETIME,
                 'nbf' => time() - 10,
-                'room' => '*',
+                'room' => $sessionnorm,
                 'sub' => $eightbyeightappid,
                 'context' => [
                     'user' => [
@@ -708,9 +711,9 @@ class session {
             $payload = json_encode([
                 'iss' => 'chat',
                 'aud' => 'jitsi',
-                'exp' => time() + 24 * 3600,
+                'exp' => time() + self::JAAS_TOKEN_LIFETIME,
                 'nbf' => time() - 10,
-                'room' => '*',
+                'room' => $sessionnorm,
                 'sub' => $eightbyeightappid,
                 'context' => [
                     'user' => [

@@ -62,9 +62,9 @@ class userstocall_form extends moodleform {
 global $USER, $DB, $PAGE, $CFG;
 
 $userid = required_param('user', PARAM_INT);
-$userstocall = optional_param_array('userstocall', null, PARAM_RAW);
+$userstocall = optional_param_array('userstocall', null, PARAM_INT);
 
-$user = $DB->get_record('user', ['id' => $userid]);
+$user = $DB->get_record('user', ['id' => $userid, 'deleted' => 0], '*', MUST_EXIST);
 
 $PAGE->set_context(context_system::instance());
 require_login();
@@ -73,10 +73,14 @@ require_login();
 $PAGE->set_title(format_string($user->firstname));
 $PAGE->set_heading(format_string($user->firstname));
 
-if ($userstocall != null) {
+if ($userstocall != null && get_config('mod_jitsi', 'privatesessions')) {
+    // The call always comes from the current user, and only through a form post with sesskey.
+    require_sesskey();
     foreach ($userstocall as $usertocall) {
-        $usertocallob = $DB->get_record('user', ['id' => $usertocall]);
-        \mod_jitsi\local\notification::notify_call($user, $usertocallob);
+        $usertocallob = $DB->get_record('user', ['id' => $usertocall, 'deleted' => 0]);
+        if ($usertocallob && $usertocallob->id != $USER->id) {
+            \mod_jitsi\local\notification::notify_call($USER, $usertocallob);
+        }
     }
 }
 

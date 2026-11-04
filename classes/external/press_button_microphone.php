@@ -50,12 +50,17 @@ class press_button_microphone extends external_api {
      * @param int $cmid Course Module id
      */
     public static function execute($jitsi, $user, $cmid) {
-        global $DB;
-        $context = \context_module::instance($cmid);
-        $jitsiob = $DB->get_record('jitsi', ['id' => $jitsi]);
-        $course = $DB->get_record('course', ['id' => $jitsiob->course]);
+        $params = self::validate_parameters(
+            self::execute_parameters(),
+            ['jitsi' => $jitsi, 'user' => $user, 'cmid' => $cmid]
+        );
+        // The 'user' parameter is ignored: the event is always logged for the current user.
+        [$jitsiob, $cm, $course, $context] = \mod_jitsi\local\external_access::validate_activity(
+            $params['jitsi'],
+            $params['cmid']
+        );
         $event = \mod_jitsi\event\jitsi_press_button_microphone::create([
-            'objectid' => $jitsi,
+            'objectid' => $jitsiob->id,
             'context' => $context,
         ]);
         $event->add_record_snapshot('course', $course);

@@ -202,7 +202,7 @@ class mobile {
      * @return array HTML, javascript and otherdata
      */
     public static function mobile_session_view($args) {
-        global $OUTPUT, $CFG, $DB;
+        global $OUTPUT, $CFG, $DB, $USER;
         $serverid = get_config('mod_jitsi', 'server');
 
         // Default values for when no server is configured.
@@ -224,29 +224,36 @@ class mobile {
         // Ionic 3 (Moodle app appversioncode < 3950, ~2020) is no longer supported.
         $foldername = 'ionic5';
 
-        $courseid = $args['courseid'];
-        $cmid = $args['cmid'];
-        $nombre = $args['nom'];
-        $session = $args['ses'];
-        $sessionnorm = preg_replace('/[^a-zA-Z0-9\-_]/', '', $session);
-        $avatar = $args['avatar'];
-        $teacher = $args['t'];
+        // Only the course module is taken from the app. The room, the moderator flag, the display
+        // name and the avatar are always derived on the server ('ses', 't', 'nom' and 'avatar' are ignored).
+        $cm = get_coursemodule_from_id('jitsi', (int)$args['cmid'], 0, false, MUST_EXIST);
+        $course = $DB->get_record('course', ['id' => $cm->course], '*', MUST_EXIST);
+        $jitsi = $DB->get_record('jitsi', ['id' => $cm->instance], '*', MUST_EXIST);
 
-        require_login($courseid);
+        require_login($course, false, $cm, true, true);
 
-        if ($teacher == 1) {
-            $teacher = true;
-            $affiliation = "owner";
-        } else {
-            $teacher = false;
-            $affiliation = "member";
+        $context = context_module::instance($cm->id);
+        require_capability('mod/jitsi:view', $context);
+
+        $session = \mod_jitsi\local\room::for_activity($jitsi, $course);
+        if ($session === null) {
+            throw new \moodle_exception('invalidcoursemodule');
         }
+        $sessionnorm = \mod_jitsi\local\room::normalize_session_name($session);
 
-        $context = context_module::instance($cmid);
+        $teacher = has_capability('mod/jitsi:moderation', $context);
+        $affiliation = $teacher ? 'owner' : 'member';
 
-        if (!has_capability('mod/jitsi:view', $context)) {
-            notice(get_string('noviewpermission', 'jitsi'));
+        $nombre = '';
+        switch (get_config('mod_jitsi', 'id')) {
+            case 'username':
+                $nombre = $USER->username;
+                break;
+            case 'nameandsurname':
+                $nombre = $USER->firstname . ' ' . $USER->lastname;
+                break;
         }
+        $avatar = $CFG->wwwroot . '/user/pix.php/' . $USER->id . '/f1.jpg';
 
         $header = json_encode([
             "kid" => "jitsi/custom_key_name",
@@ -330,7 +337,7 @@ class mobile {
         $data['config'] = $config;
         $data['displayName'] = 'userInfo.displayName="' . $nombre . '"';
 
-        $interfaceconfig .= '&interfaceConfig.SHOW_JITSI_WATERMARK=false';
+        $interfaceconfig = '&interfaceConfig.SHOW_JITSI_WATERMARK=false';
         $interfaceconfig .= '&interfaceConfig.JITSI_WATERMARK_LINK=' . urlencode(
             "'" . get_config('mod_jitsi', 'watermarklink') . "'"
         );

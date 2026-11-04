@@ -39,6 +39,33 @@ class invitation {
     }
 
     /**
+     * Why a guest cannot join an activity through its invitation link right now.
+     *
+     * Repeats on the joining page the same checks that formuniversal.php shows to the guest,
+     * so that the final page cannot be reached by skipping the form.
+     *
+     * @param \stdClass $jitsi Jitsi activity record
+     * @param int|null $now Timestamp to check against (defaults to now)
+     * @return string|null Error message, or null if the guest may join
+     */
+    public static function get_access_error(\stdClass $jitsi, ?int $now = null): ?string {
+        $now = $now ?? time();
+        if (get_config('mod_jitsi', 'invitebuttons') != 1 || empty($jitsi->validitytime)) {
+            return get_string('invitationsnotactivated', 'jitsi');
+        }
+        if ($now > $jitsi->validitytime) {
+            return self::error_time($jitsi);
+        }
+        if ($jitsi->timeclose != 0 && $now >= $jitsi->timeclose) {
+            return get_string('finish', 'jitsi');
+        }
+        if ($now <= $jitsi->timeopen - ($jitsi->minpretime * 60)) {
+            return get_string('nostart', 'jitsi', userdate($jitsi->timeopen - ($jitsi->minpretime * 60)));
+        }
+        return null;
+    }
+
+    /**
      * Human-readable message explaining why an invitation link is unavailable.
      *
      * @param \stdClass $jitsi Jitsi activity record (needs validitytime)
