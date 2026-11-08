@@ -1,4 +1,26 @@
 # Changelog
+## v5.5.1
+# Fixed
+
+ * load moodlelib from the Moodle root in auth.php
+# Changed
+
+ * Merge branch 'master' into release/5.5.1
+ * Set release to 5.5.1
+ * Add PHPUnit tests for session access and web service checks
+ * Harden session access, invitation links and session web services
+ * Merge pull request #225 from SergioComeron/dependabot/composer/api/dev/google/apiclient-services-0.465.0
+ * actualiza api/vendor para google/apiclient-services 0.465.0
+ * bump google/apiclient-services in /api
+ * Merge pull request #224 from SergioComeron/dependabot/composer/api/dev/google/apiclient-services-0.464.0
+ * Update api/vendor for google/apiclient-services 0.464.0
+ * bump google/apiclient-services in /api
+ * Merge pull request #223 from SergioComeron/cursor/marketplace-release-workflow-eccc
+ * publish releases to Moodle Marketplace
+ * publish camp releases through the reusable workflow
+
+---
+
 ## v5.5.0
 # Added
 
