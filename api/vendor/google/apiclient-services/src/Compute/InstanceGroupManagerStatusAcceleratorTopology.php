@@ -28,6 +28,10 @@ class InstanceGroupManagerStatusAcceleratorTopology extends \Google\Model
    */
   public const STATE_ACTIVE = 'ACTIVE';
   /**
+   * The accelerator topology is active but operating in degraded mode.
+   */
+  public const STATE_ACTIVE_DEGRADED = 'ACTIVE_DEGRADED';
+  /**
    * The accelerator topology is being deactivated.
    */
   public const STATE_DEACTIVATING = 'DEACTIVATING';
@@ -80,8 +84,8 @@ class InstanceGroupManagerStatusAcceleratorTopology extends \Google\Model
   /**
    * Output only. The state of the accelerator topology.
    *
-   * Accepted values: ACTIVATING, ACTIVE, DEACTIVATING, FAILED, INCOMPLETE,
-   * REACTIVATING
+   * Accepted values: ACTIVATING, ACTIVE, ACTIVE_DEGRADED, DEACTIVATING, FAILED,
+   * INCOMPLETE, REACTIVATING
    *
    * @param self::STATE_* $state
    */

@@ -17,8 +17,23 @@
 
 namespace Google\Service\Compute;
 
-class MachineImageParams extends \Google\Model
+class MachineImageParams extends \Google\Collection
 {
+  protected $collection_key = 'includedDisks';
+  /**
+   * Input only. Specifies the list of disk device names that must be excluded
+   * from the new machine image.
+   *
+   * @var string[]
+   */
+  public $excludedDisks;
+  /**
+   * Input only. Specifies the list of disk device names that must be included
+   * with the new machine image.
+   *
+   * @var string[]
+   */
+  public $includedDisks;
   /**
    * Input only. Resource manager tags to be bound to the machine image. Tag
    * keys and values have the same definition as resource manager tags. Keys and
@@ -31,6 +46,40 @@ class MachineImageParams extends \Google\Model
    */
   public $resourceManagerTags;
 
+  /**
+   * Input only. Specifies the list of disk device names that must be excluded
+   * from the new machine image.
+   *
+   * @param string[] $excludedDisks
+   */
+  public function setExcludedDisks($excludedDisks)
+  {
+    $this->excludedDisks = $excludedDisks;
+  }
+  /**
+   * @return string[]
+   */
+  public function getExcludedDisks()
+  {
+    return $this->excludedDisks;
+  }
+  /**
+   * Input only. Specifies the list of disk device names that must be included
+   * with the new machine image.
+   *
+   * @param string[] $includedDisks
+   */
+  public function setIncludedDisks($includedDisks)
+  {
+    $this->includedDisks = $includedDisks;
+  }
+  /**
+   * @return string[]
+   */
+  public function getIncludedDisks()
+  {
+    return $this->includedDisks;
+  }
   /**
    * Input only. Resource manager tags to be bound to the machine image. Tag
    * keys and values have the same definition as resource manager tags. Keys and

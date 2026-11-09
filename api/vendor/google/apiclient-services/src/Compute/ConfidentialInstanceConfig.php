@@ -49,8 +49,12 @@ class ConfidentialInstanceConfig extends \Google\Model
    * @var string
    */
   public $confidentialInstanceType;
+  protected $confidentialParavisorConfigType = ConfidentialParavisorConfig::class;
+  protected $confidentialParavisorConfigDataType = '';
   /**
-   * Defines whether the instance should have confidential compute enabled.
+   * Defines whether the instance should have confidential compute enabled. When
+   * enabled, the technology used defaults to  AMD SEV unless
+   * confidentialInstanceType is specified.
    *
    * @var bool
    */
@@ -76,7 +80,25 @@ class ConfidentialInstanceConfig extends \Google\Model
     return $this->confidentialInstanceType;
   }
   /**
-   * Defines whether the instance should have confidential compute enabled.
+   * Defines a set of Confidential Paravisor (SVSM) options.
+   *
+   * @param ConfidentialParavisorConfig $confidentialParavisorConfig
+   */
+  public function setConfidentialParavisorConfig(ConfidentialParavisorConfig $confidentialParavisorConfig)
+  {
+    $this->confidentialParavisorConfig = $confidentialParavisorConfig;
+  }
+  /**
+   * @return ConfidentialParavisorConfig
+   */
+  public function getConfidentialParavisorConfig()
+  {
+    return $this->confidentialParavisorConfig;
+  }
+  /**
+   * Defines whether the instance should have confidential compute enabled. When
+   * enabled, the technology used defaults to  AMD SEV unless
+   * confidentialInstanceType is specified.
    *
    * @param bool $enableConfidentialCompute
    */

@@ -19,6 +19,9 @@ namespace Google\Service\Compute;
 
 class WorkloadIdentityConfig extends \Google\Model
 {
+  public const IDENTITY_TYPE_AGENT_IDENTITY = 'AGENT_IDENTITY';
+  public const IDENTITY_TYPE_IDENTITY_TYPE_UNSPECIFIED = 'IDENTITY_TYPE_UNSPECIFIED';
+  public const IDENTITY_TYPE_SERVICE_ACCOUNT = 'SERVICE_ACCOUNT';
   /**
    * @var string
    */
@@ -27,6 +30,10 @@ class WorkloadIdentityConfig extends \Google\Model
    * @var bool
    */
   public $identityCertificateEnabled;
+  /**
+   * @var string
+   */
+  public $identityType;
 
   /**
    * @param string $identity
@@ -55,6 +62,20 @@ class WorkloadIdentityConfig extends \Google\Model
   public function getIdentityCertificateEnabled()
   {
     return $this->identityCertificateEnabled;
+  }
+  /**
+   * @param self::IDENTITY_TYPE_* $identityType
+   */
+  public function setIdentityType($identityType)
+  {
+    $this->identityType = $identityType;
+  }
+  /**
+   * @return self::IDENTITY_TYPE_*
+   */
+  public function getIdentityType()
+  {
+    return $this->identityType;
   }
 }
 

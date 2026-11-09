@@ -34,7 +34,7 @@ use Google\Service\Compute\CapacityHistoryResponse;
  */
 class Advice extends \Google\Service\Resource
 {
-  protected $apiVersion = '2026-09-01';
+  protected $apiVersion = '2026-11-01';
 
   /**
    * Advise how, where and when to create the requested amount of instances with

@@ -24,8 +24,12 @@ class HttpRouteAction extends \Google\Collection
   protected $cachePolicyDataType = '';
   protected $corsPolicyType = CorsPolicy::class;
   protected $corsPolicyDataType = '';
+  protected $dynamicCompressionPolicyType = DynamicCompressionPolicy::class;
+  protected $dynamicCompressionPolicyDataType = '';
   protected $faultInjectionPolicyType = HttpFaultInjection::class;
   protected $faultInjectionPolicyDataType = '';
+  protected $imageOptimizationPolicyType = ImageOptimizationPolicy::class;
+  protected $imageOptimizationPolicyDataType = '';
   protected $maxStreamDurationType = Duration::class;
   protected $maxStreamDurationDataType = '';
   protected $requestMirrorPolicyType = RequestMirrorPolicy::class;
@@ -79,6 +83,23 @@ class HttpRouteAction extends \Google\Collection
     return $this->corsPolicy;
   }
   /**
+   * Dynamic compression policy for this URL Map's route. Available only for
+   * Global EXTERNAL_MANAGED load balancer schemes.
+   *
+   * @param DynamicCompressionPolicy $dynamicCompressionPolicy
+   */
+  public function setDynamicCompressionPolicy(DynamicCompressionPolicy $dynamicCompressionPolicy)
+  {
+    $this->dynamicCompressionPolicy = $dynamicCompressionPolicy;
+  }
+  /**
+   * @return DynamicCompressionPolicy
+   */
+  public function getDynamicCompressionPolicy()
+  {
+    return $this->dynamicCompressionPolicy;
+  }
+  /**
    * The specification for fault injection introduced into traffic to test the
    * resiliency of clients to backend service failure. As part of fault
    * injection, when clients send requests to a backend service, delays can be
@@ -104,6 +125,25 @@ class HttpRouteAction extends \Google\Collection
   public function getFaultInjectionPolicy()
   {
     return $this->faultInjectionPolicy;
+  }
+  /**
+   * Image optimization policy for this URL Map's route. Available only for
+   * Global EXTERNAL_MANAGED load balancer schemes. Either Cloud CDN must be
+   * enabled on the backend service or backend bucket serving the route, or
+   * cache policy must be configured on the same route
+   *
+   * @param ImageOptimizationPolicy $imageOptimizationPolicy
+   */
+  public function setImageOptimizationPolicy(ImageOptimizationPolicy $imageOptimizationPolicy)
+  {
+    $this->imageOptimizationPolicy = $imageOptimizationPolicy;
+  }
+  /**
+   * @return ImageOptimizationPolicy
+   */
+  public function getImageOptimizationPolicy()
+  {
+    return $this->imageOptimizationPolicy;
   }
   /**
    * Specifies the maximum duration (timeout) for streams on the selected route.

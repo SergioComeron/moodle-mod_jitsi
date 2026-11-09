@@ -66,6 +66,24 @@ class PublicDelegatedPrefix extends \Google\Collection
    */
   public const MODE_INTERNAL_IPV6_SUBNETWORK_CREATION = 'INTERNAL_IPV6_SUBNETWORK_CREATION';
   /**
+   * The global public delegated prefix can only be used by Global External
+   * Application and Proxy Load Balancers to allocate addresses for forwarding
+   * rules. This is the default value.
+   */
+  public const PURPOSE_APPLICATION_AND_PROXY_LOAD_BALANCERS = 'APPLICATION_AND_PROXY_LOAD_BALANCERS';
+  /**
+   * The global public delegated prefix can only be used by Global External
+   * Passthrough Network Load Balancers to allocate Availability Group 0
+   * addresses for forwarding rules.
+   */
+  public const PURPOSE_PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP0 = 'PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP0';
+  /**
+   * The global public delegated prefix can only be used by Global External
+   * Passthrough Network Load Balancers to allocate Availability Group 1
+   * addresses for forwarding rules.
+   */
+  public const PURPOSE_PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP1 = 'PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP1';
+  /**
    * The public delegated prefix is ready to use.
    */
   public const STATUS_ACTIVE = 'ACTIVE';
@@ -204,6 +222,32 @@ class PublicDelegatedPrefix extends \Google\Collection
   public $parentPrefix;
   protected $publicDelegatedSubPrefixsType = PublicDelegatedPrefixPublicDelegatedSubPrefix::class;
   protected $publicDelegatedSubPrefixsDataType = 'array';
+  /**
+   * Immutable. The purpose of the public delegated prefix.
+   *
+   * This field can only be set for the top-level global public delegated
+   * prefix. It is an output-only field for the sub-delegates that inherit the
+   * value from the top-level global public delegated prefix. Once the value is
+   * set, it cannot be changed.
+   *
+   * The field cannot be set for regional public delegated prefixes.
+   *
+   * The supported values are:              -
+   * APPLICATION_AND_PROXY_LOAD_BALANCERS: The global public      delegated
+   * prefix can only be used by Global External Application and      Proxy Load
+   * Balancers to allocate addresses for forwarding rules. This is      the
+   * default value.      - PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP0: The
+   * global public delegated prefix can only be used by Global External
+   * Passthrough Network Load Balancers to allocate Availability Group 0
+   * addresses for forwarding rules.      -
+   * PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP1: The      global public
+   * delegated prefix can only be used by Global External      Passthrough
+   * Network Load Balancers to allocate Availability Group 1      addresses for
+   * forwarding rules.
+   *
+   * @var string
+   */
+  public $purpose;
   /**
    * Output only. [Output Only] URL of the region where the public delegated
    * prefix resides. This field applies only to the region resource. You must
@@ -502,6 +546,46 @@ class PublicDelegatedPrefix extends \Google\Collection
   public function getPublicDelegatedSubPrefixs()
   {
     return $this->publicDelegatedSubPrefixs;
+  }
+  /**
+   * Immutable. The purpose of the public delegated prefix.
+   *
+   * This field can only be set for the top-level global public delegated
+   * prefix. It is an output-only field for the sub-delegates that inherit the
+   * value from the top-level global public delegated prefix. Once the value is
+   * set, it cannot be changed.
+   *
+   * The field cannot be set for regional public delegated prefixes.
+   *
+   * The supported values are:              -
+   * APPLICATION_AND_PROXY_LOAD_BALANCERS: The global public      delegated
+   * prefix can only be used by Global External Application and      Proxy Load
+   * Balancers to allocate addresses for forwarding rules. This is      the
+   * default value.      - PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP0: The
+   * global public delegated prefix can only be used by Global External
+   * Passthrough Network Load Balancers to allocate Availability Group 0
+   * addresses for forwarding rules.      -
+   * PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP1: The      global public
+   * delegated prefix can only be used by Global External      Passthrough
+   * Network Load Balancers to allocate Availability Group 1      addresses for
+   * forwarding rules.
+   *
+   * Accepted values: APPLICATION_AND_PROXY_LOAD_BALANCERS,
+   * PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP0,
+   * PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP1
+   *
+   * @param self::PURPOSE_* $purpose
+   */
+  public function setPurpose($purpose)
+  {
+    $this->purpose = $purpose;
+  }
+  /**
+   * @return self::PURPOSE_*
+   */
+  public function getPurpose()
+  {
+    return $this->purpose;
   }
   /**
    * Output only. [Output Only] URL of the region where the public delegated

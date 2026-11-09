@@ -31,7 +31,14 @@ class Snapshot extends \Google\Collection
    * Machines with architecture X86_64
    */
   public const ARCHITECTURE_X86_64 = 'X86_64';
+  /**
+   * Indicates an archive snapshot, which is recommended for long-term retention
+   * and compliance.
+   */
   public const SNAPSHOT_TYPE_ARCHIVE = 'ARCHIVE';
+  /**
+   * Indicates a standard snapshot, which is recommended for frequent restores.
+   */
   public const SNAPSHOT_TYPE_STANDARD = 'STANDARD';
   /**
    * Snapshot creation is in progress.
@@ -242,7 +249,8 @@ class Snapshot extends \Google\Collection
    */
   public $snapshotGroupName;
   /**
-   * Indicates the type of the snapshot.
+   * Indicates the type of the snapshot. Valid values are ARCHIVE or STANDARD.
+   * The default is STANDARD.
    *
    * @var string
    */
@@ -827,7 +835,8 @@ class Snapshot extends \Google\Collection
     return $this->snapshotGroupName;
   }
   /**
-   * Indicates the type of the snapshot.
+   * Indicates the type of the snapshot. Valid values are ARCHIVE or STANDARD.
+   * The default is STANDARD.
    *
    * Accepted values: ARCHIVE, STANDARD
    *

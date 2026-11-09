@@ -40,6 +40,10 @@ class NetworkAttachmentConnectedEndpoint extends \Google\Collection
    * The consumer prohibits traffic from the producer to reach its VPC.
    */
   public const STATUS_REJECTED = 'REJECTED';
+  /**
+   * There is no traffic flowing in this state, only the address is reserved.
+   */
+  public const STATUS_RESERVED = 'RESERVED';
   public const STATUS_STATUS_UNSPECIFIED = 'STATUS_UNSPECIFIED';
   protected $collection_key = 'secondaryIpCidrRanges';
   /**
@@ -183,7 +187,7 @@ class NetworkAttachmentConnectedEndpoint extends \Google\Collection
    * The status of a connected endpoint to this network attachment.
    *
    * Accepted values: ACCEPTED, CLOSED, NEEDS_ATTENTION, PENDING, REJECTED,
-   * STATUS_UNSPECIFIED
+   * RESERVED, STATUS_UNSPECIFIED
    *
    * @param self::STATUS_* $status
    */

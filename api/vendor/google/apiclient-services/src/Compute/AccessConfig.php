@@ -59,6 +59,21 @@ class AccessConfig extends \Google\Model
    */
   public $externalIpv6PrefixLength;
   /**
+   * Reference to the source of external IPv4 addresses, like a
+   * PublicDelegatedPrefix (PDP) for BYOIP. The PDP must support enhanced IPv4
+   * allocations.
+   *
+   * Use one of the following formats to specify a PDP when allocating an
+   * external IPv4 address using BYOIP.        -     Full resource URL, as inhtt
+   * ps://www.googleapis.com/compute/v1/projects/projectId/regions/region/public
+   * DelegatedPrefixes/pdp-name    -     Partial URL, as in
+   * - projects/projectId/regions/region/publicDelegatedPrefixes/pdp-name
+   * - regions/region/publicDelegatedPrefixes/pdp-name
+   *
+   * @var string
+   */
+  public $ipCollection;
+  /**
    * Output only. [Output Only] Type of the resource. Alwayscompute#accessConfig
    * for access configs.
    *
@@ -171,6 +186,31 @@ class AccessConfig extends \Google\Model
   public function getExternalIpv6PrefixLength()
   {
     return $this->externalIpv6PrefixLength;
+  }
+  /**
+   * Reference to the source of external IPv4 addresses, like a
+   * PublicDelegatedPrefix (PDP) for BYOIP. The PDP must support enhanced IPv4
+   * allocations.
+   *
+   * Use one of the following formats to specify a PDP when allocating an
+   * external IPv4 address using BYOIP.        -     Full resource URL, as inhtt
+   * ps://www.googleapis.com/compute/v1/projects/projectId/regions/region/public
+   * DelegatedPrefixes/pdp-name    -     Partial URL, as in
+   * - projects/projectId/regions/region/publicDelegatedPrefixes/pdp-name
+   * - regions/region/publicDelegatedPrefixes/pdp-name
+   *
+   * @param string $ipCollection
+   */
+  public function setIpCollection($ipCollection)
+  {
+    $this->ipCollection = $ipCollection;
+  }
+  /**
+   * @return string
+   */
+  public function getIpCollection()
+  {
+    return $this->ipCollection;
   }
   /**
    * Output only. [Output Only] Type of the resource. Alwayscompute#accessConfig

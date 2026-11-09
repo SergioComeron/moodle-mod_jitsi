@@ -36,7 +36,7 @@ use Google\Service\Compute\TestPermissionsResponse;
  */
 class RegionInstanceGroups extends \Google\Service\Resource
 {
-  protected $apiVersion = '2026-09-01';
+  protected $apiVersion = '2026-11-01';
 
   /**
    * Returns the specified instance group resource. (regionInstanceGroups.get)

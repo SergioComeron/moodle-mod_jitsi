@@ -31,7 +31,7 @@ use Google\Service\Compute\RolloutsListResponse;
  */
 class Rollouts extends \Google\Service\Resource
 {
-  protected $apiVersion = '2026-09-01';
+  protected $apiVersion = '2026-11-01';
 
   /**
    * Advances a Rollout to the next wave, or completes it if no waves remain.

@@ -44,7 +44,7 @@ use Google\Service\Compute\TestPermissionsResponse;
  */
 class RegionDisks extends \Google\Service\Resource
 {
-  protected $apiVersion = '2026-09-01';
+  protected $apiVersion = '2026-11-01';
 
   /**
    * Adds existing resource policies to a regional disk. You can only add one

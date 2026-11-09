@@ -31,7 +31,7 @@ use Google\Service\Compute\Operation;
  */
 class RegionInstanceTemplates extends \Google\Service\Resource
 {
-  protected $apiVersion = '2026-09-01';
+  protected $apiVersion = '2026-11-01';
 
   /**
    * Deletes the specified instance template. Deleting an instance template is

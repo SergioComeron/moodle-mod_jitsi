@@ -31,7 +31,7 @@ use Google\Service\Compute\Operation;
  */
 class NetworkEdgeSecurityServices extends \Google\Service\Resource
 {
-  protected $apiVersion = '2026-09-01';
+  protected $apiVersion = '2026-11-01';
 
   /**
    * Retrieves the list of all NetworkEdgeSecurityService resources available to

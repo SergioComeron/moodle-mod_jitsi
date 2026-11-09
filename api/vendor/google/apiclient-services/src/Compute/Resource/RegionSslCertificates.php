@@ -31,7 +31,7 @@ use Google\Service\Compute\SslCertificateList;
  */
 class RegionSslCertificates extends \Google\Service\Resource
 {
-  protected $apiVersion = '2026-09-01';
+  protected $apiVersion = '2026-11-01';
 
   /**
    * Deletes the specified SslCertificate resource in the region.

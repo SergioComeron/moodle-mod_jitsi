@@ -113,6 +113,8 @@ class UrlMap extends \Google\Collection
    * @var string
    */
   public $selfLink;
+  protected $statusType = UrlMapStatus::class;
+  protected $statusDataType = '';
   protected $testsType = UrlMapTest::class;
   protected $testsDataType = 'array';
 
@@ -437,6 +439,22 @@ class UrlMap extends \Google\Collection
   public function getSelfLink()
   {
     return $this->selfLink;
+  }
+  /**
+   * Output only. [Output Only] The status of the URL map.
+   *
+   * @param UrlMapStatus $status
+   */
+  public function setStatus(UrlMapStatus $status)
+  {
+    $this->status = $status;
+  }
+  /**
+   * @return UrlMapStatus
+   */
+  public function getStatus()
+  {
+    return $this->status;
   }
   /**
    * The list of expected URL mapping tests. Request to update theUrlMap

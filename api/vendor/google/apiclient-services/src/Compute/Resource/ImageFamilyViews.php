@@ -29,7 +29,7 @@ use Google\Service\Compute\ImageFamilyView;
  */
 class ImageFamilyViews extends \Google\Service\Resource
 {
-  protected $apiVersion = '2026-09-01';
+  protected $apiVersion = '2026-11-01';
 
   /**
    * Returns the latest image that is part of an image family, is not deprecated
