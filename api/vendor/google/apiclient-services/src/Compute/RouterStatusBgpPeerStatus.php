@@ -45,6 +45,13 @@ class RouterStatusBgpPeerStatus extends \Google\Collection
   protected $bfdStatusType = BfdStatus::class;
   protected $bfdStatusDataType = '';
   /**
+   * Output only. [Output Only] Indicates whether the BGP peer is in a
+   * depreferenced state.
+   *
+   * @var bool
+   */
+  public $depreferenced;
+  /**
    * Output only. Enable IPv4 traffic over BGP Peer. It is enabled by default if
    * the peerIpAddress is version 4.
    *
@@ -188,6 +195,23 @@ class RouterStatusBgpPeerStatus extends \Google\Collection
   public function getBfdStatus()
   {
     return $this->bfdStatus;
+  }
+  /**
+   * Output only. [Output Only] Indicates whether the BGP peer is in a
+   * depreferenced state.
+   *
+   * @param bool $depreferenced
+   */
+  public function setDepreferenced($depreferenced)
+  {
+    $this->depreferenced = $depreferenced;
+  }
+  /**
+   * @return bool
+   */
+  public function getDepreferenced()
+  {
+    return $this->depreferenced;
   }
   /**
    * Output only. Enable IPv4 traffic over BGP Peer. It is enabled by default if

@@ -35,7 +35,7 @@ use Google\Service\Compute\SecurityPolicyRule;
  */
 class OrganizationSecurityPolicies extends \Google\Service\Resource
 {
-  protected $apiVersion = '2026-09-01';
+  protected $apiVersion = '2026-11-01';
 
   /**
    * Inserts an association for the specified security policy.

@@ -34,7 +34,7 @@ use Google\Service\Compute\RegionNetworkEndpointGroupsDetachEndpointsRequest;
  */
 class RegionNetworkEndpointGroups extends \Google\Service\Resource
 {
-  protected $apiVersion = '2026-09-01';
+  protected $apiVersion = '2026-11-01';
 
   /**
    * Attach a list of network endpoints to the specified network endpoint group.

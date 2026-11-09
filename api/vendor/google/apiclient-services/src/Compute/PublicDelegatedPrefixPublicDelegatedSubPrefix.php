@@ -54,6 +54,24 @@ class PublicDelegatedPrefixPublicDelegatedSubPrefix extends \Google\Model
    * delegated prefix must have IPv6 access type as INTERNAL.
    */
   public const MODE_INTERNAL_IPV6_SUBNETWORK_CREATION = 'INTERNAL_IPV6_SUBNETWORK_CREATION';
+  /**
+   * The global public delegated prefix can only be used by Global External
+   * Application and Proxy Load Balancers to allocate addresses for forwarding
+   * rules. This is the default value.
+   */
+  public const PURPOSE_APPLICATION_AND_PROXY_LOAD_BALANCERS = 'APPLICATION_AND_PROXY_LOAD_BALANCERS';
+  /**
+   * The global public delegated prefix can only be used by Global External
+   * Passthrough Network Load Balancers to allocate Availability Group 0
+   * addresses for forwarding rules.
+   */
+  public const PURPOSE_PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP0 = 'PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP0';
+  /**
+   * The global public delegated prefix can only be used by Global External
+   * Passthrough Network Load Balancers to allocate Availability Group 1
+   * addresses for forwarding rules.
+   */
+  public const PURPOSE_PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP1 = 'PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP1';
   public const STATUS_ACTIVE = 'ACTIVE';
   public const STATUS_INACTIVE = 'INACTIVE';
   /**
@@ -115,6 +133,13 @@ class PublicDelegatedPrefixPublicDelegatedSubPrefix extends \Google\Model
    * @var string
    */
   public $name;
+  /**
+   * Output only. [Output Only] The purpose of the sub public delegated prefix.
+   * Inherited from parent prefix.
+   *
+   * @var string
+   */
+  public $purpose;
   /**
    * Output only. [Output Only] The region of the sub public delegated prefix if
    * it is regional. If absent, the sub prefix is global.
@@ -282,6 +307,27 @@ class PublicDelegatedPrefixPublicDelegatedSubPrefix extends \Google\Model
   public function getName()
   {
     return $this->name;
+  }
+  /**
+   * Output only. [Output Only] The purpose of the sub public delegated prefix.
+   * Inherited from parent prefix.
+   *
+   * Accepted values: APPLICATION_AND_PROXY_LOAD_BALANCERS,
+   * PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP0,
+   * PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP1
+   *
+   * @param self::PURPOSE_* $purpose
+   */
+  public function setPurpose($purpose)
+  {
+    $this->purpose = $purpose;
+  }
+  /**
+   * @return self::PURPOSE_*
+   */
+  public function getPurpose()
+  {
+    return $this->purpose;
   }
   /**
    * Output only. [Output Only] The region of the sub public delegated prefix if

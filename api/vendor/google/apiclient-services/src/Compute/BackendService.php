@@ -68,6 +68,11 @@ class BackendService extends \Google\Collection
    */
   public const LOAD_BALANCING_SCHEME_EXTERNAL_MANAGED = 'EXTERNAL_MANAGED';
   /**
+   * Signifies that this will be used for global external passthrough Network
+   * Load Balancers.
+   */
+  public const LOAD_BALANCING_SCHEME_EXTERNAL_PASSTHROUGH = 'EXTERNAL_PASSTHROUGH';
+  /**
    * Signifies that this will be used for internal passthrough Network Load
    * Balancers.
    */
@@ -294,6 +299,8 @@ class BackendService extends \Google\Collection
    * @var string
    */
   public $description;
+  protected $dynamicForwardingType = BackendServiceDynamicForwarding::class;
+  protected $dynamicForwardingDataType = '';
   /**
    * [Output Only] The resource URL for the edge security policy associated with
    * this backend service.
@@ -884,6 +891,24 @@ class BackendService extends \Google\Collection
     return $this->description;
   }
   /**
+   * Dynamic forwarding configuration. This field is used to configure the
+   * backend service with dynamic forwarding feature which together with Service
+   * Extension allows customized and complex routing logic.
+   *
+   * @param BackendServiceDynamicForwarding $dynamicForwarding
+   */
+  public function setDynamicForwarding(BackendServiceDynamicForwarding $dynamicForwarding)
+  {
+    $this->dynamicForwarding = $dynamicForwarding;
+  }
+  /**
+   * @return BackendServiceDynamicForwarding
+   */
+  public function getDynamicForwarding()
+  {
+    return $this->dynamicForwarding;
+  }
+  /**
    * [Output Only] The resource URL for the edge security policy associated with
    * this backend service.
    *
@@ -1185,8 +1210,9 @@ class BackendService extends \Google\Collection
    * load balancer cannot be used with another. For more information, refer to
    * Backend services product and scheme table.
    *
-   * Accepted values: EXTERNAL, EXTERNAL_MANAGED, INTERNAL, INTERNAL_MANAGED,
-   * INTERNAL_SELF_MANAGED, INVALID_LOAD_BALANCING_SCHEME
+   * Accepted values: EXTERNAL, EXTERNAL_MANAGED, EXTERNAL_PASSTHROUGH,
+   * INTERNAL, INTERNAL_MANAGED, INTERNAL_SELF_MANAGED,
+   * INVALID_LOAD_BALANCING_SCHEME
    *
    * @param self::LOAD_BALANCING_SCHEME_* $loadBalancingScheme
    */

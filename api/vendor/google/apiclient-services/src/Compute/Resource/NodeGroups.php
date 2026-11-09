@@ -42,7 +42,7 @@ use Google\Service\Compute\ZoneSetPolicyRequest;
  */
 class NodeGroups extends \Google\Service\Resource
 {
-  protected $apiVersion = '2026-09-01';
+  protected $apiVersion = '2026-11-01';
 
   /**
    * Adds specified number of nodes to the node group. (nodeGroups.addNodes)

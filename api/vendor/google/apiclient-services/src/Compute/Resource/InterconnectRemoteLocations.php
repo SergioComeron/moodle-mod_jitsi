@@ -30,7 +30,7 @@ use Google\Service\Compute\InterconnectRemoteLocationList;
  */
 class InterconnectRemoteLocations extends \Google\Service\Resource
 {
-  protected $apiVersion = '2026-09-01';
+  protected $apiVersion = '2026-11-01';
 
   /**
    * Returns the details for the specified interconnect remote location. Gets a

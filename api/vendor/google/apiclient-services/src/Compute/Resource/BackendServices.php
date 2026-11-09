@@ -41,7 +41,7 @@ use Google\Service\Compute\TestPermissionsResponse;
  */
 class BackendServices extends \Google\Service\Resource
 {
-  protected $apiVersion = '2026-09-01';
+  protected $apiVersion = '2026-11-01';
 
   /**
    * Adds a key for validating requests with signed URLs for this backend service.

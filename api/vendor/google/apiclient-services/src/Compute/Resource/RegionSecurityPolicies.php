@@ -33,7 +33,7 @@ use Google\Service\Compute\SecurityPolicyRule;
  */
 class RegionSecurityPolicies extends \Google\Service\Resource
 {
-  protected $apiVersion = '2026-09-01';
+  protected $apiVersion = '2026-11-01';
 
   /**
    * Inserts a rule into a security policy. (regionSecurityPolicies.addRule)

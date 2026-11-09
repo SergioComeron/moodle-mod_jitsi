@@ -29,7 +29,7 @@ use Google\Service\Compute\ProjectView;
  */
 class ProjectViews extends \Google\Service\Resource
 {
-  protected $apiVersion = '2026-09-01';
+  protected $apiVersion = '2026-11-01';
 
   /**
    * Returns the specified global ProjectViews resource, with a regional context.
