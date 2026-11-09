@@ -55,12 +55,23 @@ class set_jibri_recording extends external_api {
             ['jitsiid' => $jitsiid, 'recording' => $recording]
         );
         // Fired from the Jitsi iframe on every participant's client (including anonymous
-        // invitation guests), so this stays login-optional. It only toggles a status flag.
-        $jitsiob = $DB->get_record('jitsi', ['id' => $params['jitsiid']]);
-        if ($jitsiob) {
-            $jitsiob->status = $params['recording'] ? 'recording' : null;
-            $DB->update_record('jitsi', $jitsiob);
+        // invitation guests). Only logged-in users who can record change the flag; for
+        // everybody else the call is a silent no-op so their clients do not show an error.
+        if (!isloggedin() || isguestuser()) {
+            return false;
         }
+        $jitsiob = $DB->get_record('jitsi', ['id' => $params['jitsiid']]);
+        if (!$jitsiob) {
+            return false;
+        }
+        $cm = get_coursemodule_from_instance('jitsi', $jitsiob->id, 0, false, MUST_EXIST);
+        $context = \context_module::instance($cm->id);
+        self::validate_context($context);
+        if (!has_capability('mod/jitsi:record', $context)) {
+            return false;
+        }
+        $jitsiob->status = $params['recording'] ? 'recording' : null;
+        $DB->update_record('jitsi', $jitsiob);
         return true;
     }
 

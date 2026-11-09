@@ -1,4 +1,63 @@
 # Changelog
+## v5.5.0
+# Added
+
+ * grabaciones Jibri (VM) http://IP no clicables en adminrecord
+ * tipo de grabación en adminrecord y botón volver a settings en páginas admin
+# Fixed
+
+ * frontend menor + accesibilidad + limpieza (bloques D, E, F)
+ * robustez de BD/PHP (bloque B de la revisión)
+ * 4 bugs de frontend de prioridad media
+ * no borrar source YouTube (popup falso) en errores de grabación de fichero
+ * botón Access de viewpriv pasaba 'u' en vez de 'peer' a sessionpriv
+ * cierre de agujeros de autorización y bugs de robustez (auditoría de seguridad)
+ * declare supported Moodle range 4.5-5.2 in version.php
+# Changed
+
+ * Bump version to 2026101800 (5.4.1)
+ * Merge pull request #222 from SergioComeron/fix/authz-admin-pages
+ * Run Moodle 5.3 tests on PostgreSQL 17
+ * Fix deprecated search labels and test Moodle 5.3
+ * Authorization hardening for admin pages
+ * Merge pull request #221 from SergioComeron/dependabot/composer/api/dev/google/apiclient-services-0.463.0
+ * sync vendor after google/apiclient-services 0.463.0
+ * bump google/apiclient-services in /api
+ * Merge pull request #219 from SergioComeron/dependabot/composer/api/dev/google/apiclient-2.20.1
+ * resolve google/apiclient 2.20.1 on current dev
+ * Merge branch 'dev' into dependabot/composer/api/dev/google/apiclient-2.20.1
+ * Merge pull request #216 from SergioComeron/dependabot/composer/phpcsstandards/phpcsutils-1.2.3
+ * Merge pull request #220 from SergioComeron/dependabot/composer/api/dev/google/apiclient-services-0.462.0
+ * Merge branch 'dev' into dependabot/composer/phpcsstandards/phpcsutils-1.2.3
+ * sync vendor after google/apiclient-services 0.462.0
+ * bump google/apiclient-services in /api
+ * bump google/apiclient from 2.19.4 to 2.20.1 in /api
+ * bump phpcsstandards/phpcsutils from 1.2.2 to 1.2.3
+ * Merge pull request #212 from SergioComeron/dependabot/composer/api/dev/google/apiclient-services-0.457.0
+ * sync vendor after google/apiclient-services 0.457.0
+ * bump google/apiclient-services in /api
+ * Merge pull request #211 from SergioComeron/dependabot/composer/api/dev/google/apiclient-services-0.456.0
+ * sync vendor with google/apiclient-services 0.456.0
+ * bump google/apiclient-services in /api
+ * Merge pull request #209 from SergioComeron/dependabot/composer/api/dev/google/apiclient-services-0.455.0
+ * sync vendor with google/apiclient-services 0.455.0
+ * bump google/apiclient-services in /api
+ * Merge pull request #208 from SergioComeron/dependabot/composer/api/dev/google/apiclient-services-0.454.0
+ * sync vendor with google/apiclient-services 0.454.0
+ * bump google/apiclient-services in /api
+ * bump squizlabs/php_codesniffer from 3.13.5 to 3.13.6 (#207)
+ * ignorar majors de minishlink/web-push en Dependabot
+ * permitir disparo manual del workflow de CI
+ * bump google/apiclient-services from 0.416.0 to 0.453.0 in /api
+ * bump guzzlehttp/guzzle from 7.15.1 to 7.15.2 in /api
+ * GDPR + capabilities (bloques A y C de la revisión)
+ * i18n: textos de la gestión de servidores GCP/Jibri (admin)
+ * i18n: textos de usuario del flujo de push y del banner de grabación
+ * Merge branch 'fix/security-authz' into dev
+ * guards de regresión para privacy (joins presence/source_record) y cron huérfano
+
+---
+
 ## v5.4.0
 # Added
 

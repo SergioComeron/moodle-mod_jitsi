@@ -28,9 +28,6 @@
 require_once(dirname($_SERVER['SCRIPT_FILENAME'], 3) . '/config.php');
 require_once(dirname(__FILE__) . '/lib.php');
 
-// Allow CORS requests.
-header('Access-Control-Allow-Origin: *');
-
 global $USER;
 
 $id = optional_param('id', 0, PARAM_INT);
@@ -50,6 +47,7 @@ if ($id) {
 }
 
 require_login($course, true, $cm);
+require_capability('mod/jitsi:viewattendance', context_module::instance($cm->id));
 $PAGE->set_url('/mod/jitsi/attendessview.php', ['id' => $cm->id]);
 $PAGE->set_title(format_string($jitsi->name));
 $PAGE->set_heading(format_string($course->fullname));

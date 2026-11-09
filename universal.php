@@ -35,19 +35,36 @@ if (isloggedin() && !isguestuser()) {
     require_login(0, false);
 }
 
-$sessionid = required_param('ses', PARAM_INT);
+// The invitation token is the only proof that the guest received the link: the activity is
+// resolved from it, never from enumerable ids.
+$token = required_param('t', PARAM_ALPHANUMEXT);
 $name = required_param('name', PARAM_TEXT);
-$avatar = optional_param('avatar', null, PARAM_TEXT);
-$id = required_param('id', PARAM_INT);
 
 global $DB, $CFG;
 $PAGE->set_url($CFG->wwwroot . '/mod/jitsi/universal.php');
-$sesion = $DB->get_record('jitsi', ['id' => $sessionid]);
-$course = $DB->get_record('course', ['id' => $sesion->course]);
-$cm = get_coursemodule_from_id('jitsi', $id, 0, false, MUST_EXIST);
+if ($token === '' || !$sesion = $DB->get_record('jitsi', ['token' => $token])) {
+    throw new moodle_exception('invalidaccess', 'error');
+}
+$course = $DB->get_record('course', ['id' => $sesion->course], '*', MUST_EXIST);
+$cm = get_coursemodule_from_instance('jitsi', $sesion->id, $course->id, false, MUST_EXIST);
+$id = $cm->id;
+$sessionid = $sesion->id;
+$avatar = null;
+if (isloggedin() && !isguestuser()) {
+    $avatar = $CFG->wwwroot . '/user/pix.php/' . $USER->id . '/f1.jpg';
+}
 $PAGE->set_cm($cm);
 
 $PAGE->set_context(context_module::instance($cm->id));
+
+$accesserror = \mod_jitsi\local\invitation::get_access_error($sesion);
+if ($accesserror !== null) {
+    $PAGE->set_title($sesion->name);
+    echo $OUTPUT->header();
+    echo $OUTPUT->notification($accesserror, 'error');
+    echo $OUTPUT->footer();
+    die();
+}
 
 $navigator = $_SERVER['HTTP_USER_AGENT'];
 
@@ -106,11 +123,7 @@ $PAGE->set_title($sesion->name);
 $PAGE->set_heading($sesion->name);
 
 echo $OUTPUT->header();
-if (!\mod_jitsi\local\invitation::is_timed_out($sesion)) {
-    \mod_jitsi\local\session::create(0, $id, $avatar, $name, $sesparam, null, $sesion, true, null);
-} else {
-    echo \mod_jitsi\local\invitation::error_time($sesion);
-}
+\mod_jitsi\local\session::create(0, $id, $avatar, $name, $sesparam, null, $sesion, true, null);
 if (isloggedin()) {
     echo $OUTPUT->footer();
 }

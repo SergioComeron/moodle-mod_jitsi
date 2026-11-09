@@ -56,12 +56,11 @@ class state_record extends external_api {
             ['jitsi' => $jitsi, 'state' => $state]
         );
         // Fired from the Jitsi iframe on every participant's client (including anonymous
-        // invitation guests), so this stays login-optional. It only touches a status flag.
+        // invitation guests), so this stays login-optional. It only reads the status flag.
         $jitsiob = $DB->get_record('jitsi', ['id' => $params['jitsi']]);
         if (!$jitsiob) {
             return 'recording0';
         }
-        $DB->update_record('jitsi', $jitsiob);
         return 'recording' . $jitsiob->recording;
     }
 

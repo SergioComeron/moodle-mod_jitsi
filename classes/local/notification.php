@@ -42,7 +42,7 @@ class notification {
         $message->fullmessageformat = FORMAT_MARKDOWN;
         $message->fullmessagehtml = get_string('user') . ' <a href="' . $CFG->wwwroot
             . '/user/profile.php?id=' . $fromuser->id . '"> '
-            . $fromuser->firstname . ' ' . $fromuser->lastname
+            . s($fromuser->firstname . ' ' . $fromuser->lastname)
             . '</a> ' . get_string('hasentered', 'jitsi') . '. ' . get_string('click', 'jitsi') . '<a href="'
             . new \moodle_url('/mod/jitsi/sessionpriv.php', ['peer' => $fromuser->id])
             . '"> ' . get_string('here', 'jitsi') . '</a> ' . get_string('toenter', 'jitsi');

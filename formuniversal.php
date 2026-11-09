@@ -76,8 +76,7 @@ if (!\mod_jitsi\local\invitation::is_timed_out($sesion)) {
             if ($today[0] < $sesion->timeclose || $sesion->timeclose == 0) {
                 if ($today[0] > (($sesion->timeopen) - ($sesion->minpretime * 60))) {
                     $actionurl = (new moodle_url('/mod/jitsi/universal.php', [
-                        'ses' => $sessionid,
-                        'id'  => $id,
+                        't' => $token,
                     ]))->out(false);
                     echo html_writer::start_div('d-flex justify-content-center mt-4');
                     echo html_writer::start_div('card shadow-sm', ['style' => 'max-width:420px;width:100%']);
@@ -134,9 +133,7 @@ if (!\mod_jitsi\local\invitation::is_timed_out($sesion)) {
                 $urlparams = [
                     'avatar' => $avatar,
                     'name'   => $nom,
-                    'ses'    => $sessionid,
-                    'mail'   => '',
-                    'id'     => $id,
+                    't'      => $token,
                 ];
                 $joinurl = (new moodle_url('/mod/jitsi/universal.php', $urlparams))->out(false);
 

@@ -91,6 +91,42 @@ class room {
     }
 
     /**
+     * Build the room name for an activity on the server side, never from client input.
+     *
+     * Mirrors view.php: activities that share a session through an invitation token
+     * use the room of the activity that owns the token.
+     *
+     * @param \stdClass $jitsi Jitsi activity record
+     * @param \stdClass $course Course record of the activity
+     * @return string|null Room name, or null if the shared activity no longer exists
+     */
+    public static function for_activity(\stdClass $jitsi, \stdClass $course): ?string {
+        global $DB;
+
+        if (empty($jitsi->sessionwithtoken)) {
+            $shortname = $course->shortname;
+            $jitsiid = $jitsi->id;
+            $jitsiname = $jitsi->name;
+        } else {
+            $shared = $DB->get_record('jitsi', ['tokeninterno' => $jitsi->tokeninvitacion]);
+            if (!$shared) {
+                return null;
+            }
+            $shortname = $DB->get_field('course', 'shortname', ['id' => $shared->course], MUST_EXIST);
+            $jitsiid = $shared->id;
+            $jitsiname = $shared->name;
+        }
+
+        return self::build_name(
+            $shortname,
+            $jitsiid,
+            $jitsiname,
+            get_config('mod_jitsi', 'sesionname'),
+            get_config('mod_jitsi', 'separator')
+        );
+    }
+
+    /**
      * Normalise a session name to only alphanumeric, hyphen and underscore characters.
      *
      * @param string $session Input session name
