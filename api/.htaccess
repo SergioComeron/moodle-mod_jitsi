@@ -1,0 +1,10 @@
+# Third-party libraries for mod_jitsi. They are loaded with require from PHP
+# and must never be requested directly over the web.
+# Apache only: on nginx or other servers, deny /mod/jitsi/api/ in the server config.
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+</IfModule>
