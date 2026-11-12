@@ -21,8 +21,8 @@
  * @copyright  2026 Sergio Comerón Sánchez-Paniagua <sergiocomeron@icloud.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-namespace mod_jitsi\task;
 
+namespace mod_jitsi\task;
 
 /**
  * Ad-hoc task: provision a Jibri recording VM in Google Cloud and add it to the pool.

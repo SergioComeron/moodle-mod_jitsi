@@ -21,6 +21,7 @@
  * @copyright  2026 Sergio Comerón Sánchez-Paniagua <sergiocomeron@icloud.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+
 namespace mod_jitsi\task;
 
 use mod_jitsi\local\vertex_ai;
