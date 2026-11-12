@@ -1,9 +1,9 @@
 <?php return array(
     'root' => array(
         'name' => '__root__',
-        'pretty_version' => 'dev-dependabot/composer/api/dev/google/apiclient-services-0.465.1',
-        'version' => 'dev-dependabot/composer/api/dev/google/apiclient-services-0.465.1',
-        'reference' => '09ff5496ae32a5dbce25e2c738066e4e153d6d0a',
+        'pretty_version' => 'dev-master',
+        'version' => 'dev-master',
+        'reference' => '2670e99a1bfe4dedc1957bac5024c945ef54d515',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -11,9 +11,9 @@
     ),
     'versions' => array(
         '__root__' => array(
-            'pretty_version' => 'dev-dependabot/composer/api/dev/google/apiclient-services-0.465.1',
-            'version' => 'dev-dependabot/composer/api/dev/google/apiclient-services-0.465.1',
-            'reference' => '09ff5496ae32a5dbce25e2c738066e4e153d6d0a',
+            'pretty_version' => 'dev-master',
+            'version' => 'dev-master',
+            'reference' => '2670e99a1bfe4dedc1957bac5024c945ef54d515',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
@@ -47,9 +47,9 @@
             'dev_requirement' => false,
         ),
         'google/apiclient-services' => array(
-            'pretty_version' => 'v0.465.1',
-            'version' => '0.465.1.0',
-            'reference' => '637e740b0f2d00b52fc285717d79437729bce897',
+            'pretty_version' => 'v0.466.0',
+            'version' => '0.466.0.0',
+            'reference' => 'a5893e53f50b16b78684a99957e1a2880396f576',
             'type' => 'library',
             'install_path' => __DIR__ . '/../google/apiclient-services',
             'aliases' => array(),
