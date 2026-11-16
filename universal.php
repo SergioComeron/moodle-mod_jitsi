@@ -121,9 +121,17 @@ for ($i = 0; $i < $max; $i++) {
 
 $PAGE->set_title($sesion->name);
 $PAGE->set_heading($sesion->name);
+if (!isloggedin()) {
+    // External guests get a bare page: no site navigation, login links or footer chrome.
+    $PAGE->set_pagelayout('embedded');
+    // Moodle 5.3+ adds a "next activity" sticky footer to activity pages; guests have no course access.
+    if (method_exists($PAGE, 'set_show_navigation_footer')) {
+        $PAGE->set_show_navigation_footer(false);
+    }
+}
 
 echo $OUTPUT->header();
 \mod_jitsi\local\session::create(0, $id, $avatar, $name, $sesparam, null, $sesion, true, null);
-if (isloggedin()) {
-    echo $OUTPUT->footer();
-}
+// The footer must always be printed: it emits the AMD modules queued with js_call_amd
+// (presence tracking, session controls), which guests need too.
+echo $OUTPUT->footer();
