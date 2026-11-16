@@ -57,6 +57,7 @@ if ($state == null) {
 $cm = get_coursemodule_from_id('jitsi', $cmid, 0, false, MUST_EXIST);
 $course = $DB->get_record('course', ['id' => $cm->course], '*', MUST_EXIST);
 require_login($course, true, $cm);
+require_capability('mod/jitsi:view', context_module::instance($cm->id));
 
 $module = $DB->get_record('modules', ['name' => 'jitsi']);
 

@@ -36,15 +36,6 @@ const PARTICIPATING_INTERVAL = 60000;
 const REDIRECT_DELAY = 2000;
 
 /**
- * Generate a random per-tab session hash to disambiguate multiple tabs/windows.
- *
- * @returns {string} A short random identifier.
- */
-const generateSessionHash = () => {
-    return Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
-};
-
-/**
  * Start presence tracking for a Jitsi session.
  *
  * The live JitsiMeetExternalAPI instance is read from window.jitsiSessionApi, set by the
@@ -54,14 +45,15 @@ const generateSessionHash = () => {
  * @param {number} config.jitsiid Jitsi activity instance id.
  * @param {number} config.cmid Course module id.
  * @param {number} config.userid Current user id.
- * @param {boolean} config.isGuest Whether the current user is a guest.
- * @param {string} config.guestName Display name to report for guests.
+ * @param {string} config.sessionHash Server-generated per-tab session hash.
+ * @param {string} config.presenceToken Signed presence token issued by the session page.
  * @param {boolean} config.trackJoinLeave Whether to report join/leave and redirect on leave.
  * @param {?string} config.redirectUrl URL to redirect to after leaving (null to stay put).
  */
 export const init = (config) => {
     const api = window.jitsiSessionApi;
-    const sessionHash = generateSessionHash();
+    const sessionHash = config.sessionHash;
+    const token = config.presenceToken;
 
     // Periodically flag that this user is still participating in the session.
     const participatingTimer = setInterval(() => {
@@ -75,7 +67,7 @@ export const init = (config) => {
     const heartbeatTimer = setInterval(() => {
         Ajax.call([{
             methodname: 'mod_jitsi_presence_heartbeat',
-            args: {jitsiid: config.jitsiid, sessionhash: sessionHash},
+            args: {jitsiid: config.jitsiid, sessionhash: sessionHash, token: token},
         }]);
     }, HEARTBEAT_INTERVAL);
 
@@ -89,7 +81,7 @@ export const init = (config) => {
             args: {
                 jitsiid: config.jitsiid,
                 sessionhash: sessionHash,
-                guestname: config.isGuest ? config.guestName : '',
+                token: token,
             },
         }]);
     });
@@ -101,7 +93,7 @@ export const init = (config) => {
         clearInterval(heartbeatTimer);
         Ajax.call([{
             methodname: 'mod_jitsi_presence_leave',
-            args: {jitsiid: config.jitsiid, sessionhash: sessionHash},
+            args: {jitsiid: config.jitsiid, sessionhash: sessionHash, token: token},
         }]);
         if (config.redirectUrl) {
             setTimeout(() => {

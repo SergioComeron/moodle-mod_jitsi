@@ -45,4 +45,33 @@ class presence {
         );
         return ['moodle' => $moodle, 'guests' => $guests, 'total' => $moodle + $guests];
     }
+
+    /**
+     * Authorise a presence write (join, heartbeat or leave) and resolve who it is for.
+     *
+     * With a presence token (session page, including invited guests), the token must be valid
+     * for this activity and session hash. Without a token (authenticated web service clients),
+     * the caller must be a real logged-in user with mod/jitsi:view in the activity context.
+     *
+     * @param int $jitsiid Jitsi activity instance id.
+     * @param string $sessionhash Per-tab session hash.
+     * @param string $token Presence token, or '' for authenticated clients.
+     * @return \stdClass With userid (0 for guests) and guestname.
+     * @throws \moodle_exception If the caller is not allowed to write presence for this activity.
+     */
+    public static function authorise(int $jitsiid, string $sessionhash, string $token): \stdClass {
+        global $DB, $USER;
+        $jitsi = $DB->get_record('jitsi', ['id' => $jitsiid], 'id, course', MUST_EXIST);
+        if ($token !== '') {
+            return presence_token::verify($token, $jitsiid, $sessionhash);
+        }
+        if (!isloggedin() || isguestuser()) {
+            throw new \require_login_exception('Presence token required');
+        }
+        $cm = get_coursemodule_from_instance('jitsi', $jitsi->id, $jitsi->course, false, MUST_EXIST);
+        $context = \context_module::instance($cm->id);
+        \core_external\external_api::validate_context($context);
+        require_capability('mod/jitsi:view', $context);
+        return (object) ['userid' => (int) $USER->id, 'guestname' => ''];
+    }
 }

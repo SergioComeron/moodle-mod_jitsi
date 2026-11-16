@@ -39,7 +39,13 @@ class presence_join extends external_api {
         return new external_function_parameters([
             'jitsiid' => new external_value(PARAM_INT, 'Jitsi session id'),
             'sessionhash' => new external_value(PARAM_ALPHANUMEXT, 'Unique session hash'),
-            'guestname' => new external_value(PARAM_TEXT, 'Guest display name', VALUE_DEFAULT, ''),
+            'guestname' => new external_value(
+                PARAM_TEXT,
+                'Deprecated and ignored: the guest name is taken from the presence token',
+                VALUE_DEFAULT,
+                ''
+            ),
+            'token' => new external_value(PARAM_RAW, 'Presence token issued by the session page', VALUE_DEFAULT, ''),
         ]);
     }
 
@@ -48,27 +54,34 @@ class presence_join extends external_api {
      *
      * @param int $jitsiid Jitsi session id.
      * @param string $sessionhash Unique browser session hash.
-     * @param string $guestname Guest display name (empty for Moodle users).
+     * @param string $guestname Deprecated and ignored.
+     * @param string $token Presence token issued by the session page ('' for authenticated clients).
      * @return int Total active participants.
      */
-    public static function execute($jitsiid, $sessionhash, $guestname = '') {
-        global $DB, $USER;
+    public static function execute($jitsiid, $sessionhash, $guestname = '', $token = '') {
+        global $DB;
         $params = self::validate_parameters(
             self::execute_parameters(),
-            ['jitsiid' => $jitsiid, 'sessionhash' => $sessionhash, 'guestname' => $guestname]
+            ['jitsiid' => $jitsiid, 'sessionhash' => $sessionhash, 'guestname' => $guestname, 'token' => $token]
         );
+        $jitsiid = $params['jitsiid'];
+        $sessionhash = $params['sessionhash'];
+        $who = presence::authorise($jitsiid, $sessionhash, $params['token']);
         $now = time();
-        $userid = (isloggedin() && !isguestuser()) ? $USER->id : 0;
         $existing = $DB->get_record('jitsi_presence', ['jitsiid' => $jitsiid, 'sessionhash' => $sessionhash]);
+        if ($existing && (int) $existing->userid !== (int) $who->userid) {
+            // The session hash belongs to someone else's row: never take it over.
+            throw new \moodle_exception('invalidaccess', 'error');
+        }
         if ($existing) {
             $existing->timemodified = $now;
             $DB->update_record('jitsi_presence', $existing);
         } else {
             $record = new \stdClass();
             $record->jitsiid = $jitsiid;
-            $record->userid = $userid;
+            $record->userid = $who->userid;
             $record->sessionhash = $sessionhash;
-            $record->guestname = $guestname !== '' ? $guestname : null;
+            $record->guestname = ($who->userid == 0 && $who->guestname !== '') ? $who->guestname : null;
             $record->timecreated = $now;
             $record->timemodified = $now;
             $DB->insert_record('jitsi_presence', $record);
