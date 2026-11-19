@@ -158,24 +158,24 @@
         },
         {
             "name": "moodlehq/moodle-cs",
-            "version": "v3.7.0",
+            "version": "v3.9.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/moodlehq/moodle-cs.git",
-                "reference": "c25837893ead6fc67199334a6d63b0049577350e"
+                "reference": "24069c1a702116a6480735fefb3fb90f00f8659e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/moodlehq/moodle-cs/zipball/c25837893ead6fc67199334a6d63b0049577350e",
-                "reference": "c25837893ead6fc67199334a6d63b0049577350e",
+                "url": "https://api.github.com/repos/moodlehq/moodle-cs/zipball/24069c1a702116a6480735fefb3fb90f00f8659e",
+                "reference": "24069c1a702116a6480735fefb3fb90f00f8659e",
                 "shasum": ""
             },
             "require": {
-                "dealerdirect/phpcodesniffer-composer-installer": "^1.1.1",
+                "dealerdirect/phpcodesniffer-composer-installer": "^1.2.1",
                 "ext-json": "*",
-                "php": ">=7.4.0",
-                "phpcsstandards/phpcsextra": "^1.4.0",
-                "squizlabs/php_codesniffer": "^3.13.2"
+                "php": ">=8.0",
+                "phpcsstandards/phpcsextra": "^1.5.0",
+                "squizlabs/php_codesniffer": "^3.13.6 || ^4.0.4"
             },
             "replace": {
                 "moodlehq/moodle-local_codechecker": "3.1.0"
@@ -186,13 +186,12 @@
                 "overtrue/phplint": "^3.4.0 | ^9.0.4",
                 "phpmd/phpmd": "^2.11",
                 "phpunit/phpunit": "^9.6",
-                "sebastian/phpcpd": "^6.0",
                 "thor-juhasz/phpunit-coverage-check": "^0.3.0"
             },
             "type": "phpcodesniffer-standard",
             "autoload": {
                 "psr-4": {
-                    "MoodleHQ\\MoodleCS\\moodle\\": "moodle/"
+                    "MoodleHQ\\MoodleCS\\": "Standards"
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
@@ -223,25 +222,25 @@
                 "source": "https://github.com/moodlehq/moodle-cs",
                 "wiki": "https://github.com/moodlehq/moodle-cs/wiki"
             },
-            "time": "2025-12-02T00:31:35+00:00"
+            "time": "2026-11-05T15:11:44+00:00"
         },
         {
             "name": "phpcsstandards/phpcsextra",
-            "version": "1.5.0",
+            "version": "1.5.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/PHPCSStandards/PHPCSExtra.git",
-                "reference": "b598aa890815b8df16363271b659d73280129101"
+                "reference": "39467533fdb742446d68c1d10ac33d625ee0311c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/PHPCSStandards/PHPCSExtra/zipball/b598aa890815b8df16363271b659d73280129101",
-                "reference": "b598aa890815b8df16363271b659d73280129101",
+                "url": "https://api.github.com/repos/PHPCSStandards/PHPCSExtra/zipball/39467533fdb742446d68c1d10ac33d625ee0311c",
+                "reference": "39467533fdb742446d68c1d10ac33d625ee0311c",
                 "shasum": ""
             },
             "require": {
                 "php": ">=5.4",
-                "phpcsstandards/phpcsutils": "^1.2.0",
+                "phpcsstandards/phpcsutils": "^1.2.3",
                 "squizlabs/php_codesniffer": "^3.13.5 || ^4.0.1"
             },
             "require-dev": {
@@ -305,7 +304,7 @@
                     "type": "thanks_dev"
                 }
             ],
-            "time": "2025-11-12T23:06:57+00:00"
+            "time": "2026-07-27T11:13:17+00:00"
         },
         {
             "name": "phpcsstandards/phpcsutils",
@@ -402,26 +401,31 @@
         },
         {
             "name": "squizlabs/php_codesniffer",
-            "version": "3.13.6",
+            "version": "4.0.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/PHPCSStandards/PHP_CodeSniffer.git",
-                "reference": "4c378e1a528ea066890fc2397cbdd2f94eb2fc91"
+                "reference": "bbdc3d0532623e21838b7041a4364383a8126f96"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/PHPCSStandards/PHP_CodeSniffer/zipball/4c378e1a528ea066890fc2397cbdd2f94eb2fc91",
-                "reference": "4c378e1a528ea066890fc2397cbdd2f94eb2fc91",
+                "url": "https://api.github.com/repos/PHPCSStandards/PHP_CodeSniffer/zipball/bbdc3d0532623e21838b7041a4364383a8126f96",
+                "reference": "bbdc3d0532623e21838b7041a4364383a8126f96",
                 "shasum": ""
             },
             "require": {
+                "ext-libxml": "*",
                 "ext-simplexml": "*",
                 "ext-tokenizer": "*",
                 "ext-xmlwriter": "*",
-                "php": ">=5.4.0"
+                "php": ">=7.2.0"
             },
             "require-dev": {
-                "phpunit/phpunit": "^4.0 || ^5.0 || ^6.0 || ^7.0 || ^8.0 || ^9.3.4"
+                "phpunit/phpunit": "^8.4.0 || ^9.3.4 || ^10.5.32 || 11.3.3 - 11.5.28 || ^11.5.31"
+            },
+            "suggest": {
+                "ext-iconv": "For accurate character length calculation when the checked files contain multi-byte characters.",
+                "ext-pcntl": "For parallel processing support via the --parallel CLI option."
             },
             "bin": [
                 "bin/phpcbf",
@@ -446,7 +450,7 @@
                     "homepage": "https://github.com/PHPCSStandards/PHP_CodeSniffer/graphs/contributors"
                 }
             ],
-            "description": "PHP_CodeSniffer tokenizes PHP, JavaScript and CSS files and detects violations of a defined set of coding standards.",
+            "description": "PHP_CodeSniffer tokenizes PHP files and detects violations of a defined set of coding standards.",
             "homepage": "https://github.com/PHPCSStandards/PHP_CodeSniffer",
             "keywords": [
                 "phpcs",
@@ -477,7 +481,7 @@
                     "type": "thanks_dev"
                 }
             ],
-            "time": "2026-08-06T00:17:32+00:00"
+            "time": "2026-08-06T02:45:27+00:00"
         }
     ],
     "aliases": [],

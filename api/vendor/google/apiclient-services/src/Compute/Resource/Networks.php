@@ -38,7 +38,7 @@ use Google\Service\Compute\Operation;
  */
 class Networks extends \Google\Service\Resource
 {
-  protected $apiVersion = '2026-09-01';
+  protected $apiVersion = '2026-11-01';
 
   /**
    * Adds a peering to the specified network. (networks.addPeering)

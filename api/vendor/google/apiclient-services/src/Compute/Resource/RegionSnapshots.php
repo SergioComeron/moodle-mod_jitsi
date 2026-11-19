@@ -37,7 +37,7 @@ use Google\Service\Compute\TestPermissionsResponse;
  */
 class RegionSnapshots extends \Google\Service\Resource
 {
-  protected $apiVersion = '2026-09-01';
+  protected $apiVersion = '2026-11-01';
 
   /**
    * Deletes the specified Snapshot resource. Keep in mind that deleting a single

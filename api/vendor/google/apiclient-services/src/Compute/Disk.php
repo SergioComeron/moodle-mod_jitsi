@@ -383,6 +383,37 @@ class Disk extends \Google\Collection
    */
   public $sourceInstantSnapshotId;
   /**
+   * The machine image to create the disk from. You can provide this as a
+   * partial or full URL to the resource. For example, the following are valid
+   * values:              - https://www.googleapis.com/compute/v1/projects/proje
+   * ct/global/machineImages/machineImage     -
+   * projects/project/global/machineImages/machineImage      -
+   * global/machineImages/machineImage
+   *
+   * @var string
+   */
+  public $sourceMachineImage;
+  /**
+   * The device name of a disk within a given machine image. The
+   * source_machine_image must be specified.
+   *
+   * @var string
+   */
+  public $sourceMachineImageDiskDeviceName;
+  protected $sourceMachineImageEncryptionKeyType = CustomerEncryptionKey::class;
+  protected $sourceMachineImageEncryptionKeyDataType = '';
+  /**
+   * Output only. [Output Only] The unique ID of the machine image used to
+   * create this disk. This value identifies the exact machine image that was
+   * used to create this persistent disk. For example, if you created the
+   * persistent disk from a machine image that was later deleted and recreated
+   * under the same name, the source machine image ID would identify the exact
+   * version of the machine image that was used.
+   *
+   * @var string
+   */
+  public $sourceMachineImageId;
+  /**
    * The source snapshot used to create this disk. You can provide this as a
    * partial or full URL to the resource. For example, the following are valid
    * values:              - https://www.googleapis.com/compute/v1/projects/proje
@@ -1239,6 +1270,83 @@ class Disk extends \Google\Collection
   public function getSourceInstantSnapshotId()
   {
     return $this->sourceInstantSnapshotId;
+  }
+  /**
+   * The machine image to create the disk from. You can provide this as a
+   * partial or full URL to the resource. For example, the following are valid
+   * values:              - https://www.googleapis.com/compute/v1/projects/proje
+   * ct/global/machineImages/machineImage     -
+   * projects/project/global/machineImages/machineImage      -
+   * global/machineImages/machineImage
+   *
+   * @param string $sourceMachineImage
+   */
+  public function setSourceMachineImage($sourceMachineImage)
+  {
+    $this->sourceMachineImage = $sourceMachineImage;
+  }
+  /**
+   * @return string
+   */
+  public function getSourceMachineImage()
+  {
+    return $this->sourceMachineImage;
+  }
+  /**
+   * The device name of a disk within a given machine image. The
+   * source_machine_image must be specified.
+   *
+   * @param string $sourceMachineImageDiskDeviceName
+   */
+  public function setSourceMachineImageDiskDeviceName($sourceMachineImageDiskDeviceName)
+  {
+    $this->sourceMachineImageDiskDeviceName = $sourceMachineImageDiskDeviceName;
+  }
+  /**
+   * @return string
+   */
+  public function getSourceMachineImageDiskDeviceName()
+  {
+    return $this->sourceMachineImageDiskDeviceName;
+  }
+  /**
+   * Thecustomer-supplied encryption key of the source machine image. Required
+   * if the source machine image is protected by a customer-supplied encryption
+   * key.
+   *
+   * @param CustomerEncryptionKey $sourceMachineImageEncryptionKey
+   */
+  public function setSourceMachineImageEncryptionKey(CustomerEncryptionKey $sourceMachineImageEncryptionKey)
+  {
+    $this->sourceMachineImageEncryptionKey = $sourceMachineImageEncryptionKey;
+  }
+  /**
+   * @return CustomerEncryptionKey
+   */
+  public function getSourceMachineImageEncryptionKey()
+  {
+    return $this->sourceMachineImageEncryptionKey;
+  }
+  /**
+   * Output only. [Output Only] The unique ID of the machine image used to
+   * create this disk. This value identifies the exact machine image that was
+   * used to create this persistent disk. For example, if you created the
+   * persistent disk from a machine image that was later deleted and recreated
+   * under the same name, the source machine image ID would identify the exact
+   * version of the machine image that was used.
+   *
+   * @param string $sourceMachineImageId
+   */
+  public function setSourceMachineImageId($sourceMachineImageId)
+  {
+    $this->sourceMachineImageId = $sourceMachineImageId;
+  }
+  /**
+   * @return string
+   */
+  public function getSourceMachineImageId()
+  {
+    return $this->sourceMachineImageId;
   }
   /**
    * The source snapshot used to create this disk. You can provide this as a

@@ -32,7 +32,7 @@ use Google\Service\Compute\PublicDelegatedPrefixList;
  */
 class PublicDelegatedPrefixes extends \Google\Service\Resource
 {
-  protected $apiVersion = '2026-09-01';
+  protected $apiVersion = '2026-11-01';
 
   /**
    * Lists all PublicDelegatedPrefix resources owned by the specific project

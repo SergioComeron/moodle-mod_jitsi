@@ -30,7 +30,7 @@ use Google\Service\Compute\ReliabilityRisksListResponse;
  */
 class ReliabilityRisks extends \Google\Service\Resource
 {
-  protected $apiVersion = '2026-09-01';
+  protected $apiVersion = '2026-11-01';
 
   /**
    * Returns the specified ReliabilityRisk resource. (reliabilityRisks.get)

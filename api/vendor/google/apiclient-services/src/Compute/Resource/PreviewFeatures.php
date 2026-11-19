@@ -31,7 +31,7 @@ use Google\Service\Compute\PreviewFeatureList;
  */
 class PreviewFeatures extends \Google\Service\Resource
 {
-  protected $apiVersion = '2026-09-01';
+  protected $apiVersion = '2026-11-01';
 
   /**
    * Returns the details of the given PreviewFeature. (previewFeatures.get)

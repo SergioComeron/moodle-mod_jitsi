@@ -234,8 +234,8 @@ class TargetHttpsProxy extends \Google\Collection
    *
    * Certificate Manager Certificates accepted formats are:        - //certifica
    * temanager.googleapis.com/projects/{project}/locations/{location}/certificat
-   * es/{resourceName}.    - https://certificatemanager.googleapis.com/v1alpha1/
-   * projects/{project}/locations/{location}/certificates/{resourceName}.
+   * es/{resourceName}.    - https://certificatemanager.{universeDomain}/v1alpha
+   * 1/projects/{project}/locations/{location}/certificates/{resourceName}.
    *
    * @var string[]
    */
@@ -601,8 +601,8 @@ class TargetHttpsProxy extends \Google\Collection
    *
    * Certificate Manager Certificates accepted formats are:        - //certifica
    * temanager.googleapis.com/projects/{project}/locations/{location}/certificat
-   * es/{resourceName}.    - https://certificatemanager.googleapis.com/v1alpha1/
-   * projects/{project}/locations/{location}/certificates/{resourceName}.
+   * es/{resourceName}.    - https://certificatemanager.{universeDomain}/v1alpha
+   * 1/projects/{project}/locations/{location}/certificates/{resourceName}.
    *
    * @param string[] $sslCertificates
    */

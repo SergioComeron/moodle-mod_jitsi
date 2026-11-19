@@ -30,7 +30,7 @@ use Google\Service\Compute\SnapshotSettings as SnapshotSettingsModel;
  */
 class RegionSnapshotSettings extends \Google\Service\Resource
 {
-  protected $apiVersion = '2026-09-01';
+  protected $apiVersion = '2026-11-01';
 
   /**
    * Get region snapshot settings. (regionSnapshotSettings.get)

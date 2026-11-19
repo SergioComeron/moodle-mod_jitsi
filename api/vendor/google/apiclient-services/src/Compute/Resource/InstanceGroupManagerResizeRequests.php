@@ -31,7 +31,7 @@ use Google\Service\Compute\Operation;
  */
 class InstanceGroupManagerResizeRequests extends \Google\Service\Resource
 {
-  protected $apiVersion = '2026-09-01';
+  protected $apiVersion = '2026-11-01';
 
   /**
    * Cancels the specified resize request and removes it from the queue. Cancelled

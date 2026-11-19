@@ -26,7 +26,6 @@
  */
 
 require_once(dirname($_SERVER['SCRIPT_FILENAME'], 3) . '/config.php');
-require_once(dirname(dirname(dirname(__FILE__))) . '/lib/moodlelib.php');
 require_once(dirname(__FILE__) . '/lib.php');
 require_login(0, true);
 

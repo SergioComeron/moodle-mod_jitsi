@@ -41,6 +41,14 @@ class WireProperties extends \Google\Model
    */
   public const FAULT_RESPONSE_NONE = 'NONE';
   /**
+   * The wire uses dynamic paths.
+   */
+  public const FLOW_MANAGEMENT_DYNAMIC_PATH = 'DYNAMIC_PATH';
+  /**
+   * The wire uses fixed paths.
+   */
+  public const FLOW_MANAGEMENT_FIXED_PATH = 'FIXED_PATH';
+  /**
    * The configuration of the bandwidth allocation, one of the following:
    * - ALLOCATE_PER_WIRE: configures a separate unmetered bandwidth allocation
    * (and associated charges) for each wire in the group.    -
@@ -68,6 +76,12 @@ class WireProperties extends \Google\Model
    * @var string
    */
   public $faultResponse;
+  /**
+   * The flow management configuration for the wire.
+   *
+   * @var string
+   */
+  public $flowManagement;
 
   /**
    * The configuration of the bandwidth allocation, one of the following:
@@ -130,6 +144,24 @@ class WireProperties extends \Google\Model
   public function getFaultResponse()
   {
     return $this->faultResponse;
+  }
+  /**
+   * The flow management configuration for the wire.
+   *
+   * Accepted values: DYNAMIC_PATH, FIXED_PATH
+   *
+   * @param self::FLOW_MANAGEMENT_* $flowManagement
+   */
+  public function setFlowManagement($flowManagement)
+  {
+    $this->flowManagement = $flowManagement;
+  }
+  /**
+   * @return self::FLOW_MANAGEMENT_*
+   */
+  public function getFlowManagement()
+  {
+    return $this->flowManagement;
   }
 }
 

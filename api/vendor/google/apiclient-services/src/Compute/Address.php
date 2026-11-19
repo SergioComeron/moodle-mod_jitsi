@@ -82,6 +82,18 @@ class Address extends \Google\Collection
    */
   public const PURPOSE_NAT_AUTO = 'NAT_AUTO';
   /**
+   * The global external address can only be assigned to Global External
+   * Passthrough Network Load Balancer forwarding rules, as an Availability
+   * Group 0 address.
+   */
+  public const PURPOSE_PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP0 = 'PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP0';
+  /**
+   * The global external address can only be assigned to Global External
+   * Passthrough Network Load Balancer forwarding rules, as an Availability
+   * Group 1 address.
+   */
+  public const PURPOSE_PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP1 = 'PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP1';
+  /**
    * A private network IP address that can be used to configure Private Service
    * Connect. This purpose can be specified only forGLOBAL addresses of Type
    * INTERNAL
@@ -235,6 +247,14 @@ class Address extends \Google\Collection
    */
   public $network;
   /**
+   * Optional. The URL of the network attachment that this address comes from in
+   * the following format: projects/{project}/regions/{region_name}/networkAttac
+   * hments/{network_attachment_name}.
+   *
+   * @var string
+   */
+  public $networkAttachment;
+  /**
    * This signifies the networking tier used for configuring this address and
    * can only take the following values: PREMIUM orSTANDARD. Internal IP
    * addresses are always Premium Tier; global external IP addresses are always
@@ -294,6 +314,15 @@ class Address extends \Google\Collection
    * @var string
    */
   public $selfLink;
+  /**
+   * Optional. Producer Service's Service class ID for the region of this
+   * address. Can only be used with network_attachment. It is not possible to
+   * use on its own; however, network_attachment can be used without
+   * service_class_id.
+   *
+   * @var string
+   */
+  public $serviceClassId;
   /**
    * Output only. [Output Only] The status of the address, which can be one
    * ofRESERVING, RESERVED, or IN_USE. An address that is RESERVING is currently
@@ -577,6 +606,24 @@ class Address extends \Google\Collection
     return $this->network;
   }
   /**
+   * Optional. The URL of the network attachment that this address comes from in
+   * the following format: projects/{project}/regions/{region_name}/networkAttac
+   * hments/{network_attachment_name}.
+   *
+   * @param string $networkAttachment
+   */
+  public function setNetworkAttachment($networkAttachment)
+  {
+    $this->networkAttachment = $networkAttachment;
+  }
+  /**
+   * @return string
+   */
+  public function getNetworkAttachment()
+  {
+    return $this->networkAttachment;
+  }
+  /**
    * This signifies the networking tier used for configuring this address and
    * can only take the following values: PREMIUM orSTANDARD. Internal IP
    * addresses are always Premium Tier; global external IP addresses are always
@@ -642,7 +689,9 @@ class Address extends \Google\Collection
    * forwarding rules, as an Availability Group 1 address.
    *
    * Accepted values: DNS_RESOLVER, GCE_ENDPOINT, IPSEC_INTERCONNECT, NAT_AUTO,
-   * PRIVATE_SERVICE_CONNECT, SERVERLESS, SHARED_LOADBALANCER_VIP, VPC_PEERING
+   * PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP0,
+   * PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP1, PRIVATE_SERVICE_CONNECT,
+   * SERVERLESS, SHARED_LOADBALANCER_VIP, VPC_PEERING
    *
    * @param self::PURPOSE_* $purpose
    */
@@ -691,6 +740,25 @@ class Address extends \Google\Collection
   public function getSelfLink()
   {
     return $this->selfLink;
+  }
+  /**
+   * Optional. Producer Service's Service class ID for the region of this
+   * address. Can only be used with network_attachment. It is not possible to
+   * use on its own; however, network_attachment can be used without
+   * service_class_id.
+   *
+   * @param string $serviceClassId
+   */
+  public function setServiceClassId($serviceClassId)
+  {
+    $this->serviceClassId = $serviceClassId;
+  }
+  /**
+   * @return string
+   */
+  public function getServiceClassId()
+  {
+    return $this->serviceClassId;
   }
   /**
    * Output only. [Output Only] The status of the address, which can be one

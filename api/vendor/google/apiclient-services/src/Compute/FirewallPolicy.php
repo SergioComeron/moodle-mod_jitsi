@@ -19,6 +19,17 @@ namespace Google\Service\Compute;
 
 class FirewallPolicy extends \Google\Collection
 {
+  /**
+   * A system-level policy managed by an internal service like GKE. This value
+   * is reserved for internal services and cannot be set by users during policy
+   * creation. Policies with a SYSTEM source cannot be modified or deleted by
+   * users.
+   */
+  public const POLICY_SOURCE_SYSTEM = 'SYSTEM';
+  /**
+   * A regular firewall policy.
+   */
+  public const POLICY_SOURCE_USER_DEFINED = 'USER_DEFINED';
   public const POLICY_TYPE_RDMA_ROCE_POLICY = 'RDMA_ROCE_POLICY';
   public const POLICY_TYPE_ULL_POLICY = 'ULL_POLICY';
   public const POLICY_TYPE_VPC_POLICY = 'VPC_POLICY';
@@ -98,6 +109,20 @@ class FirewallPolicy extends \Google\Collection
    * @var string
    */
   public $parent;
+  /**
+   * Indicates the source of this Firewall Policy. This field is optional on
+   * creation and defaults to USER_DEFINED.
+   *
+   * The USER_DEFINED value indicates a regular firewall policy.
+   *
+   * The SYSTEM value indicates a system-level policy managed by an internal
+   * service like GKE. This SYSTEM value is reserved for internal services and
+   * cannot be set by users during policy creation. Policies with a SYSTEM
+   * source cannot be modified or deleted by users.
+   *
+   * @var string
+   */
+  public $policySource;
   /**
    * The type of the firewall policy. This field can be one of VPC_POLICY,
    * RDMA_ROCE_POLICY or ULL_POLICY.
@@ -336,6 +361,32 @@ class FirewallPolicy extends \Google\Collection
   public function getParent()
   {
     return $this->parent;
+  }
+  /**
+   * Indicates the source of this Firewall Policy. This field is optional on
+   * creation and defaults to USER_DEFINED.
+   *
+   * The USER_DEFINED value indicates a regular firewall policy.
+   *
+   * The SYSTEM value indicates a system-level policy managed by an internal
+   * service like GKE. This SYSTEM value is reserved for internal services and
+   * cannot be set by users during policy creation. Policies with a SYSTEM
+   * source cannot be modified or deleted by users.
+   *
+   * Accepted values: SYSTEM, USER_DEFINED
+   *
+   * @param self::POLICY_SOURCE_* $policySource
+   */
+  public function setPolicySource($policySource)
+  {
+    $this->policySource = $policySource;
+  }
+  /**
+   * @return self::POLICY_SOURCE_*
+   */
+  public function getPolicySource()
+  {
+    return $this->policySource;
   }
   /**
    * The type of the firewall policy. This field can be one of VPC_POLICY,

@@ -49,7 +49,7 @@ use Google\Service\Compute\Operation;
  */
 class InstanceGroupManagers extends \Google\Service\Resource
 {
-  protected $apiVersion = '2026-09-01';
+  protected $apiVersion = '2026-11-01';
 
   /**
    * Flags the specified instances to be removed from the managed instance group.

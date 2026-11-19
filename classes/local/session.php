@@ -551,12 +551,21 @@ class session {
                 $redirecturl = $CFG->wwwroot . "/mod/jitsi/formuniversal.php?t=" . $jitsi->token;
             }
         }
+        // Callers have already validated access to this session (session.php: login and
+        // mod/jitsi:view; universal.php: the invitation token), so a signed presence token can
+        // be issued here. The presence web services only accept writes that carry it.
+        $isguest = (!isloggedin() || isguestuser());
+        $presencetoken = presence_token::issue(
+            (int) $jitsi->id,
+            $isguest ? 0 : (int) $USER->id,
+            $isguest ? (string) $nombre : ''
+        );
         $presenceconfig = [
             'jitsiid' => (int) $jitsi->id,
             'cmid' => (int) $cm->id,
             'userid' => (int) $USER->id,
-            'isGuest' => (!isloggedin() || isguestuser()),
-            'guestName' => $nombre,
+            'sessionHash' => $presencetoken['sessionhash'],
+            'presenceToken' => $presencetoken['token'],
             'trackJoinLeave' => $trackjoinleave,
             'redirectUrl' => $redirecturl,
         ];

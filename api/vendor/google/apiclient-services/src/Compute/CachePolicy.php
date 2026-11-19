@@ -20,6 +20,11 @@ namespace Google\Service\Compute;
 class CachePolicy extends \Google\Collection
 {
   /**
+   * Bypasses the cache for this route. All requests are forwarded to the
+   * origin, and responses are not cached.
+   */
+  public const CACHE_MODE_BYPASS_CACHE = 'BYPASS_CACHE';
+  /**
    * Automatically cache static content, including common image formats, media
    * (video and audio), and web assets (JavaScript and CSS). Requests and
    * responses that are marked as uncacheable, as well as dynamic content
@@ -141,7 +146,8 @@ class CachePolicy extends \Google\Collection
    * Specifies the cache setting for all responses from this route. If not
    * specified, Cloud CDN uses `CACHE_ALL_STATIC` mode.
    *
-   * Accepted values: CACHE_ALL_STATIC, FORCE_CACHE_ALL, USE_ORIGIN_HEADERS
+   * Accepted values: BYPASS_CACHE, CACHE_ALL_STATIC, FORCE_CACHE_ALL,
+   * USE_ORIGIN_HEADERS
    *
    * @param self::CACHE_MODE_* $cacheMode
    */

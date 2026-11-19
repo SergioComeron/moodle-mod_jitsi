@@ -33,7 +33,7 @@ use Google\Service\Compute\ReservationSlotsListResponse;
  */
 class ReservationSlots extends \Google\Service\Resource
 {
-  protected $apiVersion = '2026-09-01';
+  protected $apiVersion = '2026-11-01';
 
   /**
    * Retrieves information about the specified reservation slot.

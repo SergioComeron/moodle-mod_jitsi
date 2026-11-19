@@ -30,7 +30,7 @@ use Google\Service\Compute\GlobalFrontendSettingsPatchResponse;
  */
 class GlobalFrontendSettings extends \Google\Service\Resource
 {
-  protected $apiVersion = '2026-09-01';
+  protected $apiVersion = '2026-11-01';
 
   /**
    * Gets the Global Frontend Billing Bundle Settings for a project.

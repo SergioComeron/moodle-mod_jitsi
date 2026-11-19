@@ -36,6 +36,12 @@ class Network extends \Google\Collection
    */
   public $iPv4Range;
   /**
+   * Output only. [Output Only] Additional tags for this resource.
+   *
+   * @var string[]
+   */
+  public $additionalTags;
+  /**
    * Must be set to create a VPC network. If not set, a legacy network is
    * created.
    *
@@ -196,6 +202,22 @@ class Network extends \Google\Collection
   public function getIPv4Range()
   {
     return $this->iPv4Range;
+  }
+  /**
+   * Output only. [Output Only] Additional tags for this resource.
+   *
+   * @param string[] $additionalTags
+   */
+  public function setAdditionalTags($additionalTags)
+  {
+    $this->additionalTags = $additionalTags;
+  }
+  /**
+   * @return string[]
+   */
+  public function getAdditionalTags()
+  {
+    return $this->additionalTags;
   }
   /**
    * Must be set to create a VPC network. If not set, a legacy network is

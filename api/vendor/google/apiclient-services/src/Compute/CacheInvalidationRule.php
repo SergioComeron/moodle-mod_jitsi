@@ -21,6 +21,17 @@ class CacheInvalidationRule extends \Google\Collection
 {
   protected $collection_key = 'cacheTags';
   /**
+   * If set, this invalidation rule will only apply to requests routed to the
+   * given backend service or backend bucket. For example, for a backend bucket
+   * `bb1` in the same scope as the URL map, the path would be `projects/my-
+   * project/global/backendBuckets/bb1`; and for a backend service `bs1` in the
+   * same scope as the URL map, the path would be `projects/my-
+   * project/global/backendServices/bs1`.
+   *
+   * @var string
+   */
+  public $backendService;
+  /**
    * A list of cache tags used to identify cached objects.
    *
    *        - Cache tags are specified when the response is first cached, by
@@ -35,6 +46,14 @@ class CacheInvalidationRule extends \Google\Collection
    */
   public $cacheTags;
   /**
+   * If set, this invalidation rule will only apply to responses with the given
+   * content-type. Parameters are not allowed and are ignored from the response
+   * when matching. Wildcards are not allowed.
+   *
+   * @var string
+   */
+  public $contentType;
+  /**
    * If set, this invalidation rule will only apply to requests with a Host
    * header matching host. This field also accepts wildcards (*) to replace the
    * leftmost (or first) label of a hostname. For example, *.example.com will
@@ -44,10 +63,38 @@ class CacheInvalidationRule extends \Google\Collection
    */
   public $host;
   /**
+   * If set, this invalidation rule will only apply to responses with the given
+   * HTTP status. Valid range is 200-599.
+   *
+   * @var int
+   */
+  public $httpStatus;
+  /**
    * @var string
    */
   public $path;
 
+  /**
+   * If set, this invalidation rule will only apply to requests routed to the
+   * given backend service or backend bucket. For example, for a backend bucket
+   * `bb1` in the same scope as the URL map, the path would be `projects/my-
+   * project/global/backendBuckets/bb1`; and for a backend service `bs1` in the
+   * same scope as the URL map, the path would be `projects/my-
+   * project/global/backendServices/bs1`.
+   *
+   * @param string $backendService
+   */
+  public function setBackendService($backendService)
+  {
+    $this->backendService = $backendService;
+  }
+  /**
+   * @return string
+   */
+  public function getBackendService()
+  {
+    return $this->backendService;
+  }
   /**
    * A list of cache tags used to identify cached objects.
    *
@@ -73,6 +120,24 @@ class CacheInvalidationRule extends \Google\Collection
     return $this->cacheTags;
   }
   /**
+   * If set, this invalidation rule will only apply to responses with the given
+   * content-type. Parameters are not allowed and are ignored from the response
+   * when matching. Wildcards are not allowed.
+   *
+   * @param string $contentType
+   */
+  public function setContentType($contentType)
+  {
+    $this->contentType = $contentType;
+  }
+  /**
+   * @return string
+   */
+  public function getContentType()
+  {
+    return $this->contentType;
+  }
+  /**
    * If set, this invalidation rule will only apply to requests with a Host
    * header matching host. This field also accepts wildcards (*) to replace the
    * leftmost (or first) label of a hostname. For example, *.example.com will
@@ -90,6 +155,23 @@ class CacheInvalidationRule extends \Google\Collection
   public function getHost()
   {
     return $this->host;
+  }
+  /**
+   * If set, this invalidation rule will only apply to responses with the given
+   * HTTP status. Valid range is 200-599.
+   *
+   * @param int $httpStatus
+   */
+  public function setHttpStatus($httpStatus)
+  {
+    $this->httpStatus = $httpStatus;
+  }
+  /**
+   * @return int
+   */
+  public function getHttpStatus()
+  {
+    return $this->httpStatus;
   }
   /**
    * @param string $path

@@ -608,9 +608,9 @@ final class external_test extends \advanced_testcase {
     public function test_presence_join_creates_record(): void {
         global $DB;
         $this->resetAfterTest(true);
-        $user = $this->getDataGenerator()->create_user();
-        $this->setUser($user);
         [$jitsi, $cm] = $this->create_jitsi_activity();
+        $user = $this->getDataGenerator()->create_and_enrol(get_course($cm->course), 'student');
+        $this->setUser($user);
 
         $total = \mod_jitsi\external\presence_join::execute($jitsi->id, 'hashaaa1');
 
@@ -627,9 +627,9 @@ final class external_test extends \advanced_testcase {
     public function test_presence_join_updates_existing(): void {
         global $DB;
         $this->resetAfterTest(true);
-        $user = $this->getDataGenerator()->create_user();
-        $this->setUser($user);
         [$jitsi, $cm] = $this->create_jitsi_activity();
+        $user = $this->getDataGenerator()->create_and_enrol(get_course($cm->course), 'student');
+        $this->setUser($user);
 
         \mod_jitsi\external\presence_join::execute($jitsi->id, 'hashaaa1');
         $total = \mod_jitsi\external\presence_join::execute($jitsi->id, 'hashaaa1');
@@ -644,9 +644,9 @@ final class external_test extends \advanced_testcase {
     public function test_presence_leave_removes_record(): void {
         global $DB;
         $this->resetAfterTest(true);
-        $user = $this->getDataGenerator()->create_user();
-        $this->setUser($user);
         [$jitsi, $cm] = $this->create_jitsi_activity();
+        $user = $this->getDataGenerator()->create_and_enrol(get_course($cm->course), 'student');
+        $this->setUser($user);
 
         \mod_jitsi\external\presence_join::execute($jitsi->id, 'hashaaa1');
         $result = \mod_jitsi\external\presence_leave::execute($jitsi->id, 'hashaaa1');
@@ -661,9 +661,9 @@ final class external_test extends \advanced_testcase {
     public function test_presence_heartbeat_clears_stale(): void {
         global $DB;
         $this->resetAfterTest(true);
-        $user = $this->getDataGenerator()->create_user();
-        $this->setUser($user);
         [$jitsi, $cm] = $this->create_jitsi_activity();
+        $user = $this->getDataGenerator()->create_and_enrol(get_course($cm->course), 'student');
+        $this->setUser($user);
 
         // Insert a stale entry (older than the 150s threshold).
         $stale = (object)[

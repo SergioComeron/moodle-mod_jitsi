@@ -31,6 +31,8 @@ class UrlMapValidationResult extends \Google\Collection
    * @var bool
    */
   public $loadSucceeded;
+  protected $quotaUsageType = UrlMapQuotaUsage::class;
+  protected $quotaUsageDataType = '';
   protected $testFailuresType = TestFailure::class;
   protected $testFailuresDataType = 'array';
   /**
@@ -71,6 +73,22 @@ class UrlMapValidationResult extends \Google\Collection
   public function getLoadSucceeded()
   {
     return $this->loadSucceeded;
+  }
+  /**
+   * Output only. Summary of quota usage for given UrlMap.
+   *
+   * @param UrlMapQuotaUsage $quotaUsage
+   */
+  public function setQuotaUsage(UrlMapQuotaUsage $quotaUsage)
+  {
+    $this->quotaUsage = $quotaUsage;
+  }
+  /**
+   * @return UrlMapQuotaUsage
+   */
+  public function getQuotaUsage()
+  {
+    return $this->quotaUsage;
   }
   /**
    * @param TestFailure[] $testFailures

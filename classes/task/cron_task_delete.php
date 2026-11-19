@@ -21,7 +21,9 @@
  * @copyright  2023 Sergio Comerón Sánchez-Paniagua <sergiocomeron@icloud.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+
 namespace mod_jitsi\task;
+
 defined('MOODLE_INTERNAL') || die();
 
 require_once($CFG->dirroot . '/mod/jitsi/lib.php');
