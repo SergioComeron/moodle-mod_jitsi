@@ -1,4 +1,37 @@
 # Changelog
+## v5.5.2
+# Fixed
+
+ * no cargar moodlelib.php con rutas relativas al archivo
+ * imprime siempre el pie para que los invitados carguen el JS de presencia
+ * exige token de presencia firmado o acceso a la actividad
+# Changed
+
+ * Release 5.5.2
+ * Merge pull request #232: bump google/apiclient-services to 0.467.0
+ * update api/vendor for google/apiclient-services 0.467.0
+ * bump google/apiclient-services in /api
+ * Merge pull request #231: remove dirname(__FILE__) moodlelib requires (symlink fix)
+ * sube la versión a 5.5.2 (2026111600)
+ * Merge pull request #229 from SergioComeron/dependabot/composer/dev/moodlehq/moodle-cs-3.9.0
+ * corrige el espaciado de cabeceras para moodle-cs 3.9.0
+ * Merge branch 'dev' into dependabot/composer/dev/moodlehq/moodle-cs-3.9.0
+ * Merge pull request #230 from SergioComeron/dependabot/composer/api/dev/google/apiclient-services-0.466.0
+ * actualiza api/vendor para google/apiclient-services 0.466.0
+ * bump google/apiclient-services in /api
+ * bump moodlehq/moodle-cs from 3.7.0 to 3.9.0
+ * Merge pull request #228 from SergioComeron/chore/api-htaccess
+ * Deny web access to api/ on Apache
+ * Merge pull request #227 from SergioComeron/chore/zip-exclude-composer-metadata
+ * Exclude Composer metadata from the release zip
+ * Merge pull request #226 from SergioComeron/dependabot/composer/api/dev/google/apiclient-services-0.465.1
+ * Merge branch 'dev' into dependabot/composer/api/dev/google/apiclient-services-0.465.1
+ * actualiza api/vendor para google/apiclient-services 0.465.1
+ * align dev version.php with v5.5.1 (2026110801)
+ * bump google/apiclient-services in /api
+
+---
+
 ## v5.5.1
 # Fixed
 
