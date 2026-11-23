@@ -499,6 +499,8 @@ $string['recorders'] = 'Recorders';
 $string['recordex'] = 'Enable native Jitsi recording options (actually dropbox) to users with mod/jitsi:record capability enabled (teachers). If you set the "Streaming configuration" with the "Moodle integrated" method probably you will want to disable this.';
 $string['recordingaccesslog'] = 'Recording access log';
 $string['recordingbloquedby'] = 'The recording is blocked by ';
+$string['recordingstartfailed'] = 'Recording could not start because no recorder is available. '
+    . 'The session is not locked; you can try again.';
 $string['recordingheatmap'] = 'Viewing heatmap';
 $string['recordingheatmapplays'] = 'Total plays (max {$a})';
 $string['recordingheatmapviewers'] = '{$a} viewers';

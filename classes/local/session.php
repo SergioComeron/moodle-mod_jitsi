@@ -275,6 +275,10 @@ class session {
             ['key' => 'chat', 'preventExecution' => false],
             ['key' => 'microphone', 'preventExecution' => false],
             ['key' => '__end', 'preventExecution' => true],
+            // Native record/livestream clicks (self-hosted Jitsi toolbar) must be
+            // reported so a failed start can be told apart from someone else's recording.
+            ['key' => 'recording', 'preventExecution' => false],
+            ['key' => 'livestreaming', 'preventExecution' => false],
         ];
 
         $config['disableDeepLinking'] = true;
@@ -610,6 +614,7 @@ class session {
                 'userid' => (int) $USER->id,
                 'cmid' => (int) $cmid,
                 'session' => $session,
+                'canRecord' => has_capability('mod/jitsi:record', $PAGE->context),
                 'dropboxAppKey' => $showdropbox ? $dropboxappkey : '',
                 'dropboxOauthUrl' => $CFG->wwwroot . '/mod/jitsi/dropboxoauth.php',
             ]]);

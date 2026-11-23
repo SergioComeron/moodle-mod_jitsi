@@ -1697,6 +1697,9 @@ final class lib_test extends \advanced_testcase {
 
         $this->assertSame(['disableGrantModerator' => true], $config['remoteVideoMenu']);
         $this->assertArrayNotHasKey('disableRemoteMute', $config);
+        $keys = array_column($config['buttonsWithNotifyClick'], 'key');
+        $this->assertContains('recording', $keys);
+        $this->assertContains('livestreaming', $keys);
     }
 
     /**

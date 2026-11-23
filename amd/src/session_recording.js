@@ -69,6 +69,7 @@ const recordingBanner = (text) => {
  * @param {number} config.userid Current user id.
  * @param {number} config.cmid Course module id.
  * @param {string} config.session Room/session name.
+ * @param {boolean} config.canRecord Whether the current user can record this activity.
  * @param {string} config.dropboxAppKey Dropbox app key ('' disables the Dropbox button).
  * @param {string} config.dropboxOauthUrl URL of the plugin's Dropbox OAuth landing page.
  */
@@ -80,6 +81,16 @@ export const init = (config) => {
 
     let idsource = null;
     let recordingStateReceived = false;
+    // Timestamp of the last record/stream click from this client, and of the last
+    // confirmed "recording is on" event. A failure is only released by the client
+    // that just tried to start, and never while someone else is already recording.
+    let startAttemptAt = 0;
+    let confirmedAt = 0;
+    let failureShownAt = 0;
+    let releasing = false;
+
+    /** Errors that mean the recorder never started (no Jibri, or it rejected the start). */
+    const START_FAILURES = ['service-unavailable', 'busy', 'resource-constraint', 'error'];
 
     // Cached language strings (populated asynchronously; the controls below are only ever
     // triggered by user interaction, well after this resolves).
@@ -91,6 +102,7 @@ export const init = (config) => {
         wasbloquedby: '',
         beingrecorded: '',
         recordaccounterror: '',
+        startfailed: '',
     };
     getStrings([
         {key: 'preparing', component: 'mod_jitsi'},
@@ -100,8 +112,9 @@ export const init = (config) => {
         {key: 'recordingwasbloquedby', component: 'mod_jitsi'},
         {key: 'sessionisbeingrecorded', component: 'mod_jitsi'},
         {key: 'recordaccounterror', component: 'mod_jitsi'},
+        {key: 'recordingstartfailed', component: 'mod_jitsi'},
     ]).then(([preparing, bloquedby, streamingstarting, internalerror, wasbloquedby, beingrecorded,
-        recordaccounterror]) => {
+        recordaccounterror, startfailed]) => {
         str.preparing = preparing;
         str.bloquedby = bloquedby;
         str.streamingstarting = streamingstarting;
@@ -109,6 +122,7 @@ export const init = (config) => {
         str.wasbloquedby = wasbloquedby;
         str.beingrecorded = beingrecorded;
         str.recordaccounterror = recordaccounterror;
+        str.startfailed = startfailed;
         return str;
     }).catch(Notification.exception);
 
@@ -140,6 +154,91 @@ export const init = (config) => {
         if (db) {
             db.disabled = disabled;
         }
+    };
+
+    /**
+     * Remember that this client just asked Jitsi to start recording or streaming.
+     */
+    const noteStartAttempt = () => {
+        startAttemptAt = Date.now();
+    };
+
+    /**
+     * True when this client tried to start a recording a few seconds ago.
+     *
+     * @returns {boolean}
+     */
+    const recentStartAttempt = () => {
+        return startAttemptAt > 0 && (Date.now() - startAttemptAt) < 60000;
+    };
+
+    /**
+     * Put the stream, record and Dropbox buttons back to their idle look.
+     */
+    const resetRecordingControls = () => {
+        const sb = document.getElementById('streamBtn');
+        const rb = document.getElementById('recordBtn');
+        const db = document.getElementById('dropboxBtn');
+        if (rb) {
+            rb.classList.remove('btn-danger');
+            rb.classList.add('btn-outline-danger');
+            rb.disabled = false;
+        }
+        if (sb) {
+            sb.classList.remove('btn-warning');
+            sb.classList.add('btn-outline-warning');
+            sb.disabled = false;
+        }
+        if (db) {
+            db.disabled = false;
+        }
+    };
+
+    /**
+     * A start failed (no Jibri, or Jicofo still holding the previous failed session).
+     *
+     * Drop Moodle's "someone is recording" lock and tell Jitsi to stop, so the next
+     * click is not rejected as if another user were recording.
+     *
+     * @param {object} event recordingStatusChanged payload.
+     */
+    const releaseFailedRecording = (event) => {
+        if (releasing || !config.canRecord) {
+            return;
+        }
+        releasing = true;
+        const mode = event.mode === 'stream' ? 'stream' : 'file';
+        fire('mod_jitsi_set_jibri_recording', {jitsiid: config.jitsiid, recording: 0});
+        if (mode === 'stream' || idsource) {
+            fire('mod_jitsi_stop_stream_byerror', {jitsi: config.jitsiid, userid: config.userid});
+            if (idsource) {
+                fire('mod_jitsi_delete_record_youtube', {idsource: idsource});
+                idsource = null;
+            }
+        }
+        fire('mod_jitsi_send_error', {
+            jitsi: config.jitsiid,
+            user: config.userid,
+            error: 'Error de servidor jitsi: ' + event.error,
+            cmid: config.cmid,
+        });
+        try {
+            if (mode === 'file') {
+                api.stopRecording('file');
+            } else {
+                api.executeCommand('stopRecording', 'stream');
+            }
+        } catch (e) { // eslint-disable-line no-unused-vars
+            // The session may already be off. The Moodle lock is cleared either way.
+        }
+        resetRecordingControls();
+        failureShownAt = Date.now();
+        setState('<div class="alert alert-warning" role="alert">' + str.startfailed + '</div>');
+        startAttemptAt = 0;
+        confirmedAt = 0;
+        setTimeout(() => {
+            releasing = false;
+        }, 1000);
     };
 
     /**
@@ -185,6 +284,7 @@ export const init = (config) => {
                 setControlsDisabled(false);
             } else {
                 // Success: recordingStatusChanged(stream, on) will set the final button states.
+                noteStartAttempt();
                 api.executeCommand('startRecording', {mode: 'stream', youtubeStreamKey: response.stream});
             }
         }).fail((ex) => {
@@ -268,6 +368,7 @@ export const init = (config) => {
             // stream can't be launched while the recording is preparing.
             setControlsDisabled(true);
             armControlsWatchdog();
+            noteStartAttempt();
             api.startRecording({mode: 'file'});
         }
     };
@@ -284,6 +385,7 @@ export const init = (config) => {
     const startDropboxRecording = (token) => {
         setControlsDisabled(true);
         armControlsWatchdog();
+        noteStartAttempt();
         api.startRecording({mode: 'file', dropboxToken: token});
     };
 
@@ -336,16 +438,46 @@ export const init = (config) => {
         dropboxBtn.addEventListener('click', handleDropboxBtn);
     }
 
+    // The native Jitsi toolbar (self-hosted) does not go through the Moodle buttons.
+    api.addEventListener('toolbarButtonClicked', (event) => {
+        if (event.key === 'recording' || event.key === 'livestreaming') {
+            noteStartAttempt();
+        }
+    });
+
     // Reflect recording/streaming state on the buttons and banner, and report it server-side.
     api.addEventListener('recordingStatusChanged', (event) => {
         recordingStateReceived = true;
+        if (releasing) {
+            return;
+        }
+        const startFailure = START_FAILURES.indexOf(event.error) !== -1
+            || event.error === 'unexpected-request';
+        // A recording that was already on before this click belongs to someone else.
+        const preexisting = confirmedAt > 0 && startAttemptAt > 0 && confirmedAt < startAttemptAt;
+        if (event.error && preexisting) {
+            // Someone else is actually recording. Leave their session and the buttons alone.
+            return;
+        }
+        if (event.error && startFailure && recentStartAttempt() && !preexisting
+                && (event.mode === 'file' || event.mode === 'stream')) {
+            releaseFailedRecording(event);
+            return;
+        }
+        if (event.on && !event.error && (event.mode === 'file' || event.mode === 'stream')) {
+            confirmedAt = Date.now();
+        }
+        if (event.on === false && !event.error) {
+            confirmedAt = 0;
+        }
         const sb = document.getElementById('streamBtn');
         const rb = document.getElementById('recordBtn');
         const db = document.getElementById('dropboxBtn');
+        const active = event.on && !event.error;
         if (event.mode === 'file') {
             // Any file recording (8x8 cloud or Dropbox) turns the record button
             // red, which then acts as the single stop control.
-            if (event.on) {
+            if (active) {
                 if (rb) {
                     rb.classList.remove('btn-outline-danger');
                     rb.classList.add('btn-danger');
@@ -370,9 +502,11 @@ export const init = (config) => {
                     db.disabled = false;
                 }
             }
-            fire('mod_jitsi_set_jibri_recording', {jitsiid: config.jitsiid, recording: event.on ? 1 : 0});
+            if (!event.error) {
+                fire('mod_jitsi_set_jibri_recording', {jitsiid: config.jitsiid, recording: active ? 1 : 0});
+            }
         }
-        if (event.on && event.mode === 'stream') {
+        if (active && event.mode === 'stream') {
             if (sb) {
                 sb.classList.remove('btn-outline-warning');
                 sb.classList.add('btn-warning');
@@ -403,27 +537,12 @@ export const init = (config) => {
                     db.disabled = false;
                 }, 2000);
             }
-            setState('');
-        }
-        fire('mod_jitsi_state_record', {jitsi: config.jitsiid, state: event.on});
-    });
-
-    // On a Jitsi recording error, drop the YouTube source and report it.
-    api.addEventListener('recordingStatusChanged', (event) => {
-        if (event.error) {
-            // idsource is only set for the YouTube stream flow. On a file recording
-            // error (8x8 cloud / Jibri / Dropbox) there is no YouTube source to drop,
-            // and calling delete_record_youtube with a null id (NULL_NOT_ALLOWED) would
-            // surface a false error popup that masks the real recording error.
-            if (idsource) {
-                fire('mod_jitsi_delete_record_youtube', {idsource: idsource});
+            if ((Date.now() - failureShownAt) > 60000) {
+                setState('');
             }
-            fire('mod_jitsi_send_error', {
-                jitsi: config.jitsiid,
-                user: config.userid,
-                error: 'Error de servidor jitsi: ' + event.error,
-                cmid: config.cmid,
-            });
+        }
+        if (!event.error) {
+            fire('mod_jitsi_state_record', {jitsi: config.jitsiid, state: event.on});
         }
     });
 
@@ -434,7 +553,7 @@ export const init = (config) => {
 
     // Persist the recording link when a recording stops and exposes a URL.
     api.addEventListener('recordingStatusChanged', (event) => {
-        if (!event.on && event.url) {
+        if (!event.on && !event.error && event.url) {
             fire('mod_jitsi_save_recording_link', {jitsi: config.jitsiid, link: event.url, ttl: 0});
         }
     });
