@@ -1700,6 +1700,7 @@ final class lib_test extends \advanced_testcase {
         $keys = array_column($config['buttonsWithNotifyClick'], 'key');
         $this->assertContains('recording', $keys);
         $this->assertContains('livestreaming', $keys);
+        $this->assertContains('recording.unavailable', $config['disabledNotifications']);
     }
 
     /**

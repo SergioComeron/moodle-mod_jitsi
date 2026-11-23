@@ -501,6 +501,7 @@ $string['recordingaccesslog'] = 'Recording access log';
 $string['recordingbloquedby'] = 'The recording is blocked by ';
 $string['recordingstartfailed'] = 'Recording could not start because no recorder is available. '
     . 'The session is not locked; you can try again.';
+$string['recordingwaitingforjibri'] = 'Waiting for the recorder to start. Recording will begin automatically.';
 $string['recordingheatmap'] = 'Viewing heatmap';
 $string['recordingheatmapplays'] = 'Total plays (max {$a})';
 $string['recordingheatmapviewers'] = '{$a} viewers';

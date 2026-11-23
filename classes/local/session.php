@@ -281,6 +281,24 @@ class session {
             ['key' => 'livestreaming', 'preventExecution' => false],
         ];
 
+        // These are notifications, not dialogs. Hiding them lets the client wait
+        // for a Jibri to register without Jitsi painting "no recorder".
+        $config['disabledNotifications'] = [
+            'recording.unavailable',
+            'recording.unavailableTitle',
+            'recording.busy',
+            'recording.busyTitle',
+            'recording.failedToStart',
+            'recording.error',
+            'recording.sessionAlreadyActive',
+            'liveStreaming.unavailableTitle',
+            'liveStreaming.busy',
+            'liveStreaming.busyTitle',
+            'liveStreaming.failedToStart',
+            'liveStreaming.error',
+            'liveStreaming.sessionAlreadyActive',
+        ];
+
         $config['disableDeepLinking'] = true;
 
         if (get_config('mod_jitsi', 'reactions') == 0) {

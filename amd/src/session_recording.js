@@ -88,9 +88,18 @@ export const init = (config) => {
     let confirmedAt = 0;
     let failureShownAt = 0;
     let releasing = false;
+    // While waiting for a Jibri to boot, retries stay silent and the final error
+    // is shown only after WAIT_MS. ignoringStop swallows the stop we send ourselves.
+    let waitingUntil = 0;
+    let retryTimer = 0;
+    let ignoringStop = false;
+    const WAIT_MS = 120000;
+    const RETRY_MS = 12000;
 
     /** Errors that mean the recorder never started (no Jibri, or it rejected the start). */
     const START_FAILURES = ['service-unavailable', 'busy', 'resource-constraint', 'error'];
+    /** Errors that mean no recorder is registered yet, so it is worth waiting for one. */
+    const NOT_READY = ['service-unavailable', 'busy', 'resource-constraint'];
 
     // Cached language strings (populated asynchronously; the controls below are only ever
     // triggered by user interaction, well after this resolves).
@@ -103,6 +112,7 @@ export const init = (config) => {
         beingrecorded: '',
         recordaccounterror: '',
         startfailed: '',
+        waiting: '',
     };
     getStrings([
         {key: 'preparing', component: 'mod_jitsi'},
@@ -113,8 +123,9 @@ export const init = (config) => {
         {key: 'sessionisbeingrecorded', component: 'mod_jitsi'},
         {key: 'recordaccounterror', component: 'mod_jitsi'},
         {key: 'recordingstartfailed', component: 'mod_jitsi'},
+        {key: 'recordingwaitingforjibri', component: 'mod_jitsi'},
     ]).then(([preparing, bloquedby, streamingstarting, internalerror, wasbloquedby, beingrecorded,
-        recordaccounterror, startfailed]) => {
+        recordaccounterror, startfailed, waiting]) => {
         str.preparing = preparing;
         str.bloquedby = bloquedby;
         str.streamingstarting = streamingstarting;
@@ -123,6 +134,7 @@ export const init = (config) => {
         str.beingrecorded = beingrecorded;
         str.recordaccounterror = recordaccounterror;
         str.startfailed = startfailed;
+        str.waiting = waiting;
         return str;
     }).catch(Notification.exception);
 
@@ -239,6 +251,95 @@ export const init = (config) => {
         setTimeout(() => {
             releasing = false;
         }, 1000);
+    };
+
+    /**
+     * Stop waiting for a recorder. Does not change the banner.
+     */
+    const cancelWait = () => {
+        waitingUntil = 0;
+        if (retryTimer) {
+            clearTimeout(retryTimer);
+            retryTimer = 0;
+        }
+    };
+
+    /**
+     * Banner shown instead of the Jitsi "no recorder" notice while we retry.
+     */
+    const showWaiting = () => {
+        failureShownAt = Date.now();
+        setState('<div class="alert alert-info" role="alert">' + str.waiting + '</div>');
+    };
+
+    /**
+     * Stop a failed file start without telling the user it failed.
+     *
+     * @param {object} event recordingStatusChanged payload.
+     */
+    const quietStop = (event) => {
+        if (releasing || !config.canRecord) {
+            return;
+        }
+        releasing = true;
+        ignoringStop = true;
+        const mode = event.mode === 'stream' ? 'stream' : 'file';
+        fire('mod_jitsi_set_jibri_recording', {jitsiid: config.jitsiid, recording: 0});
+        try {
+            if (mode === 'file') {
+                api.stopRecording('file');
+            } else {
+                api.executeCommand('stopRecording', 'stream');
+            }
+        } catch (e) { // eslint-disable-line no-unused-vars
+            ignoringStop = false;
+        }
+        confirmedAt = 0;
+        setTimeout(() => {
+            releasing = false;
+        }, 1000);
+    };
+
+    /**
+     * No Jibri is registered yet. Keep the session unlocked and try again until
+     * one shows up, or the wait expires.
+     *
+     * @param {object} event recordingStatusChanged payload.
+     */
+    const holdForRecorder = (event) => {
+        if (!config.canRecord) {
+            return;
+        }
+        if (!waitingUntil) {
+            waitingUntil = Date.now() + WAIT_MS;
+        }
+        if (Date.now() > waitingUntil) {
+            cancelWait();
+            releaseFailedRecording(event);
+            return;
+        }
+        showWaiting();
+        if (retryTimer || releasing) {
+            return;
+        }
+        quietStop(event);
+        const mode = event.mode === 'stream' ? 'stream' : 'file';
+        retryTimer = setTimeout(() => {
+            retryTimer = 0;
+            if (!waitingUntil || Date.now() > waitingUntil) {
+                return;
+            }
+            noteStartAttempt();
+            try {
+                if (mode === 'stream') {
+                    api.executeCommand('startRecording', {mode: 'stream'});
+                } else {
+                    api.startRecording({mode: 'file'});
+                }
+            } catch (e) { // eslint-disable-line no-unused-vars
+                // The next status event, or the wait deadline, finishes this.
+            }
+        }, RETRY_MS);
     };
 
     /**
@@ -451,16 +552,39 @@ export const init = (config) => {
         if (releasing) {
             return;
         }
+        if (ignoringStop && event.on === false && !event.error) {
+            ignoringStop = false;
+            return;
+        }
         const startFailure = START_FAILURES.indexOf(event.error) !== -1
             || event.error === 'unexpected-request';
+        const notReady = NOT_READY.indexOf(event.error) !== -1;
         // A recording that was already on before this click belongs to someone else.
         const preexisting = confirmedAt > 0 && startAttemptAt > 0 && confirmedAt < startAttemptAt;
         if (event.error && preexisting) {
             // Someone else is actually recording. Leave their session and the buttons alone.
             return;
         }
+        if (event.on && !event.error && waitingUntil
+                && (event.mode === 'file' || event.mode === 'stream')) {
+            cancelWait();
+            if (event.mode === 'file') {
+                setState('');
+            }
+        } else if (waitingUntil && event.on === false && !event.error) {
+            // The user stopped while we were waiting. Do not start again.
+            cancelWait();
+            setState('');
+        }
+        if (event.error && notReady && !preexisting
+                && (recentStartAttempt() || waitingUntil)
+                && (event.mode === 'file' || event.mode === 'stream')) {
+            holdForRecorder(event);
+            return;
+        }
         if (event.error && startFailure && recentStartAttempt() && !preexisting
                 && (event.mode === 'file' || event.mode === 'stream')) {
+            cancelWait();
             releaseFailedRecording(event);
             return;
         }
@@ -537,7 +661,7 @@ export const init = (config) => {
                     db.disabled = false;
                 }, 2000);
             }
-            if ((Date.now() - failureShownAt) > 60000) {
+            if (!waitingUntil && (Date.now() - failureShownAt) > 60000) {
                 setState('');
             }
         }

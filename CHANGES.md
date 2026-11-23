@@ -3,6 +3,7 @@
 # Fixed
 
  * suelta el bloqueo de grabación cuando no hay Jibri y el inicio falla
+ * espera a que el grabador arranque sin mostrar el aviso de Jitsi
  * no cargar moodlelib.php con rutas relativas al archivo
  * imprime siempre el pie para que los invitados carguen el JS de presencia
  * exige token de presencia firmado o acceso a la actividad
