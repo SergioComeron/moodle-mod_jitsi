@@ -573,6 +573,11 @@ export const init = (config) => {
     api.addEventListener('recordingStatusChanged', (event) => {
         recordingStateReceived = true;
         if (releasing) {
+            // Our own stop can arrive while this flag is still set. Consume it
+            // here, or the user's later stop is thrown away and the banner stays.
+            if (ignoringStop && event.on === false && !event.error) {
+                ignoringStop = false;
+            }
             return;
         }
         if (ignoringStop && event.on === false && !event.error) {
@@ -588,11 +593,15 @@ export const init = (config) => {
             // Someone else is actually recording. Leave their session and the buttons alone.
             return;
         }
-        if (event.on && !event.error && waitingUntil
-                && (event.mode === 'file' || event.mode === 'stream')) {
-            cancelWait();
-            if (event.mode === 'file') {
-                setState('');
+        if (event.on && !event.error && (event.mode === 'file' || event.mode === 'stream')) {
+            // A real start. The stop we sent while waiting must not swallow this session.
+            ignoringStop = false;
+            if (waitingUntil) {
+                cancelWait();
+                failureShownAt = 0;
+                if (event.mode === 'file') {
+                    setState('');
+                }
             }
         } else if (waitingUntil && event.on === false && !event.error) {
             // The user stopped while we were waiting. Do not start again.
