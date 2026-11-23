@@ -80,6 +80,9 @@ export const init = (config) => {
     }
 
     let idsource = null;
+    // Stream key from the YouTube broadcast created for this attempt. Retries must
+    // send it again; a bare stream start is rejected.
+    let youtubeStreamKey = '';
     let recordingStateReceived = false;
     // Timestamp of the last record/stream click from this client, and of the last
     // confirmed "recording is on" event. A failure is only released by the client
@@ -219,6 +222,7 @@ export const init = (config) => {
             return;
         }
         releasing = true;
+        youtubeStreamKey = '';
         const mode = event.mode === 'stream' ? 'stream' : 'file';
         fire('mod_jitsi_set_jibri_recording', {jitsiid: config.jitsiid, recording: 0});
         if (mode === 'stream' || idsource) {
@@ -319,25 +323,43 @@ export const init = (config) => {
             return;
         }
         showWaiting();
-        if (retryTimer || releasing) {
+        if (releasing) {
             return;
+        }
+        if (retryTimer) {
+            clearTimeout(retryTimer);
+            retryTimer = 0;
         }
         quietStop(event);
         const mode = event.mode === 'stream' ? 'stream' : 'file';
         retryTimer = setTimeout(() => {
             retryTimer = 0;
-            if (!waitingUntil || Date.now() > waitingUntil) {
+            if (!waitingUntil) {
+                return;
+            }
+            if (Date.now() > waitingUntil) {
+                cancelWait();
+                releaseFailedRecording({mode: mode, error: 'service-unavailable'});
+                return;
+            }
+            // A stream retry without the key is rejected locally and never reaches Jicofo.
+            if (mode === 'stream' && !youtubeStreamKey) {
+                cancelWait();
+                releaseFailedRecording({mode: mode, error: 'service-unavailable'});
                 return;
             }
             noteStartAttempt();
             try {
                 if (mode === 'stream') {
-                    api.executeCommand('startRecording', {mode: 'stream'});
+                    api.executeCommand('startRecording', {
+                        mode: 'stream',
+                        youtubeStreamKey: youtubeStreamKey,
+                    });
                 } else {
                     api.startRecording({mode: 'file'});
                 }
             } catch (e) { // eslint-disable-line no-unused-vars
-                // The next status event, or the wait deadline, finishes this.
+                // The wait deadline still ends this if Jitsi never answers.
             }
         }, RETRY_MS);
     };
@@ -385,8 +407,9 @@ export const init = (config) => {
                 setControlsDisabled(false);
             } else {
                 // Success: recordingStatusChanged(stream, on) will set the final button states.
+                youtubeStreamKey = response.stream;
                 noteStartAttempt();
-                api.executeCommand('startRecording', {mode: 'stream', youtubeStreamKey: response.stream});
+                api.executeCommand('startRecording', {mode: 'stream', youtubeStreamKey: youtubeStreamKey});
             }
         }).fail((ex) => {
             fire('mod_jitsi_stop_stream_byerror', {jitsi: config.jitsiid, userid: config.userid});
