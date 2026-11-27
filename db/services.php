@@ -346,6 +346,7 @@ $functions = [
                 'type' => 'write',
                 'ajax' => true,
                 'loginrequired' => false,
+                'services' => [MOODLE_OFFICIAL_MOBILE_SERVICE, 'local_mobile'],
         ],
 
         'mod_jitsi_presence_leave' => [
@@ -355,6 +356,7 @@ $functions = [
                 'type' => 'write',
                 'ajax' => true,
                 'loginrequired' => false,
+                'services' => [MOODLE_OFFICIAL_MOBILE_SERVICE, 'local_mobile'],
         ],
 
         'mod_jitsi_presence_heartbeat' => [
@@ -364,6 +366,7 @@ $functions = [
                 'type' => 'write',
                 'ajax' => true,
                 'loginrequired' => false,
+                'services' => [MOODLE_OFFICIAL_MOBILE_SERVICE, 'local_mobile'],
         ],
 
         'mod_jitsi_get_presence_count' => [
@@ -373,6 +376,7 @@ $functions = [
                 'type' => 'read',
                 'ajax' => true,
                 'loginrequired' => true,
+                'services' => [MOODLE_OFFICIAL_MOBILE_SERVICE, 'local_mobile'],
         ],
 
         'mod_jitsi_get_presence_users' => [
@@ -382,6 +386,29 @@ $functions = [
                 'type' => 'read',
                 'ajax' => true,
                 'loginrequired' => true,
+                'services' => [MOODLE_OFFICIAL_MOBILE_SERVICE, 'local_mobile'],
+        ],
+
+        'mod_jitsi_get_session_state' => [
+                'classname' => 'mod_jitsi\external\get_session_state',
+                'methodname' => 'execute',
+                'description' => 'Get whether a session can be joined now, without secrets',
+                'type' => 'read',
+                'ajax' => true,
+                'loginrequired' => true,
+                'capabilities' => 'mod/jitsi:view',
+                'services' => [MOODLE_OFFICIAL_MOBILE_SERVICE, 'local_mobile'],
+        ],
+
+        'mod_jitsi_get_recordings' => [
+                'classname' => 'mod_jitsi\external\get_recordings',
+                'methodname' => 'execute',
+                'description' => 'List the recordings of an activity visible to the current user',
+                'type' => 'read',
+                'ajax' => true,
+                'loginrequired' => true,
+                'capabilities' => 'mod/jitsi:view, mod/jitsi:viewrecords',
+                'services' => [MOODLE_OFFICIAL_MOBILE_SERVICE, 'local_mobile'],
         ],
 
         'mod_jitsi_set_jibri_recording' => [
