@@ -658,7 +658,8 @@ export const init = (config) => {
                     db.disabled = false;
                 }
             }
-            if (!event.error) {
+            // Only users who can record change the flag (the service needs a login and mod/jitsi:record).
+            if (!event.error && config.canRecord) {
                 fire('mod_jitsi_set_jibri_recording', {jitsiid: config.jitsiid, recording: active ? 1 : 0});
             }
         }

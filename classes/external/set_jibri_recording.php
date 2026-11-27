@@ -54,9 +54,8 @@ class set_jibri_recording extends external_api {
             self::execute_parameters(),
             ['jitsiid' => $jitsiid, 'recording' => $recording]
         );
-        // Fired from the Jitsi iframe on every participant's client (including anonymous
-        // invitation guests). Only logged-in users who can record change the flag; for
-        // everybody else the call is a silent no-op so their clients do not show an error.
+        // Called by the web session and the mobile app of users who can record. The service needs
+        // a login; logged-in users without mod/jitsi:record get a silent no-op (false).
         if (!isloggedin() || isguestuser()) {
             return false;
         }

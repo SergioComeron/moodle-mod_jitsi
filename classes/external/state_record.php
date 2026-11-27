@@ -37,7 +37,7 @@ class state_record extends external_api {
     public static function execute_parameters() {
         return new external_function_parameters([
             'jitsi' => new external_value(PARAM_INT, 'Jitsi session id', VALUE_REQUIRED, '', NULL_NOT_ALLOWED),
-            'state' => new external_value(PARAM_TEXT, 'State', VALUE_REQUIRED, '', NULL_NOT_ALLOWED),
+            'state' => new external_value(PARAM_TEXT, 'Ignored, kept for compatibility with existing clients', VALUE_DEFAULT, ''),
         ]);
     }
 
@@ -45,23 +45,42 @@ class state_record extends external_api {
      * Returns record state.
      *
      * @param int $jitsi Jitsi session id
-     * @param string $state State
+     * @param string $state Ignored (kept for compatibility)
      * @return string
      */
-    public static function execute($jitsi, $state) {
-        global $USER, $DB;
+    public static function execute($jitsi, $state = '') {
+        global $DB;
 
         $params = self::validate_parameters(
             self::execute_parameters(),
             ['jitsi' => $jitsi, 'state' => $state]
         );
         // Fired from the Jitsi iframe on every participant's client (including anonymous
-        // invitation guests), so this stays login-optional. It only reads the status flag.
-        $jitsiob = $DB->get_record('jitsi', ['id' => $params['jitsi']]);
-        if (!$jitsiob) {
-            return 'recording0';
+        // invitation guests), so this stays login-optional and never throws for them: it only
+        // reads the recording flag. The real state is only reported to logged-in users who can
+        // view the activity; everybody else gets 'recording0'.
+        $notrecording = 'recording0';
+        if (!isloggedin() || isguestuser()) {
+            return $notrecording;
         }
-        return 'recording' . $jitsiob->recording;
+        $jitsiob = $DB->get_record('jitsi', ['id' => $params['jitsi']], 'id, course, status');
+        if (!$jitsiob) {
+            return $notrecording;
+        }
+        $cm = get_coursemodule_from_instance('jitsi', $jitsiob->id, $jitsiob->course, false, IGNORE_MISSING);
+        if (!$cm) {
+            return $notrecording;
+        }
+        $context = \context_module::instance($cm->id);
+        try {
+            self::validate_context($context);
+        } catch (\moodle_exception $e) {
+            return $notrecording;
+        }
+        if (!has_capability('mod/jitsi:view', $context)) {
+            return $notrecording;
+        }
+        return $jitsiob->status === 'recording' ? 'recording1' : $notrecording;
     }
 
     /**
@@ -70,6 +89,6 @@ class state_record extends external_api {
      * @return external_value
      */
     public static function execute_returns() {
-        return new external_value(PARAM_TEXT, 'State record session');
+        return new external_value(PARAM_ALPHANUM, 'recording1 while the activity is being recorded, recording0 otherwise');
     }
 }

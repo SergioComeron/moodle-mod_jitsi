@@ -282,8 +282,15 @@ class mobile {
             $mutevideoeveryone = 'mute-video-everyone';
         }
 
+        // Record and live-stream buttons only for users who can use them, with the web rules.
+        $jibrienabled = ($server->type == 3 && \mod_jitsi\local\jibri::is_ready($server));
+        $webbuttons = \mod_jitsi\local\session::build_toolbar_buttons($server, $context, false, $jibrienabled);
+        $record = in_array('recording', $webbuttons, true) ? 'recording' : '';
+        $livestreaming = in_array('livestreaming', $webbuttons, true) ? 'livestreaming' : '';
+
         $buttons = "[\"microphone\",\"camera\",\"closedcaptions\",\"" . $desktop . "\",\"fullscreen\",";
-        $buttons .= "\"fodeviceselection\",\"hangup\",\"profile\",\"chat\",\"recording\",\"etherpad\",";
+        $buttons .= "\"fodeviceselection\",\"hangup\",\"profile\",\"chat\",\"" . $record . "\",";
+        $buttons .= "\"" . $livestreaming . "\",\"etherpad\",";
         $buttons .= "\"" . $youtubeoption . "\",\"settings\",\"raisehand\",\"videoquality\",\"filmstrip\",";
         $buttons .= "\"" . $invite . "\",\"feedback\",\"stats\",\"shortcuts\",\"tileview\",\"" . $bluroption . "\",";
         $buttons .= "\"download\",\"help\",\"" . $muteeveryone . "\",\"" . $mutevideoeveryone . "\",\"" . $security . "\"]";
