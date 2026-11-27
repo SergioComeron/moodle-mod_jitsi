@@ -28,6 +28,63 @@ class session {
     const JAAS_TOKEN_LIFETIME = 4 * 3600;
 
     /**
+     * Server record used when no default server is configured (public meet.jit.si, no token).
+     *
+     * @return \stdClass
+     */
+    public static function default_server(): \stdClass {
+        return (object) [
+            'id' => 0,
+            'type' => 0,
+            'domain' => 'meet.jit.si',
+            'appid' => '',
+            'secret' => '',
+            'eightbyeightappid' => '',
+            'eightbyeightapikeyid' => '',
+            'privatekey' => '',
+        ];
+    }
+
+    /**
+     * Return the configured default server, or the public default when there is none.
+     *
+     * @return \stdClass Server record from jitsi_servers (or default_server()).
+     */
+    public static function get_server(): \stdClass {
+        global $DB;
+        $serverid = get_config('mod_jitsi', 'server');
+        $server = !empty($serverid) ? $DB->get_record('jitsi_servers', ['id' => $serverid]) : false;
+        return $server ?: self::default_server();
+    }
+
+    /**
+     * Room name a Jitsi client has to open on this server (for 8x8 JaaS, "appid/room").
+     *
+     * @param \stdClass $server Server record from jitsi_servers
+     * @param string $sessionnorm Normalized session name
+     * @return string
+     */
+    public static function room_name($server, string $sessionnorm): string {
+        if ($server->type == '2') {
+            return $server->eightbyeightappid . "/" . urlencode($sessionnorm);
+        }
+        return urlencode($sessionnorm);
+    }
+
+    /**
+     * Whether build_token() signs a JWT for this server, i.e. whether clients must send one.
+     *
+     * @param \stdClass $server Server record from jitsi_servers
+     * @return bool
+     */
+    public static function requires_jwt($server): bool {
+        if ($server->type == '2') {
+            return true;
+        }
+        return ($server->type == '1' || $server->type == '3') && !empty($server->appid) && !empty($server->secret);
+    }
+
+    /**
      * Build the room name and (optionally) the signed JWT for a session, per server type.
      *
      * Server types: 0 = public (no token), 1 = self-hosted (HS256), 2 = 8x8 JaaS (RS256),
@@ -88,7 +145,7 @@ class session {
                     ],
                 ],
             ]);
-            $roomname = $eightbyeightappid . "/" . urlencode($sessionnorm);
+            $roomname = self::room_name($server, $sessionnorm);
             $payloadencoded = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($payload));
             $headerencoded = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($header));
             openssl_sign($headerencoded . "." . $payloadencoded, $signature, $privatykey, OPENSSL_ALGO_SHA256);
@@ -127,11 +184,7 @@ class session {
         }
 
         $jwt = null;
-        if (
-            ($servertype == '1' && ($appid != null && $secret != null)) ||
-            ($servertype == '3' && ($appid != null && $secret != null)) ||
-            $servertype == '2'
-        ) {
+        if (self::requires_jwt($server)) {
             $signatureencoded = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($signature));
             $jwt = $headerencoded . "." . $payloadencoded . "." . $signatureencoded;
         }
