@@ -84,6 +84,77 @@ class session {
         return ($server->type == '1' || $server->type == '3') && !empty($server->appid) && !empty($server->secret);
     }
 
+    /** @var string Recording is started from the Jitsi toolbar (the client's own record button). */
+    const RECORDING_MODE_NATIVE = 'native';
+    /** @var string Recording is started from the Moodle record button (GCP Jibri or 8x8 JaaS). */
+    const RECORDING_MODE_MOODLE = 'moodle';
+    /** @var string The user cannot record or stream here. */
+    const RECORDING_MODE_NONE = 'none';
+
+    /**
+     * What the current user can record or stream in an activity, with the web session rules.
+     *
+     * Mirrors build_toolbar_buttons() (native Jitsi record and live-stream buttons) and create()
+     * (Moodle record, stream and Dropbox buttons) for a normal (not private, not universal) session.
+     *
+     * @param \stdClass $server Server record from jitsi_servers
+     * @param \context $context Module context
+     * @param \stdClass $jitsi Activity record
+     * @return array canrecord, ismoderator, filerecording, streaming, dropbox, mode, streamingmode
+     */
+    public static function recording_options($server, \context $context, \stdClass $jitsi): array {
+        global $DB;
+        $servertype = (int) $server->type;
+        $canrecord = has_capability('mod/jitsi:record', $context);
+        $ismoderator = has_capability('mod/jitsi:moderation', $context);
+        $jibrienabled = ($servertype == 3 && \mod_jitsi\local\jibri::is_ready($server));
+        $notshared = empty($jitsi->sessionwithtoken);
+        $record = get_config('mod_jitsi', 'record') == 1;
+        $livebutton = get_config('mod_jitsi', 'livebutton') == 1;
+        $streamingoption = (int) get_config('mod_jitsi', 'streamingoption');
+
+        // Same rule as build_toolbar_buttons(): on GCP, and on 8x8 with recordingoption=1, the
+        // Moodle button replaces Jitsi's own.
+        $moodlerecordbtn = ($servertype == 3)
+            || ($servertype == 2 && get_config('mod_jitsi', 'recordingoption') == 1);
+        $nativerecord = $record && $canrecord && !$moodlerecordbtn;
+        $canrecordhere = ($servertype == 3 && $jibrienabled)
+            || ($servertype == 2 && $record && get_config('mod_jitsi', 'recordingoption') == 1);
+        $moodlerecord = $canrecord && $canrecordhere && $notshared;
+
+        $streamready = $livebutton && $canrecord && ($servertype != 3 || $jibrienabled);
+        $nativestream = $streamready && $streamingoption == 0;
+        $moodlestream = $streamready && $streamingoption == 1 && $notshared
+            && $DB->record_exists('jitsi_record_account', ['inuse' => 1]);
+
+        $dropboxkey = trim((string) get_config('mod_jitsi', 'dropbox_appkey')) !== '';
+        $dropbox = $dropboxkey && (($servertype == 2 && $moodlerecord) || ($servertype != 2 && $nativerecord));
+
+        $filerecording = $nativerecord || $moodlerecord;
+        $mode = self::RECORDING_MODE_NONE;
+        if ($moodlerecord) {
+            $mode = self::RECORDING_MODE_MOODLE;
+        } else if ($nativerecord) {
+            $mode = self::RECORDING_MODE_NATIVE;
+        }
+        $streamingmode = self::RECORDING_MODE_NONE;
+        if ($moodlestream) {
+            $streamingmode = self::RECORDING_MODE_MOODLE;
+        } else if ($nativestream) {
+            $streamingmode = self::RECORDING_MODE_NATIVE;
+        }
+
+        return [
+            'canrecord' => $canrecord,
+            'ismoderator' => $ismoderator,
+            'filerecording' => $filerecording,
+            'streaming' => $nativestream || $moodlestream,
+            'dropbox' => $dropbox,
+            'mode' => $mode,
+            'streamingmode' => $streamingmode,
+        ];
+    }
+
     /**
      * Build the room name and (optionally) the signed JWT for a session, per server type.
      *

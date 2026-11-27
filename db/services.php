@@ -411,13 +411,26 @@ $functions = [
                 'services' => [MOODLE_OFFICIAL_MOBILE_SERVICE, 'local_mobile'],
         ],
 
+        'mod_jitsi_get_recording_options' => [
+                'classname' => 'mod_jitsi\external\get_recording_options',
+                'methodname' => 'execute',
+                'description' => 'Get what the current user can record or stream in an activity',
+                'type' => 'read',
+                'ajax' => true,
+                'loginrequired' => true,
+                'capabilities' => 'mod/jitsi:view',
+                'services' => [MOODLE_OFFICIAL_MOBILE_SERVICE, 'local_mobile'],
+        ],
+
         'mod_jitsi_set_jibri_recording' => [
                 'classname' => 'mod_jitsi\external\set_jibri_recording',
                 'methodname' => 'execute',
-                'description' => 'Set GCP recording status on a jitsi session',
+                'description' => 'Set the recording status flag of a jitsi session (users with mod/jitsi:record)',
                 'type' => 'write',
                 'ajax' => true,
-                'loginrequired' => false,
+                'loginrequired' => true,
+                'capabilities' => 'mod/jitsi:record',
+                'services' => [MOODLE_OFFICIAL_MOBILE_SERVICE, 'local_mobile'],
         ],
 
         'mod_jitsi_get_jibri_recording' => [
