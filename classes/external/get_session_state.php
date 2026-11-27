@@ -85,19 +85,13 @@ class get_session_state extends external_api {
             $state = self::STATE_OPEN;
         }
 
+        // Same server, room and token rules as the web session and mobile_session_view.
+        $server = \mod_jitsi\local\session::get_server();
         $session = \mod_jitsi\local\room::for_activity($jitsi, $course);
-        $room = $session === null ? '' : \mod_jitsi\local\room::normalize_session_name($session);
-
-        $domain = 'meet.jit.si';
-        $jwtrequired = false;
-        $serverid = get_config('mod_jitsi', 'server');
-        if (!empty($serverid)) {
-            $server = $DB->get_record('jitsi_servers', ['id' => $serverid], 'id, domain, appid, secret');
-            if ($server) {
-                $domain = (string) $server->domain;
-                $jwtrequired = !empty($server->appid) && !empty($server->secret);
-            }
-        }
+        $room = $session === null ? ''
+            : \mod_jitsi\local\session::room_name($server, \mod_jitsi\local\room::normalize_session_name($session));
+        $domain = (string) $server->domain;
+        $jwtrequired = \mod_jitsi\local\session::requires_jwt($server);
 
         return [
             'state' => $state,
@@ -123,9 +117,9 @@ class get_session_state extends external_api {
             'timeclose' => new external_value(PARAM_INT, 'Closing time (Unix), 0 if none'),
             'minpretime' => new external_value(PARAM_INT, 'Minutes before timeopen when users can join'),
             'minutesbefore' => new external_value(PARAM_INT, 'Minutes left until users can join, 0 if open or closed'),
-            'room' => new external_value(PARAM_TEXT, 'Normalised room name'),
+            'room' => new external_value(PARAM_TEXT, 'Room name the client must open (appid/room on 8x8 JaaS)'),
             'domain' => new external_value(PARAM_TEXT, 'Jitsi server domain'),
-            'jwt_required' => new external_value(PARAM_BOOL, 'Whether the server requires a JWT to join'),
+            'jwt_required' => new external_value(PARAM_BOOL, 'Whether a JWT (from mobile_session_view) must be sent to join'),
         ]);
     }
 }

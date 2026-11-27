@@ -204,23 +204,9 @@ class mobile {
      */
     public static function mobile_session_view($args) {
         global $OUTPUT, $CFG, $DB, $USER;
-        $serverid = get_config('mod_jitsi', 'server');
-
-        // Default values for when no server is configured.
-        $servertype = 0;
-        $appid = null;
-        $domain = 'meet.jit.si';
-        $serversecret = null;
-
-        if (!empty($serverid)) {
-            $server = $DB->get_record('jitsi_servers', ['id' => $serverid]);
-            if ($server) {
-                $servertype = $server->type;
-                $appid = $server->appid;
-                $domain = $server->domain;
-                $serversecret = $server->secret;
-            }
-        }
+        // Same server, room and token as the web session (session.php), for every server type.
+        $server = \mod_jitsi\local\session::get_server();
+        $domain = $server->domain;
 
         // Ionic 3 (Moodle app appversioncode < 3950, ~2020) is no longer supported.
         $foldername = 'ionic5';
@@ -254,39 +240,19 @@ class mobile {
                 $nombre = $USER->firstname . ' ' . $USER->lastname;
                 break;
         }
-        $avatar = $CFG->wwwroot . '/user/pix.php/' . $USER->id . '/f1.jpg';
+        $avatar = get_config('mod_jitsi', 'showavatars') ? $CFG->wwwroot . '/user/pix.php/' . $USER->id . '/f1.jpg' : null;
 
-        $header = json_encode([
-            "kid" => "jitsi/custom_key_name",
-            "typ" => "JWT",
-            "alg" => "HS256",
-        ], JSON_UNESCAPED_SLASHES);
-        $base64urlheader = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($header));
-
-        $payload = json_encode([
-            "context" => [
-                "user" => [
-                    "affiliation" => $affiliation,
-                    "avatar" => $avatar,
-                    "name" => $nombre,
-                    "email" => "",
-                    "id" => "",
-                ],
-                "group" => "",
-            ],
-            "aud" => "jitsi",
-            "iss" => $appid,
-            "sub" => $domain,
-            "room" => urlencode($sessionnorm),
-            "exp" => time() + 24 * 3600,
-            "moderator" => $teacher,
-        ], JSON_UNESCAPED_SLASHES);
-        $base64urlpayload = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($payload));
-
-        $signature = hash_hmac('sha256', $base64urlheader . "." . $base64urlpayload, $serversecret, true);
-        $base64urlsignature = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($signature));
-
-        $jwt = $base64urlheader . "." . $base64urlpayload . "." . $base64urlsignature;
+        $mail = get_config('mod_jitsi', 'sendemail') ? $USER->email : null;
+        $token = \mod_jitsi\local\session::build_token(
+            $server,
+            $context,
+            $sessionnorm,
+            $teacher,
+            $affiliation,
+            $nombre,
+            $avatar,
+            $mail
+        );
 
         $desktop = 'desktop';
 
@@ -323,8 +289,8 @@ class mobile {
         $buttons .= "\"download\",\"help\",\"" . $muteeveryone . "\",\"" . $mutevideoeveryone . "\",\"" . $security . "\"]";
 
         $data = [];
-        if ($appid != null && $serversecret != null) {
-            $data['jwt'] = 'jwt=' . $jwt;
+        if ($token['jwt'] !== null) {
+            $data['jwt'] = 'jwt=' . $token['jwt'];
         }
 
         $config = '&config.channelLastN=' . get_config('mod_jitsi', 'channellastcam');
@@ -346,7 +312,7 @@ class mobile {
 
         $data['is_desktop'] = $args['appisdesktop'];
         $data['jitsi_domain'] = $domain;
-        $data['room'] = $sessionnorm;
+        $data['room'] = $token['roomname'];
 
         return [
             'templates' => [
